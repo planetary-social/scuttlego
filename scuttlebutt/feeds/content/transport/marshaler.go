@@ -3,7 +3,6 @@ package transport
 import (
 	"encoding/json"
 	"fmt"
-
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/logging"
 	"github.com/planetary-social/go-ssb/scuttlebutt/feeds/content"
@@ -53,6 +52,7 @@ func (m *Marshaler) Unmarshal(b []byte) (message.MessageContent, error) {
 
 	cnt, err := mapping.Unmarshal(b)
 	if err != nil {
+		m.logger.WithField("typ", typ).WithError(err).WithField("raw", string(b)).Debug("mapping returned an error")
 		return nil, errors.Wrapf(err, "mapping '%s' returned an error", typ)
 	}
 
@@ -62,6 +62,7 @@ func (m *Marshaler) Unmarshal(b []byte) (message.MessageContent, error) {
 func (m *Marshaler) identifyContentType(b []byte) (message.MessageContentType, error) {
 	var typ messageContentType
 	if err := json.Unmarshal(b, &typ); err != nil {
+		m.logger.Debug(string(b))
 		return "", errors.Wrap(err, "json unmarshal of message content type failed")
 	}
 	if typ.MessageContentType == string((content.Unknown{}).Type()) {

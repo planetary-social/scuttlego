@@ -54,11 +54,15 @@ func (r GossipReplicator) Replicate(ctx context.Context, peer network.Peer) erro
 }
 
 func (r GossipReplicator) replicateFeedTask(peer network.Peer, feed ReplicateFeedTask) error {
+	r.logger.WithField("feed", feed.Id.String()).WithField("state", feed.State).Debug("new replicate task")
+
 	n, err := r.replicateFeed(peer, feed)
 	if err != nil {
 		r.logger.WithField("n", n).WithError(err).Error("could not replicate a feed")
 		return errors.Wrap(err, "replication failed")
 	}
+
+	r.logger.WithField("n", n).Debug("replicated feed")
 
 	return nil
 }

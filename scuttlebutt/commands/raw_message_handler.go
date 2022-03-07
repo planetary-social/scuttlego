@@ -26,12 +26,17 @@ func NewRawMessageHandler(transaction TransactionProvider, identifier RawMessage
 }
 
 func (h *RawMessageHandler) Handle(rawMsg message.RawMessage) error {
-	h.logger.WithField("raw", string(rawMsg.Bytes())).Debug("handling a raw message")
+	//h.logger.WithField("raw", string(rawMsg.Bytes())).Debug("handling a raw message")
 
 	msg, err := h.identifier.IdentifyRawMessage(rawMsg)
 	if err != nil {
 		return errors.Wrap(err, "failed to identify the raw message")
 	}
+
+	h.logger.
+		WithField("sequence", msg.Sequence()).
+		WithField("feed", msg.Feed().String()).
+		Debug("handling a new message")
 
 	if err := h.transaction.Transact(func(adapters Adapters) error {
 		return h.storeMessage(adapters, msg)

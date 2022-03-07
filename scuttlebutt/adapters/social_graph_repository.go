@@ -41,6 +41,12 @@ func (s *SocialGraphRepository) Block(who, contact refs.Identity) error {
 	})
 }
 
+func (s *SocialGraphRepository) Unblock(who refs.Identity, contact refs.Identity) error {
+	return s.modifyContact(who, contact, func(c *storedContact) {
+		c.Blocking = false
+	})
+}
+
 func (s *SocialGraphRepository) GetContacts(node refs.Identity) ([]refs.Identity, error) {
 	bucket, err := s.getFeedBucket(node)
 	if err != nil {

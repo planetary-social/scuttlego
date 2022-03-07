@@ -56,13 +56,23 @@ func (g *SocialGraph) dfs(depth int, node refs.Identity, s Storage) error {
 
 func (g *SocialGraph) Contacts() []refs.Identity {
 	var result []refs.Identity
-	for key := range g.graph {
-		result = append(result, refs.MustNewIdentity(key))
+	for key, distance := range g.graph {
+		if g.closeEnough(distance) {
+			result = append(result, refs.MustNewIdentity(key))
+		}
 	}
 	return result
 }
 
 func (g *SocialGraph) HasContact(contact refs.Identity) bool {
-	_, ok := g.graph[contact.String()]
+	distance, ok := g.graph[contact.String()]
+	// todo solve this differently
+	if !g.closeEnough(distance) {
+		return false
+	}
 	return ok
+}
+
+func (g *SocialGraph) closeEnough(distance int) bool {
+	return distance < 3
 }

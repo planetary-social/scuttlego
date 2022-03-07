@@ -82,9 +82,11 @@ func NewMessageHeader(flags MessageHeaderFlags, bodyLength uint32, requestNumber
 			return MessageHeader{}, errors.New("requests should have body type set to JSON")
 		}
 
-		if flags.EndOrError {
-			return MessageHeader{}, errors.New("requests should not have the end or error bit set")
-		}
+		// todo this seems to be false for messages closing the stream
+
+		//if flags.EndOrError {
+		//	return MessageHeader{}, errors.New("requests should not have the end or error bit set")
+		//}
 	}
 
 	return header, nil

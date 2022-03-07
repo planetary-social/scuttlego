@@ -55,7 +55,6 @@ func NewConnection(
 	return conn, nil
 }
 
-// todo use context
 func (s *Connection) PerformRequest(ctx context.Context, req *Request) (*ResponseStream, error) {
 	encodedType, err := s.encodeProcedureType(req.Type())
 	if err != nil {
@@ -97,7 +96,7 @@ func (s *Connection) PerformRequest(ctx context.Context, req *Request) (*Respons
 		return nil, errors.Wrap(err, "could not create a message")
 	}
 
-	stream := s.newResponseStream(&msg)
+	stream := s.newResponseStream(ctx, &msg)
 
 	if err := s.raw.Send(&msg); err != nil {
 		return nil, errors.Wrap(err, "could not send a message")
@@ -106,7 +105,7 @@ func (s *Connection) PerformRequest(ctx context.Context, req *Request) (*Respons
 	return stream, nil
 }
 
-func (s *Connection) newResponseStream(msg *transport.Message) *ResponseStream {
+func (s *Connection) newResponseStream(ctx context.Context, msg *transport.Message) *ResponseStream {
 	s.responseStreamsLock.Lock()
 	defer s.responseStreamsLock.Unlock()
 
@@ -116,7 +115,7 @@ func (s *Connection) newResponseStream(msg *transport.Message) *ResponseStream {
 		panic("response stream with this number already exists")
 	}
 
-	rs := NewResponseStream(s, number)
+	rs := NewResponseStream(ctx, s, number)
 	s.responseStreams[number] = rs
 	return rs
 }
@@ -143,8 +142,46 @@ func (s *Connection) closeResponseStreamWithoutLock(number int) {
 		return
 	}
 
+	go func() {
+		if err := s.sendCloseStream(number); err != nil {
+			s.logger.WithError(err).Error("failed to close the stream")
+		}
+	}()
+
 	delete(s.responseStreams, number)
 	close(stream.ch)
+	stream.cancel()
+}
+
+func (s *Connection) sendCloseStream(number int) error {
+	// todo do this correctly
+	flags := transport.MessageHeaderFlags{
+		Stream:     true,
+		EndOrError: true,
+		BodyType:   transport.MessageBodyTypeJSON,
+	}
+
+	j := []byte("true")
+
+	header, err := transport.NewMessageHeader(
+		flags,
+		uint32(len(j)),
+		int32(number),
+	)
+	if err != nil {
+		return errors.Wrap(err, "could not create a message header")
+	}
+
+	msg, err := transport.NewMessage(header, j)
+	if err != nil {
+		return errors.Wrap(err, "could not create a message")
+	}
+
+	if err := s.raw.Send(&msg); err != nil {
+		return errors.Wrap(err, "could not send a message")
+	}
+
+	return nil
 }
 
 func (s *Connection) Close() error {
@@ -169,10 +206,10 @@ func (c *Connection) read() error {
 		return errors.Wrap(err, "failed to read the next message")
 	}
 
-	c.logger.
-		WithField("number", msg.Header.RequestNumber()).
-		WithField("body", string(msg.Body)).
-		Debug("received a new message")
+	//c.logger.
+	//	WithField("number", msg.Header.RequestNumber()).
+	//	WithField("body", string(msg.Body)).
+	//	Debug("received a new message")
 
 	if msg.Header.IsRequest() {
 		return c.handleIncomingRequest(msg)
@@ -296,14 +333,25 @@ type ResponseStream struct {
 	ch     chan ResponseWithError
 	conn   *Connection
 	number int
+	cancel context.CancelFunc
 }
 
-func NewResponseStream(conn *Connection, number int) *ResponseStream {
-	return &ResponseStream{
+func NewResponseStream(ctx context.Context, conn *Connection, number int) *ResponseStream {
+	ctx, cancel := context.WithCancel(ctx)
+
+	rs := &ResponseStream{
 		ch:     make(chan ResponseWithError),
 		number: number,
 		conn:   conn,
+		cancel: cancel,
 	}
+
+	go func() {
+		<-ctx.Done()
+		rs.Close()
+	}()
+
+	return rs
 }
 
 func (rs ResponseStream) Channel() <-chan ResponseWithError {

@@ -132,8 +132,12 @@ func (b BoltFeedRepository) saveContact(contact feeds.ContactToSave) error {
 		return b.graph.Follow(contact.Who(), contact.Msg().Contact())
 	case content.ContactActionUnfollow:
 		return b.graph.Unfollow(contact.Who(), contact.Msg().Contact())
+	case content.ContactActionBlock:
+		return b.graph.Block(contact.Who(), contact.Msg().Contact())
+	case content.ContactActionUnblock:
+		return b.graph.Unblock(contact.Who(), contact.Msg().Contact())
 	default:
-		return fmt.Errorf("unknown contact action '%T'", contact.Msg().Action())
+		return fmt.Errorf("unknown contact action '%#v'", contact.Msg().Action())
 	}
 }
 

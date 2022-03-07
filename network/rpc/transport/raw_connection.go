@@ -38,7 +38,7 @@ func (s RawConnection) Next() (*Message, error) {
 		return nil, errors.Wrap(err, "could not read the message body")
 	}
 
-	s.logger.WithField("body", string(bodyBuf)).Debug("receivedMessage")
+	//s.logger.WithField("body", string(bodyBuf)).Debug("receivedMessage")
 
 	msg, err := NewMessage(messageHeader, bodyBuf)
 	if err != nil {
@@ -49,7 +49,7 @@ func (s RawConnection) Next() (*Message, error) {
 }
 
 func (s RawConnection) Send(msg *Message) error {
-	s.logger.WithField("body", string(msg.Body)).Debug("sending message")
+	//s.logger.WithField("body", string(msg.Body)).Debug("sending message")
 
 	b, err := msg.Header.Bytes()
 	if err != nil {

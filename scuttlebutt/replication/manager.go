@@ -66,6 +66,8 @@ func (m Manager) sendFeedsToReplicate(ctx context.Context, ch chan ReplicateFeed
 		return errors.Wrap(err, "could not get contacts")
 	}
 
+	m.logger.WithField("n", len(contacts)).Debug("got contacts to replicate")
+
 	for _, contact := range contacts {
 		task := ReplicateFeedTask{
 			Id:    contact.Who,

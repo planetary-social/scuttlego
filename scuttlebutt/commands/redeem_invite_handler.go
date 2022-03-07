@@ -112,7 +112,6 @@ func (h *RedeemInviteHandler) redeemInvite(ctx context.Context, cmd RedeemInvite
 	if err != nil {
 		return errors.Wrap(err, "failed to perform a request")
 	}
-	defer rs.Close()
 
 	response, ok := <-rs.Channel()
 	if !ok {

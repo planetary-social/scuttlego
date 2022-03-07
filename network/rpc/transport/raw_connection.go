@@ -38,18 +38,24 @@ func (s RawConnection) Next() (*Message, error) {
 		return nil, errors.Wrap(err, "could not read the message body")
 	}
 
-	//s.logger.WithField("body", string(bodyBuf)).Debug("receivedMessage")
-
 	msg, err := NewMessage(messageHeader, bodyBuf)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create a message")
 	}
 
+	s.logger.
+		WithField("number", msg.Header.RequestNumber()).
+		WithField("body", string(msg.Body)).
+		Debug("received a new message")
+
 	return &msg, nil
 }
 
 func (s RawConnection) Send(msg *Message) error {
-	//s.logger.WithField("body", string(msg.Body)).Debug("sending message")
+	s.logger.
+		WithField("number", msg.Header.RequestNumber()).
+		WithField("body", string(msg.Body)).
+		Debug("sending a message")
 
 	b, err := msg.Header.Bytes()
 	if err != nil {

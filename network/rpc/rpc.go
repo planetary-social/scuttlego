@@ -4,12 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"sync"
-
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/logging"
 	"github.com/planetary-social/go-ssb/network/rpc/transport"
+	"io"
 )
 
 var ErrEndOrErr = errors.New("end or error")
@@ -32,8 +30,7 @@ type Connection struct {
 	incomingRequestNumber int
 
 	outgoingRequestNumber int
-	responseStreams       map[int]*ResponseStream
-	responseStreamsLock   sync.Mutex
+	responseStreams       *ResponseStreams
 
 	logger logging.Logger
 }
@@ -43,10 +40,11 @@ func NewConnection(
 	requestHandler RequestHandler,
 	logger logging.Logger,
 ) (*Connection, error) {
+	raw := transport.NewRawConnection(rw, logger)
 	conn := &Connection{
-		raw:             transport.NewRawConnection(rw, logger),
+		raw:             raw,
 		requestHandler:  requestHandler,
-		responseStreams: make(map[int]*ResponseStream),
+		responseStreams: NewResponseStreams(raw, logger),
 		logger:          logger.New("connection"),
 	}
 
@@ -56,7 +54,7 @@ func NewConnection(
 }
 
 func (s *Connection) PerformRequest(ctx context.Context, req *Request) (*ResponseStream, error) {
-	encodedType, err := s.encodeProcedureType(req.Type())
+	encodedType, err := encodeProcedureType(req.Type())
 	if err != nil {
 		return nil, errors.Wrap(err, "could not encode the procedure type")
 	}
@@ -71,8 +69,6 @@ func (s *Connection) PerformRequest(ctx context.Context, req *Request) (*Respons
 	if err != nil {
 		return nil, errors.Wrap(err, "could not marshal the request body")
 	}
-
-	s.logger.WithField("message", string(j)).Debug("sending a raw message")
 
 	s.outgoingRequestNumber++
 
@@ -96,7 +92,10 @@ func (s *Connection) PerformRequest(ctx context.Context, req *Request) (*Respons
 		return nil, errors.Wrap(err, "could not create a message")
 	}
 
-	stream := s.newResponseStream(ctx, &msg)
+	stream, err := s.responseStreams.Open(ctx, msg.Header.RequestNumber())
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to open a response stream")
+	}
 
 	if err := s.raw.Send(&msg); err != nil {
 		return nil, errors.Wrap(err, "could not send a message")
@@ -105,92 +104,13 @@ func (s *Connection) PerformRequest(ctx context.Context, req *Request) (*Respons
 	return stream, nil
 }
 
-func (s *Connection) newResponseStream(ctx context.Context, msg *transport.Message) *ResponseStream {
-	s.responseStreamsLock.Lock()
-	defer s.responseStreamsLock.Unlock()
-
-	number := msg.Header.RequestNumber()
-
-	if _, ok := s.responseStreams[number]; ok {
-		panic("response stream with this number already exists")
-	}
-
-	rs := NewResponseStream(ctx, s, number)
-	s.responseStreams[number] = rs
-	return rs
-}
-
-func (s *Connection) closeAllResponseStreams() {
-	s.responseStreamsLock.Lock()
-	defer s.responseStreamsLock.Unlock()
-
-	for number := range s.responseStreams {
-		s.closeResponseStreamWithoutLock(number)
-	}
-}
-
-func (s *Connection) closeResponseStream(number int) {
-	s.responseStreamsLock.Lock()
-	defer s.responseStreamsLock.Unlock()
-
-	s.closeResponseStreamWithoutLock(number)
-}
-
-func (s *Connection) closeResponseStreamWithoutLock(number int) {
-	stream, ok := s.responseStreams[number]
-	if !ok {
-		return
-	}
-
-	go func() {
-		if err := s.sendCloseStream(number); err != nil {
-			s.logger.WithError(err).Error("failed to close the stream")
-		}
-	}()
-
-	delete(s.responseStreams, number)
-	close(stream.ch)
-	stream.cancel()
-}
-
-func (s *Connection) sendCloseStream(number int) error {
-	// todo do this correctly
-	flags := transport.MessageHeaderFlags{
-		Stream:     true,
-		EndOrError: true,
-		BodyType:   transport.MessageBodyTypeJSON,
-	}
-
-	j := []byte("true")
-
-	header, err := transport.NewMessageHeader(
-		flags,
-		uint32(len(j)),
-		int32(number),
-	)
-	if err != nil {
-		return errors.Wrap(err, "could not create a message header")
-	}
-
-	msg, err := transport.NewMessage(header, j)
-	if err != nil {
-		return errors.Wrap(err, "could not create a message")
-	}
-
-	if err := s.raw.Send(&msg); err != nil {
-		return errors.Wrap(err, "could not send a message")
-	}
-
-	return nil
-}
-
 func (s *Connection) Close() error {
 	return s.raw.Close()
 }
 
 func (c *Connection) readLoop() {
 	defer c.raw.Close()
-	defer c.closeAllResponseStreams()
+	defer c.responseStreams.Close()
 
 	for {
 		if err := c.read(); err != nil {
@@ -206,47 +126,10 @@ func (c *Connection) read() error {
 		return errors.Wrap(err, "failed to read the next message")
 	}
 
-	//c.logger.
-	//	WithField("number", msg.Header.RequestNumber()).
-	//	WithField("body", string(msg.Body)).
-	//	Debug("received a new message")
-
 	if msg.Header.IsRequest() {
 		return c.handleIncomingRequest(msg)
 	} else {
-		return c.handleIncomingResponse(msg)
-	}
-}
-
-const (
-	transportStringForProcedureTypeSource = "source"
-	transportStringForProcedureTypeDuplex = "duplex"
-	transportStringForProcedureTypeAsync  = "async"
-)
-
-func (s *Connection) decodeProcedureType(str string) ProcedureType {
-	switch str {
-	case transportStringForProcedureTypeSource:
-		return ProcedureTypeSource
-	case transportStringForProcedureTypeDuplex:
-		return ProcedureTypeDuplex
-	case transportStringForProcedureTypeAsync:
-		return ProcedureTypeAsync
-	default:
-		return ProcedureTypeUnknown
-	}
-}
-
-func (s *Connection) encodeProcedureType(t ProcedureType) (string, error) {
-	switch t {
-	case ProcedureTypeSource:
-		return transportStringForProcedureTypeSource, nil
-	case ProcedureTypeDuplex:
-		return transportStringForProcedureTypeDuplex, nil
-	case ProcedureTypeAsync:
-		return transportStringForProcedureTypeAsync, nil
-	default:
-		return "", fmt.Errorf("unknown procedure type %T", t)
+		return c.responseStreams.HandleIncomingResponse(msg)
 	}
 }
 
@@ -266,7 +149,7 @@ func (s *Connection) handleIncomingRequest(msg *transport.Message) error {
 		return errors.Wrap(err, "could not create a procedure name")
 	}
 
-	procedureType := s.decodeProcedureType(requestBody.Type)
+	procedureType := decodeProcedureType(requestBody.Type)
 
 	req, err := NewRequest(
 		procedureName,
@@ -283,82 +166,34 @@ func (s *Connection) handleIncomingRequest(msg *transport.Message) error {
 	return nil
 }
 
-func (s *Connection) handleIncomingResponse(msg *transport.Message) error {
-	s.responseStreamsLock.Lock()
-	defer s.responseStreamsLock.Unlock()
+const (
+	transportStringForProcedureTypeSource = "source"
+	transportStringForProcedureTypeDuplex = "duplex"
+	transportStringForProcedureTypeAsync  = "async"
+)
 
-	rs, ok := s.responseStreams[-msg.Header.RequestNumber()]
-	if !ok {
-		return nil
-	}
-
-	if msg.Header.Flags().EndOrError {
-		rs.ch <- ResponseWithError{
-			Value: NewResponse(msg.Body),
-			Err:   ErrEndOrErr,
-		}
-		s.closeResponseStreamWithoutLock(rs.number)
-	} else {
-		rs.ch <- ResponseWithError{
-			Value: NewResponse(msg.Body),
-			Err:   nil,
-		}
-	}
-
-	return nil
-}
-
-type ResponseWriter struct {
-	req  *Request
-	conn *Connection
-}
-
-func NewResponseWriter(req *Request, conn *Connection) ResponseWriter {
-	return ResponseWriter{
-		req:  req,
-		conn: conn,
+func decodeProcedureType(str string) ProcedureType {
+	switch str {
+	case transportStringForProcedureTypeSource:
+		return ProcedureTypeSource
+	case transportStringForProcedureTypeDuplex:
+		return ProcedureTypeDuplex
+	case transportStringForProcedureTypeAsync:
+		return ProcedureTypeAsync
+	default:
+		return ProcedureTypeUnknown
 	}
 }
 
-func (rw ResponseWriter) OpenResponseStream(bodyType transport.MessageBodyType) io.WriteCloser {
-	panic("not implemented")
-}
-
-type ResponseWithError struct {
-	Value *Response
-	Err   error
-}
-
-type ResponseStream struct {
-	ch     chan ResponseWithError
-	conn   *Connection
-	number int
-	cancel context.CancelFunc
-}
-
-func NewResponseStream(ctx context.Context, conn *Connection, number int) *ResponseStream {
-	ctx, cancel := context.WithCancel(ctx)
-
-	rs := &ResponseStream{
-		ch:     make(chan ResponseWithError),
-		number: number,
-		conn:   conn,
-		cancel: cancel,
+func encodeProcedureType(t ProcedureType) (string, error) {
+	switch t {
+	case ProcedureTypeSource:
+		return transportStringForProcedureTypeSource, nil
+	case ProcedureTypeDuplex:
+		return transportStringForProcedureTypeDuplex, nil
+	case ProcedureTypeAsync:
+		return transportStringForProcedureTypeAsync, nil
+	default:
+		return "", fmt.Errorf("unknown procedure type %T", t)
 	}
-
-	go func() {
-		<-ctx.Done()
-		rs.Close()
-	}()
-
-	return rs
-}
-
-func (rs ResponseStream) Channel() <-chan ResponseWithError {
-	return rs.ch
-}
-
-func (rs ResponseStream) Close() error {
-	rs.conn.closeResponseStream(rs.number)
-	return nil
 }

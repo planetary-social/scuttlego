@@ -11,7 +11,6 @@ type RawMessageIdentifier interface {
 	IdentifyRawMessage(raw message.RawMessage) (message.Message, error)
 }
 
-// RawMessageHandler processes incoming content retrieved through various replication methods.
 type RawMessageHandler struct {
 	transaction TransactionProvider
 	identifier  RawMessageIdentifier
@@ -35,28 +34,31 @@ func (h *RawMessageHandler) Handle(rawMsg message.RawMessage) error {
 	}
 
 	if err := h.transaction.Transact(func(adapters Adapters) error {
-		has, err := adapters.SocialGraph.HasContact(msg.Author())
-		if err != nil {
-			return errors.Wrap(err, "could not check the social graph")
-		}
-
-		if !has {
-			return nil // do nothing as this contact is not in our social graph
-		}
-
-		if err := adapters.Feed.UpdateFeed(msg.Feed(), func(feed *feeds.Feed) (*feeds.Feed, error) {
-			if err := feed.AppendMessage(msg); err != nil {
-				return nil, errors.Wrap(err, "could not append a message")
-			}
-
-			return feed, nil
-		}); err != nil {
-			return errors.Wrap(err, "failed to update the feed")
-		}
-
-		return nil
+		return h.storeMessage(adapters, msg)
 	}); err != nil {
 		return errors.Wrap(err, "transaction failed")
+	}
+
+	return nil
+}
+
+func (h *RawMessageHandler) storeMessage(adapters Adapters, msg message.Message) error {
+	socialGraph, err := adapters.SocialGraph.GetSocialGraph()
+	if err != nil {
+		return errors.Wrap(err, "could not load the social graph")
+	}
+
+	if !socialGraph.HasContact(msg.Author()) {
+		return nil // do nothing as this contact is not in our social graph
+	}
+
+	if err := adapters.Feed.UpdateFeed(msg.Feed(), func(feed *feeds.Feed) (*feeds.Feed, error) {
+		if err := feed.AppendMessage(msg); err != nil {
+			return nil, errors.Wrap(err, "could not append a message")
+		}
+		return feed, nil
+	}); err != nil {
+		return errors.Wrap(err, "failed to update the feed")
 	}
 
 	return nil

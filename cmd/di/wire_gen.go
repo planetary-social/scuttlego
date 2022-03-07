@@ -17,6 +17,7 @@ import (
 	"github.com/planetary-social/go-ssb/scuttlebutt"
 	"github.com/planetary-social/go-ssb/scuttlebutt/adapters"
 	"github.com/planetary-social/go-ssb/scuttlebutt/commands"
+	"github.com/planetary-social/go-ssb/scuttlebutt/feeds"
 	"github.com/planetary-social/go-ssb/scuttlebutt/feeds/content/transport"
 	"github.com/planetary-social/go-ssb/scuttlebutt/feeds/formats"
 	"github.com/planetary-social/go-ssb/scuttlebutt/replication"
@@ -27,31 +28,44 @@ import (
 
 // Injectors from wire.go:
 
-func BuildAdaptersForTest(tx *bbolt.Tx) (TestAdapters, error) {
+func BuildAdapters(tx *bbolt.Tx, private identity.Private) (commands.Adapters, error) {
 	messageContentMappings := transport.DefaultMappings()
 	logger := newLogger()
 	marshaler, err := transport.NewMarshaler(messageContentMappings, logger)
 	if err != nil {
-		return TestAdapters{}, err
+		return commands.Adapters{}, err
 	}
-	v := formats.AllFormats(marshaler)
+	scuttlebutt := formats.NewScuttlebutt(marshaler)
+	v := newFormats(scuttlebutt)
 	rawMessageIdentifier := formats.NewRawMessageIdentifier(v)
-	socialGraphRepository := adapters.NewSocialGraphRepository(tx)
-	boltFeedRepository := adapters.NewBoltFeedRepository(tx, rawMessageIdentifier, socialGraphRepository)
-	testAdapters := TestAdapters{
-		Feed: boltFeedRepository,
-	}
-	return testAdapters, nil
-}
-
-func BuildAdapters(tx *bbolt.Tx, rawMessageIdentifier adapters.RawMessageIdentifier) (commands.Adapters, error) {
-	socialGraphRepository := adapters.NewSocialGraphRepository(tx)
-	boltFeedRepository := adapters.NewBoltFeedRepository(tx, rawMessageIdentifier, socialGraphRepository)
+	public := newPublicIdentity(private)
+	socialGraphRepository := adapters.NewSocialGraphRepository(tx, public)
+	boltFeedRepository := adapters.NewBoltFeedRepository(tx, rawMessageIdentifier, socialGraphRepository, scuttlebutt)
 	commandsAdapters := commands.Adapters{
 		Feed:        boltFeedRepository,
 		SocialGraph: socialGraphRepository,
 	}
 	return commandsAdapters, nil
+}
+
+func BuildAdaptersForContactsRepository(tx *bbolt.Tx, private identity.Private) (adapters.Repositories, error) {
+	messageContentMappings := transport.DefaultMappings()
+	logger := newLogger()
+	marshaler, err := transport.NewMarshaler(messageContentMappings, logger)
+	if err != nil {
+		return adapters.Repositories{}, err
+	}
+	scuttlebutt := formats.NewScuttlebutt(marshaler)
+	v := newFormats(scuttlebutt)
+	rawMessageIdentifier := formats.NewRawMessageIdentifier(v)
+	public := newPublicIdentity(private)
+	socialGraphRepository := adapters.NewSocialGraphRepository(tx, public)
+	boltFeedRepository := adapters.NewBoltFeedRepository(tx, rawMessageIdentifier, socialGraphRepository, scuttlebutt)
+	repositories := adapters.Repositories{
+		Feed:  boltFeedRepository,
+		Graph: socialGraphRepository,
+	}
+	return repositories, nil
 }
 
 func BuildService(private identity.Private) (Service, error) {
@@ -63,20 +77,23 @@ func BuildService(private identity.Private) (Service, error) {
 	logger := newLogger()
 	mux := rpc.NewMux(logger)
 	peerInitializer := network.NewPeerInitializer(handshaker, mux, logger)
-	manager := replication.NewManager(logger)
 	db, err := newBolt()
 	if err != nil {
 		return Service{}, err
 	}
+	repositoriesFactory := newContactRepositoriesFactory(private)
+	boltContactsRepository := adapters.NewBoltContactsRepository(db, repositoriesFactory)
+	manager := replication.NewManager(logger, boltContactsRepository)
+	adaptersFactory := newAdaptersFactory(private)
+	transactionProvider := adapters.NewTransactionProvider(db, adaptersFactory)
 	messageContentMappings := transport.DefaultMappings()
 	marshaler, err := transport.NewMarshaler(messageContentMappings, logger)
 	if err != nil {
 		return Service{}, err
 	}
-	v := formats.AllFormats(marshaler)
+	formatsScuttlebutt := formats.NewScuttlebutt(marshaler)
+	v := newFormats(formatsScuttlebutt)
 	rawMessageIdentifier := formats.NewRawMessageIdentifier(v)
-	adaptersFactory := newAdaptersFactory(rawMessageIdentifier)
-	transactionProvider := adapters.NewTransactionProvider(db, adaptersFactory)
 	rawMessageHandler := commands.NewRawMessageHandler(transactionProvider, rawMessageIdentifier, logger)
 	gossipReplicator, err := replication.NewGossipReplicator(manager, rawMessageHandler, logger)
 	if err != nil {
@@ -92,7 +109,7 @@ func BuildService(private identity.Private) (Service, error) {
 		return Service{}, err
 	}
 	redeemInviteHandler := commands.NewRedeemInviteHandler(dialer, transactionProvider, networkKey, private, mux, logger)
-	followHandler := commands.NewFollowHandler(logger)
+	followHandler := commands.NewFollowHandler(transactionProvider, private, logger)
 	connectHandler := commands.NewConnectHandler(dialer, peerManager, logger)
 	application := commands.Application{
 		RedeemInvite: redeemInviteHandler,
@@ -107,15 +124,25 @@ func BuildService(private identity.Private) (Service, error) {
 
 var applicationSet = wire.NewSet(wire.Struct(new(commands.Application), "*"), commands.NewRedeemInviteHandler, commands.NewFollowHandler, commands.NewConnectHandler)
 
+var replicatorSet = wire.NewSet(replication.NewManager, wire.Bind(new(replication.ReplicationManager), new(*replication.Manager)), replication.NewGossipReplicator, wire.Bind(new(scuttlebutt.Replicator), new(*replication.GossipReplicator)))
+
+var formatsSet = wire.NewSet(
+	newFormats, formats.NewScuttlebutt, transport.NewMarshaler, wire.Bind(new(formats.Marshaler), new(*transport.Marshaler)), transport.DefaultMappings, formats.NewRawMessageIdentifier, wire.Bind(new(commands.RawMessageIdentifier), new(*formats.RawMessageIdentifier)), wire.Bind(new(adapters.RawMessageIdentifier), new(*formats.RawMessageIdentifier)),
+)
+
 type TestAdapters struct {
 	Feed *adapters.BoltFeedRepository
 }
 
-var replicatorSet = wire.NewSet(replication.NewManager, wire.Bind(new(replication.ReplicationManager), new(*replication.Manager)), replication.NewGossipReplicator, wire.Bind(new(scuttlebutt.Replicator), new(*replication.GossipReplicator)))
-
-func newAdaptersFactory(identifier adapters.RawMessageIdentifier) adapters.AdaptersFactory {
+func newAdaptersFactory(local identity.Private) adapters.AdaptersFactory {
 	return func(tx *bbolt.Tx) (commands.Adapters, error) {
-		return BuildAdapters(tx, identifier)
+		return BuildAdapters(tx, local)
+	}
+}
+
+func newContactRepositoriesFactory(local identity.Private) adapters.RepositoriesFactory {
+	return func(tx *bbolt.Tx) (adapters.Repositories, error) {
+		return BuildAdaptersForContactsRepository(tx, local)
 	}
 }
 
@@ -127,8 +154,20 @@ func newBolt() (*bbolt.DB, error) {
 	return b, nil
 }
 
+func newPublicIdentity(p identity.Private) identity.Public {
+	return p.Public()
+}
+
 func newLogger() logging.Logger {
 	log := logrus.New()
 	log.SetLevel(logrus.DebugLevel)
 	return logging.NewLogrusLogger(log, "main")
+}
+
+func newFormats(
+	s *formats.Scuttlebutt,
+) []feeds.FeedFormat {
+	return []feeds.FeedFormat{
+		s,
+	}
 }

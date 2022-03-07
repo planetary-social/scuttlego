@@ -3,6 +3,7 @@ package commands
 import (
 	"github.com/planetary-social/go-ssb/refs"
 	"github.com/planetary-social/go-ssb/scuttlebutt/feeds"
+	"github.com/planetary-social/go-ssb/scuttlebutt/graph"
 )
 
 type TransactionProvider interface {
@@ -20,5 +21,5 @@ type FeedRepository interface {
 }
 
 type SocialGraphRepository interface {
-	HasContact(contact refs.Identity) (bool, error)
+	GetSocialGraph() (*graph.SocialGraph, error)
 }

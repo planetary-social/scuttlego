@@ -3,6 +3,8 @@ package adapters
 import (
 	"encoding/binary"
 	"fmt"
+	"github.com/planetary-social/go-ssb/scuttlebutt/feeds/formats"
+
 	"github.com/planetary-social/go-ssb/scuttlebutt/feeds/content"
 
 	"github.com/boreq/errors"
@@ -18,20 +20,23 @@ type RawMessageIdentifier interface {
 }
 
 type BoltFeedRepository struct {
-	tx         *bbolt.Tx
-	identifier RawMessageIdentifier
-	graph      *SocialGraphRepository
+	tx                *bbolt.Tx
+	identifier        RawMessageIdentifier
+	graph             *SocialGraphRepository
+	formatScuttlebutt *formats.Scuttlebutt
 }
 
 func NewBoltFeedRepository(
 	tx *bbolt.Tx,
 	identifier RawMessageIdentifier,
 	graph *SocialGraphRepository,
+	formatScuttlebutt *formats.Scuttlebutt,
 ) *BoltFeedRepository {
 	return &BoltFeedRepository{
-		tx:         tx,
-		identifier: identifier,
-		graph:      graph,
+		tx:                tx,
+		identifier:        identifier,
+		graph:             graph,
+		formatScuttlebutt: formatScuttlebutt,
 	}
 }
 
@@ -42,7 +47,7 @@ func (b BoltFeedRepository) UpdateFeed(ref refs.Feed, f func(feed *feeds.Feed) (
 	}
 
 	if feed == nil {
-		feed = feeds.NewFeed()
+		feed = feeds.NewFeed(b.formatScuttlebutt)
 	}
 
 	feed, err = f(feed)
@@ -50,7 +55,7 @@ func (b BoltFeedRepository) UpdateFeed(ref refs.Feed, f func(feed *feeds.Feed) (
 		return errors.Wrap(err, "provided function returned an error")
 	}
 
-	return b.saveFeed(feed)
+	return b.saveFeed(ref, feed)
 }
 func (b BoltFeedRepository) GetFeed(ref refs.Feed) (*feeds.Feed, error) {
 	f, err := b.loadFeed(ref)
@@ -88,7 +93,7 @@ func (b BoltFeedRepository) loadFeed(ref refs.Feed) (*feeds.Feed, error) {
 		return nil, errors.Wrap(err, "could not identify the raw message")
 	}
 
-	feed, err := feeds.NewFeedFromHistory(msg)
+	feed, err := feeds.NewFeedFromHistory(msg, b.formatScuttlebutt)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not recreate a feed from history")
 	}
@@ -96,11 +101,11 @@ func (b BoltFeedRepository) loadFeed(ref refs.Feed) (*feeds.Feed, error) {
 	return feed, nil
 }
 
-func (b BoltFeedRepository) saveFeed(feed *feeds.Feed) error {
+func (b BoltFeedRepository) saveFeed(ref refs.Feed, feed *feeds.Feed) error {
 	msgs, contacts := feed.PopForPersisting()
 
 	if len(msgs) != 0 {
-		bucket, err := b.createFeedBucket(feed.Ref())
+		bucket, err := b.createFeedBucket(ref)
 		if err != nil {
 			return errors.Wrap(err, "could not create the bucket")
 		}

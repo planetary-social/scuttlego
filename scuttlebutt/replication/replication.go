@@ -20,7 +20,7 @@ type ReplicateFeedTask struct {
 type ReplicationManager interface {
 	// GetFeedsToReplicate returns a channel on which replication tasks are received. The channel stays open as long
 	// as the passed context isn't cancelled. Cancelling the context cancels all child contexts in the received tasks.
-	GetFeedsToReplicate(ctx context.Context) (<-chan ReplicateFeedTask, error)
+	GetFeedsToReplicate(ctx context.Context) <-chan ReplicateFeedTask
 }
 
 type RawMessageHandler interface {
@@ -42,23 +42,25 @@ func NewGossipReplicator(manager ReplicationManager, handler RawMessageHandler, 
 }
 
 func (r GossipReplicator) Replicate(ctx context.Context, peer network.Peer) error {
-	feedsToReplicateCh, err := r.manager.GetFeedsToReplicate(ctx)
-	if err != nil {
-		return errors.Wrap(err, "could not get feeds to replicate")
-	}
+	feedsToReplicateCh := r.manager.GetFeedsToReplicate(ctx)
 
 	for feed := range feedsToReplicateCh {
-		go r.replicateFeedTask(peer, feed)
+		if err := r.replicateFeedTask(peer, feed); err != nil {
+			return errors.Wrap(err, "could not replicate")
+		}
 	}
 
 	return nil
 }
 
-func (r GossipReplicator) replicateFeedTask(peer network.Peer, feed ReplicateFeedTask) {
+func (r GossipReplicator) replicateFeedTask(peer network.Peer, feed ReplicateFeedTask) error {
 	n, err := r.replicateFeed(peer, feed)
 	if err != nil {
 		r.logger.WithField("n", n).WithError(err).Error("could not replicate a feed")
+		return errors.Wrap(err, "replication failed")
 	}
+
+	return nil
 }
 
 func (r GossipReplicator) replicateFeed(peer network.Peer, feed ReplicateFeedTask) (int, error) {

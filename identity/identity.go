@@ -46,6 +46,16 @@ func NewPrivate() (Private, error) {
 	}, nil
 }
 
+func NewPrivateFromBytes(b []byte) (Private, error) {
+	if len(b) != ed25519.PrivateKeySize {
+		return Private{}, errors.New("invalid key size")
+	}
+
+	return Private{
+		key: b,
+	}, nil
+}
+
 func NewPrivateFromSeed(seed []byte) (Private, error) {
 	if len(seed) != ed25519.SeedSize {
 		return Private{}, errors.New("invalid seed size")

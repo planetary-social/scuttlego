@@ -1,12 +1,11 @@
 package di
 
 import (
-	"github.com/planetary-social/go-ssb/refs"
-	"time"
-
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/network"
+	"github.com/planetary-social/go-ssb/refs"
 	"github.com/planetary-social/go-ssb/scuttlebutt/commands"
+	"time"
 )
 
 type Service struct {
@@ -17,6 +16,10 @@ type Service struct {
 func NewService(listener network.Listener, app commands.Application) Service {
 	return Service{listener: listener, app: app}
 }
+
+var (
+	myPatchwork = refs.MustNewIdentity("@qFtLJ6P5Eh9vKxnj7Rsh8SkE6B6Z36DVLP7ZOKNeQ/Y=.ed25519")
+)
 
 func (s Service) Run() error {
 	errCh := make(chan error)
@@ -40,16 +43,25 @@ func (s Service) Run() error {
 	go func() {
 		<-time.After(5 * time.Second)
 
-		remote := refs.MustNewIdentity("@qFtLJ6P5Eh9vKxnj7Rsh8SkE6B6Z36DVLP7ZOKNeQ/Y=.ed25519")
-
 		err := s.app.Connect.Handle(commands.Connect{
-			Remote:  remote.Identity(),
+			Remote:  myPatchwork.Identity(),
 			Address: network.NewAddress("127.0.0.1:8008"),
 		})
 		if err != nil {
 			panic(err)
 		}
 	}()
+
+	//go func() {
+	//	<-time.After(5 * time.Second)
+
+	//	err := s.app.Follow.Handle(commands.Follow{
+	//		Target: myPatchwork,
+	//	})
+	//	if err != nil {
+	//		panic(err)
+	//	}
+	//}()
 
 	runners++
 	go func() {

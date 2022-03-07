@@ -2,64 +2,84 @@ package replication
 
 import (
 	"context"
+	"time"
+
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/logging"
 	"github.com/planetary-social/go-ssb/refs"
-	"github.com/planetary-social/go-ssb/scuttlebutt/feeds"
 )
 
 var ErrFeedNotFound = errors.New("feed not found")
 
-type FeedStorage interface {
-	GetFeed(ref refs.Feed) (*feeds.Feed, error)
+type Storage interface {
+	GetContacts() ([]Contact, error)
+}
+
+type Contact struct {
+	Who       refs.Feed
+	FeedState FeedState
 }
 
 type Manager struct {
-	//feedStorage FeedStorage
-	logger logging.Logger
+	storage Storage
+	logger  logging.Logger
 }
 
-func NewManager(logger logging.Logger /*, feedStorage FeedStorage*/) *Manager {
+func NewManager(logger logging.Logger, storage Storage) *Manager {
 	return &Manager{
-		//feedStorage: feedStorage,
-		logger: logger.New("manager"),
+		storage: storage,
+		logger:  logger.New("manager"),
 	}
 }
 
-func (m Manager) GetFeedsToReplicate(ctx context.Context) (<-chan ReplicateFeedTask, error) {
+func (m Manager) GetFeedsToReplicate(ctx context.Context) <-chan ReplicateFeedTask {
 	ch := make(chan ReplicateFeedTask)
 
-	go func() {
-		for _, ref := range m.getFeedsToReplicate() {
-			feedState, err := m.getFeedState(ref)
-			if err != nil {
-				panic(err) // todo do not panic
-			}
+	go m.sendFeedsToReplicateLoop(ctx, ch)
 
-			ch <- ReplicateFeedTask{
-				Id:    ref,
-				State: feedState,
-				Ctx:   ctx,
-			}
+	return ch
+}
+
+func (m Manager) sendFeedsToReplicateLoop(ctx context.Context, ch chan ReplicateFeedTask) {
+	// todo make this event driven
+	for {
+		batchCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+
+		if err := m.sendFeedsToReplicate(batchCtx, ch); err != nil {
+			m.logger.WithError(err).Error("could not send feeds to replicate")
 		}
-	}()
 
-	return ch, nil
-}
-
-func (m Manager) getFeedState(ref refs.Feed) (FeedState, error) {
-	//feed, err := m.feedStorage.GetFeed(ref)
-	//if err != nil {
-	//	if errors.Is(err, ErrFeedNotFound) {
-	//		return NewEmptyFeedState(), nil
-	//	}
-	//	return FeedState{}, errors.Wrap(err, "could not get a feed")
-	//}
-	return NewEmptyFeedState(), nil
-}
-
-func (m Manager) getFeedsToReplicate() []refs.Feed {
-	return []refs.Feed{
-		refs.MustNewFeed("@qFtLJ6P5Eh9vKxnj7Rsh8SkE6B6Z36DVLP7ZOKNeQ/Y=.ed25519"),
+		select {
+		case <-batchCtx.Done():
+			cancel()
+			continue
+		case <-ctx.Done():
+			cancel()
+			return
+		}
 	}
+}
+
+func (m Manager) sendFeedsToReplicate(ctx context.Context, ch chan ReplicateFeedTask) error {
+	contacts, err := m.storage.GetContacts()
+	if err != nil {
+		return errors.Wrap(err, "could not get contacts")
+	}
+
+	for _, contact := range contacts {
+		task := ReplicateFeedTask{
+			Id:    contact.Who,
+			State: contact.FeedState,
+			Ctx:   ctx,
+		}
+
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case ch <- task:
+			continue
+		}
+	}
+
+	return nil
 }

@@ -13,12 +13,16 @@ import (
 type Feed struct {
 	lastMsg *message.Message
 
+	format FeedFormat
+
 	messagesToSave []message.Message
 	contactsToSave []ContactToSave
 }
 
-func NewFeed() *Feed {
-	return &Feed{}
+func NewFeed(format FeedFormat) *Feed {
+	return &Feed{
+		format: format,
+	}
 }
 
 //func NewFeedFromMessageContent(content message.MessageContent, timestamp time.Time, private identity.Private) (*Feed, error) {
@@ -51,9 +55,10 @@ func NewFeed() *Feed {
 //	return nil, errors.New("not implemented")
 //}
 
-func NewFeedFromHistory(lastMsg message.Message) (*Feed, error) {
+func NewFeedFromHistory(lastMsg message.Message, format FeedFormat) (*Feed, error) {
 	return &Feed{
 		lastMsg: &lastMsg,
+		format:  format,
 	}, nil
 }
 
@@ -100,38 +105,49 @@ func (f *Feed) AppendMessage(msg message.Message) error {
 }
 
 func (f *Feed) CreateMessage(content message.MessageContent, timestamp time.Time, private identity.Private) error {
-	return errors.New("not implemented")
-	// todo identify feed format, right now lets just hardcode it as we support only default ones
-	//format := formats.NewScuttlebutt()
+	unsigned, err := f.createMessage(content, timestamp, private.Public())
+	if err != nil {
+		return errors.Wrap(err, "failed to create a new unsigned message")
+	}
 
-	//previousId := f.lastMsg.Id()
+	msg, err := f.format.Sign(unsigned, private)
+	if err != nil {
+		return errors.Wrap(err, "failed to sign the new message")
+	}
 
-	//unsigned, err := message.NewUnsignedMessage(
-	//	&previousId,
-	//	f.lastMsg.Sequence().Next(),
-	//	f.lastMsg.Author(),
-	//	f.lastMsg.Feed(),
-	//	timestamp,
-	//	content,
-	//)
-	//if err != nil {
-	//	return errors.Wrap(err, "failed to create a new unsigned message")
-	//}
-
-	//msg, err := format.Sign(unsigned, private)
-	//if err != nil {
-	//	return errors.Wrap(err, "failed to sign the new message")
-	//}
-
-	//return f.onNewMessage(msg)
+	return f.onNewMessage(msg)
 }
 
-func (f *Feed) Ref() refs.Feed {
-	return f.lastMsg.Feed()
+func (f *Feed) createMessage(content message.MessageContent, timestamp time.Time, author identity.Public) (message.UnsignedMessage, error) {
+	authorRef, err := refs.NewIdentityFromPublic(author)
+	if err != nil {
+		return message.UnsignedMessage{}, errors.Wrap(err, "could not create an author")
+	}
+
+	if f.lastMsg != nil {
+		previousId := f.lastMsg.Id()
+		return message.NewUnsignedMessage(
+			&previousId,
+			f.lastMsg.Sequence().Next(),
+			authorRef,
+			f.lastMsg.Feed(),
+			timestamp,
+			content,
+		)
+	} else {
+		return message.NewUnsignedMessage(
+			nil,
+			message.FirstSequence,
+			authorRef,
+			authorRef.MainFeed(),
+			timestamp,
+			content,
+		)
+	}
 }
 
 func (f *Feed) Sequence() message.Sequence {
-	return f.lastMsg.Sequence()
+	return f.lastMsg.Sequence() // todo can be nil
 }
 
 func (f *Feed) PopForPersisting() ([]message.Message, []ContactToSave) {

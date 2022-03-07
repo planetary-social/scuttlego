@@ -40,3 +40,32 @@ func TestMarshaler(t *testing.T) {
 	_, err = f.Sign(unsignedMessage, author)
 	require.NoError(t, err)
 }
+
+// todo abstract away dependencies
+func TestMarshalerPrevious(t *testing.T) {
+	marshaler, err := transport.NewMarshaler(transport.DefaultMappings(), logging.NewLogrusLogger(logrus.New(), "test"))
+	require.NoError(t, err)
+
+	f := NewScuttlebutt(marshaler)
+
+	author, err := identity.NewPrivate()
+	require.NoError(t, err)
+
+	authorRef, err := refs.NewIdentityFromPublic(author.Public())
+	require.NoError(t, err)
+
+	previous := fixtures.SomeRefMessage()
+
+	unsignedMessage, err := message.NewUnsignedMessage(
+		&previous,
+		message.MustNewSequence(2),
+		authorRef,
+		authorRef.MainFeed(),
+		time.Now(),
+		content.MustNewContact(fixtures.SomeRefAuthor(), content.ContactActionFollow),
+	)
+	require.NoError(t, err)
+
+	_, err = f.Sign(unsignedMessage, author)
+	require.NoError(t, err)
+}

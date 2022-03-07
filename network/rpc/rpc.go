@@ -55,6 +55,7 @@ func NewConnection(
 	return conn, nil
 }
 
+// todo use context
 func (s *Connection) PerformRequest(ctx context.Context, req *Request) (*ResponseStream, error) {
 	encodedType, err := s.encodeProcedureType(req.Type())
 	if err != nil {

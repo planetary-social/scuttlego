@@ -87,7 +87,7 @@ func (s *Scuttlebutt) Verify(raw message.RawMessage) (message.Message, error) {
 func (s *Scuttlebutt) Sign(unsigned message.UnsignedMessage, private identity.Private) (message.Message, error) {
 	var previous *ssbrefs.MessageRef
 	if unsigned.Previous() != nil {
-		tmp, err := ssbrefs.NewMessageRefFromBytes(unsigned.Previous().Bytes(), ssbrefs.RefAlgoFeedSSB1)
+		tmp, err := ssbrefs.NewMessageRefFromBytes(unsigned.Previous().Bytes(), ssbrefs.RefAlgoMessageSSB1)
 		if err != nil {
 			return message.Message{}, errors.New("could not create a ref")
 		}

@@ -2,21 +2,25 @@ package adapters
 
 import (
 	"encoding/json"
+	"github.com/planetary-social/go-ssb/identity"
+	"github.com/planetary-social/go-ssb/scuttlebutt/graph"
+
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/refs"
 	"go.etcd.io/bbolt"
 )
 
 type SocialGraphRepository struct {
-	tx *bbolt.Tx
+	local identity.Public
+	tx    *bbolt.Tx
 }
 
-func NewSocialGraphRepository(tx *bbolt.Tx) *SocialGraphRepository {
-	return &SocialGraphRepository{tx: tx}
+func NewSocialGraphRepository(tx *bbolt.Tx, local identity.Public) *SocialGraphRepository {
+	return &SocialGraphRepository{tx: tx, local: local}
 }
 
-func (r SocialGraphRepository) HasContact(contact refs.Identity) (bool, error) {
-	return true, nil
+func (s *SocialGraphRepository) GetSocialGraph() (*graph.SocialGraph, error) {
+	return graph.NewSocialGraph(s.local, s)
 }
 
 func (s *SocialGraphRepository) Follow(who, contact refs.Identity) error {
@@ -35,6 +39,41 @@ func (s *SocialGraphRepository) Block(who, contact refs.Identity) error {
 	return s.modifyContact(who, contact, func(c *storedContact) {
 		c.Blocking = true
 	})
+}
+
+func (s *SocialGraphRepository) GetContacts(node refs.Identity) ([]refs.Identity, error) {
+	bucket, err := s.getFeedBucket(node)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not create a bucket")
+	}
+
+	if bucket == nil {
+		return nil, nil
+	}
+
+	var result []refs.Identity
+
+	if err := bucket.ForEach(func(k, v []byte) error {
+		contactRef, err := refs.NewIdentity(string(k)) // todo is this certainly a copy or are we reusing the slice illegally
+		if err != nil {
+			return errors.Wrap(err, "could not create contact ref")
+		}
+
+		var c storedContact
+		if err := json.Unmarshal(v, &c); err != nil {
+			return errors.Wrap(err, "failed to unmarshal the value")
+		}
+
+		if c.Following {
+			result = append(result, contactRef)
+		}
+
+		return nil
+	}); err != nil {
+		return nil, errors.Wrap(err, "iteration failed")
+	}
+
+	return result, nil
 }
 
 func (s *SocialGraphRepository) modifyContact(who, contact refs.Identity, f func(c *storedContact)) error {

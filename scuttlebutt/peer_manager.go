@@ -5,26 +5,19 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/planetary-social/go-ssb/logging"
 	"github.com/planetary-social/go-ssb/network"
-	"github.com/planetary-social/go-ssb/network/rpc"
 )
-
-type RPC interface {
-	Serve(ctx context.Context, conn *rpc.Connection) error
-}
 
 type Replicator interface {
 	Replicate(ctx context.Context, peer network.Peer) error
 }
 
 type PeerManager struct {
-	rpc        RPC
 	replicator Replicator
 	logger     logging.Logger
 }
 
-func NewPeerManager(rpc RPC, replicator Replicator, logger logging.Logger) *PeerManager {
+func NewPeerManager(replicator Replicator, logger logging.Logger) *PeerManager {
 	return &PeerManager{
-		rpc:        rpc,
 		replicator: replicator,
 		logger:     logger.New("peer_manager"),
 	}
@@ -49,15 +42,6 @@ func (p PeerManager) handleConnection(peer network.Peer) error {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	tasks := 0
-
-	tasks++
-	go func() {
-		defer cancel()
-		defer p.logger.Debug("serve task terminating")
-		if err := p.rpc.Serve(ctx, peer.Conn()); err != nil {
-			ch <- err
-		}
-	}()
 
 	tasks++
 	go func() {

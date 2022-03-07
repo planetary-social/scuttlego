@@ -11,14 +11,20 @@ import (
 )
 
 type PeerInitializer struct {
-	handshaker boxstream.Handshaker
-	logger     logging.Logger
+	handshaker     boxstream.Handshaker
+	requestHandler rpc.RequestHandler
+	logger         logging.Logger
 }
 
-func NewPeerInitializer(handshaker boxstream.Handshaker, logger logging.Logger) *PeerInitializer {
+func NewPeerInitializer(
+	handshaker boxstream.Handshaker,
+	requestHandler rpc.RequestHandler,
+	logger logging.Logger,
+) *PeerInitializer {
 	return &PeerInitializer{
-		handshaker: handshaker,
-		logger:     logger,
+		handshaker:     handshaker,
+		requestHandler: requestHandler,
+		logger:         logger,
 	}
 }
 
@@ -41,7 +47,7 @@ func (i PeerInitializer) InitializeClientPeer(rwc io.ReadWriteCloser, remote ide
 }
 
 func (i PeerInitializer) initializePeer(boxStream *boxstream.Stream) (Peer, error) {
-	rpcConn, err := rpc.NewConnection(boxStream, i.logger)
+	rpcConn, err := rpc.NewConnection(boxStream, i.requestHandler, i.logger)
 	if err != nil {
 		return Peer{}, errors.Wrap(err, "failed to establish an RPC connection")
 	}

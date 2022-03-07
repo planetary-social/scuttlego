@@ -2,6 +2,7 @@ package boxstream
 
 import (
 	"bytes"
+	"github.com/hashicorp/go-multierror"
 	"io"
 
 	"github.com/boreq/errors"
@@ -92,8 +93,10 @@ func (s *Stream) Read(p []byte) (n int, err error) {
 }
 
 func (s Stream) Close() error {
-	s.boxer.WriteGoodbye()
-	return s.closer.Close()
+	var err error
+	err = multierror.Append(err, s.boxer.WriteGoodbye())
+	err = multierror.Append(err, s.closer.Close())
+	return err
 }
 
 // writeChunk accepts at most 4096 bytes.

@@ -49,14 +49,6 @@ func newIdentityFromString(s string) (identity, error) {
 	return identity{s: s, k: public}, nil
 }
 
-func mustNewIdentityFromString(s string) identity {
-	i, err := newIdentityFromString(s)
-	if err != nil {
-		panic(err)
-	}
-	return i
-}
-
 func newIdentityFromPublic(public ssbidentity.Public) (identity, error) {
 	if public.IsZero() {
 		return identity{}, errors.New("zero value of identity")
@@ -106,7 +98,7 @@ func MustNewIdentity(s string) Identity {
 }
 
 func (i Identity) MainFeed() Feed {
-	return Feed{i.identity}
+	return Feed(i)
 }
 
 func (i Identity) Equal(o Identity) bool {

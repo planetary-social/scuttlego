@@ -3,11 +3,9 @@ package commands
 import (
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/logging"
-	"github.com/planetary-social/go-ssb/refs"
 )
 
 type Follow struct {
-	ref refs.Identity
 }
 
 type FollowHandler struct {

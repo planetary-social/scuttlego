@@ -4,16 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"sync"
-	"time"
-
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/logging"
 	"github.com/planetary-social/go-ssb/network/rpc/transport"
+	"io"
+	"sync"
 )
 
-const incomingRequestTimeout = 30 * time.Second
+var ErrEndOrErr = errors.New("end or error")
 
 type RawConnection interface {
 	Next() (*transport.Message, error)
@@ -21,11 +19,16 @@ type RawConnection interface {
 	Close() error
 }
 
+type RequestHandler interface {
+	HandleRequest(req *Request, conn *Connection)
+}
+
 type Connection struct {
 	raw RawConnection
 
+	requestHandler RequestHandler
+
 	incomingRequestNumber int
-	incomingRequestCh     chan *Request
 
 	outgoingRequestNumber int
 	responseStreams       map[int]*ResponseStream
@@ -34,12 +37,16 @@ type Connection struct {
 	logger logging.Logger
 }
 
-func NewConnection(rw io.ReadWriteCloser, logger logging.Logger) (*Connection, error) {
+func NewConnection(
+	rw io.ReadWriteCloser,
+	requestHandler RequestHandler,
+	logger logging.Logger,
+) (*Connection, error) {
 	conn := &Connection{
-		raw:               transport.NewRawConnection(rw),
-		incomingRequestCh: make(chan *Request),
-		responseStreams:   make(map[int]*ResponseStream),
-		logger:            logger.New("connection"),
+		raw:             transport.NewRawConnection(rw, logger),
+		requestHandler:  requestHandler,
+		responseStreams: make(map[int]*ResponseStream),
+		logger:          logger.New("connection"),
 	}
 
 	go conn.readLoop()
@@ -47,19 +54,19 @@ func NewConnection(rw io.ReadWriteCloser, logger logging.Logger) (*Connection, e
 	return conn, nil
 }
 
-func (s Connection) NextRequest(ctx context.Context) (*Request, error) {
-	select {
-	case req, ok := <-s.incomingRequestCh:
-		if !ok {
-			return nil, errors.New("channel closed")
-		}
-		return req, nil
-	case <-ctx.Done():
-		return nil, errors.New("context done")
-	}
-}
+//func (s Connection) NextRequest(ctx context.Context) (*Request, error) {
+//	select {
+//	case req, ok := <-s.incomingRequestCh:
+//		if !ok {
+//			return nil, errors.New("channel closed")
+//		}
+//		return req, nil
+//	case <-ctx.Done():
+//		return nil, errors.New("context done")
+//	}
+//}
 
-func (s Connection) PerformRequest(ctx context.Context, req Request) (*ResponseStream, error) {
+func (s *Connection) PerformRequest(ctx context.Context, req *Request) (*ResponseStream, error) {
 	encodedType, err := s.encodeProcedureType(req.Type())
 	if err != nil {
 		return nil, errors.Wrap(err, "could not encode the procedure type")
@@ -124,7 +131,7 @@ func (s *Connection) newResponseStream(msg *transport.Message) *ResponseStream {
 	return rs
 }
 
-func (s Connection) closeAllResponseStreams() {
+func (s *Connection) closeAllResponseStreams() {
 	s.responseStreamsLock.Lock()
 	defer s.responseStreamsLock.Unlock()
 
@@ -133,14 +140,14 @@ func (s Connection) closeAllResponseStreams() {
 	}
 }
 
-func (s Connection) closeResponseStream(number int) {
+func (s *Connection) closeResponseStream(number int) {
 	s.responseStreamsLock.Lock()
 	defer s.responseStreamsLock.Unlock()
 
 	s.closeResponseStreamWithoutLock(number)
 }
 
-func (s Connection) closeResponseStreamWithoutLock(number int) {
+func (s *Connection) closeResponseStreamWithoutLock(number int) {
 	stream, ok := s.responseStreams[number]
 	if !ok {
 		return
@@ -150,7 +157,7 @@ func (s Connection) closeResponseStreamWithoutLock(number int) {
 	close(stream.ch)
 }
 
-func (s Connection) Close() error {
+func (s *Connection) Close() error {
 	return s.raw.Close()
 }
 
@@ -223,7 +230,6 @@ func (s *Connection) handleIncomingRequest(msg *transport.Message) error {
 	}
 
 	var requestBody RequestBody
-
 	if err := json.Unmarshal(msg.Body, &requestBody); err != nil {
 		return errors.Wrap(err, "could not unmarshal the request body")
 	}
@@ -235,25 +241,22 @@ func (s *Connection) handleIncomingRequest(msg *transport.Message) error {
 
 	procedureType := s.decodeProcedureType(requestBody.Type)
 
-	request, err := NewRequest(
+	req, err := NewRequest(
 		procedureName,
 		procedureType,
 		msg.Header.Flags().Stream,
 		requestBody.Args,
 	)
-
-	select {
-	case s.incomingRequestCh <- &request:
-	case <-time.After(incomingRequestTimeout):
-		s.logger.Debug("dropping incoming request as they are not being processed on time") // todo is this a good idea?
+	if err != nil {
+		return errors.Wrap(err, "could not create a request")
 	}
+
+	go s.requestHandler.HandleRequest(req, s)
 
 	return nil
 }
 
-var ErrEndOrErr = errors.New("end or error")
-
-func (s Connection) handleIncomingResponse(msg *transport.Message) error {
+func (s *Connection) handleIncomingResponse(msg *transport.Message) error {
 	s.responseStreamsLock.Lock()
 	defer s.responseStreamsLock.Unlock()
 

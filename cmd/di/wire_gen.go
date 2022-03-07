@@ -8,6 +8,7 @@ package di
 
 import (
 	"github.com/boreq/errors"
+	"github.com/google/wire"
 	"github.com/planetary-social/go-ssb/identity"
 	"github.com/planetary-social/go-ssb/logging"
 	"github.com/planetary-social/go-ssb/network"
@@ -33,8 +34,8 @@ func BuildService(private identity.Private) (Service, error) {
 		return Service{}, err
 	}
 	logger := newLogger()
-	peerInitializer := network.NewPeerInitializer(handshaker, logger)
 	mux := rpc.NewMux(logger)
+	peerInitializer := network.NewPeerInitializer(handshaker, mux, logger)
 	db, err := newBolt()
 	if err != nil {
 		return Service{}, err
@@ -53,21 +54,28 @@ func BuildService(private identity.Private) (Service, error) {
 	if err != nil {
 		return Service{}, err
 	}
-	peerManager := scuttlebutt.NewPeerManager(mux, gossipReplicator, logger)
+	peerManager := scuttlebutt.NewPeerManager(gossipReplicator, logger)
 	listener, err := network.NewListener(peerInitializer, peerManager, logger)
 	if err != nil {
 		return Service{}, err
 	}
-	application := _wireApplicationValue
+	dialer, err := network.NewDialer(peerInitializer, logger)
+	if err != nil {
+		return Service{}, err
+	}
+	redeemInviteHandler := commands.NewRedeemInviteHandler(dialer, networkKey, private, boltFeedStorage, mux, logger)
+	followHandler := commands.NewFollowHandler(logger)
+	application := commands.Application{
+		RedeemInvite: redeemInviteHandler,
+		Follow:       followHandler,
+	}
 	service := NewService(listener, application)
 	return service, nil
 }
 
-var (
-	_wireApplicationValue = commands.Application{}
-)
-
 // wire.go:
+
+var applicationSet = wire.NewSet(wire.Struct(new(commands.Application), "*"), commands.NewRedeemInviteHandler, commands.NewFollowHandler)
 
 func newBolt() (*bbolt.DB, error) {
 	b, err := bbolt.Open("/tmp/tmp.bolt.db", 0600, &bbolt.Options{Timeout: 5 * time.Second})

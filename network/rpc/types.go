@@ -13,16 +13,16 @@ type Request struct {
 	arguments []byte
 }
 
-func NewRequest(name ProcedureName, typ ProcedureType, stream bool, arguments []byte) (Request, error) {
+func NewRequest(name ProcedureName, typ ProcedureType, stream bool, arguments []byte) (*Request, error) {
 	if name.IsZero() {
-		return Request{}, errors.New("zero value of request name")
+		return nil, errors.New("zero value of request name")
 	}
 
 	if typ.IsZero() {
-		return Request{}, errors.New("zero value of request type")
+		return nil, errors.New("zero value of request type")
 	}
 
-	return Request{
+	return &Request{
 		name:      name,
 		typ:       typ,
 		stream:    stream,

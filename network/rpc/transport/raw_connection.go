@@ -1,18 +1,21 @@
 package transport
 
 import (
+	"github.com/planetary-social/go-ssb/logging"
 	"io"
 
 	"github.com/boreq/errors"
 )
 
 type RawConnection struct {
-	rw io.ReadWriteCloser
+	rw     io.ReadWriteCloser
+	logger logging.Logger
 }
 
-func NewRawConnection(rw io.ReadWriteCloser) RawConnection {
+func NewRawConnection(rw io.ReadWriteCloser, logger logging.Logger) RawConnection {
 	return RawConnection{
-		rw: rw,
+		rw:     rw,
+		logger: logger.New("raw"),
 	}
 }
 
@@ -34,6 +37,8 @@ func (s RawConnection) Next() (*Message, error) {
 		return nil, errors.Wrap(err, "could not read the message body")
 	}
 
+	s.logger.WithField("body", string(bodyBuf)).Debug("receivedMessage")
+
 	msg, err := NewMessage(messageHeader, bodyBuf)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create a message")
@@ -43,6 +48,8 @@ func (s RawConnection) Next() (*Message, error) {
 }
 
 func (s RawConnection) Send(msg *Message) error {
+	s.logger.WithField("body", string(msg.Body)).Debug("sending message")
+
 	b, err := msg.Header.Bytes()
 	if err != nil {
 		return errors.Wrap(err, "failed to serialize the message header")

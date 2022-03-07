@@ -9,20 +9,20 @@ import (
 )
 
 var (
-	InviteUseProcedureName = rpc.MustNewProcedureName([]string{"invite", "user"})
+	InviteUseProcedureName = rpc.MustNewProcedureName([]string{"invite", "use"})
 	InviteUseProcedure     = rpc.MustNewProcedure(InviteUseProcedureName, rpc.ProcedureTypeAsync)
 )
 
-func NewInviteUse(arguments InviteUseArguments) (rpc.Request, error) {
+func NewInviteUse(arguments InviteUseArguments) (*rpc.Request, error) {
 	j, err := arguments.MarshalJSON()
 	if err != nil {
-		return rpc.Request{}, errors.Wrap(err, "failed to marshal arguments")
+		return nil, errors.Wrap(err, "failed to marshal arguments")
 	}
 
 	return rpc.NewRequest(
-		CreateHistoryStreamProcedure.Name(),
-		CreateHistoryStreamProcedure.Typ(),
-		true,
+		InviteUseProcedure.Name(),
+		InviteUseProcedure.Typ(),
+		false,
 		j,
 	)
 }
@@ -58,8 +58,10 @@ func NewInviteUseArgumentsFromBytes(b []byte) (InviteUseArguments, error) {
 }
 
 func (i InviteUseArguments) MarshalJSON() ([]byte, error) {
-	return json.Marshal(inviteUseArgumentsTransport{
-		Feed: i.feed.String(),
+	return json.Marshal([]inviteUseArgumentsTransport{
+		{
+			Feed: i.feed.String(),
+		},
 	})
 }
 

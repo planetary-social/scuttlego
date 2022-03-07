@@ -22,6 +22,12 @@ import (
 	"time"
 )
 
+var applicationSet = wire.NewSet(
+	wire.Struct(new(commands.Application), "*"),
+	commands.NewRedeemInviteHandler,
+	commands.NewFollowHandler,
+)
+
 func BuildService(identity.Private) (Service, error) {
 	wire.Build(
 		NewService,
@@ -44,13 +50,13 @@ func BuildService(identity.Private) (Service, error) {
 
 		network.NewPeerInitializer,
 		wire.Bind(new(network.ServerPeerInitializer), new(*network.PeerInitializer)),
-		//wire.Bind(new(network.ClientPeerInitializer), new(*network.PeerInitializer)),
+		wire.Bind(new(network.ClientPeerInitializer), new(*network.PeerInitializer)),
 
-		//network.NewDialer,
-		//wire.Bind(new(commands.Dialer), new(*network.Dialer)),
+		network.NewDialer,
+		wire.Bind(new(commands.Dialer), new(*network.Dialer)),
 
 		rpc.NewMux,
-		wire.Bind(new(scuttlebutt.RPC), new(*rpc.Mux)),
+		wire.Bind(new(rpc.RequestHandler), new(*rpc.Mux)),
 
 		replication.NewGossipReplicator,
 		wire.Bind(new(scuttlebutt.Replicator), new(*replication.GossipReplicator)),
@@ -67,9 +73,9 @@ func BuildService(identity.Private) (Service, error) {
 		transport.NewMarshaler,
 		wire.Bind(new(formats.Marshaler), new(*transport.Marshaler)),
 
-		wire.Value(commands.Application{}),
-
 		transport.DefaultMappings,
+
+		applicationSet,
 
 		newLogger,
 

@@ -25,41 +25,40 @@ type RedeemInvite struct {
 }
 
 type RedeemInviteHandler struct {
-	dialer     Dialer
-	networkKey boxstream.NetworkKey
-	local      identity.Private
-	storage    FeedStorage
-	logger     logging.Logger
+	dialer         Dialer
+	networkKey     boxstream.NetworkKey
+	local          identity.Private
+	storage        FeedStorage
+	requestHandler rpc.RequestHandler
+	logger         logging.Logger
 }
 
-func NewRedeemInviteHandler(logger logging.Logger) *RedeemInviteHandler {
+func NewRedeemInviteHandler(
+	dialer Dialer,
+	networkKey boxstream.NetworkKey,
+	local identity.Private,
+	storage FeedStorage,
+	requestHandler rpc.RequestHandler,
+	logger logging.Logger,
+) *RedeemInviteHandler {
 	return &RedeemInviteHandler{
-		logger: logger.New("follow_handler"),
+		dialer:         dialer,
+		networkKey:     networkKey,
+		local:          local,
+		storage:        storage,
+		requestHandler: requestHandler,
+		logger:         logger.New("follow_handler"),
 	}
 }
 
 func (h *RedeemInviteHandler) Handle(ctx context.Context, cmd RedeemInvite) error {
-	peer, err := h.dial(cmd)
-	if err != nil {
-		return errors.Wrap(err, "could not dial the pub")
+	if err := h.redeemInvite(ctx, cmd); err != nil {
+		return errors.Wrap(err, "could not contact the pub and redeem the invite")
 	}
-
-	req, err := h.createRequest()
-	if err != nil {
-		return errors.Wrap(err, "could not create a request")
-	}
-
-	rs, err := peer.Conn().PerformRequest(ctx, req)
-	if err != nil {
-		return errors.Wrap(err, "failed to perform a request")
-	}
-	defer rs.Close()
 
 	// todo check reply
 
 	// todo publish contact and pub content
-
-	rs.Channel()
 
 	// todo main feed or should the invite contain a feed ref?
 	follow, err := content.NewContact(cmd.Invite.Remote().MainFeed(), content.ContactActionFollow)
@@ -97,6 +96,40 @@ func (h *RedeemInviteHandler) Handle(ctx context.Context, cmd RedeemInvite) erro
 	return errors.New("not implemented")
 }
 
+func (h *RedeemInviteHandler) redeemInvite(ctx context.Context, cmd RedeemInvite) error {
+	peer, err := h.dial(cmd)
+	if err != nil {
+		return errors.Wrap(err, "could not dial the pub")
+	}
+
+	req, err := h.createRequest()
+	if err != nil {
+		return errors.Wrap(err, "could not create a request")
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	rs, err := peer.Conn().PerformRequest(ctx, req)
+	if err != nil {
+		return errors.Wrap(err, "failed to perform a request")
+	}
+	defer rs.Close()
+
+	response, ok := <-rs.Channel()
+	if !ok {
+		return errors.New("channel closed")
+	}
+
+	if response.Err != nil {
+		return errors.Wrap(err, "received an error")
+	}
+
+	h.logger.WithField("response", string(response.Value.Bytes())).Debug("response received")
+
+	return nil
+}
+
 func (h *RedeemInviteHandler) dial(cmd RedeemInvite) (network.Peer, error) {
 	local, err := identity.NewPrivateFromSeed(cmd.Invite.SecretKeySeed())
 	if err != nil {
@@ -108,7 +141,7 @@ func (h *RedeemInviteHandler) dial(cmd RedeemInvite) (network.Peer, error) {
 		return network.Peer{}, errors.Wrap(err, "could not create a handshaker")
 	}
 
-	initializer := network.NewPeerInitializer(handshaker, h.logger)
+	initializer := network.NewPeerInitializer(handshaker, h.requestHandler, h.logger)
 
 	peer, err := h.dialer.DialWithInitializer(initializer, cmd.Invite.Remote().Identity(), cmd.Invite.Address())
 	if err != nil {
@@ -118,20 +151,20 @@ func (h *RedeemInviteHandler) dial(cmd RedeemInvite) (network.Peer, error) {
 	return peer, nil
 }
 
-func (h *RedeemInviteHandler) createRequest() (rpc.Request, error) {
+func (h *RedeemInviteHandler) createRequest() (*rpc.Request, error) {
 	public, err := refs.NewIdentityFromPublic(h.local.Public())
 	if err != nil {
-		return rpc.Request{}, errors.Wrap(err, "could not create a ref")
+		return nil, errors.Wrap(err, "could not create a ref")
 	}
 
 	args, err := messages.NewInviteUseArguments(public)
 	if err != nil {
-		return rpc.Request{}, errors.Wrap(err, "could not create args")
+		return nil, errors.Wrap(err, "could not create args")
 	}
 
 	req, err := messages.NewInviteUse(args)
 	if err != nil {
-		return rpc.Request{}, errors.Wrap(err, "could not create args")
+		return nil, errors.Wrap(err, "could not create args")
 	}
 
 	return req, nil

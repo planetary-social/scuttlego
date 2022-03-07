@@ -13,10 +13,10 @@ var (
 	CreateHistoryStreamProcedure     = rpc.MustNewProcedure(CreateHistoryStreamProcedureName, rpc.ProcedureTypeSource)
 )
 
-func NewCreateHistoryStream(arguments CreateHistoryStreamArguments) (rpc.Request, error) {
+func NewCreateHistoryStream(arguments CreateHistoryStreamArguments) (*rpc.Request, error) {
 	j, err := arguments.MarshalJSON()
 	if err != nil {
-		return rpc.Request{}, errors.Wrap(err, "failed to marshal arguments")
+		return nil, errors.Wrap(err, "failed to marshal arguments")
 	}
 
 	return rpc.NewRequest(

@@ -2,6 +2,8 @@ package commands
 
 import (
 	"context"
+	"time"
+
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/identity"
 	"github.com/planetary-social/go-ssb/invites"
@@ -13,7 +15,6 @@ import (
 	"github.com/planetary-social/go-ssb/refs"
 	"github.com/planetary-social/go-ssb/scuttlebutt/feeds"
 	"github.com/planetary-social/go-ssb/scuttlebutt/feeds/content"
-	"time"
 )
 
 type Dialer interface {

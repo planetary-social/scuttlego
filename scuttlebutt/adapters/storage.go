@@ -2,6 +2,7 @@ package adapters
 
 import (
 	"encoding/binary"
+
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/refs"
 	"github.com/planetary-social/go-ssb/scuttlebutt/feeds"

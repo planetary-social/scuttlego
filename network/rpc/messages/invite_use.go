@@ -2,6 +2,7 @@ package messages
 
 import (
 	"encoding/json"
+
 	"github.com/planetary-social/go-ssb/refs"
 
 	"github.com/boreq/errors"

@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"fmt"
+
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/logging"
 )

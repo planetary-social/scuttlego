@@ -2,6 +2,7 @@ package replication
 
 import (
 	"context"
+
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/logging"
 	"github.com/planetary-social/go-ssb/refs"

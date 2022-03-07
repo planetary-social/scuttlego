@@ -2,8 +2,9 @@ package boxstream
 
 import (
 	"bytes"
-	"github.com/hashicorp/go-multierror"
 	"io"
+
+	"github.com/hashicorp/go-multierror"
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/identity"

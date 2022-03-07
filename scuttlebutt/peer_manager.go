@@ -2,6 +2,7 @@ package scuttlebutt
 
 import (
 	"context"
+
 	"github.com/hashicorp/go-multierror"
 	"github.com/planetary-social/go-ssb/logging"
 	"github.com/planetary-social/go-ssb/network"

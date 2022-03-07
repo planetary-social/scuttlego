@@ -1,13 +1,14 @@
 package formats
 
 import (
+	"time"
+
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/identity"
 	"github.com/planetary-social/go-ssb/refs"
 	"github.com/planetary-social/go-ssb/scuttlebutt/feeds/message"
 	"go.cryptoscope.co/ssb/message/legacy"
 	ssbrefs "go.mindeco.de/ssb-refs"
-	"time"
 )
 
 type Scuttlebutt struct {

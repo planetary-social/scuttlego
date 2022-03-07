@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"sync"
+
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/logging"
 	"github.com/planetary-social/go-ssb/network/rpc/transport"
-	"io"
-	"sync"
 )
 
 var ErrEndOrErr = errors.New("end or error")
@@ -53,18 +54,6 @@ func NewConnection(
 
 	return conn, nil
 }
-
-//func (s Connection) NextRequest(ctx context.Context) (*Request, error) {
-//	select {
-//	case req, ok := <-s.incomingRequestCh:
-//		if !ok {
-//			return nil, errors.New("channel closed")
-//		}
-//		return req, nil
-//	case <-ctx.Done():
-//		return nil, errors.New("context done")
-//	}
-//}
 
 func (s *Connection) PerformRequest(ctx context.Context, req *Request) (*ResponseStream, error) {
 	encodedType, err := s.encodeProcedureType(req.Type())

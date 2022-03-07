@@ -3,11 +3,12 @@ package adapters_test
 // todo build tags for integration tests
 
 import (
+	"testing"
+
 	"github.com/planetary-social/go-ssb/fixtures"
 	"github.com/planetary-social/go-ssb/scuttlebutt/adapters"
 	"github.com/planetary-social/go-ssb/scuttlebutt/replication"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestGetFeed_returns_appropriate_error_when_empty(t *testing.T) {

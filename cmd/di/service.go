@@ -2,11 +2,12 @@ package di
 
 import (
 	"context"
+	"time"
+
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/invites"
 	"github.com/planetary-social/go-ssb/network"
 	"github.com/planetary-social/go-ssb/scuttlebutt/commands"
-	"time"
 )
 
 type Service struct {

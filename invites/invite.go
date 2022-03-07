@@ -2,10 +2,11 @@ package invites
 
 import (
 	"encoding/base64"
+	"strings"
+
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/network"
 	"github.com/planetary-social/go-ssb/refs"
-	"strings"
 )
 
 type Invite struct {

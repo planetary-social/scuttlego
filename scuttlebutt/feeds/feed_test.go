@@ -1,11 +1,12 @@
 package feeds_test
 
 import (
+	"testing"
+
 	"github.com/planetary-social/go-ssb/fixtures"
 	"github.com/planetary-social/go-ssb/scuttlebutt/feeds"
 	"github.com/planetary-social/go-ssb/scuttlebutt/feeds/message"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestAppend(t *testing.T) {

@@ -1,9 +1,10 @@
 package message
 
 import (
+	"time"
+
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/refs"
-	"time"
 )
 
 type RawMessage struct {

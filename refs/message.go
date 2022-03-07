@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"encoding/base64"
 	"fmt"
-	"github.com/boreq/errors"
 	"strings"
+
+	"github.com/boreq/errors"
 )
 
 type Message struct {

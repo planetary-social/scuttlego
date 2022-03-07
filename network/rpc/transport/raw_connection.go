@@ -1,8 +1,9 @@
 package transport
 
 import (
-	"github.com/planetary-social/go-ssb/logging"
 	"io"
+
+	"github.com/planetary-social/go-ssb/logging"
 
 	"github.com/boreq/errors"
 )

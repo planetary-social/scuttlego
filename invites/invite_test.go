@@ -1,9 +1,10 @@
 package invites_test
 
 import (
+	"testing"
+
 	"github.com/planetary-social/go-ssb/invites"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestInviteString(t *testing.T) {

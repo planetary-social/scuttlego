@@ -3,15 +3,16 @@ package fixtures
 import (
 	"encoding/base64"
 	"fmt"
-	"github.com/planetary-social/go-ssb/refs"
-	"github.com/planetary-social/go-ssb/scuttlebutt/feeds/content"
-	"github.com/planetary-social/go-ssb/scuttlebutt/feeds/message"
-	bolt "go.etcd.io/bbolt"
 	"io/ioutil"
 	"math/rand"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/planetary-social/go-ssb/refs"
+	"github.com/planetary-social/go-ssb/scuttlebutt/feeds/content"
+	"github.com/planetary-social/go-ssb/scuttlebutt/feeds/message"
+	bolt "go.etcd.io/bbolt"
 )
 
 func SomeRefMessage() refs.Message {

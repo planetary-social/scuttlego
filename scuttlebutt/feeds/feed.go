@@ -1,12 +1,13 @@
 package feeds
 
 import (
+	"time"
+
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/identity"
 	"github.com/planetary-social/go-ssb/refs"
 	msgcontents "github.com/planetary-social/go-ssb/scuttlebutt/feeds/content"
 	"github.com/planetary-social/go-ssb/scuttlebutt/feeds/message"
-	"time"
 )
 
 type Feed struct {

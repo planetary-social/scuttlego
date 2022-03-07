@@ -1,11 +1,12 @@
 package network
 
 import (
+	"io"
+	"net"
+
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/identity"
 	"github.com/planetary-social/go-ssb/logging"
-	"io"
-	"net"
 )
 
 type ClientPeerInitializer interface {

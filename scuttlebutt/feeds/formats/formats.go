@@ -12,14 +12,6 @@ type Marshaler interface {
 	Unmarshal(b []byte) (message.MessageContent, error)
 }
 
-func AllFormats(
-	marshaler Marshaler,
-) []feeds.FeedFormat {
-	return []feeds.FeedFormat{
-		NewScuttlebutt(marshaler),
-	}
-}
-
 type RawMessageIdentifier struct {
 	formats []feeds.FeedFormat
 }

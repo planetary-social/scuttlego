@@ -26,6 +26,14 @@ func NewContact(contact refs.Identity, action ContactAction) (Contact, error) {
 	}, nil
 }
 
+func MustNewContact(contact refs.Identity, action ContactAction) Contact {
+	c, err := NewContact(contact, action)
+	if err != nil {
+		panic(err)
+	}
+	return c
+}
+
 func (c Contact) Contact() refs.Identity {
 	return c.contact
 }

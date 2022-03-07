@@ -1,6 +1,7 @@
 package formats
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/boreq/errors"
@@ -104,7 +105,7 @@ func (s *Scuttlebutt) Sign(unsigned message.UnsignedMessage, private identity.Pr
 		Sequence:  int64(unsigned.Sequence().Int()),
 		Timestamp: unsigned.Timestamp().UnixMilli(),
 		Hash:      "sha256",
-		Content:   marshaledContent,
+		Content:   json.RawMessage(marshaledContent),
 	}
 
 	ssbRef, raw, err := msgToSign.Sign(private.PrivateKey(), nil)
@@ -118,7 +119,9 @@ func (s *Scuttlebutt) Sign(unsigned message.UnsignedMessage, private identity.Pr
 	}
 
 	// todo maybe just return using a call to Verify?
+	return s.Verify(message.NewRawMessage(raw))
 
+	// todo cleanup
 	msg, err := message.NewMessage(
 		id,
 		unsigned.Previous(),

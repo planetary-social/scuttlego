@@ -15,7 +15,8 @@ var contactMapping = MessageContentMapping{
 		msg := con.(content.Contact)
 
 		t := transportContact{
-			Contact: msg.Contact().String(),
+			messageContentType: messageContentType{string(content.Contact{}.Type())},
+			Contact:            msg.Contact().String(),
 		}
 
 		err := marshalContactAction(msg.Action(), &t)
@@ -77,13 +78,14 @@ func marshalContactAction(action content.ContactAction, t *transportContact) err
 		t.Blocking = true
 		return nil
 	default:
-		return fmt.Errorf("unknown contact action '%T'", action)
+		return fmt.Errorf("unknown contact action '%#v'", action)
 	}
 }
 
 type transportContact struct {
-	Contact   string `json:"contact"`
-	Following bool   `json:"following"`
-	Blocking  bool   `json:"blocking"`
+	messageContentType        // todo this is stupid
+	Contact            string `json:"contact"`
+	Following          bool   `json:"following"`
+	Blocking           bool   `json:"blocking"`
 	// todo pub field
 }

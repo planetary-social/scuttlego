@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/logging"
 	"github.com/planetary-social/go-ssb/network/rpc/transport"
-	"io"
 )
 
 var ErrEndOrErr = errors.New("end or error")

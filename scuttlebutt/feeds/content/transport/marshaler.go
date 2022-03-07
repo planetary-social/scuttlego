@@ -3,6 +3,7 @@ package transport
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/logging"
 	"github.com/planetary-social/go-ssb/scuttlebutt/feeds/content"

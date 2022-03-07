@@ -2,6 +2,7 @@ package adapters
 
 import (
 	"encoding/json"
+
 	"github.com/planetary-social/go-ssb/identity"
 	"github.com/planetary-social/go-ssb/scuttlebutt/graph"
 
@@ -12,15 +13,20 @@ import (
 
 type SocialGraphRepository struct {
 	local identity.Public
+	hops  graph.Hops
 	tx    *bbolt.Tx
 }
 
-func NewSocialGraphRepository(tx *bbolt.Tx, local identity.Public) *SocialGraphRepository {
-	return &SocialGraphRepository{tx: tx, local: local}
+func NewSocialGraphRepository(tx *bbolt.Tx, local identity.Public, hops graph.Hops) *SocialGraphRepository {
+	return &SocialGraphRepository{tx: tx, local: local, hops: hops}
 }
 
 func (s *SocialGraphRepository) GetSocialGraph() (*graph.SocialGraph, error) {
-	return graph.NewSocialGraph(s.local, s)
+	localRef, err := refs.NewIdentityFromPublic(s.local)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not create a local ref")
+	}
+	return graph.NewSocialGraph(localRef, s.hops, s)
 }
 
 func (s *SocialGraphRepository) Follow(who, contact refs.Identity) error {

@@ -4,12 +4,7 @@
 package di
 
 import (
-	"github.com/planetary-social/go-ssb/scuttlebutt/feeds"
 	"time"
-
-	"github.com/planetary-social/go-ssb/scuttlebutt/feeds/content/transport"
-	"github.com/planetary-social/go-ssb/scuttlebutt/feeds/formats"
-	"github.com/planetary-social/go-ssb/scuttlebutt/replication"
 
 	"github.com/boreq/errors"
 	"github.com/google/wire"
@@ -21,6 +16,11 @@ import (
 	"github.com/planetary-social/go-ssb/scuttlebutt"
 	"github.com/planetary-social/go-ssb/scuttlebutt/adapters"
 	"github.com/planetary-social/go-ssb/scuttlebutt/commands"
+	"github.com/planetary-social/go-ssb/scuttlebutt/feeds"
+	"github.com/planetary-social/go-ssb/scuttlebutt/feeds/content/transport"
+	"github.com/planetary-social/go-ssb/scuttlebutt/feeds/formats"
+	"github.com/planetary-social/go-ssb/scuttlebutt/graph"
+	"github.com/planetary-social/go-ssb/scuttlebutt/replication"
 	"github.com/sirupsen/logrus"
 	"go.etcd.io/bbolt"
 )
@@ -78,6 +78,8 @@ type TestAdapters struct {
 //
 //}
 
+var hops = graph.MustNewHops(3)
+
 func BuildAdapters(*bbolt.Tx, identity.Private) (commands.Adapters, error) {
 	wire.Build(
 		wire.Struct(new(commands.Adapters), "*"),
@@ -92,6 +94,8 @@ func BuildAdapters(*bbolt.Tx, identity.Private) (commands.Adapters, error) {
 
 		newPublicIdentity,
 		newLogger,
+
+		wire.Value(hops),
 	)
 
 	return commands.Adapters{}, nil
@@ -108,6 +112,8 @@ func BuildAdaptersForContactsRepository(*bbolt.Tx, identity.Private) (adapters.R
 
 		newPublicIdentity,
 		newLogger,
+
+		wire.Value(hops),
 	)
 
 	return adapters.Repositories{}, nil

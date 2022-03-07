@@ -7,6 +7,8 @@
 package di
 
 import (
+	"time"
+
 	"github.com/boreq/errors"
 	"github.com/google/wire"
 	"github.com/planetary-social/go-ssb/identity"
@@ -20,10 +22,10 @@ import (
 	"github.com/planetary-social/go-ssb/scuttlebutt/feeds"
 	"github.com/planetary-social/go-ssb/scuttlebutt/feeds/content/transport"
 	"github.com/planetary-social/go-ssb/scuttlebutt/feeds/formats"
+	"github.com/planetary-social/go-ssb/scuttlebutt/graph"
 	"github.com/planetary-social/go-ssb/scuttlebutt/replication"
 	"github.com/sirupsen/logrus"
 	"go.etcd.io/bbolt"
-	"time"
 )
 
 // Injectors from wire.go:
@@ -39,7 +41,8 @@ func BuildAdapters(tx *bbolt.Tx, private identity.Private) (commands.Adapters, e
 	v := newFormats(scuttlebutt)
 	rawMessageIdentifier := formats.NewRawMessageIdentifier(v)
 	public := newPublicIdentity(private)
-	socialGraphRepository := adapters.NewSocialGraphRepository(tx, public)
+	graphHops := _wireHopsValue
+	socialGraphRepository := adapters.NewSocialGraphRepository(tx, public, graphHops)
 	boltFeedRepository := adapters.NewBoltFeedRepository(tx, rawMessageIdentifier, socialGraphRepository, scuttlebutt)
 	commandsAdapters := commands.Adapters{
 		Feed:        boltFeedRepository,
@@ -47,6 +50,10 @@ func BuildAdapters(tx *bbolt.Tx, private identity.Private) (commands.Adapters, e
 	}
 	return commandsAdapters, nil
 }
+
+var (
+	_wireHopsValue = hops
+)
 
 func BuildAdaptersForContactsRepository(tx *bbolt.Tx, private identity.Private) (adapters.Repositories, error) {
 	messageContentMappings := transport.DefaultMappings()
@@ -59,7 +66,8 @@ func BuildAdaptersForContactsRepository(tx *bbolt.Tx, private identity.Private) 
 	v := newFormats(scuttlebutt)
 	rawMessageIdentifier := formats.NewRawMessageIdentifier(v)
 	public := newPublicIdentity(private)
-	socialGraphRepository := adapters.NewSocialGraphRepository(tx, public)
+	graphHops := _wireGraphHopsValue
+	socialGraphRepository := adapters.NewSocialGraphRepository(tx, public, graphHops)
 	boltFeedRepository := adapters.NewBoltFeedRepository(tx, rawMessageIdentifier, socialGraphRepository, scuttlebutt)
 	repositories := adapters.Repositories{
 		Feed:  boltFeedRepository,
@@ -67,6 +75,10 @@ func BuildAdaptersForContactsRepository(tx *bbolt.Tx, private identity.Private) 
 	}
 	return repositories, nil
 }
+
+var (
+	_wireGraphHopsValue = hops
+)
 
 func BuildService(private identity.Private) (Service, error) {
 	networkKey := boxstream.NewDefaultNetworkKey()
@@ -133,6 +145,8 @@ var formatsSet = wire.NewSet(
 type TestAdapters struct {
 	Feed *adapters.BoltFeedRepository
 }
+
+var hops = graph.MustNewHops(3)
 
 func newAdaptersFactory(local identity.Private) adapters.AdaptersFactory {
 	return func(tx *bbolt.Tx) (commands.Adapters, error) {

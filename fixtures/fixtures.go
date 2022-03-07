@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/planetary-social/go-ssb/identity"
+
 	"github.com/planetary-social/go-ssb/refs"
 	"github.com/planetary-social/go-ssb/scuttlebutt/feeds/content"
 	"github.com/planetary-social/go-ssb/scuttlebutt/feeds/message"
@@ -33,6 +35,14 @@ func SomeRefFeed() refs.Feed {
 func SomeTime() time.Time {
 	// todo improve this by using some kind of a better constructor
 	return time.Unix(rand.Int63(), 0)
+}
+
+func SomePublicIdentity() identity.Public {
+	v, err := identity.NewPrivate()
+	if err != nil {
+		panic(err)
+	}
+	return v.Public()
 }
 
 func SomeContent() message.MessageContent {

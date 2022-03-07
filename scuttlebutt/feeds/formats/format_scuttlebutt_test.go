@@ -1,6 +1,9 @@
 package formats
 
 import (
+	"testing"
+	"time"
+
 	"github.com/planetary-social/go-ssb/fixtures"
 	"github.com/planetary-social/go-ssb/identity"
 	"github.com/planetary-social/go-ssb/logging"
@@ -10,8 +13,6 @@ import (
 	"github.com/planetary-social/go-ssb/scuttlebutt/feeds/message"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
-	"testing"
-	"time"
 )
 
 // todo abstract away dependencies

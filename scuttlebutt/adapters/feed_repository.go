@@ -3,6 +3,7 @@ package adapters
 import (
 	"encoding/binary"
 	"fmt"
+
 	"github.com/planetary-social/go-ssb/scuttlebutt/feeds/formats"
 
 	"github.com/planetary-social/go-ssb/scuttlebutt/feeds/content"

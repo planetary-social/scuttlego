@@ -1,8 +1,9 @@
 package rpc
 
 import (
-	"github.com/planetary-social/go-ssb/network/rpc/transport"
 	"io"
+
+	"github.com/planetary-social/go-ssb/network/rpc/transport"
 )
 
 type ResponseWriter struct {

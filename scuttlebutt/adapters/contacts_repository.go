@@ -39,7 +39,7 @@ func (b BoltContactsRepository) GetContacts() ([]replication.Contact, error) {
 		}
 
 		for _, contact := range graph.Contacts() {
-			f := contact.MainFeed()
+			f := contact.Id.MainFeed()
 
 			feedState, err := b.getFeedState(r.Feed, f)
 			if err != nil {

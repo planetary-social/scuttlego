@@ -2,10 +2,11 @@ package rpc
 
 import (
 	"context"
+	"sync"
+
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/logging"
 	"github.com/planetary-social/go-ssb/network/rpc/transport"
-	"sync"
 )
 
 type ResponseStreams struct {

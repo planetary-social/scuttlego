@@ -108,33 +108,10 @@ func (s *Scuttlebutt) Sign(unsigned message.UnsignedMessage, private identity.Pr
 		Content:   json.RawMessage(marshaledContent),
 	}
 
-	ssbRef, raw, err := msgToSign.Sign(private.PrivateKey(), nil)
+	_, raw, err := msgToSign.Sign(private.PrivateKey(), nil)
 	if err != nil {
 		return message.Message{}, errors.New("could not sign a message")
 	}
 
-	id, err := refs.NewMessage(ssbRef.Ref())
-	if err != nil {
-		return message.Message{}, errors.Wrap(err, "invalid message id")
-	}
-
-	// todo maybe just return using a call to Verify?
 	return s.Verify(message.NewRawMessage(raw))
-
-	// todo cleanup
-	msg, err := message.NewMessage(
-		id,
-		unsigned.Previous(),
-		unsigned.Sequence(),
-		unsigned.Author(),
-		unsigned.Feed(),
-		unsigned.Timestamp(),
-		unsigned.Content(),
-		message.NewRawMessage(raw),
-	)
-	if err != nil {
-		return message.Message{}, errors.Wrap(err, "could not create a message")
-	}
-
-	return msg, nil
 }

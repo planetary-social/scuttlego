@@ -32,7 +32,7 @@ var contactMapping = MessageContentMapping{
 			return nil, errors.Wrap(err, "json unmarshal failed")
 		}
 
-		contact, err := refs.NewFeed(t.Contact)
+		contact, err := refs.NewIdentity(t.Contact)
 		if err != nil {
 			return nil, errors.Wrap(err, "could not create a feed ref")
 		}

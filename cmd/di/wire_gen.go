@@ -7,8 +7,6 @@
 package di
 
 import (
-	"time"
-
 	"github.com/boreq/errors"
 	"github.com/google/wire"
 	"github.com/planetary-social/go-ssb/identity"
@@ -24,9 +22,37 @@ import (
 	"github.com/planetary-social/go-ssb/scuttlebutt/replication"
 	"github.com/sirupsen/logrus"
 	"go.etcd.io/bbolt"
+	"time"
 )
 
 // Injectors from wire.go:
+
+func BuildAdaptersForTest(tx *bbolt.Tx) (TestAdapters, error) {
+	messageContentMappings := transport.DefaultMappings()
+	logger := newLogger()
+	marshaler, err := transport.NewMarshaler(messageContentMappings, logger)
+	if err != nil {
+		return TestAdapters{}, err
+	}
+	v := formats.AllFormats(marshaler)
+	rawMessageIdentifier := formats.NewRawMessageIdentifier(v)
+	socialGraphRepository := adapters.NewSocialGraphRepository(tx)
+	boltFeedRepository := adapters.NewBoltFeedRepository(tx, rawMessageIdentifier, socialGraphRepository)
+	testAdapters := TestAdapters{
+		Feed: boltFeedRepository,
+	}
+	return testAdapters, nil
+}
+
+func BuildAdapters(tx *bbolt.Tx, rawMessageIdentifier adapters.RawMessageIdentifier) (commands.Adapters, error) {
+	socialGraphRepository := adapters.NewSocialGraphRepository(tx)
+	boltFeedRepository := adapters.NewBoltFeedRepository(tx, rawMessageIdentifier, socialGraphRepository)
+	commandsAdapters := commands.Adapters{
+		Feed:        boltFeedRepository,
+		SocialGraph: socialGraphRepository,
+	}
+	return commandsAdapters, nil
+}
 
 func BuildService(private identity.Private) (Service, error) {
 	networkKey := boxstream.NewDefaultNetworkKey()
@@ -37,6 +63,7 @@ func BuildService(private identity.Private) (Service, error) {
 	logger := newLogger()
 	mux := rpc.NewMux(logger)
 	peerInitializer := network.NewPeerInitializer(handshaker, mux, logger)
+	manager := replication.NewManager(logger)
 	db, err := newBolt()
 	if err != nil {
 		return Service{}, err
@@ -48,9 +75,9 @@ func BuildService(private identity.Private) (Service, error) {
 	}
 	v := formats.AllFormats(marshaler)
 	rawMessageIdentifier := formats.NewRawMessageIdentifier(v)
-	boltFeedStorage := adapters.NewBoltFeedStorage(db, rawMessageIdentifier)
-	manager := replication.NewManager(logger, boltFeedStorage)
-	rawMessageHandler := commands.NewRawMessageHandler(boltFeedStorage, rawMessageIdentifier, logger)
+	adaptersFactory := newAdaptersFactory(rawMessageIdentifier)
+	transactionProvider := adapters.NewTransactionProvider(db, adaptersFactory)
+	rawMessageHandler := commands.NewRawMessageHandler(transactionProvider, rawMessageIdentifier, logger)
 	gossipReplicator, err := replication.NewGossipReplicator(manager, rawMessageHandler, logger)
 	if err != nil {
 		return Service{}, err
@@ -64,11 +91,13 @@ func BuildService(private identity.Private) (Service, error) {
 	if err != nil {
 		return Service{}, err
 	}
-	redeemInviteHandler := commands.NewRedeemInviteHandler(dialer, networkKey, private, boltFeedStorage, mux, logger)
+	redeemInviteHandler := commands.NewRedeemInviteHandler(dialer, transactionProvider, networkKey, private, mux, logger)
 	followHandler := commands.NewFollowHandler(logger)
+	connectHandler := commands.NewConnectHandler(dialer, peerManager, logger)
 	application := commands.Application{
 		RedeemInvite: redeemInviteHandler,
 		Follow:       followHandler,
+		Connect:      connectHandler,
 	}
 	service := NewService(listener, application)
 	return service, nil
@@ -76,7 +105,19 @@ func BuildService(private identity.Private) (Service, error) {
 
 // wire.go:
 
-var applicationSet = wire.NewSet(wire.Struct(new(commands.Application), "*"), commands.NewRedeemInviteHandler, commands.NewFollowHandler)
+var applicationSet = wire.NewSet(wire.Struct(new(commands.Application), "*"), commands.NewRedeemInviteHandler, commands.NewFollowHandler, commands.NewConnectHandler)
+
+type TestAdapters struct {
+	Feed *adapters.BoltFeedRepository
+}
+
+var replicatorSet = wire.NewSet(replication.NewManager, wire.Bind(new(replication.ReplicationManager), new(*replication.Manager)), replication.NewGossipReplicator, wire.Bind(new(scuttlebutt.Replicator), new(*replication.GossipReplicator)))
+
+func newAdaptersFactory(identifier adapters.RawMessageIdentifier) adapters.AdaptersFactory {
+	return func(tx *bbolt.Tx) (commands.Adapters, error) {
+		return BuildAdapters(tx, identifier)
+	}
+}
 
 func newBolt() (*bbolt.DB, error) {
 	b, err := bbolt.Open("/tmp/tmp.bolt.db", 0600, &bbolt.Options{Timeout: 5 * time.Second})

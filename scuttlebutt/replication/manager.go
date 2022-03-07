@@ -2,7 +2,6 @@ package replication
 
 import (
 	"context"
-
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/logging"
 	"github.com/planetary-social/go-ssb/refs"
@@ -16,14 +15,14 @@ type FeedStorage interface {
 }
 
 type Manager struct {
-	feedStorage FeedStorage
-	logger      logging.Logger
+	//feedStorage FeedStorage
+	logger logging.Logger
 }
 
-func NewManager(logger logging.Logger, feedStorage FeedStorage) *Manager {
+func NewManager(logger logging.Logger /*, feedStorage FeedStorage*/) *Manager {
 	return &Manager{
-		feedStorage: feedStorage,
-		logger:      logger.New("manager"),
+		//feedStorage: feedStorage,
+		logger: logger.New("manager"),
 	}
 }
 
@@ -49,14 +48,14 @@ func (m Manager) GetFeedsToReplicate(ctx context.Context) (<-chan ReplicateFeedT
 }
 
 func (m Manager) getFeedState(ref refs.Feed) (FeedState, error) {
-	feed, err := m.feedStorage.GetFeed(ref)
-	if err != nil {
-		if errors.Is(err, ErrFeedNotFound) {
-			return NewEmptyFeedState(), nil
-		}
-		return FeedState{}, errors.Wrap(err, "could not get a feed")
-	}
-	return NewFeedState(feed.Sequence()), nil
+	//feed, err := m.feedStorage.GetFeed(ref)
+	//if err != nil {
+	//	if errors.Is(err, ErrFeedNotFound) {
+	//		return NewEmptyFeedState(), nil
+	//	}
+	//	return FeedState{}, errors.Wrap(err, "could not get a feed")
+	//}
+	return NewEmptyFeedState(), nil
 }
 
 func (m Manager) getFeedsToReplicate() []refs.Feed {

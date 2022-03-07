@@ -4,6 +4,9 @@
 package di
 
 import (
+	"github.com/planetary-social/go-ssb/scuttlebutt/feeds/content/transport"
+	"github.com/planetary-social/go-ssb/scuttlebutt/feeds/formats"
+	"github.com/planetary-social/go-ssb/scuttlebutt/replication"
 	"time"
 
 	"github.com/boreq/errors"
@@ -16,9 +19,6 @@ import (
 	"github.com/planetary-social/go-ssb/scuttlebutt"
 	"github.com/planetary-social/go-ssb/scuttlebutt/adapters"
 	"github.com/planetary-social/go-ssb/scuttlebutt/commands"
-	"github.com/planetary-social/go-ssb/scuttlebutt/feeds/content/transport"
-	"github.com/planetary-social/go-ssb/scuttlebutt/feeds/formats"
-	"github.com/planetary-social/go-ssb/scuttlebutt/replication"
 	"github.com/sirupsen/logrus"
 	"go.etcd.io/bbolt"
 )
@@ -27,6 +27,57 @@ var applicationSet = wire.NewSet(
 	wire.Struct(new(commands.Application), "*"),
 	commands.NewRedeemInviteHandler,
 	commands.NewFollowHandler,
+	commands.NewConnectHandler,
+)
+
+type TestAdapters struct {
+	Feed *adapters.BoltFeedRepository
+}
+
+func BuildAdaptersForTest(*bbolt.Tx) (TestAdapters, error) {
+	wire.Build(
+		wire.Struct(new(TestAdapters), "*"),
+
+		adapters.NewBoltFeedRepository,
+		adapters.NewSocialGraphRepository,
+
+		newLogger,
+
+		formats.NewRawMessageIdentifier,
+		wire.Bind(new(adapters.RawMessageIdentifier), new(*formats.RawMessageIdentifier)),
+
+		formats.AllFormats,
+
+		transport.NewMarshaler,
+		wire.Bind(new(formats.Marshaler), new(*transport.Marshaler)),
+
+		transport.DefaultMappings,
+	)
+
+	return TestAdapters{}, nil
+
+}
+
+func BuildAdapters(*bbolt.Tx, adapters.RawMessageIdentifier) (commands.Adapters, error) {
+	wire.Build(
+		wire.Struct(new(commands.Adapters), "*"),
+
+		adapters.NewBoltFeedRepository,
+		wire.Bind(new(commands.FeedRepository), new(*adapters.BoltFeedRepository)),
+
+		adapters.NewSocialGraphRepository,
+		wire.Bind(new(commands.SocialGraphRepository), new(*adapters.SocialGraphRepository)),
+	)
+
+	return commands.Adapters{}, nil
+}
+
+var replicatorSet = wire.NewSet(
+	replication.NewManager,
+	wire.Bind(new(replication.ReplicationManager), new(*replication.Manager)),
+
+	replication.NewGossipReplicator,
+	wire.Bind(new(scuttlebutt.Replicator), new(*replication.GossipReplicator)),
 )
 
 func BuildService(identity.Private) (Service, error) {
@@ -39,15 +90,8 @@ func BuildService(identity.Private) (Service, error) {
 
 		network.NewListener,
 
-		replication.NewManager,
-		wire.Bind(new(replication.ReplicationManager), new(*replication.Manager)),
-
 		commands.NewRawMessageHandler,
 		wire.Bind(new(replication.RawMessageHandler), new(*commands.RawMessageHandler)),
-
-		adapters.NewBoltFeedStorage,
-		wire.Bind(new(commands.FeedStorage), new(*adapters.BoltFeedStorage)),
-		wire.Bind(new(replication.FeedStorage), new(*adapters.BoltFeedStorage)),
 
 		network.NewPeerInitializer,
 		wire.Bind(new(network.ServerPeerInitializer), new(*network.PeerInitializer)),
@@ -59,11 +103,9 @@ func BuildService(identity.Private) (Service, error) {
 		rpc.NewMux,
 		wire.Bind(new(rpc.RequestHandler), new(*rpc.Mux)),
 
-		replication.NewGossipReplicator,
-		wire.Bind(new(scuttlebutt.Replicator), new(*replication.GossipReplicator)),
-
 		scuttlebutt.NewPeerManager,
 		wire.Bind(new(network.NewPeerHandler), new(*scuttlebutt.PeerManager)),
+		wire.Bind(new(commands.NewPeerHandler), new(*scuttlebutt.PeerManager)),
 
 		formats.NewRawMessageIdentifier,
 		wire.Bind(new(commands.RawMessageIdentifier), new(*formats.RawMessageIdentifier)),
@@ -76,13 +118,26 @@ func BuildService(identity.Private) (Service, error) {
 
 		transport.DefaultMappings,
 
+		adapters.NewTransactionProvider,
+		wire.Bind(new(commands.TransactionProvider), new(*adapters.TransactionProvider)),
+		newAdaptersFactory,
+
+		//wire.Bind(new(adapters.AdaptersFactory), new(BuildAdapters))
+
 		applicationSet,
+		replicatorSet,
 
 		newLogger,
 
 		newBolt,
 	)
 	return Service{}, nil
+}
+
+func newAdaptersFactory(identifier adapters.RawMessageIdentifier) adapters.AdaptersFactory {
+	return func(tx *bbolt.Tx) (commands.Adapters, error) {
+		return BuildAdapters(tx, identifier)
+	}
 }
 
 func newBolt() (*bbolt.DB, error) {

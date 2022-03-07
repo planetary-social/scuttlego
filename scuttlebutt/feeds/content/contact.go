@@ -7,11 +7,11 @@ import (
 )
 
 type Contact struct {
-	contact refs.Feed
+	contact refs.Identity
 	action  ContactAction
 }
 
-func NewContact(contact refs.Feed, action ContactAction) (Contact, error) {
+func NewContact(contact refs.Identity, action ContactAction) (Contact, error) {
 	if contact.IsZero() {
 		return Contact{}, errors.New("zero value of contact")
 	}
@@ -26,7 +26,7 @@ func NewContact(contact refs.Feed, action ContactAction) (Contact, error) {
 	}, nil
 }
 
-func (c Contact) Contact() refs.Feed {
+func (c Contact) Contact() refs.Identity {
 	return c.contact
 }
 
@@ -50,4 +50,5 @@ var (
 	ContactActionFollow   = ContactAction{"follow"}
 	ContactActionUnfollow = ContactAction{"unfollow"}
 	ContactActionBlock    = ContactAction{"block"}
+	ContactActionUnblock  = ContactAction{"unblock"}
 )

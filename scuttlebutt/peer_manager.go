@@ -2,8 +2,8 @@ package scuttlebutt
 
 import (
 	"context"
-
 	"github.com/hashicorp/go-multierror"
+
 	"github.com/planetary-social/go-ssb/logging"
 	"github.com/planetary-social/go-ssb/network"
 )
@@ -24,14 +24,12 @@ func NewPeerManager(replicator Replicator, logger logging.Logger) *PeerManager {
 	}
 }
 
-func (p PeerManager) HandleNewPeer(peer network.Peer) error {
-	p.logger.Debug("handling a new peer")
-
+func (p PeerManager) HandleNewPeer(peer network.Peer) {
 	go p.processConnection(peer)
-	return nil
 }
 
 func (p PeerManager) processConnection(peer network.Peer) {
+	p.logger.Debug("handling a new peer")
 	if err := p.handleConnection(peer); err != nil {
 		p.logger.WithError(err).WithField("peer", peer).Debug("connection ended")
 	}

@@ -19,6 +19,7 @@ import (
 
 type Dialer interface {
 	DialWithInitializer(initializer network.ClientPeerInitializer, remote identity.Public, addr network.Address) (network.Peer, error)
+	Dial(remote identity.Public, address network.Address) (network.Peer, error)
 }
 
 type RedeemInvite struct {
@@ -27,26 +28,26 @@ type RedeemInvite struct {
 
 type RedeemInviteHandler struct {
 	dialer         Dialer
+	transaction    TransactionProvider
 	networkKey     boxstream.NetworkKey
 	local          identity.Private
-	storage        FeedStorage
 	requestHandler rpc.RequestHandler
 	logger         logging.Logger
 }
 
 func NewRedeemInviteHandler(
 	dialer Dialer,
+	transaction TransactionProvider,
 	networkKey boxstream.NetworkKey,
 	local identity.Private,
-	storage FeedStorage,
 	requestHandler rpc.RequestHandler,
 	logger logging.Logger,
 ) *RedeemInviteHandler {
 	return &RedeemInviteHandler{
 		dialer:         dialer,
+		transaction:    transaction,
 		networkKey:     networkKey,
 		local:          local,
-		storage:        storage,
 		requestHandler: requestHandler,
 		logger:         logger.New("follow_handler"),
 	}
@@ -62,7 +63,7 @@ func (h *RedeemInviteHandler) Handle(ctx context.Context, cmd RedeemInvite) erro
 	// todo publish contact and pub content
 
 	// todo main feed or should the invite contain a feed ref?
-	follow, err := content.NewContact(cmd.Invite.Remote().MainFeed(), content.ContactActionFollow)
+	follow, err := content.NewContact(cmd.Invite.Remote(), content.ContactActionFollow)
 	if err != nil {
 		return errors.Wrap(err, "could not create a follow message")
 	}
@@ -74,24 +75,20 @@ func (h *RedeemInviteHandler) Handle(ctx context.Context, cmd RedeemInvite) erro
 		return errors.Wrap(err, "could not create a local identity ref")
 	}
 
-	if err := h.storage.UpdateFeed(myRef.MainFeed(), func(feed *feeds.Feed) (*feeds.Feed, error) {
-		if feed == nil {
-			// todo just create feed if it doesn't exist
-			feed, err = feeds.NewFeedFromMessageContent(follow, time.Now(), h.local)
-			if err != nil {
-				return nil, errors.Wrap(err, "could not create a new feed")
+	if err := h.transaction.Transact(func(adapters Adapters) error {
+		if err := adapters.Feed.UpdateFeed(myRef.MainFeed(), func(feed *feeds.Feed) (*feeds.Feed, error) {
+			if err := feed.CreateMessage(follow, time.Now(), h.local); err != nil {
+				return nil, errors.Wrap(err, "could not append a message")
 			}
 
 			return feed, nil
+		}); err != nil {
+			return errors.Wrap(err, "failed to update the feed")
 		}
 
-		if err := feed.CreateMessage(follow, time.Now(), h.local); err != nil {
-			return nil, errors.Wrap(err, "could not append a message")
-		}
-
-		return feed, nil
+		return nil
 	}); err != nil {
-		return errors.Wrap(err, "failed to update the feed")
+		return errors.Wrap(err, "transaction failed")
 	}
 
 	return errors.New("not implemented")

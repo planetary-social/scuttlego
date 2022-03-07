@@ -37,7 +37,9 @@ func TestAppend(t *testing.T) {
 		fixtures.SomeRawMessage(),
 	)
 
-	f, err := feeds.NewFeed(msg1)
+	f := feeds.NewFeed()
+
+	err := f.AppendMessage(msg1)
 	require.NoError(t, err)
 
 	err = f.AppendMessage(msg2)

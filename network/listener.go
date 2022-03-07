@@ -13,7 +13,7 @@ type ServerPeerInitializer interface {
 }
 
 type NewPeerHandler interface {
-	HandleNewPeer(Peer) error
+	HandleNewPeer(Peer)
 }
 
 type Listener struct {
@@ -51,10 +51,7 @@ func (l Listener) ListenAndServe() error {
 				l.logger.WithError(err).Debug("could not init a peer")
 			}
 
-			if err := l.peerHandler.HandleNewPeer(p); err != nil {
-				p.Conn().Close()
-				l.logger.WithError(err).Debug("could not handle a peer")
-			}
+			l.peerHandler.HandleNewPeer(p)
 		}()
 	}
 }

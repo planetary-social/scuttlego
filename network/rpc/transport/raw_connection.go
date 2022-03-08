@@ -27,9 +27,13 @@ func (s RawConnection) Next() (*Message, error) {
 		return nil, errors.Wrap(err, "could not read the message header")
 	}
 
+	if isTermination(headerBuf) {
+		return nil, errors.New("other side has terminated the connection")
+	}
+
 	messageHeader, err := NewMessageHeaderFromBytes(headerBuf)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to read the message header")
+		return nil, errors.Wrap(err, "could not create a message header")
 	}
 
 	bodyBuf := make([]byte, messageHeader.bodyLength)
@@ -77,4 +81,13 @@ func (s RawConnection) Send(msg *Message) error {
 
 func (s RawConnection) Close() error {
 	return s.rw.Close()
+}
+
+func isTermination(bytes []byte) bool {
+	for b := range bytes {
+		if b != 0 {
+			return false
+		}
+	}
+	return true
 }

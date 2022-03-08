@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"encoding/json"
 	"strings"
 
 	"github.com/boreq/errors"
@@ -10,10 +11,10 @@ type Request struct {
 	name      ProcedureName
 	typ       ProcedureType
 	stream    bool
-	arguments []byte
+	arguments json.RawMessage
 }
 
-func NewRequest(name ProcedureName, typ ProcedureType, stream bool, arguments []byte) (*Request, error) {
+func NewRequest(name ProcedureName, typ ProcedureType, stream bool, arguments json.RawMessage) (*Request, error) {
 	if name.IsZero() {
 		return nil, errors.New("zero value of request name")
 	}
@@ -42,7 +43,7 @@ func (r Request) Stream() bool {
 	return r.stream
 }
 
-func (r Request) Arguments() []byte {
+func (r Request) Arguments() json.RawMessage {
 	tmp := make([]byte, len(r.arguments))
 	copy(tmp, r.arguments)
 	return tmp
@@ -116,3 +117,39 @@ var (
 	ProcedureTypeDuplex  = ProcedureType{"duplex"}
 	ProcedureTypeAsync   = ProcedureType{"async"}
 )
+
+type Procedure struct {
+	name ProcedureName
+	typ  ProcedureType
+}
+
+func (p Procedure) Name() ProcedureName {
+	return p.name
+}
+
+func (p Procedure) Typ() ProcedureType {
+	return p.typ
+}
+
+func NewProcedure(name ProcedureName, typ ProcedureType) (Procedure, error) {
+	if name.IsZero() {
+		return Procedure{}, errors.New("zero value of name")
+	}
+
+	if typ.IsZero() {
+		return Procedure{}, errors.New("zero value of type")
+	}
+
+	return Procedure{
+		name: name,
+		typ:  typ,
+	}, nil
+}
+
+func MustNewProcedure(name ProcedureName, typ ProcedureType) Procedure {
+	v, err := NewProcedure(name, typ)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}

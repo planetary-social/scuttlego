@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"encoding/json"
 	"sync"
 
 	"github.com/boreq/errors"
@@ -14,11 +15,17 @@ type ResponseStreams struct {
 	streams     map[int]*ResponseStream
 	streamsLock sync.Mutex
 
-	raw    transport.RawConnection
+	outgoingRequestNumber int
+
+	raw    MessageSender
 	logger logging.Logger
 }
 
-func NewResponseStreams(raw transport.RawConnection, logger logging.Logger) *ResponseStreams {
+type MessageSender interface {
+	Send(msg *transport.Message) error
+}
+
+func NewResponseStreams(raw MessageSender, logger logging.Logger) *ResponseStreams {
 	return &ResponseStreams{
 		raw:     raw,
 		streams: make(map[int]*ResponseStream),
@@ -26,13 +33,20 @@ func NewResponseStreams(raw transport.RawConnection, logger logging.Logger) *Res
 	}
 }
 
-func (r *ResponseStreams) Open(ctx context.Context, requestNumber int) (*ResponseStream, error) {
+func (r *ResponseStreams) Open(ctx context.Context, req *Request) (*ResponseStream, error) {
+	msg, err := r.marshalRequest(req)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not marshal a request")
+	}
+
 	r.streamsLock.Lock()
 	defer r.streamsLock.Unlock()
 
 	if r.closed {
 		return nil, errors.New("response streams were closed")
 	}
+
+	requestNumber := msg.Header.RequestNumber()
 
 	if _, ok := r.streams[requestNumber]; ok {
 		return nil, errors.New("response stream with this number already exists")
@@ -42,6 +56,10 @@ func (r *ResponseStreams) Open(ctx context.Context, requestNumber int) (*Respons
 	r.streams[requestNumber] = rs
 
 	go r.waitAndCloseResponseStream(rs)
+
+	if err := r.raw.Send(msg); err != nil {
+		return nil, errors.Wrap(err, "could not send a message")
+	}
 
 	return rs, nil
 }
@@ -54,6 +72,25 @@ func (r *ResponseStreams) HandleIncomingResponse(msg *transport.Message) error {
 	r.streamsLock.Lock()
 	defer r.streamsLock.Unlock()
 
+	//	if msg.Header.Flags().EndOrError {
+	//		return r.terminateStream(msg)
+	//	} else {
+	//		return r.openStream(msg)
+	//	}
+	//
+	//}
+	//
+	//func (r *ResponseStreams) terminateStream(msg *transport.Message) error {
+	//	rw, ok := r.streams[-msg.Header.RequestNumber()]
+	//	if !ok {
+	//		return nil
+	//	}
+	//
+	//	rw.cancel()
+	//	return nil
+	//}
+	//
+	//func (r *ResponseStreams) openStream(msg *transport.Message) error {
 	rs, ok := r.streams[-msg.Header.RequestNumber()]
 	if !ok {
 		return nil
@@ -71,6 +108,48 @@ func (r *ResponseStreams) HandleIncomingResponse(msg *transport.Message) error {
 	}
 
 	return nil
+}
+
+func (s *ResponseStreams) marshalRequest(req *Request) (*transport.Message, error) {
+	encodedType, err := encodeProcedureType(req.Type())
+	if err != nil {
+		return nil, errors.Wrap(err, "could not encode the procedure type")
+	}
+
+	body := RequestBody{
+		Name: req.Name().Components(),
+		Type: encodedType,
+		Args: req.Arguments(),
+	}
+
+	j, err := json.Marshal(body)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not marshal the request body")
+	}
+
+	s.outgoingRequestNumber++
+
+	flags := transport.MessageHeaderFlags{
+		Stream:     req.stream,
+		EndOrError: false,
+		BodyType:   transport.MessageBodyTypeJSON,
+	}
+
+	header, err := transport.NewMessageHeader(
+		flags,
+		uint32(len(j)),
+		int32(s.outgoingRequestNumber),
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not create a message header")
+	}
+
+	msg, err := transport.NewMessage(header, j)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not create a message")
+	}
+
+	return &msg, nil
 }
 
 func (s *ResponseStreams) Close() {

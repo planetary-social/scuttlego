@@ -3,6 +3,7 @@ package network
 import (
 	"github.com/planetary-social/go-ssb/identity"
 	"github.com/planetary-social/go-ssb/network/rpc"
+	"github.com/planetary-social/go-ssb/refs"
 )
 
 type Peer struct {
@@ -23,4 +24,9 @@ func (p Peer) Identity() identity.Public {
 
 func (p Peer) Conn() *rpc.Connection {
 	return p.conn
+}
+
+func (p Peer) String() string {
+	public, _ := refs.NewIdentityFromPublic(p.remote)
+	return public.String()
 }

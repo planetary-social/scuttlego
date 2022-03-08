@@ -3,9 +3,8 @@ package transport
 import (
 	"io"
 
-	"github.com/planetary-social/go-ssb/logging"
-
 	"github.com/boreq/errors"
+	"github.com/planetary-social/go-ssb/logging"
 )
 
 type RawConnection struct {
@@ -48,9 +47,11 @@ func (s RawConnection) Next() (*Message, error) {
 	}
 
 	s.logger.
-		WithField("number", msg.Header.RequestNumber()).
+		WithField("header.flags", msg.Header.Flags()).
+		WithField("header.number", msg.Header.RequestNumber()).
+		WithField("header.bodyLength", msg.Header.BodyLength()).
 		WithField("body", string(msg.Body)).
-		Debug("received a new message")
+		Debug("message received")
 
 	return &msg, nil
 }
@@ -84,7 +85,7 @@ func (s RawConnection) Close() error {
 }
 
 func isTermination(bytes []byte) bool {
-	for b := range bytes {
+	for _, b := range bytes {
 		if b != 0 {
 			return false
 		}

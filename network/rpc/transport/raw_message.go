@@ -174,6 +174,10 @@ func (f MessageHeaderFlags) Marshal() (byte, error) {
 	return flags, nil
 }
 
+func (f MessageHeaderFlags) String() string {
+	return fmt.Sprintf("<stream=%t endOrError=%t bodyType=%s>", f.Stream, f.EndOrError, f.BodyType)
+}
+
 type MessageBodyType struct {
 	s string
 }

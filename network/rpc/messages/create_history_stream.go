@@ -57,6 +57,43 @@ func NewCreateHistoryStreamArguments(
 	}, nil
 }
 
+func NewCreateHistoryStreamArgumentsFromBytes(b []byte) (CreateHistoryStreamArguments, error) {
+	var args []createHistoryStreamArgumentsTransport
+
+	if err := json.Unmarshal(b, &args); err != nil {
+		return CreateHistoryStreamArguments{}, errors.Wrap(err, "json unmarshal failed")
+	}
+
+	if len(args) != 1 {
+		return CreateHistoryStreamArguments{}, errors.New("expected exactly one argument")
+	}
+
+	arg := args[0]
+
+	id, err := refs.NewFeed(arg.Id)
+	if err != nil {
+		return CreateHistoryStreamArguments{}, errors.Wrap(err, "invalid feed ref")
+	}
+
+	var sequence *message.Sequence
+	if arg.Sequence != nil {
+		tmp, err := message.NewSequence(*arg.Sequence)
+		if err != nil {
+			return CreateHistoryStreamArguments{}, errors.Wrap(err, "invalid sequence")
+		}
+		sequence = &tmp
+	}
+
+	return NewCreateHistoryStreamArguments(
+		id,
+		sequence,
+		arg.Limit,
+		arg.Live,
+		arg.Old,
+		arg.Keys,
+	)
+}
+
 func (c CreateHistoryStreamArguments) MarshalJSON() ([]byte, error) {
 	transport := []createHistoryStreamArgumentsTransport{
 		{

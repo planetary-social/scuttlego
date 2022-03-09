@@ -2,6 +2,8 @@ package commands
 
 import (
 	"context"
+	"time"
+
 	"github.com/planetary-social/go-ssb/service/domain/feeds"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/content"
 	"github.com/planetary-social/go-ssb/service/domain/identity"
@@ -11,7 +13,6 @@ import (
 	rpc2 "github.com/planetary-social/go-ssb/service/domain/network/rpc"
 	"github.com/planetary-social/go-ssb/service/domain/network/rpc/messages"
 	"github.com/planetary-social/go-ssb/service/domain/refs"
-	"time"
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/logging"

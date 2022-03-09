@@ -1,11 +1,12 @@
 package di
 
 import (
+	"time"
+
 	app2 "github.com/planetary-social/go-ssb/service/app"
 	commands2 "github.com/planetary-social/go-ssb/service/app/commands"
 	network2 "github.com/planetary-social/go-ssb/service/domain/network"
 	"github.com/planetary-social/go-ssb/service/domain/refs"
-	"time"
 
 	"github.com/boreq/errors"
 )

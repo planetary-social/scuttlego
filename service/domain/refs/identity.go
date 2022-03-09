@@ -3,8 +3,9 @@ package refs
 import (
 	"bytes"
 	"encoding/base64"
-	ssbidentity "github.com/planetary-social/go-ssb/service/domain/identity"
 	"strings"
+
+	ssbidentity "github.com/planetary-social/go-ssb/service/domain/identity"
 
 	"github.com/boreq/errors"
 )

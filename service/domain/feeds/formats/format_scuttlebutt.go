@@ -2,10 +2,11 @@ package formats
 
 import (
 	"encoding/json"
+	"time"
+
 	message2 "github.com/planetary-social/go-ssb/service/domain/feeds/message"
 	"github.com/planetary-social/go-ssb/service/domain/identity"
 	refs2 "github.com/planetary-social/go-ssb/service/domain/refs"
-	"time"
 
 	"github.com/boreq/errors"
 	"go.cryptoscope.co/ssb/message/legacy"

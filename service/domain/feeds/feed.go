@@ -1,11 +1,12 @@
 package feeds
 
 import (
+	"time"
+
 	msgcontents "github.com/planetary-social/go-ssb/service/domain/feeds/content"
 	message2 "github.com/planetary-social/go-ssb/service/domain/feeds/message"
 	"github.com/planetary-social/go-ssb/service/domain/identity"
 	"github.com/planetary-social/go-ssb/service/domain/refs"
-	"time"
 
 	"github.com/boreq/errors"
 )

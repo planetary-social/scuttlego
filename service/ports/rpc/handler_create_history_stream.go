@@ -1,10 +1,11 @@
 package rpc
 
 import (
+	"time"
+
 	"github.com/boreq/errors"
 	rpc2 "github.com/planetary-social/go-ssb/service/domain/network/rpc"
 	"github.com/planetary-social/go-ssb/service/domain/network/rpc/messages"
-	"time"
 )
 
 type HandlerCreateHistoryStream struct {

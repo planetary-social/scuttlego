@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+
 	"github.com/planetary-social/go-ssb/service/domain/network"
 
 	"github.com/hashicorp/go-multierror"

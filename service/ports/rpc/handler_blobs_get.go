@@ -1,9 +1,10 @@
 package rpc
 
 import (
+	"io"
+
 	rpc2 "github.com/planetary-social/go-ssb/service/domain/network/rpc"
 	"github.com/planetary-social/go-ssb/service/domain/network/rpc/messages"
-	"io"
 
 	"github.com/boreq/errors"
 )

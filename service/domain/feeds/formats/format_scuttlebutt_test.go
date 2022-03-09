@@ -1,13 +1,14 @@
 package formats
 
 import (
+	"testing"
+	"time"
+
 	"github.com/planetary-social/go-ssb/service/domain/feeds/content"
 	transport2 "github.com/planetary-social/go-ssb/service/domain/feeds/content/transport"
 	message2 "github.com/planetary-social/go-ssb/service/domain/feeds/message"
 	"github.com/planetary-social/go-ssb/service/domain/identity"
 	"github.com/planetary-social/go-ssb/service/domain/refs"
-	"testing"
-	"time"
 
 	"github.com/planetary-social/go-ssb/fixtures"
 	"github.com/stretchr/testify/require"

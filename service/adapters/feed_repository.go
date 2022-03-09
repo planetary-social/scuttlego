@@ -3,6 +3,7 @@ package adapters
 import (
 	"encoding/binary"
 	"fmt"
+
 	feeds2 "github.com/planetary-social/go-ssb/service/domain/feeds"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/content"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/formats"

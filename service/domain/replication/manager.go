@@ -2,8 +2,9 @@ package replication
 
 import (
 	"context"
-	"github.com/planetary-social/go-ssb/service/domain/refs"
 	"time"
+
+	"github.com/planetary-social/go-ssb/service/domain/refs"
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/logging"

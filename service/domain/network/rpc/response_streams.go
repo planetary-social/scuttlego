@@ -3,8 +3,9 @@ package rpc
 import (
 	"context"
 	"encoding/json"
-	"github.com/planetary-social/go-ssb/service/domain/network/rpc/transport"
 	"sync"
+
+	"github.com/planetary-social/go-ssb/service/domain/network/rpc/transport"
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/logging"

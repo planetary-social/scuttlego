@@ -3,6 +3,7 @@ package transport
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/planetary-social/go-ssb/service/domain/feeds/content"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
 	"github.com/planetary-social/go-ssb/service/domain/refs"

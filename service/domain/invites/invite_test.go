@@ -1,8 +1,9 @@
 package invites_test
 
 import (
-	"github.com/planetary-social/go-ssb/service/domain/invites"
 	"testing"
+
+	"github.com/planetary-social/go-ssb/service/domain/invites"
 
 	"github.com/stretchr/testify/require"
 )

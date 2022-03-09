@@ -1,12 +1,13 @@
 package rpc_test
 
 import (
+	"testing"
+	"time"
+
 	"github.com/planetary-social/go-ssb/fixtures"
 	rpc2 "github.com/planetary-social/go-ssb/service/domain/network/rpc"
 	"github.com/planetary-social/go-ssb/service/domain/network/rpc/transport"
 	"github.com/stretchr/testify/require"
-	"testing"
-	"time"
 )
 
 func TestCancellingContextReleasesChannel(t *testing.T) {

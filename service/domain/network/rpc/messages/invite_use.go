@@ -2,6 +2,7 @@ package messages
 
 import (
 	"encoding/json"
+
 	"github.com/planetary-social/go-ssb/service/domain/network/rpc"
 	"github.com/planetary-social/go-ssb/service/domain/refs"
 

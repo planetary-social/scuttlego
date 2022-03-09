@@ -2,11 +2,12 @@ package replication
 
 import (
 	"context"
+	"strconv"
+
 	message2 "github.com/planetary-social/go-ssb/service/domain/feeds/message"
 	"github.com/planetary-social/go-ssb/service/domain/network"
 	"github.com/planetary-social/go-ssb/service/domain/network/rpc/messages"
 	"github.com/planetary-social/go-ssb/service/domain/refs"
-	"strconv"
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/logging"

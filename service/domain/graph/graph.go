@@ -1,8 +1,9 @@
 package graph
 
 import (
-	"github.com/planetary-social/go-ssb/service/domain/refs"
 	"sort"
+
+	"github.com/planetary-social/go-ssb/service/domain/refs"
 
 	"github.com/boreq/errors"
 )

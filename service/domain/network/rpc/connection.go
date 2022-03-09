@@ -2,8 +2,9 @@ package rpc
 
 import (
 	"context"
-	transport2 "github.com/planetary-social/go-ssb/service/domain/network/rpc/transport"
 	"io"
+
+	transport2 "github.com/planetary-social/go-ssb/service/domain/network/rpc/transport"
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/logging"

@@ -4,6 +4,8 @@
 package di
 
 import (
+	"time"
+
 	adapters2 "github.com/planetary-social/go-ssb/service/adapters"
 	"github.com/planetary-social/go-ssb/service/app"
 	commands2 "github.com/planetary-social/go-ssb/service/app/commands"
@@ -18,7 +20,6 @@ import (
 	rpc3 "github.com/planetary-social/go-ssb/service/domain/network/rpc"
 	replication2 "github.com/planetary-social/go-ssb/service/domain/replication"
 	rpc2 "github.com/planetary-social/go-ssb/service/ports/rpc"
-	"time"
 
 	"github.com/boreq/errors"
 	"github.com/google/wire"

@@ -2,9 +2,10 @@ package invites
 
 import (
 	"encoding/base64"
+	"strings"
+
 	"github.com/planetary-social/go-ssb/service/domain/network"
 	"github.com/planetary-social/go-ssb/service/domain/refs"
-	"strings"
 
 	"github.com/boreq/errors"
 )

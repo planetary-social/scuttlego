@@ -4,6 +4,12 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"io/ioutil"
+	"math/rand"
+	"os"
+	"testing"
+	"time"
+
 	"github.com/planetary-social/go-ssb/logging"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/content"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
@@ -11,11 +17,6 @@ import (
 	"github.com/planetary-social/go-ssb/service/domain/network/rpc"
 	refs2 "github.com/planetary-social/go-ssb/service/domain/refs"
 	bolt "go.etcd.io/bbolt"
-	"io/ioutil"
-	"math/rand"
-	"os"
-	"testing"
-	"time"
 )
 
 func SomeLogger() logging.Logger {

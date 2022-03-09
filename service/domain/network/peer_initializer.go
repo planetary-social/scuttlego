@@ -1,10 +1,11 @@
 package network
 
 import (
+	"io"
+
 	"github.com/planetary-social/go-ssb/service/domain/identity"
 	boxstream2 "github.com/planetary-social/go-ssb/service/domain/network/boxstream"
 	rpc2 "github.com/planetary-social/go-ssb/service/domain/network/rpc"
-	"io"
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/logging"

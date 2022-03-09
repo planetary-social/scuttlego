@@ -1,8 +1,9 @@
 package message
 
 import (
-	refs2 "github.com/planetary-social/go-ssb/service/domain/refs"
 	"time"
+
+	refs2 "github.com/planetary-social/go-ssb/service/domain/refs"
 
 	"github.com/boreq/errors"
 )

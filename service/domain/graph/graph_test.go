@@ -1,9 +1,10 @@
 package graph_test
 
 import (
+	"testing"
+
 	"github.com/planetary-social/go-ssb/service/domain/graph"
 	"github.com/planetary-social/go-ssb/service/domain/refs"
-	"testing"
 
 	"github.com/planetary-social/go-ssb/fixtures"
 	"github.com/stretchr/testify/require"

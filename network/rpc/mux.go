@@ -63,7 +63,7 @@ func (m Mux) getHandler(req *Request) (Handler, error) {
 
 	handler, ok := m.handlers[key]
 	if !ok {
-		m.logger.WithFields(logging.Fields{"key": key}).Debug("handler not found")
+		m.logger.WithField("key", key).Debug("handler not found")
 		return nil, errors.New("handler not found")
 	}
 

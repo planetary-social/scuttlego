@@ -23,6 +23,8 @@ type Connection struct {
 	responseStreams *ResponseStreams
 	requestStreams  *RequestStreams
 
+	doneCh chan struct{}
+
 	logger logging.Logger
 }
 
@@ -53,6 +55,10 @@ func (s *Connection) PerformRequest(ctx context.Context, req *Request) (*Respons
 	return stream, nil
 }
 
+func (s *Connection) Done() <-chan struct{} {
+	return s.doneCh
+}
+
 func (s *Connection) Close() error {
 	return s.raw.Close()
 }
@@ -61,6 +67,7 @@ func (c *Connection) readLoop() {
 	defer c.raw.Close()
 	defer c.responseStreams.Close()
 	defer c.requestStreams.Close()
+	defer close(c.doneCh)
 
 	for {
 		if err := c.read(); err != nil {

@@ -51,7 +51,7 @@ func (s RawConnection) Next() (*Message, error) {
 		WithField("header.number", msg.Header.RequestNumber()).
 		WithField("header.bodyLength", msg.Header.BodyLength()).
 		WithField("body", string(msg.Body)).
-		Debug("message received")
+		Trace("message received")
 
 	return &msg, nil
 }
@@ -60,7 +60,7 @@ func (s RawConnection) Send(msg *Message) error {
 	s.logger.
 		WithField("number", msg.Header.RequestNumber()).
 		WithField("body", string(msg.Body)).
-		Debug("sending a message")
+		Trace("sending a message")
 
 	b, err := msg.Header.Bytes()
 	if err != nil {

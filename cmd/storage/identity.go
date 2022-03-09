@@ -2,10 +2,10 @@ package storage
 
 import (
 	"encoding/json"
+	"github.com/planetary-social/go-ssb/service/domain/identity"
 	"os"
 
 	"github.com/boreq/errors"
-	"github.com/planetary-social/go-ssb/identity"
 )
 
 type IdentityStorage struct {

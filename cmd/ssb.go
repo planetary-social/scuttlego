@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/planetary-social/go-ssb/service/domain/identity"
 	"os"
 	"runtime/pprof"
 	"time"
@@ -8,7 +9,6 @@ import (
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/cmd/di"
 	"github.com/planetary-social/go-ssb/cmd/storage"
-	"github.com/planetary-social/go-ssb/identity"
 )
 
 func main() {

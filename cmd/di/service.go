@@ -1,20 +1,21 @@
 package di
 
 import (
+	app2 "github.com/planetary-social/go-ssb/service/app"
+	commands2 "github.com/planetary-social/go-ssb/service/app/commands"
+	network2 "github.com/planetary-social/go-ssb/service/domain/network"
+	"github.com/planetary-social/go-ssb/service/domain/refs"
 	"time"
 
 	"github.com/boreq/errors"
-	"github.com/planetary-social/go-ssb/network"
-	"github.com/planetary-social/go-ssb/refs"
-	"github.com/planetary-social/go-ssb/scuttlebutt/commands"
 )
 
 type Service struct {
-	listener network.Listener
-	app      commands.Application
+	listener network2.Listener
+	app      app2.Application
 }
 
-func NewService(listener network.Listener, app commands.Application) Service {
+func NewService(listener network2.Listener, app app2.Application) Service {
 	return Service{listener: listener, app: app}
 }
 
@@ -22,14 +23,14 @@ var (
 	myPatchwork = refs.MustNewIdentity("@qFtLJ6P5Eh9vKxnj7Rsh8SkE6B6Z36DVLP7ZOKNeQ/Y=.ed25519")
 	pub         = refs.MustNewIdentity("@CIlwTOK+m6v1hT2zUVOCJvvZq7KE/65ErN6yA2yrURY=.ed25519")
 
-	localConnect = commands.Connect{
+	localConnect = commands2.Connect{
 		Remote:  myPatchwork.Identity(),
-		Address: network.NewAddress("127.0.0.1:8008"),
+		Address: network2.NewAddress("127.0.0.1:8008"),
 	}
 
-	hubConnect = commands.Connect{
+	hubConnect = commands2.Connect{
 		Remote:  pub.Identity(),
-		Address: network.NewAddress("one.planetary.pub:8008"),
+		Address: network2.NewAddress("one.planetary.pub:8008"),
 	}
 )
 

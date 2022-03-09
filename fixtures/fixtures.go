@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/planetary-social/go-ssb/identity"
 	"github.com/planetary-social/go-ssb/logging"
-	"github.com/planetary-social/go-ssb/network/rpc"
-	"github.com/planetary-social/go-ssb/refs"
-	"github.com/planetary-social/go-ssb/scuttlebutt/feeds/content"
-	"github.com/planetary-social/go-ssb/scuttlebutt/feeds/message"
+	"github.com/planetary-social/go-ssb/service/domain/feeds/content"
+	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
+	"github.com/planetary-social/go-ssb/service/domain/identity"
+	"github.com/planetary-social/go-ssb/service/domain/network/rpc"
+	refs2 "github.com/planetary-social/go-ssb/service/domain/refs"
 	bolt "go.etcd.io/bbolt"
 	"io/ioutil"
 	"math/rand"
@@ -40,19 +40,19 @@ func SomeBool() bool {
 	return true
 }
 
-func SomeRefMessage() refs.Message {
+func SomeRefMessage() refs2.Message {
 	// todo improve this by using some kind of a better constructor
-	return refs.MustNewMessage(fmt.Sprintf("%%%s.sha256", randomBase64(32)))
+	return refs2.MustNewMessage(fmt.Sprintf("%%%s.sha256", randomBase64(32)))
 }
 
-func SomeRefAuthor() refs.Identity {
+func SomeRefAuthor() refs2.Identity {
 	// todo improve this by using some kind of a better constructor
-	return refs.MustNewIdentity(fmt.Sprintf("@%s.ed25519", randomBase64(32)))
+	return refs2.MustNewIdentity(fmt.Sprintf("@%s.ed25519", randomBase64(32)))
 }
 
-func SomeRefFeed() refs.Feed {
+func SomeRefFeed() refs2.Feed {
 	// todo improve this by using some kind of a better constructor
-	return refs.MustNewFeed(fmt.Sprintf("@%s.ed25519", randomBase64(32)))
+	return refs2.MustNewFeed(fmt.Sprintf("@%s.ed25519", randomBase64(32)))
 }
 
 func SomeTime() time.Time {

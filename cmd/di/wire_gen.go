@@ -9,20 +9,21 @@ package di
 import (
 	"github.com/boreq/errors"
 	"github.com/google/wire"
-	"github.com/planetary-social/go-ssb/identity"
 	"github.com/planetary-social/go-ssb/logging"
-	"github.com/planetary-social/go-ssb/network"
-	"github.com/planetary-social/go-ssb/network/boxstream"
-	rpc2 "github.com/planetary-social/go-ssb/network/rpc"
-	"github.com/planetary-social/go-ssb/scuttlebutt"
-	"github.com/planetary-social/go-ssb/scuttlebutt/adapters"
-	"github.com/planetary-social/go-ssb/scuttlebutt/commands"
-	"github.com/planetary-social/go-ssb/scuttlebutt/feeds"
-	"github.com/planetary-social/go-ssb/scuttlebutt/feeds/content/transport"
-	"github.com/planetary-social/go-ssb/scuttlebutt/feeds/formats"
-	"github.com/planetary-social/go-ssb/scuttlebutt/graph"
-	"github.com/planetary-social/go-ssb/scuttlebutt/replication"
-	"github.com/planetary-social/go-ssb/scuttlebutt/rpc"
+	"github.com/planetary-social/go-ssb/service/adapters"
+	"github.com/planetary-social/go-ssb/service/app"
+	"github.com/planetary-social/go-ssb/service/app/commands"
+	"github.com/planetary-social/go-ssb/service/domain"
+	"github.com/planetary-social/go-ssb/service/domain/feeds"
+	"github.com/planetary-social/go-ssb/service/domain/feeds/content/transport"
+	"github.com/planetary-social/go-ssb/service/domain/feeds/formats"
+	"github.com/planetary-social/go-ssb/service/domain/graph"
+	"github.com/planetary-social/go-ssb/service/domain/identity"
+	network2 "github.com/planetary-social/go-ssb/service/domain/network"
+	boxstream2 "github.com/planetary-social/go-ssb/service/domain/network/boxstream"
+	rpc3 "github.com/planetary-social/go-ssb/service/domain/network/rpc"
+	"github.com/planetary-social/go-ssb/service/domain/replication"
+	"github.com/planetary-social/go-ssb/service/ports/rpc"
 	"github.com/sirupsen/logrus"
 	"go.etcd.io/bbolt"
 	"time"
@@ -81,8 +82,8 @@ var (
 )
 
 func BuildService(private identity.Private) (Service, error) {
-	networkKey := boxstream.NewDefaultNetworkKey()
-	handshaker, err := boxstream.NewHandshaker(private, networkKey)
+	networkKey := boxstream2.NewDefaultNetworkKey()
+	handshaker, err := boxstream2.NewHandshaker(private, networkKey)
 	if err != nil {
 		return Service{}, err
 	}
@@ -94,7 +95,7 @@ func BuildService(private identity.Private) (Service, error) {
 	if err != nil {
 		return Service{}, err
 	}
-	peerInitializer := network.NewPeerInitializer(handshaker, mux, logger)
+	peerInitializer := network2.NewPeerInitializer(handshaker, mux, logger)
 	db, err := newBolt()
 	if err != nil {
 		return Service{}, err
@@ -109,27 +110,27 @@ func BuildService(private identity.Private) (Service, error) {
 	if err != nil {
 		return Service{}, err
 	}
-	formatsScuttlebutt := formats.NewScuttlebutt(marshaler)
-	v2 := newFormats(formatsScuttlebutt)
+	scuttlebutt := formats.NewScuttlebutt(marshaler)
+	v2 := newFormats(scuttlebutt)
 	rawMessageIdentifier := formats.NewRawMessageIdentifier(v2)
 	rawMessageHandler := commands.NewRawMessageHandler(transactionProvider, rawMessageIdentifier, logger)
 	gossipReplicator, err := replication.NewGossipReplicator(manager, rawMessageHandler, logger)
 	if err != nil {
 		return Service{}, err
 	}
-	peerManager := scuttlebutt.NewPeerManager(gossipReplicator, logger)
-	listener, err := network.NewListener(peerInitializer, peerManager, logger)
+	peerManager := domain.NewPeerManager(gossipReplicator, logger)
+	listener, err := network2.NewListener(peerInitializer, peerManager, logger)
 	if err != nil {
 		return Service{}, err
 	}
-	dialer, err := network.NewDialer(peerInitializer, logger)
+	dialer, err := network2.NewDialer(peerInitializer, logger)
 	if err != nil {
 		return Service{}, err
 	}
 	redeemInviteHandler := commands.NewRedeemInviteHandler(dialer, transactionProvider, networkKey, private, mux, logger)
 	followHandler := commands.NewFollowHandler(transactionProvider, private, logger)
 	connectHandler := commands.NewConnectHandler(dialer, peerManager, logger)
-	application := commands.Application{
+	application := app.Application{
 		RedeemInvite: redeemInviteHandler,
 		Follow:       followHandler,
 		Connect:      connectHandler,
@@ -140,16 +141,16 @@ func BuildService(private identity.Private) (Service, error) {
 
 // wire.go:
 
-var applicationSet = wire.NewSet(wire.Struct(new(commands.Application), "*"), commands.NewRedeemInviteHandler, commands.NewFollowHandler, commands.NewConnectHandler)
+var applicationSet = wire.NewSet(wire.Struct(new(app.Application), "*"), commands.NewRedeemInviteHandler, commands.NewFollowHandler, commands.NewConnectHandler)
 
-var replicatorSet = wire.NewSet(replication.NewManager, wire.Bind(new(replication.ReplicationManager), new(*replication.Manager)), replication.NewGossipReplicator, wire.Bind(new(scuttlebutt.Replicator), new(*replication.GossipReplicator)))
+var replicatorSet = wire.NewSet(replication.NewManager, wire.Bind(new(replication.ReplicationManager), new(*replication.Manager)), replication.NewGossipReplicator, wire.Bind(new(domain.Replicator), new(*replication.GossipReplicator)))
 
 var formatsSet = wire.NewSet(
 	newFormats, formats.NewScuttlebutt, transport.NewMarshaler, wire.Bind(new(formats.Marshaler), new(*transport.Marshaler)), transport.DefaultMappings, formats.NewRawMessageIdentifier, wire.Bind(new(commands.RawMessageIdentifier), new(*formats.RawMessageIdentifier)), wire.Bind(new(adapters.RawMessageIdentifier), new(*formats.RawMessageIdentifier)),
 )
 
 var muxSet = wire.NewSet(
-	newMuxWithHandlers, wire.Bind(new(rpc2.RequestHandler), new(*rpc2.Mux)), newMuxHandlers, rpc.NewHandlerBlobsGet, rpc.NewHandlerCreateHistoryStream,
+	newMuxWithHandlers, wire.Bind(new(rpc3.RequestHandler), new(*rpc3.Mux)), newMuxHandlers, rpc.NewHandlerBlobsGet, rpc.NewHandlerCreateHistoryStream,
 )
 
 type TestAdapters struct {
@@ -161,15 +162,15 @@ var hops = graph.MustNewHops(3)
 func newMuxHandlers(
 	createHistoryStream *rpc.HandlerCreateHistoryStream,
 	blobsGet *rpc.HandlerBlobsGet,
-) []rpc2.Handler {
-	return []rpc2.Handler{
+) []rpc3.Handler {
+	return []rpc3.Handler{
 		createHistoryStream,
 		blobsGet,
 	}
 }
 
-func newMuxWithHandlers(logger logging.Logger, handlers []rpc2.Handler) (*rpc2.Mux, error) {
-	mux := rpc2.NewMux(logger)
+func newMuxWithHandlers(logger logging.Logger, handlers []rpc3.Handler) (*rpc3.Mux, error) {
+	mux := rpc3.NewMux(logger)
 	for _, handler := range handlers {
 		if err := mux.AddHandler(handler); err != nil {
 			return nil, err

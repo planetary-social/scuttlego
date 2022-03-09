@@ -4,69 +4,70 @@
 package di
 
 import (
-	rpcHandlers "github.com/planetary-social/go-ssb/scuttlebutt/rpc"
+	adapters2 "github.com/planetary-social/go-ssb/service/adapters"
+	"github.com/planetary-social/go-ssb/service/app"
+	commands2 "github.com/planetary-social/go-ssb/service/app/commands"
+	"github.com/planetary-social/go-ssb/service/domain"
+	"github.com/planetary-social/go-ssb/service/domain/feeds"
+	transport2 "github.com/planetary-social/go-ssb/service/domain/feeds/content/transport"
+	formats2 "github.com/planetary-social/go-ssb/service/domain/feeds/formats"
+	"github.com/planetary-social/go-ssb/service/domain/graph"
+	"github.com/planetary-social/go-ssb/service/domain/identity"
+	network2 "github.com/planetary-social/go-ssb/service/domain/network"
+	boxstream2 "github.com/planetary-social/go-ssb/service/domain/network/boxstream"
+	rpc3 "github.com/planetary-social/go-ssb/service/domain/network/rpc"
+	replication2 "github.com/planetary-social/go-ssb/service/domain/replication"
+	rpc2 "github.com/planetary-social/go-ssb/service/ports/rpc"
 	"time"
 
 	"github.com/boreq/errors"
 	"github.com/google/wire"
-	"github.com/planetary-social/go-ssb/identity"
 	"github.com/planetary-social/go-ssb/logging"
-	"github.com/planetary-social/go-ssb/network"
-	"github.com/planetary-social/go-ssb/network/boxstream"
-	"github.com/planetary-social/go-ssb/network/rpc"
-	"github.com/planetary-social/go-ssb/scuttlebutt"
-	"github.com/planetary-social/go-ssb/scuttlebutt/adapters"
-	"github.com/planetary-social/go-ssb/scuttlebutt/commands"
-	"github.com/planetary-social/go-ssb/scuttlebutt/feeds"
-	"github.com/planetary-social/go-ssb/scuttlebutt/feeds/content/transport"
-	"github.com/planetary-social/go-ssb/scuttlebutt/feeds/formats"
-	"github.com/planetary-social/go-ssb/scuttlebutt/graph"
-	"github.com/planetary-social/go-ssb/scuttlebutt/replication"
 	"github.com/sirupsen/logrus"
 	"go.etcd.io/bbolt"
 )
 
 var applicationSet = wire.NewSet(
-	wire.Struct(new(commands.Application), "*"),
-	commands.NewRedeemInviteHandler,
-	commands.NewFollowHandler,
-	commands.NewConnectHandler,
+	wire.Struct(new(app.Application), "*"),
+	commands2.NewRedeemInviteHandler,
+	commands2.NewFollowHandler,
+	commands2.NewConnectHandler,
 )
 
 var replicatorSet = wire.NewSet(
-	replication.NewManager,
-	wire.Bind(new(replication.ReplicationManager), new(*replication.Manager)),
+	replication2.NewManager,
+	wire.Bind(new(replication2.ReplicationManager), new(*replication2.Manager)),
 
-	replication.NewGossipReplicator,
-	wire.Bind(new(scuttlebutt.Replicator), new(*replication.GossipReplicator)),
+	replication2.NewGossipReplicator,
+	wire.Bind(new(domain.Replicator), new(*replication2.GossipReplicator)),
 )
 
 var formatsSet = wire.NewSet(
 	newFormats,
 
-	formats.NewScuttlebutt,
+	formats2.NewScuttlebutt,
 
-	transport.NewMarshaler,
-	wire.Bind(new(formats.Marshaler), new(*transport.Marshaler)),
+	transport2.NewMarshaler,
+	wire.Bind(new(formats2.Marshaler), new(*transport2.Marshaler)),
 
-	transport.DefaultMappings,
+	transport2.DefaultMappings,
 
-	formats.NewRawMessageIdentifier,
-	wire.Bind(new(commands.RawMessageIdentifier), new(*formats.RawMessageIdentifier)),
-	wire.Bind(new(adapters.RawMessageIdentifier), new(*formats.RawMessageIdentifier)),
+	formats2.NewRawMessageIdentifier,
+	wire.Bind(new(commands2.RawMessageIdentifier), new(*formats2.RawMessageIdentifier)),
+	wire.Bind(new(adapters2.RawMessageIdentifier), new(*formats2.RawMessageIdentifier)),
 )
 
 var muxSet = wire.NewSet(
 	newMuxWithHandlers,
-	wire.Bind(new(rpc.RequestHandler), new(*rpc.Mux)),
+	wire.Bind(new(rpc3.RequestHandler), new(*rpc3.Mux)),
 
 	newMuxHandlers,
-	rpcHandlers.NewHandlerBlobsGet,
-	rpcHandlers.NewHandlerCreateHistoryStream,
+	rpc2.NewHandlerBlobsGet,
+	rpc2.NewHandlerCreateHistoryStream,
 )
 
 type TestAdapters struct {
-	Feed *adapters.BoltFeedRepository
+	Feed *adapters2.BoltFeedRepository
 }
 
 //func BuildAdaptersForTest(*bbolt.Tx) (TestAdapters, error) {
@@ -90,15 +91,15 @@ type TestAdapters struct {
 
 var hops = graph.MustNewHops(3)
 
-func BuildAdapters(*bbolt.Tx, identity.Private) (commands.Adapters, error) {
+func BuildAdapters(*bbolt.Tx, identity.Private) (commands2.Adapters, error) {
 	wire.Build(
-		wire.Struct(new(commands.Adapters), "*"),
+		wire.Struct(new(commands2.Adapters), "*"),
 
-		adapters.NewBoltFeedRepository,
-		wire.Bind(new(commands.FeedRepository), new(*adapters.BoltFeedRepository)),
+		adapters2.NewBoltFeedRepository,
+		wire.Bind(new(commands2.FeedRepository), new(*adapters2.BoltFeedRepository)),
 
-		adapters.NewSocialGraphRepository,
-		wire.Bind(new(commands.SocialGraphRepository), new(*adapters.SocialGraphRepository)),
+		adapters2.NewSocialGraphRepository,
+		wire.Bind(new(commands2.SocialGraphRepository), new(*adapters2.SocialGraphRepository)),
 
 		formatsSet,
 
@@ -108,15 +109,15 @@ func BuildAdapters(*bbolt.Tx, identity.Private) (commands.Adapters, error) {
 		wire.Value(hops),
 	)
 
-	return commands.Adapters{}, nil
+	return commands2.Adapters{}, nil
 }
 
-func BuildAdaptersForContactsRepository(*bbolt.Tx, identity.Private) (adapters.Repositories, error) {
+func BuildAdaptersForContactsRepository(*bbolt.Tx, identity.Private) (adapters2.Repositories, error) {
 	wire.Build(
-		wire.Struct(new(adapters.Repositories), "*"),
+		wire.Struct(new(adapters2.Repositories), "*"),
 
-		adapters.NewBoltFeedRepository,
-		adapters.NewSocialGraphRepository,
+		adapters2.NewBoltFeedRepository,
+		adapters2.NewSocialGraphRepository,
 
 		formatsSet,
 
@@ -126,40 +127,40 @@ func BuildAdaptersForContactsRepository(*bbolt.Tx, identity.Private) (adapters.R
 		wire.Value(hops),
 	)
 
-	return adapters.Repositories{}, nil
+	return adapters2.Repositories{}, nil
 }
 
 func BuildService(identity.Private) (Service, error) {
 	wire.Build(
 		NewService,
 
-		boxstream.NewDefaultNetworkKey,
+		boxstream2.NewDefaultNetworkKey,
 
-		boxstream.NewHandshaker,
+		boxstream2.NewHandshaker,
 
-		network.NewListener,
+		network2.NewListener,
 
-		commands.NewRawMessageHandler,
-		wire.Bind(new(replication.RawMessageHandler), new(*commands.RawMessageHandler)),
+		commands2.NewRawMessageHandler,
+		wire.Bind(new(replication2.RawMessageHandler), new(*commands2.RawMessageHandler)),
 
-		network.NewPeerInitializer,
-		wire.Bind(new(network.ServerPeerInitializer), new(*network.PeerInitializer)),
-		wire.Bind(new(network.ClientPeerInitializer), new(*network.PeerInitializer)),
+		network2.NewPeerInitializer,
+		wire.Bind(new(network2.ServerPeerInitializer), new(*network2.PeerInitializer)),
+		wire.Bind(new(network2.ClientPeerInitializer), new(*network2.PeerInitializer)),
 
-		network.NewDialer,
-		wire.Bind(new(commands.Dialer), new(*network.Dialer)),
+		network2.NewDialer,
+		wire.Bind(new(commands2.Dialer), new(*network2.Dialer)),
 
-		scuttlebutt.NewPeerManager,
-		wire.Bind(new(network.NewPeerHandler), new(*scuttlebutt.PeerManager)),
-		wire.Bind(new(commands.NewPeerHandler), new(*scuttlebutt.PeerManager)),
+		domain.NewPeerManager,
+		wire.Bind(new(network2.NewPeerHandler), new(*domain.PeerManager)),
+		wire.Bind(new(commands2.NewPeerHandler), new(*domain.PeerManager)),
 
-		adapters.NewTransactionProvider,
-		wire.Bind(new(commands.TransactionProvider), new(*adapters.TransactionProvider)),
+		adapters2.NewTransactionProvider,
+		wire.Bind(new(commands2.TransactionProvider), new(*adapters2.TransactionProvider)),
 		newAdaptersFactory,
 
 		//wire.Bind(new(adapters.AdaptersFactory), new(BuildAdapters))
-		adapters.NewBoltContactsRepository,
-		wire.Bind(new(replication.Storage), new(*adapters.BoltContactsRepository)),
+		adapters2.NewBoltContactsRepository,
+		wire.Bind(new(replication2.Storage), new(*adapters2.BoltContactsRepository)),
 		newContactRepositoriesFactory,
 
 		muxSet,
@@ -175,17 +176,17 @@ func BuildService(identity.Private) (Service, error) {
 }
 
 func newMuxHandlers(
-	createHistoryStream *rpcHandlers.HandlerCreateHistoryStream,
-	blobsGet *rpcHandlers.HandlerBlobsGet,
-) []rpc.Handler {
-	return []rpc.Handler{
+	createHistoryStream *rpc2.HandlerCreateHistoryStream,
+	blobsGet *rpc2.HandlerBlobsGet,
+) []rpc3.Handler {
+	return []rpc3.Handler{
 		createHistoryStream,
 		blobsGet,
 	}
 }
 
-func newMuxWithHandlers(logger logging.Logger, handlers []rpc.Handler) (*rpc.Mux, error) {
-	mux := rpc.NewMux(logger)
+func newMuxWithHandlers(logger logging.Logger, handlers []rpc3.Handler) (*rpc3.Mux, error) {
+	mux := rpc3.NewMux(logger)
 	for _, handler := range handlers {
 		if err := mux.AddHandler(handler); err != nil {
 			return nil, err
@@ -194,14 +195,14 @@ func newMuxWithHandlers(logger logging.Logger, handlers []rpc.Handler) (*rpc.Mux
 	return mux, nil
 }
 
-func newAdaptersFactory(local identity.Private) adapters.AdaptersFactory {
-	return func(tx *bbolt.Tx) (commands.Adapters, error) {
+func newAdaptersFactory(local identity.Private) adapters2.AdaptersFactory {
+	return func(tx *bbolt.Tx) (commands2.Adapters, error) {
 		return BuildAdapters(tx, local)
 	}
 }
 
-func newContactRepositoriesFactory(local identity.Private) adapters.RepositoriesFactory {
-	return func(tx *bbolt.Tx) (adapters.Repositories, error) {
+func newContactRepositoriesFactory(local identity.Private) adapters2.RepositoriesFactory {
+	return func(tx *bbolt.Tx) (adapters2.Repositories, error) {
 		return BuildAdaptersForContactsRepository(tx, local)
 	}
 }
@@ -225,7 +226,7 @@ func newLogger() logging.Logger {
 }
 
 func newFormats(
-	s *formats.Scuttlebutt,
+	s *formats2.Scuttlebutt,
 ) []feeds.FeedFormat {
 	return []feeds.FeedFormat{
 		s,

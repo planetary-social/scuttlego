@@ -15,8 +15,8 @@ import (
 	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
 	"github.com/planetary-social/go-ssb/service/domain/identity"
 	"github.com/planetary-social/go-ssb/service/domain/network/rpc"
-	refs2 "github.com/planetary-social/go-ssb/service/domain/refs"
-	bolt "go.etcd.io/bbolt"
+	"github.com/planetary-social/go-ssb/service/domain/refs"
+	"go.etcd.io/bbolt"
 )
 
 func SomeLogger() logging.Logger {
@@ -41,19 +41,19 @@ func SomeBool() bool {
 	return true
 }
 
-func SomeRefMessage() refs2.Message {
+func SomeRefMessage() refs.Message {
 	// todo improve this by using some kind of a better constructor
-	return refs2.MustNewMessage(fmt.Sprintf("%%%s.sha256", randomBase64(32)))
+	return refs.MustNewMessage(fmt.Sprintf("%%%s.sha256", randomBase64(32)))
 }
 
-func SomeRefAuthor() refs2.Identity {
+func SomeRefAuthor() refs.Identity {
 	// todo improve this by using some kind of a better constructor
-	return refs2.MustNewIdentity(fmt.Sprintf("@%s.ed25519", randomBase64(32)))
+	return refs.MustNewIdentity(fmt.Sprintf("@%s.ed25519", randomBase64(32)))
 }
 
-func SomeRefFeed() refs2.Feed {
+func SomeRefFeed() refs.Feed {
 	// todo improve this by using some kind of a better constructor
-	return refs2.MustNewFeed(fmt.Sprintf("@%s.ed25519", randomBase64(32)))
+	return refs.MustNewFeed(fmt.Sprintf("@%s.ed25519", randomBase64(32)))
 }
 
 func SomeTime() time.Time {
@@ -116,10 +116,10 @@ func File(t *testing.T) string {
 	return file.Name()
 }
 
-func Bolt(t *testing.T) *bolt.DB {
+func Bolt(t *testing.T) *bbolt.DB {
 	file := File(t)
 
-	db, err := bolt.Open(file, 0600, &bolt.Options{Timeout: 5 * time.Second})
+	db, err := bbolt.Open(file, 0600, &bbolt.Options{Timeout: 5 * time.Second})
 	if err != nil {
 		t.Fatal(err)
 	}

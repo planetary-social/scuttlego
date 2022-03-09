@@ -40,6 +40,10 @@ func (p PeerManager) handleConnection(peer network.Peer) error {
 	ch := make(chan error)
 
 	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		<-peer.Conn().Done()
+		cancel()
+	}()
 
 	tasks := 0
 

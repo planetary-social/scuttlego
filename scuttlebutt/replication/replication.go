@@ -2,6 +2,7 @@ package replication
 
 import (
 	"context"
+	"strconv"
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/logging"
@@ -45,29 +46,30 @@ func (r GossipReplicator) Replicate(ctx context.Context, peer network.Peer) erro
 	feedsToReplicateCh := r.manager.GetFeedsToReplicate(ctx)
 
 	for feed := range feedsToReplicateCh {
-		if err := r.replicateFeedTask(peer, feed); err != nil {
-			return errors.Wrap(err, "could not replicate")
-		}
+		r.replicateFeedTask(peer, feed)
 	}
 
 	return nil
 }
 
-func (r GossipReplicator) replicateFeedTask(peer network.Peer, feed ReplicateFeedTask) error {
-	r.logger.WithField("feed", feed.Id.String()).WithField("state", feed.State).Debug("new replicate task")
+func (r GossipReplicator) replicateFeedTask(peer network.Peer, feed ReplicateFeedTask) {
+	logger := r.logger.WithField("feed", feed.Id.String()).New("replication task")
+
+	logger.WithField("state", feed.State).Debug("starting")
 
 	n, err := r.replicateFeed(peer, feed)
 	if err != nil {
-		r.logger.WithField("n", n).WithError(err).Error("could not replicate a feed")
-		return errors.Wrap(err, "replication failed")
+		logger.WithField("n", n).WithError(err).Debug("failed")
+		return
 	}
 
-	r.logger.WithField("n", n).Debug("replicated feed")
-
-	return nil
+	logger.WithField("n", n).Debug("finished")
 }
 
 func (r GossipReplicator) replicateFeed(peer network.Peer, feed ReplicateFeedTask) (int, error) {
+	ctx, cancel := context.WithCancel(feed.Ctx)
+	defer cancel()
+
 	arguments, err := r.newCreateHistoryStreamArguments(feed.Id, feed.State)
 	if err != nil {
 		return 0, errors.Wrap(err, "could not create history stream arguments")
@@ -78,7 +80,7 @@ func (r GossipReplicator) replicateFeed(peer network.Peer, feed ReplicateFeedTas
 		return 0, errors.Wrap(err, "could not create a request")
 	}
 
-	rs, err := peer.Conn().PerformRequest(feed.Ctx, request)
+	rs, err := peer.Conn().PerformRequest(ctx, request)
 	if err != nil {
 		return 0, errors.Wrap(err, "could not perform a request")
 	}
@@ -86,7 +88,7 @@ func (r GossipReplicator) replicateFeed(peer network.Peer, feed ReplicateFeedTas
 	counter := 0
 	for response := range rs.Channel() {
 		if err := response.Err; err != nil {
-			return counter, errors.Wrap(err, "response stream error") // todo what to do if an error is returned
+			return counter, errors.Wrap(err, "response stream error")
 		}
 
 		rawMsg := message.NewRawMessage(response.Value.Bytes())
@@ -102,13 +104,15 @@ func (r GossipReplicator) replicateFeed(peer network.Peer, feed ReplicateFeedTas
 }
 
 func (r GossipReplicator) newCreateHistoryStreamArguments(id refs.Feed, state FeedState) (messages.CreateHistoryStreamArguments, error) {
-	tr := true // todo wtf
-	fa := false
+	var seq *message.Sequence
 	if sequence, hasAnyMessages := state.Sequence(); hasAnyMessages {
-		return messages.NewCreateHistoryStreamArguments(id, &sequence, nil, &tr, nil, &fa)
-	} else {
-		return messages.NewCreateHistoryStreamArguments(id, nil, nil, &tr, nil, &fa)
+		seq = &sequence
 	}
+
+	//tr := true // todo wtf
+	fa := false
+	limit := 100
+	return messages.NewCreateHistoryStreamArguments(id, seq, &limit, &fa, nil, &fa)
 }
 
 type FeedState struct {
@@ -130,4 +134,11 @@ func (s FeedState) Sequence() (message.Sequence, bool) {
 		return *s.sequence, true
 	}
 	return message.Sequence{}, false
+}
+
+func (s FeedState) String() string {
+	if s.sequence != nil {
+		return strconv.Itoa(s.sequence.Int())
+	}
+	return "empty"
 }

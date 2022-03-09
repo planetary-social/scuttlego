@@ -5,7 +5,7 @@ import (
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/network/rpc"
-	rpc2 "github.com/planetary-social/go-ssb/network/rpc/messages"
+	"github.com/planetary-social/go-ssb/network/rpc/messages"
 )
 
 type BlobStorage interface {
@@ -15,12 +15,16 @@ type BlobStorage interface {
 type HandlerBlobsGet struct {
 }
 
-func (h HandlerBlobsGet) Procedure() rpc.Procedure {
-	return rpc2.BlobsGetProcedure
+func NewHandlerBlobsGet() *HandlerBlobsGet {
+	return &HandlerBlobsGet{}
 }
 
-func (h HandlerBlobsGet) Handle(req rpc.Request, w rpc.ResponseWriter) error {
-	_, err := rpc2.NewBlobsGetArgumentsFromBytes(req.Arguments())
+func (h HandlerBlobsGet) Procedure() rpc.Procedure {
+	return messages.BlobsGetProcedure
+}
+
+func (h HandlerBlobsGet) Handle(req *rpc.Request, w *rpc.ResponseWriter) error {
+	_, err := messages.NewBlobsGetArgumentsFromBytes(req.Arguments())
 	if err != nil {
 		return errors.Wrap(err, "invalid arguments")
 	}

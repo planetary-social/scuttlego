@@ -40,9 +40,11 @@ func (m *Marshaler) Marshal(content message.MessageContent) ([]byte, error) {
 }
 
 func (m *Marshaler) Unmarshal(b []byte) (message.MessageContent, error) {
+	logger := m.logger.WithField("content", string(b))
+
 	typ, err := m.identifyContentType(b)
 	if err != nil {
-		m.logger.WithError(err).Debug("failed to identify message content type")
+		logger.WithError(err).Error("failed to identify message content type")
 		return content.NewUnknown(b)
 	}
 
@@ -53,7 +55,7 @@ func (m *Marshaler) Unmarshal(b []byte) (message.MessageContent, error) {
 
 	cnt, err := mapping.Unmarshal(b)
 	if err != nil {
-		m.logger.WithField("typ", typ).WithError(err).WithField("raw", string(b)).Debug("mapping returned an error")
+		logger.WithField("typ", typ).WithError(err).Error("mapping returned an error")
 		return nil, errors.Wrapf(err, "mapping '%s' returned an error", typ)
 	}
 
@@ -63,7 +65,6 @@ func (m *Marshaler) Unmarshal(b []byte) (message.MessageContent, error) {
 func (m *Marshaler) identifyContentType(b []byte) (message.MessageContentType, error) {
 	var typ messageContentType
 	if err := json.Unmarshal(b, &typ); err != nil {
-		m.logger.Debug(string(b))
 		return "", errors.Wrap(err, "json unmarshal of message content type failed")
 	}
 	if typ.MessageContentType == string((content.Unknown{}).Type()) {

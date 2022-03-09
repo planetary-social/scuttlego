@@ -6,18 +6,17 @@ import (
 
 	"github.com/planetary-social/go-ssb/fixtures"
 	"github.com/planetary-social/go-ssb/identity"
-	"github.com/planetary-social/go-ssb/logging"
 	"github.com/planetary-social/go-ssb/refs"
 	"github.com/planetary-social/go-ssb/scuttlebutt/feeds/content"
 	"github.com/planetary-social/go-ssb/scuttlebutt/feeds/content/transport"
 	"github.com/planetary-social/go-ssb/scuttlebutt/feeds/message"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 )
 
 // todo abstract away dependencies
 func TestMarshaler(t *testing.T) {
-	marshaler, err := transport.NewMarshaler(transport.DefaultMappings(), logging.NewLogrusLogger(logrus.New(), "test"))
+	logger := fixtures.SomeLogger()
+	marshaler, err := transport.NewMarshaler(transport.DefaultMappings(), logger)
 	require.NoError(t, err)
 
 	f := NewScuttlebutt(marshaler)
@@ -44,7 +43,8 @@ func TestMarshaler(t *testing.T) {
 
 // todo abstract away dependencies
 func TestMarshalerPrevious(t *testing.T) {
-	marshaler, err := transport.NewMarshaler(transport.DefaultMappings(), logging.NewLogrusLogger(logrus.New(), "test"))
+	logger := fixtures.SomeLogger()
+	marshaler, err := transport.NewMarshaler(transport.DefaultMappings(), logger)
 	require.NoError(t, err)
 
 	f := NewScuttlebutt(marshaler)

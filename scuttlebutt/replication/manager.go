@@ -40,10 +40,12 @@ func (m Manager) GetFeedsToReplicate(ctx context.Context) <-chan ReplicateFeedTa
 	return ch
 }
 
+const timeForReplicationLoop = 60 * time.Second
+
 func (m Manager) sendFeedsToReplicateLoop(ctx context.Context, ch chan ReplicateFeedTask) {
 	// todo make this event driven
 	for {
-		batchCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		batchCtx, cancel := context.WithTimeout(ctx, timeForReplicationLoop)
 
 		if err := m.sendFeedsToReplicate(batchCtx, ch); err != nil {
 			m.logger.WithError(err).Error("could not send feeds to replicate")
@@ -81,6 +83,8 @@ func (m Manager) sendFeedsToReplicate(ctx context.Context, ch chan ReplicateFeed
 		case ch <- task:
 			continue
 		}
+
+		break
 	}
 
 	return nil

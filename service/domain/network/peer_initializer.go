@@ -4,22 +4,22 @@ import (
 	"io"
 
 	"github.com/planetary-social/go-ssb/service/domain/identity"
-	boxstream2 "github.com/planetary-social/go-ssb/service/domain/network/boxstream"
-	rpc2 "github.com/planetary-social/go-ssb/service/domain/network/rpc"
+	"github.com/planetary-social/go-ssb/service/domain/network/boxstream"
+	"github.com/planetary-social/go-ssb/service/domain/network/rpc"
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/logging"
 )
 
 type PeerInitializer struct {
-	handshaker     boxstream2.Handshaker
-	requestHandler rpc2.RequestHandler
+	handshaker     boxstream.Handshaker
+	requestHandler rpc.RequestHandler
 	logger         logging.Logger
 }
 
 func NewPeerInitializer(
-	handshaker boxstream2.Handshaker,
-	requestHandler rpc2.RequestHandler,
+	handshaker boxstream.Handshaker,
+	requestHandler rpc.RequestHandler,
 	logger logging.Logger,
 ) *PeerInitializer {
 	return &PeerInitializer{
@@ -47,8 +47,8 @@ func (i PeerInitializer) InitializeClientPeer(rwc io.ReadWriteCloser, remote ide
 	return i.initializePeer(boxStream)
 }
 
-func (i PeerInitializer) initializePeer(boxStream *boxstream2.Stream) (Peer, error) {
-	rpcConn, err := rpc2.NewConnection(boxStream, i.requestHandler, i.logger)
+func (i PeerInitializer) initializePeer(boxStream *boxstream.Stream) (Peer, error) {
+	rpcConn, err := rpc.NewConnection(boxStream, i.requestHandler, i.logger)
 	if err != nil {
 		return Peer{}, errors.Wrap(err, "failed to establish an RPC connection")
 	}

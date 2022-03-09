@@ -83,8 +83,6 @@ func (m Manager) sendFeedsToReplicate(ctx context.Context, ch chan ReplicateFeed
 		case ch <- task:
 			continue
 		}
-
-		break
 	}
 
 	return nil

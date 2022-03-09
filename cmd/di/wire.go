@@ -4,6 +4,7 @@
 package di
 
 import (
+	rpcHandlers "github.com/planetary-social/go-ssb/scuttlebutt/rpc"
 	"time"
 
 	"github.com/boreq/errors"
@@ -53,6 +54,15 @@ var formatsSet = wire.NewSet(
 	formats.NewRawMessageIdentifier,
 	wire.Bind(new(commands.RawMessageIdentifier), new(*formats.RawMessageIdentifier)),
 	wire.Bind(new(adapters.RawMessageIdentifier), new(*formats.RawMessageIdentifier)),
+)
+
+var muxSet = wire.NewSet(
+	newMuxWithHandlers,
+	wire.Bind(new(rpc.RequestHandler), new(*rpc.Mux)),
+
+	newMuxHandlers,
+	rpcHandlers.NewHandlerBlobsGet,
+	rpcHandlers.NewHandlerCreateHistoryStream,
 )
 
 type TestAdapters struct {
@@ -139,9 +149,6 @@ func BuildService(identity.Private) (Service, error) {
 		network.NewDialer,
 		wire.Bind(new(commands.Dialer), new(*network.Dialer)),
 
-		rpc.NewMux,
-		wire.Bind(new(rpc.RequestHandler), new(*rpc.Mux)),
-
 		scuttlebutt.NewPeerManager,
 		wire.Bind(new(network.NewPeerHandler), new(*scuttlebutt.PeerManager)),
 		wire.Bind(new(commands.NewPeerHandler), new(*scuttlebutt.PeerManager)),
@@ -155,6 +162,7 @@ func BuildService(identity.Private) (Service, error) {
 		wire.Bind(new(replication.Storage), new(*adapters.BoltContactsRepository)),
 		newContactRepositoriesFactory,
 
+		muxSet,
 		applicationSet,
 		replicatorSet,
 		formatsSet,
@@ -164,6 +172,26 @@ func BuildService(identity.Private) (Service, error) {
 		newBolt,
 	)
 	return Service{}, nil
+}
+
+func newMuxHandlers(
+	createHistoryStream *rpcHandlers.HandlerCreateHistoryStream,
+	blobsGet *rpcHandlers.HandlerBlobsGet,
+) []rpc.Handler {
+	return []rpc.Handler{
+		createHistoryStream,
+		blobsGet,
+	}
+}
+
+func newMuxWithHandlers(logger logging.Logger, handlers []rpc.Handler) (*rpc.Mux, error) {
+	mux := rpc.NewMux(logger)
+	for _, handler := range handlers {
+		if err := mux.AddHandler(handler); err != nil {
+			return nil, err
+		}
+	}
+	return mux, nil
 }
 
 func newAdaptersFactory(local identity.Private) adapters.AdaptersFactory {
@@ -193,7 +221,7 @@ func newPublicIdentity(p identity.Private) identity.Public {
 func newLogger() logging.Logger {
 	log := logrus.New()
 	log.SetLevel(logrus.DebugLevel)
-	return logging.NewLogrusLogger(log, "main")
+	return logging.NewLogrusLogger(log, "main", logging.LevelDebug)
 }
 
 func newFormats(

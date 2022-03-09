@@ -1,21 +1,44 @@
 package fixtures
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
+	"github.com/planetary-social/go-ssb/identity"
+	"github.com/planetary-social/go-ssb/logging"
+	"github.com/planetary-social/go-ssb/network/rpc"
+	"github.com/planetary-social/go-ssb/refs"
+	"github.com/planetary-social/go-ssb/scuttlebutt/feeds/content"
+	"github.com/planetary-social/go-ssb/scuttlebutt/feeds/message"
+	bolt "go.etcd.io/bbolt"
 	"io/ioutil"
 	"math/rand"
 	"os"
 	"testing"
 	"time"
-
-	"github.com/planetary-social/go-ssb/identity"
-
-	"github.com/planetary-social/go-ssb/refs"
-	"github.com/planetary-social/go-ssb/scuttlebutt/feeds/content"
-	"github.com/planetary-social/go-ssb/scuttlebutt/feeds/message"
-	bolt "go.etcd.io/bbolt"
 )
+
+func SomeLogger() logging.Logger {
+	return logging.NewDevNullLogger()
+}
+
+func TestContext(t *testing.T) context.Context {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	return ctx
+}
+
+func SomeProcedureName() rpc.ProcedureName {
+	return rpc.MustNewProcedureName([]string{randomBase64(10)})
+}
+
+func SomeProcedureType() rpc.ProcedureType {
+	return rpc.ProcedureTypeAsync
+}
+
+func SomeBool() bool {
+	return true
+}
 
 func SomeRefMessage() refs.Message {
 	// todo improve this by using some kind of a better constructor
@@ -56,6 +79,10 @@ func SomeBytes() []byte {
 		panic(err)
 	}
 	return r
+}
+
+func SomeJSON() []byte {
+	return []byte(`{"key":"value"}`)
 }
 
 func SomeRawMessage() message.RawMessage {

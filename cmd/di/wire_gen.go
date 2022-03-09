@@ -7,15 +7,13 @@
 package di
 
 import (
-	"time"
-
 	"github.com/boreq/errors"
 	"github.com/google/wire"
 	"github.com/planetary-social/go-ssb/identity"
 	"github.com/planetary-social/go-ssb/logging"
 	"github.com/planetary-social/go-ssb/network"
 	"github.com/planetary-social/go-ssb/network/boxstream"
-	"github.com/planetary-social/go-ssb/network/rpc"
+	rpc2 "github.com/planetary-social/go-ssb/network/rpc"
 	"github.com/planetary-social/go-ssb/scuttlebutt"
 	"github.com/planetary-social/go-ssb/scuttlebutt/adapters"
 	"github.com/planetary-social/go-ssb/scuttlebutt/commands"
@@ -24,8 +22,10 @@ import (
 	"github.com/planetary-social/go-ssb/scuttlebutt/feeds/formats"
 	"github.com/planetary-social/go-ssb/scuttlebutt/graph"
 	"github.com/planetary-social/go-ssb/scuttlebutt/replication"
+	"github.com/planetary-social/go-ssb/scuttlebutt/rpc"
 	"github.com/sirupsen/logrus"
 	"go.etcd.io/bbolt"
+	"time"
 )
 
 // Injectors from wire.go:
@@ -87,7 +87,13 @@ func BuildService(private identity.Private) (Service, error) {
 		return Service{}, err
 	}
 	logger := newLogger()
-	mux := rpc.NewMux(logger)
+	handlerCreateHistoryStream := rpc.NewHandlerCreateHistoryStream()
+	handlerBlobsGet := rpc.NewHandlerBlobsGet()
+	v := newMuxHandlers(handlerCreateHistoryStream, handlerBlobsGet)
+	mux, err := newMuxWithHandlers(logger, v)
+	if err != nil {
+		return Service{}, err
+	}
 	peerInitializer := network.NewPeerInitializer(handshaker, mux, logger)
 	db, err := newBolt()
 	if err != nil {
@@ -104,8 +110,8 @@ func BuildService(private identity.Private) (Service, error) {
 		return Service{}, err
 	}
 	formatsScuttlebutt := formats.NewScuttlebutt(marshaler)
-	v := newFormats(formatsScuttlebutt)
-	rawMessageIdentifier := formats.NewRawMessageIdentifier(v)
+	v2 := newFormats(formatsScuttlebutt)
+	rawMessageIdentifier := formats.NewRawMessageIdentifier(v2)
 	rawMessageHandler := commands.NewRawMessageHandler(transactionProvider, rawMessageIdentifier, logger)
 	gossipReplicator, err := replication.NewGossipReplicator(manager, rawMessageHandler, logger)
 	if err != nil {
@@ -142,11 +148,35 @@ var formatsSet = wire.NewSet(
 	newFormats, formats.NewScuttlebutt, transport.NewMarshaler, wire.Bind(new(formats.Marshaler), new(*transport.Marshaler)), transport.DefaultMappings, formats.NewRawMessageIdentifier, wire.Bind(new(commands.RawMessageIdentifier), new(*formats.RawMessageIdentifier)), wire.Bind(new(adapters.RawMessageIdentifier), new(*formats.RawMessageIdentifier)),
 )
 
+var muxSet = wire.NewSet(
+	newMuxWithHandlers, wire.Bind(new(rpc2.RequestHandler), new(*rpc2.Mux)), newMuxHandlers, rpc.NewHandlerBlobsGet, rpc.NewHandlerCreateHistoryStream,
+)
+
 type TestAdapters struct {
 	Feed *adapters.BoltFeedRepository
 }
 
 var hops = graph.MustNewHops(3)
+
+func newMuxHandlers(
+	createHistoryStream *rpc.HandlerCreateHistoryStream,
+	blobsGet *rpc.HandlerBlobsGet,
+) []rpc2.Handler {
+	return []rpc2.Handler{
+		createHistoryStream,
+		blobsGet,
+	}
+}
+
+func newMuxWithHandlers(logger logging.Logger, handlers []rpc2.Handler) (*rpc2.Mux, error) {
+	mux := rpc2.NewMux(logger)
+	for _, handler := range handlers {
+		if err := mux.AddHandler(handler); err != nil {
+			return nil, err
+		}
+	}
+	return mux, nil
+}
 
 func newAdaptersFactory(local identity.Private) adapters.AdaptersFactory {
 	return func(tx *bbolt.Tx) (commands.Adapters, error) {
@@ -175,7 +205,7 @@ func newPublicIdentity(p identity.Private) identity.Public {
 func newLogger() logging.Logger {
 	log := logrus.New()
 	log.SetLevel(logrus.DebugLevel)
-	return logging.NewLogrusLogger(log, "main")
+	return logging.NewLogrusLogger(log, "main", logging.LevelDebug)
 }
 
 func newFormats(

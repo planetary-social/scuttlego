@@ -31,3 +31,4 @@ lint:
 .PHONY: tools
 tools:
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.44.2
+	go install golang.org/x/tools/cmd/goimports@latest

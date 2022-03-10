@@ -4,6 +4,7 @@
 package di
 
 import (
+	"path"
 	"time"
 
 	adapters2 "github.com/planetary-social/go-ssb/service/adapters"
@@ -131,7 +132,7 @@ func BuildAdaptersForContactsRepository(*bbolt.Tx, identity.Private) (adapters2.
 	return adapters2.Repositories{}, nil
 }
 
-func BuildService(identity.Private) (Service, error) {
+func BuildService(identity.Private, Config) (Service, error) {
 	wire.Build(
 		NewService,
 
@@ -159,7 +160,6 @@ func BuildService(identity.Private) (Service, error) {
 		wire.Bind(new(commands2.TransactionProvider), new(*adapters2.TransactionProvider)),
 		newAdaptersFactory,
 
-		//wire.Bind(new(adapters.AdaptersFactory), new(BuildAdapters))
 		adapters2.NewBoltContactsRepository,
 		wire.Bind(new(replication2.Storage), new(*adapters2.BoltContactsRepository)),
 		newContactRepositoriesFactory,
@@ -208,8 +208,9 @@ func newContactRepositoriesFactory(local identity.Private) adapters2.Repositorie
 	}
 }
 
-func newBolt() (*bbolt.DB, error) {
-	b, err := bbolt.Open("/tmp/tmp.bolt.db", 0600, &bbolt.Options{Timeout: 5 * time.Second})
+func newBolt(config Config) (*bbolt.DB, error) {
+	filename := path.Join(config.DataDirectory, "database.bolt")
+	b, err := bbolt.Open(filename, 0600, &bbolt.Options{Timeout: 5 * time.Second})
 	if err != nil {
 		return nil, errors.Wrap(err, "could not open the database, is something else reading it?")
 	}

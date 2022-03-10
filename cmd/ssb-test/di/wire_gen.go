@@ -7,8 +7,6 @@
 package di
 
 import (
-	"time"
-
 	"github.com/boreq/errors"
 	"github.com/google/wire"
 	"github.com/planetary-social/go-ssb/logging"
@@ -28,6 +26,8 @@ import (
 	"github.com/planetary-social/go-ssb/service/ports/rpc"
 	"github.com/sirupsen/logrus"
 	"go.etcd.io/bbolt"
+	"path"
+	"time"
 )
 
 // Injectors from wire.go:
@@ -82,7 +82,7 @@ var (
 	_wireGraphHopsValue = hops
 )
 
-func BuildService(private identity.Private) (Service, error) {
+func BuildService(private identity.Private, config Config) (Service, error) {
 	networkKey := boxstream.NewDefaultNetworkKey()
 	handshaker, err := boxstream.NewHandshaker(private, networkKey)
 	if err != nil {
@@ -97,7 +97,7 @@ func BuildService(private identity.Private) (Service, error) {
 		return Service{}, err
 	}
 	peerInitializer := network.NewPeerInitializer(handshaker, mux, logger)
-	db, err := newBolt()
+	db, err := newBolt(config)
 	if err != nil {
 		return Service{}, err
 	}
@@ -192,8 +192,9 @@ func newContactRepositoriesFactory(local identity.Private) adapters.Repositories
 	}
 }
 
-func newBolt() (*bbolt.DB, error) {
-	b, err := bbolt.Open("/tmp/tmp.bolt.db", 0600, &bbolt.Options{Timeout: 5 * time.Second})
+func newBolt(config Config) (*bbolt.DB, error) {
+	filename := path.Join(config.DataDirectory, "database.bolt")
+	b, err := bbolt.Open(filename, 0600, &bbolt.Options{Timeout: 5 * time.Second})
 	if err != nil {
 		return nil, errors.Wrap(err, "could not open the database, is something else reading it?")
 	}

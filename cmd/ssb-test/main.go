@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"path"
 	"runtime/pprof"
 	"time"
 
@@ -34,12 +35,14 @@ func run() error {
 		panic("profile done")
 	}()
 
-	local, err := loadOrGenerateIdentity()
+	config := di.Config{DataDirectory: os.Args[1]}
+
+	local, err := loadOrGenerateIdentity(config)
 	if err != nil {
 		return errors.Wrap(err, "could not load the identity")
 	}
 
-	service, err := di.BuildService(local)
+	service, err := di.BuildService(local, config)
 	if err != nil {
 		return errors.Wrap(err, "could not build a service")
 	}
@@ -47,8 +50,9 @@ func run() error {
 	return service.Run()
 }
 
-func loadOrGenerateIdentity() (identity.Private, error) {
-	storage := storage.NewIdentityStorage("/tmp/identity.json")
+func loadOrGenerateIdentity(config di.Config) (identity.Private, error) {
+	filename := path.Join(config.DataDirectory, "identity.json")
+	storage := storage.NewIdentityStorage(filename)
 
 	i, err := storage.Load()
 	if err != nil {

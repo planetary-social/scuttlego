@@ -3,9 +3,8 @@ package boxstream
 import (
 	"io"
 
-	"github.com/planetary-social/go-ssb/service/domain/identity"
-
 	"github.com/boreq/errors"
+	"github.com/planetary-social/go-ssb/service/domain/identity"
 	"go.cryptoscope.co/secretstream/secrethandshake"
 )
 

@@ -4,17 +4,16 @@ import (
 	"context"
 	"io"
 
-	transport2 "github.com/planetary-social/go-ssb/service/domain/network/rpc/transport"
-
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/logging"
+	transport "github.com/planetary-social/go-ssb/service/domain/network/rpc/transport"
 )
 
 var ErrEndOrErr = errors.New("end or error")
 
 type RawConnection interface {
-	Next() (*transport2.Message, error)
-	Send(msg *transport2.Message) error
+	Next() (*transport.Message, error)
+	Send(msg *transport.Message) error
 	Close() error
 }
 
@@ -34,7 +33,7 @@ func NewConnection(
 	handler RequestHandler,
 	logger logging.Logger,
 ) (*Connection, error) {
-	raw := transport2.NewRawConnection(rw, logger)
+	raw := transport.NewRawConnection(rw, logger)
 	conn := &Connection{
 		raw:             raw,
 		responseStreams: NewResponseStreams(raw, logger),

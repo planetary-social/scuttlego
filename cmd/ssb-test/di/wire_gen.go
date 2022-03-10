@@ -7,6 +7,9 @@
 package di
 
 import (
+	"path"
+	"time"
+
 	"github.com/boreq/errors"
 	"github.com/google/wire"
 	"github.com/planetary-social/go-ssb/logging"
@@ -26,8 +29,6 @@ import (
 	"github.com/planetary-social/go-ssb/service/ports/rpc"
 	"github.com/sirupsen/logrus"
 	"go.etcd.io/bbolt"
-	"path"
-	"time"
 )
 
 // Injectors from wire.go:

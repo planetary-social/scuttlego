@@ -21,9 +21,9 @@ import (
 	"github.com/planetary-social/go-ssb/service/domain/feeds/formats"
 	"github.com/planetary-social/go-ssb/service/domain/graph"
 	"github.com/planetary-social/go-ssb/service/domain/identity"
-	network2 "github.com/planetary-social/go-ssb/service/domain/network"
-	boxstream2 "github.com/planetary-social/go-ssb/service/domain/network/boxstream"
-	rpc3 "github.com/planetary-social/go-ssb/service/domain/network/rpc"
+	"github.com/planetary-social/go-ssb/service/domain/network"
+	"github.com/planetary-social/go-ssb/service/domain/network/boxstream"
+	rpc2 "github.com/planetary-social/go-ssb/service/domain/network/rpc"
 	"github.com/planetary-social/go-ssb/service/domain/replication"
 	"github.com/planetary-social/go-ssb/service/ports/rpc"
 	"github.com/sirupsen/logrus"
@@ -83,8 +83,8 @@ var (
 )
 
 func BuildService(private identity.Private) (Service, error) {
-	networkKey := boxstream2.NewDefaultNetworkKey()
-	handshaker, err := boxstream2.NewHandshaker(private, networkKey)
+	networkKey := boxstream.NewDefaultNetworkKey()
+	handshaker, err := boxstream.NewHandshaker(private, networkKey)
 	if err != nil {
 		return Service{}, err
 	}
@@ -96,7 +96,7 @@ func BuildService(private identity.Private) (Service, error) {
 	if err != nil {
 		return Service{}, err
 	}
-	peerInitializer := network2.NewPeerInitializer(handshaker, mux, logger)
+	peerInitializer := network.NewPeerInitializer(handshaker, mux, logger)
 	db, err := newBolt()
 	if err != nil {
 		return Service{}, err
@@ -120,11 +120,11 @@ func BuildService(private identity.Private) (Service, error) {
 		return Service{}, err
 	}
 	peerManager := domain.NewPeerManager(gossipReplicator, logger)
-	listener, err := network2.NewListener(peerInitializer, peerManager, logger)
+	listener, err := network.NewListener(peerInitializer, peerManager, logger)
 	if err != nil {
 		return Service{}, err
 	}
-	dialer, err := network2.NewDialer(peerInitializer, logger)
+	dialer, err := network.NewDialer(peerInitializer, logger)
 	if err != nil {
 		return Service{}, err
 	}
@@ -151,7 +151,7 @@ var formatsSet = wire.NewSet(
 )
 
 var muxSet = wire.NewSet(
-	newMuxWithHandlers, wire.Bind(new(rpc3.RequestHandler), new(*rpc3.Mux)), newMuxHandlers, rpc.NewHandlerBlobsGet, rpc.NewHandlerCreateHistoryStream,
+	newMuxWithHandlers, wire.Bind(new(rpc2.RequestHandler), new(*rpc2.Mux)), newMuxHandlers, rpc.NewHandlerBlobsGet, rpc.NewHandlerCreateHistoryStream,
 )
 
 type TestAdapters struct {
@@ -163,15 +163,15 @@ var hops = graph.MustNewHops(3)
 func newMuxHandlers(
 	createHistoryStream *rpc.HandlerCreateHistoryStream,
 	blobsGet *rpc.HandlerBlobsGet,
-) []rpc3.Handler {
-	return []rpc3.Handler{
+) []rpc2.Handler {
+	return []rpc2.Handler{
 		createHistoryStream,
 		blobsGet,
 	}
 }
 
-func newMuxWithHandlers(logger logging.Logger, handlers []rpc3.Handler) (*rpc3.Mux, error) {
-	mux := rpc3.NewMux(logger)
+func newMuxWithHandlers(logger logging.Logger, handlers []rpc2.Handler) (*rpc2.Mux, error) {
+	mux := rpc2.NewMux(logger)
 	for _, handler := range handlers {
 		if err := mux.AddHandler(handler); err != nil {
 			return nil, err

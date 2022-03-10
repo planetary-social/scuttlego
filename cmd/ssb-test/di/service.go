@@ -22,17 +22,17 @@ func NewService(listener network2.Listener, app app2.Application) Service {
 
 var (
 	myPatchwork = refs.MustNewIdentity("@qFtLJ6P5Eh9vKxnj7Rsh8SkE6B6Z36DVLP7ZOKNeQ/Y=.ed25519")
-	pub         = refs.MustNewIdentity("@CIlwTOK+m6v1hT2zUVOCJvvZq7KE/65ErN6yA2yrURY=.ed25519")
 
 	localConnect = commands2.Connect{
 		Remote:  myPatchwork.Identity(),
 		Address: network2.NewAddress("127.0.0.1:8008"),
 	}
 
-	hubConnect = commands2.Connect{
-		Remote:  pub.Identity(),
-		Address: network2.NewAddress("one.planetary.pub:8008"),
-	}
+	//pub         = refs.MustNewIdentity("@CIlwTOK+m6v1hT2zUVOCJvvZq7KE/65ErN6yA2yrURY=.ed25519")
+	//hubConnect = commands2.Connect{
+	//	Remote:  pub.Identity(),
+	//	Address: network2.NewAddress("one.planetary.pub:8008"),
+	//}
 )
 
 func (s Service) Run() error {

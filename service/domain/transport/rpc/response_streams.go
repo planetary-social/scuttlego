@@ -5,10 +5,9 @@ import (
 	"encoding/json"
 	"sync"
 
-	"github.com/planetary-social/go-ssb/service/domain/network/rpc/transport"
-
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/logging"
+	"github.com/planetary-social/go-ssb/service/domain/transport/rpc/transport"
 )
 
 type ResponseStreams struct {

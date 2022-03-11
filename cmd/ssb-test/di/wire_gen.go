@@ -14,8 +14,11 @@ import (
 	"github.com/google/wire"
 	"github.com/planetary-social/go-ssb/logging"
 	"github.com/planetary-social/go-ssb/service/adapters"
+	"github.com/planetary-social/go-ssb/service/adapters/mocks"
+	"github.com/planetary-social/go-ssb/service/adapters/pubsub"
 	"github.com/planetary-social/go-ssb/service/app"
 	"github.com/planetary-social/go-ssb/service/app/commands"
+	"github.com/planetary-social/go-ssb/service/app/queries"
 	"github.com/planetary-social/go-ssb/service/domain"
 	"github.com/planetary-social/go-ssb/service/domain/feeds"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/content/transport"
@@ -23,9 +26,12 @@ import (
 	"github.com/planetary-social/go-ssb/service/domain/graph"
 	"github.com/planetary-social/go-ssb/service/domain/identity"
 	"github.com/planetary-social/go-ssb/service/domain/network"
-	"github.com/planetary-social/go-ssb/service/domain/network/boxstream"
-	rpc2 "github.com/planetary-social/go-ssb/service/domain/network/rpc"
 	"github.com/planetary-social/go-ssb/service/domain/replication"
+	transport2 "github.com/planetary-social/go-ssb/service/domain/transport"
+	"github.com/planetary-social/go-ssb/service/domain/transport/boxstream"
+	rpc2 "github.com/planetary-social/go-ssb/service/domain/transport/rpc"
+	network2 "github.com/planetary-social/go-ssb/service/ports/network"
+	pubsub2 "github.com/planetary-social/go-ssb/service/ports/pubsub"
 	"github.com/planetary-social/go-ssb/service/ports/rpc"
 	"github.com/sirupsen/logrus"
 	"go.etcd.io/bbolt"
@@ -33,7 +39,22 @@ import (
 
 // Injectors from wire.go:
 
-func BuildAdapters(tx *bbolt.Tx, private identity.Private) (commands.Adapters, error) {
+func BuildApplicationForTests() (TestApplication, error) {
+	feedRepositoryMock := mocks.NewFeedRepositoryMock()
+	messagePubSubMock := mocks.NewMessagePubSubMock()
+	createHistoryStreamHandler := queries.NewCreateHistoryStreamHandler(feedRepositoryMock, messagePubSubMock)
+	appQueries := app.Queries{
+		CreateHistoryStream: createHistoryStreamHandler,
+	}
+	testApplication := TestApplication{
+		Queries:        appQueries,
+		FeedRepository: feedRepositoryMock,
+		MessagePubSub:  messagePubSubMock,
+	}
+	return testApplication, nil
+}
+
+func BuildTransactableAdapters(tx *bbolt.Tx, private identity.Private) (commands.Adapters, error) {
 	messageContentMappings := transport.DefaultMappings()
 	logger := newLogger()
 	marshaler, err := transport.NewMarshaler(messageContentMappings, logger)
@@ -89,61 +110,72 @@ func BuildService(private identity.Private, config Config) (Service, error) {
 	if err != nil {
 		return Service{}, err
 	}
+	requestPubSub := pubsub.NewRequestPubSub()
 	logger := newLogger()
-	handlerCreateHistoryStream := rpc.NewHandlerCreateHistoryStream()
-	handlerBlobsGet := rpc.NewHandlerBlobsGet()
-	v := newMuxHandlers(handlerCreateHistoryStream, handlerBlobsGet)
-	mux, err := newMuxWithHandlers(logger, v)
+	peerInitializer := transport2.NewPeerInitializer(handshaker, requestPubSub, logger)
+	dialer, err := network.NewDialer(peerInitializer, logger)
 	if err != nil {
 		return Service{}, err
 	}
-	peerInitializer := network.NewPeerInitializer(handshaker, mux, logger)
 	db, err := newBolt(config)
 	if err != nil {
 		return Service{}, err
 	}
+	adaptersFactory := newAdaptersFactory(private)
+	transactionProvider := adapters.NewTransactionProvider(db, adaptersFactory)
+	redeemInviteHandler := commands.NewRedeemInviteHandler(dialer, transactionProvider, networkKey, private, requestPubSub, logger)
+	followHandler := commands.NewFollowHandler(transactionProvider, private, logger)
 	repositoriesFactory := newContactRepositoriesFactory(private)
 	boltContactsRepository := adapters.NewBoltContactsRepository(db, repositoriesFactory)
 	manager := replication.NewManager(logger, boltContactsRepository)
-	adaptersFactory := newAdaptersFactory(private)
-	transactionProvider := adapters.NewTransactionProvider(db, adaptersFactory)
 	messageContentMappings := transport.DefaultMappings()
 	marshaler, err := transport.NewMarshaler(messageContentMappings, logger)
 	if err != nil {
 		return Service{}, err
 	}
 	scuttlebutt := formats.NewScuttlebutt(marshaler)
-	v2 := newFormats(scuttlebutt)
-	rawMessageIdentifier := formats.NewRawMessageIdentifier(v2)
+	v := newFormats(scuttlebutt)
+	rawMessageIdentifier := formats.NewRawMessageIdentifier(v)
 	rawMessageHandler := commands.NewRawMessageHandler(transactionProvider, rawMessageIdentifier, logger)
 	gossipReplicator, err := replication.NewGossipReplicator(manager, rawMessageHandler, logger)
 	if err != nil {
 		return Service{}, err
 	}
 	peerManager := domain.NewPeerManager(gossipReplicator, logger)
-	listener, err := network.NewListener(peerInitializer, peerManager, logger)
-	if err != nil {
-		return Service{}, err
-	}
-	dialer, err := network.NewDialer(peerInitializer, logger)
-	if err != nil {
-		return Service{}, err
-	}
-	redeemInviteHandler := commands.NewRedeemInviteHandler(dialer, transactionProvider, networkKey, private, mux, logger)
-	followHandler := commands.NewFollowHandler(transactionProvider, private, logger)
 	connectHandler := commands.NewConnectHandler(dialer, peerManager, logger)
-	application := app.Application{
-		RedeemInvite: redeemInviteHandler,
-		Follow:       followHandler,
-		Connect:      connectHandler,
+	acceptNewPeerHandler := commands.NewAcceptNewPeerHandler(peerManager)
+	boltMessageRepository := adapters.NewBoltMessageRepository(db, rawMessageIdentifier)
+	messagePubSub := pubsub.NewMessagePubSub()
+	createHistoryStreamHandler := queries.NewCreateHistoryStreamHandler(boltMessageRepository, messagePubSub)
+	appQueries := app.Queries{
+		CreateHistoryStream: createHistoryStreamHandler,
 	}
-	service := NewService(listener, application)
+	application := app.Application{
+		RedeemInvite:  redeemInviteHandler,
+		Follow:        followHandler,
+		Connect:       connectHandler,
+		AcceptNewPeer: acceptNewPeerHandler,
+		Queries:       appQueries,
+	}
+	listener, err := network2.NewListener(peerInitializer, application, logger)
+	if err != nil {
+		return Service{}, err
+	}
+	handlerCreateHistoryStream := rpc.NewHandlerCreateHistoryStream(application)
+	handlerBlobsGet := rpc.NewHandlerBlobsGet()
+	v2 := rpc.NewMuxHandlers(handlerCreateHistoryStream, handlerBlobsGet)
+	mux, err := rpc.NewMux(logger, v2)
+	if err != nil {
+		return Service{}, err
+	}
+	pubSub := pubsub2.NewPubSub(requestPubSub, mux)
+	service := NewService(listener, pubSub, application)
 	return service, nil
 }
 
 // wire.go:
 
-var applicationSet = wire.NewSet(wire.Struct(new(app.Application), "*"), commands.NewRedeemInviteHandler, commands.NewFollowHandler, commands.NewConnectHandler)
+var applicationSet = wire.NewSet(wire.Struct(new(app.Application), "*"), commands.NewRedeemInviteHandler, commands.NewFollowHandler, commands.NewConnectHandler, commands.NewAcceptNewPeerHandler, wire.Struct(new(app.Queries), "*"), queries.NewCreateHistoryStreamHandler)
 
 var replicatorSet = wire.NewSet(replication.NewManager, wire.Bind(new(replication.ReplicationManager), new(*replication.Manager)), replication.NewGossipReplicator, wire.Bind(new(domain.Replicator), new(*replication.GossipReplicator)))
 
@@ -151,9 +183,13 @@ var formatsSet = wire.NewSet(
 	newFormats, formats.NewScuttlebutt, transport.NewMarshaler, wire.Bind(new(formats.Marshaler), new(*transport.Marshaler)), transport.DefaultMappings, formats.NewRawMessageIdentifier, wire.Bind(new(commands.RawMessageIdentifier), new(*formats.RawMessageIdentifier)), wire.Bind(new(adapters.RawMessageIdentifier), new(*formats.RawMessageIdentifier)),
 )
 
-var muxSet = wire.NewSet(
-	newMuxWithHandlers, wire.Bind(new(rpc2.RequestHandler), new(*rpc2.Mux)), newMuxHandlers, rpc.NewHandlerBlobsGet, rpc.NewHandlerCreateHistoryStream,
-)
+var portsSet = wire.NewSet(rpc.NewMux, rpc.NewMuxHandlers, rpc.NewHandlerBlobsGet, rpc.NewHandlerCreateHistoryStream, pubsub2.NewPubSub)
+
+var requestPubSubSet = wire.NewSet(pubsub.NewRequestPubSub, wire.Bind(new(rpc2.RequestHandler), new(*pubsub.RequestPubSub)))
+
+var messagePubSubSet = wire.NewSet(pubsub.NewMessagePubSub, wire.Bind(new(queries.MessageSubscriber), new(*pubsub.MessagePubSub)))
+
+var adaptersSet = wire.NewSet(adapters.NewBoltMessageRepository, wire.Bind(new(queries.FeedRepository), new(*adapters.BoltMessageRepository)))
 
 type TestAdapters struct {
 	Feed *adapters.BoltFeedRepository
@@ -161,29 +197,16 @@ type TestAdapters struct {
 
 var hops = graph.MustNewHops(3)
 
-func newMuxHandlers(
-	createHistoryStream *rpc.HandlerCreateHistoryStream,
-	blobsGet *rpc.HandlerBlobsGet,
-) []rpc2.Handler {
-	return []rpc2.Handler{
-		createHistoryStream,
-		blobsGet,
-	}
-}
+type TestApplication struct {
+	Queries app.Queries
 
-func newMuxWithHandlers(logger logging.Logger, handlers []rpc2.Handler) (*rpc2.Mux, error) {
-	mux := rpc2.NewMux(logger)
-	for _, handler := range handlers {
-		if err := mux.AddHandler(handler); err != nil {
-			return nil, err
-		}
-	}
-	return mux, nil
+	FeedRepository *mocks.FeedRepositoryMock
+	MessagePubSub  *mocks.MessagePubSubMock
 }
 
 func newAdaptersFactory(local identity.Private) adapters.AdaptersFactory {
 	return func(tx *bbolt.Tx) (commands.Adapters, error) {
-		return BuildAdapters(tx, local)
+		return BuildTransactableAdapters(tx, local)
 	}
 }
 

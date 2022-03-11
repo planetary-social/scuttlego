@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 
 	"github.com/boreq/errors"
-	"github.com/planetary-social/go-ssb/service/domain/network/rpc"
 	"github.com/planetary-social/go-ssb/service/domain/refs"
+	"github.com/planetary-social/go-ssb/service/domain/transport/rpc"
 )
 
 var (

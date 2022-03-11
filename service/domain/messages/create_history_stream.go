@@ -3,11 +3,10 @@ package messages
 import (
 	"encoding/json"
 
-	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
-	"github.com/planetary-social/go-ssb/service/domain/network/rpc"
-	"github.com/planetary-social/go-ssb/service/domain/refs"
-
 	"github.com/boreq/errors"
+	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
+	"github.com/planetary-social/go-ssb/service/domain/refs"
+	"github.com/planetary-social/go-ssb/service/domain/transport/rpc"
 )
 
 var (
@@ -93,6 +92,30 @@ func NewCreateHistoryStreamArgumentsFromBytes(b []byte) (CreateHistoryStreamArgu
 		arg.Old,
 		arg.Keys,
 	)
+}
+
+func (c CreateHistoryStreamArguments) Id() refs.Feed {
+	return c.id
+}
+
+func (c CreateHistoryStreamArguments) Sequence() *message.Sequence {
+	return c.sequence
+}
+
+func (c CreateHistoryStreamArguments) Limit() *int {
+	return c.limit
+}
+
+func (c CreateHistoryStreamArguments) Live() *bool {
+	return c.live
+}
+
+func (c CreateHistoryStreamArguments) Old() *bool {
+	return c.old
+}
+
+func (c CreateHistoryStreamArguments) Keys() *bool {
+	return c.keys
 }
 
 func (c CreateHistoryStreamArguments) MarshalJSON() ([]byte, error) {

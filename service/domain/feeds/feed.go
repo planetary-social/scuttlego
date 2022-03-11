@@ -3,12 +3,11 @@ package feeds
 import (
 	"time"
 
+	"github.com/boreq/errors"
 	msgcontents "github.com/planetary-social/go-ssb/service/domain/feeds/content"
 	message2 "github.com/planetary-social/go-ssb/service/domain/feeds/message"
 	"github.com/planetary-social/go-ssb/service/domain/identity"
 	"github.com/planetary-social/go-ssb/service/domain/refs"
-
-	"github.com/boreq/errors"
 )
 
 type Feed struct {

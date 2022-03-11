@@ -4,16 +4,12 @@ import (
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/logging"
 	"github.com/planetary-social/go-ssb/service/domain/identity"
-	network2 "github.com/planetary-social/go-ssb/service/domain/network"
+	"github.com/planetary-social/go-ssb/service/domain/network"
 )
-
-type NewPeerHandler interface {
-	HandleNewPeer(peer network2.Peer)
-}
 
 type Connect struct {
 	Remote  identity.Public
-	Address network2.Address
+	Address network.Address
 }
 
 type ConnectHandler struct {

@@ -4,11 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/content"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
 	"github.com/planetary-social/go-ssb/service/domain/refs"
-
-	"github.com/boreq/errors"
 )
 
 var contactMapping = MessageContentMapping{

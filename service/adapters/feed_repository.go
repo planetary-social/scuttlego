@@ -4,14 +4,13 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	feeds2 "github.com/planetary-social/go-ssb/service/domain/feeds"
+	"github.com/boreq/errors"
+	"github.com/planetary-social/go-ssb/service/domain/feeds"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/content"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/formats"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
 	"github.com/planetary-social/go-ssb/service/domain/refs"
 	"github.com/planetary-social/go-ssb/service/domain/replication"
-
-	"github.com/boreq/errors"
 	"go.etcd.io/bbolt"
 )
 
@@ -40,14 +39,14 @@ func NewBoltFeedRepository(
 	}
 }
 
-func (b BoltFeedRepository) UpdateFeed(ref refs.Feed, f func(feed *feeds2.Feed) (*feeds2.Feed, error)) error {
+func (b BoltFeedRepository) UpdateFeed(ref refs.Feed, f func(feed *feeds.Feed) (*feeds.Feed, error)) error {
 	feed, err := b.loadFeed(ref)
 	if err != nil {
 		return errors.Wrap(err, "could not load a feed")
 	}
 
 	if feed == nil {
-		feed = feeds2.NewFeed(b.formatScuttlebutt)
+		feed = feeds.NewFeed(b.formatScuttlebutt)
 	}
 
 	feed, err = f(feed)
@@ -57,7 +56,7 @@ func (b BoltFeedRepository) UpdateFeed(ref refs.Feed, f func(feed *feeds2.Feed) 
 
 	return b.saveFeed(ref, feed)
 }
-func (b BoltFeedRepository) GetFeed(ref refs.Feed) (*feeds2.Feed, error) {
+func (b BoltFeedRepository) GetFeed(ref refs.Feed) (*feeds.Feed, error) {
 	f, err := b.loadFeed(ref)
 	if err != nil {
 		return nil, errors.Wrap(err, "loading failed")
@@ -70,8 +69,8 @@ func (b BoltFeedRepository) GetFeed(ref refs.Feed) (*feeds2.Feed, error) {
 	return f, nil
 }
 
-func (b BoltFeedRepository) loadFeed(ref refs.Feed) (*feeds2.Feed, error) {
-	bucket, err := b.getFeedBucket(ref)
+func (b BoltFeedRepository) loadFeed(ref refs.Feed) (*feeds.Feed, error) {
+	bucket, err := getFeedBucket(b.tx, ref)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not get the bucket")
 	}
@@ -93,7 +92,7 @@ func (b BoltFeedRepository) loadFeed(ref refs.Feed) (*feeds2.Feed, error) {
 		return nil, errors.Wrap(err, "could not identify the raw message")
 	}
 
-	feed, err := feeds2.NewFeedFromHistory(msg, b.formatScuttlebutt)
+	feed, err := feeds.NewFeedFromHistory(msg, b.formatScuttlebutt)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not recreate a feed from history")
 	}
@@ -101,11 +100,11 @@ func (b BoltFeedRepository) loadFeed(ref refs.Feed) (*feeds2.Feed, error) {
 	return feed, nil
 }
 
-func (b BoltFeedRepository) saveFeed(ref refs.Feed, feed *feeds2.Feed) error {
+func (b BoltFeedRepository) saveFeed(ref refs.Feed, feed *feeds.Feed) error {
 	msgs, contacts := feed.PopForPersisting()
 
 	if len(msgs) != 0 {
-		bucket, err := b.createFeedBucket(ref)
+		bucket, err := createFeedBucket(b.tx, ref)
 		if err != nil {
 			return errors.Wrap(err, "could not create the bucket")
 		}
@@ -126,7 +125,7 @@ func (b BoltFeedRepository) saveFeed(ref refs.Feed, feed *feeds2.Feed) error {
 	return nil
 }
 
-func (b BoltFeedRepository) saveContact(contact feeds2.ContactToSave) error {
+func (b BoltFeedRepository) saveContact(contact feeds.ContactToSave) error {
 	switch contact.Msg().Action() {
 	case content.ContactActionFollow:
 		return b.graph.Follow(contact.Who(), contact.Msg().Contact())
@@ -142,35 +141,35 @@ func (b BoltFeedRepository) saveContact(contact feeds2.ContactToSave) error {
 }
 
 func (b BoltFeedRepository) saveMessage(bucket *bbolt.Bucket, msg message.Message) error {
-	key := b.messageKey(msg)
+	key := messageKey(msg.Sequence())
 	return bucket.Put(key, msg.Raw().Bytes())
 }
 
-func (b BoltFeedRepository) messageKey(msg message.Message) []byte {
+func messageKey(seq message.Sequence) []byte {
 	buf := make([]byte, 8)
-	binary.BigEndian.PutUint64(buf, uint64(msg.Sequence().Int()))
+	binary.BigEndian.PutUint64(buf, uint64(seq.Int()))
 	return buf
 }
 
-func (b *BoltFeedRepository) createFeedBucket(ref refs.Feed) (bucket *bbolt.Bucket, err error) {
-	bucketNames := b.pathFunc(ref)
+func createFeedBucket(tx *bbolt.Tx, ref refs.Feed) (bucket *bbolt.Bucket, err error) {
+	bucketNames := feedBucketPath(ref)
 	if len(bucketNames) == 0 {
 		return nil, errors.New("path func returned an empty slice")
 	}
 
-	return createBucket(b.tx, bucketNames)
+	return createBucket(tx, bucketNames)
 }
 
-func (b *BoltFeedRepository) getFeedBucket(ref refs.Feed) (*bbolt.Bucket, error) {
-	bucketNames := b.pathFunc(ref)
+func getFeedBucket(tx *bbolt.Tx, ref refs.Feed) (*bbolt.Bucket, error) {
+	bucketNames := feedBucketPath(ref)
 	if len(bucketNames) == 0 {
 		return nil, errors.New("path func returned an empty slice")
 	}
 
-	return getBucket(b.tx, bucketNames), nil
+	return getBucket(tx, bucketNames), nil
 }
 
-func (b *BoltFeedRepository) pathFunc(ref refs.Feed) []BucketName {
+func feedBucketPath(ref refs.Feed) []BucketName {
 	return []BucketName{
 		BucketName("feeds"),
 		BucketName(ref.String()),

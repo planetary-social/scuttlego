@@ -3,9 +3,8 @@ package message
 import (
 	"time"
 
-	refs2 "github.com/planetary-social/go-ssb/service/domain/refs"
-
 	"github.com/boreq/errors"
+	refs2 "github.com/planetary-social/go-ssb/service/domain/refs"
 )
 
 type RawMessage struct {
@@ -13,8 +12,11 @@ type RawMessage struct {
 }
 
 func NewRawMessage(data []byte) RawMessage {
+	tmp := make([]byte, len(data))
+	copy(tmp, data)
+
 	return RawMessage{
-		data: data,
+		data: tmp,
 	}
 }
 
@@ -42,7 +44,7 @@ func NewUnsignedMessage(
 ) (UnsignedMessage, error) {
 	fields, err := newBaseMessageFields(previous, sequence, author, feed, timestamp, content)
 	if err != nil {
-		return UnsignedMessage{}, errors.New("could not create known message fields")
+		return UnsignedMessage{}, errors.Wrap(err, "could not create base message fields")
 	}
 
 	return UnsignedMessage{
@@ -69,7 +71,7 @@ func NewMessage(
 ) (Message, error) {
 	fields, err := newBaseMessageFields(previous, sequence, author, feed, timestamp, content)
 	if err != nil {
-		return Message{}, errors.New("could not create known message fields")
+		return Message{}, errors.Wrap(err, "could not create base message fields")
 	}
 
 	if id.IsZero() {

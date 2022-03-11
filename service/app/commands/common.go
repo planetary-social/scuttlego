@@ -4,7 +4,12 @@ import (
 	"github.com/planetary-social/go-ssb/service/domain/feeds"
 	"github.com/planetary-social/go-ssb/service/domain/graph"
 	"github.com/planetary-social/go-ssb/service/domain/refs"
+	"github.com/planetary-social/go-ssb/service/domain/transport"
 )
+
+type NewPeerHandler interface {
+	HandleNewPeer(peer transport.Peer)
+}
 
 type TransactionProvider interface {
 	Transact(func(adapters Adapters) error) error

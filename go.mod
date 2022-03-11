@@ -1,6 +1,6 @@
 module github.com/planetary-social/go-ssb
 
-go 1.17
+go 1.18
 
 require (
 	github.com/boreq/errors v0.1.0

@@ -1,14 +1,13 @@
-package network
+package transport
 
 import (
 	"io"
 
-	"github.com/planetary-social/go-ssb/service/domain/identity"
-	"github.com/planetary-social/go-ssb/service/domain/network/boxstream"
-	"github.com/planetary-social/go-ssb/service/domain/network/rpc"
-
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/logging"
+	"github.com/planetary-social/go-ssb/service/domain/identity"
+	"github.com/planetary-social/go-ssb/service/domain/transport/boxstream"
+	"github.com/planetary-social/go-ssb/service/domain/transport/rpc"
 )
 
 type PeerInitializer struct {

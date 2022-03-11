@@ -1,9 +1,9 @@
-package network
+package transport
 
 import (
 	"github.com/planetary-social/go-ssb/service/domain/identity"
-	"github.com/planetary-social/go-ssb/service/domain/network/rpc"
 	"github.com/planetary-social/go-ssb/service/domain/refs"
+	"github.com/planetary-social/go-ssb/service/domain/transport/rpc"
 )
 
 type Peer struct {

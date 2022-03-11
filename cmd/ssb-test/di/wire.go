@@ -7,33 +7,43 @@ import (
 	"path"
 	"time"
 
+	"github.com/boreq/errors"
+	"github.com/google/wire"
+	"github.com/planetary-social/go-ssb/logging"
 	adapters2 "github.com/planetary-social/go-ssb/service/adapters"
+	"github.com/planetary-social/go-ssb/service/adapters/mocks"
+	"github.com/planetary-social/go-ssb/service/adapters/pubsub"
 	"github.com/planetary-social/go-ssb/service/app"
 	commands2 "github.com/planetary-social/go-ssb/service/app/commands"
+	"github.com/planetary-social/go-ssb/service/app/queries"
 	"github.com/planetary-social/go-ssb/service/domain"
 	"github.com/planetary-social/go-ssb/service/domain/feeds"
 	transport2 "github.com/planetary-social/go-ssb/service/domain/feeds/content/transport"
 	formats2 "github.com/planetary-social/go-ssb/service/domain/feeds/formats"
 	"github.com/planetary-social/go-ssb/service/domain/graph"
 	"github.com/planetary-social/go-ssb/service/domain/identity"
-	network2 "github.com/planetary-social/go-ssb/service/domain/network"
-	boxstream2 "github.com/planetary-social/go-ssb/service/domain/network/boxstream"
-	rpc3 "github.com/planetary-social/go-ssb/service/domain/network/rpc"
+	"github.com/planetary-social/go-ssb/service/domain/network"
 	replication2 "github.com/planetary-social/go-ssb/service/domain/replication"
+	network2 "github.com/planetary-social/go-ssb/service/domain/transport"
+	boxstream2 "github.com/planetary-social/go-ssb/service/domain/transport/boxstream"
+	"github.com/planetary-social/go-ssb/service/domain/transport/rpc"
+	network3 "github.com/planetary-social/go-ssb/service/ports/network"
+	pubsub2 "github.com/planetary-social/go-ssb/service/ports/pubsub"
 	rpc2 "github.com/planetary-social/go-ssb/service/ports/rpc"
-
-	"github.com/boreq/errors"
-	"github.com/google/wire"
-	"github.com/planetary-social/go-ssb/logging"
 	"github.com/sirupsen/logrus"
 	"go.etcd.io/bbolt"
 )
 
 var applicationSet = wire.NewSet(
 	wire.Struct(new(app.Application), "*"),
+
 	commands2.NewRedeemInviteHandler,
 	commands2.NewFollowHandler,
 	commands2.NewConnectHandler,
+	commands2.NewAcceptNewPeerHandler,
+
+	wire.Struct(new(app.Queries), "*"),
+	queries.NewCreateHistoryStreamHandler,
 )
 
 var replicatorSet = wire.NewSet(
@@ -59,13 +69,29 @@ var formatsSet = wire.NewSet(
 	wire.Bind(new(adapters2.RawMessageIdentifier), new(*formats2.RawMessageIdentifier)),
 )
 
-var muxSet = wire.NewSet(
-	newMuxWithHandlers,
-	wire.Bind(new(rpc3.RequestHandler), new(*rpc3.Mux)),
+var portsSet = wire.NewSet(
+	rpc2.NewMux,
 
-	newMuxHandlers,
+	rpc2.NewMuxHandlers,
 	rpc2.NewHandlerBlobsGet,
 	rpc2.NewHandlerCreateHistoryStream,
+
+	pubsub2.NewPubSub,
+)
+
+var requestPubSubSet = wire.NewSet(
+	pubsub.NewRequestPubSub,
+	wire.Bind(new(rpc.RequestHandler), new(*pubsub.RequestPubSub)),
+)
+
+var messagePubSubSet = wire.NewSet(
+	pubsub.NewMessagePubSub,
+	wire.Bind(new(queries.MessageSubscriber), new(*pubsub.MessagePubSub)),
+)
+
+var adaptersSet = wire.NewSet(
+	adapters2.NewBoltMessageRepository,
+	wire.Bind(new(queries.FeedRepository), new(*adapters2.BoltMessageRepository)),
 )
 
 type TestAdapters struct {
@@ -93,7 +119,31 @@ type TestAdapters struct {
 
 var hops = graph.MustNewHops(3)
 
-func BuildAdapters(*bbolt.Tx, identity.Private) (commands2.Adapters, error) {
+type TestApplication struct {
+	Queries app.Queries
+
+	FeedRepository *mocks.FeedRepositoryMock
+	MessagePubSub  *mocks.MessagePubSubMock
+}
+
+func BuildApplicationForTests() (TestApplication, error) {
+	wire.Build(
+		applicationSet,
+
+		mocks.NewMessagePubSubMock,
+		wire.Bind(new(queries.MessageSubscriber), new(*mocks.MessagePubSubMock)),
+
+		mocks.NewFeedRepositoryMock,
+		wire.Bind(new(queries.FeedRepository), new(*mocks.FeedRepositoryMock)),
+
+		wire.Struct(new(TestApplication), "*"),
+	)
+
+	return TestApplication{}, nil
+
+}
+
+func BuildTransactableAdapters(*bbolt.Tx, identity.Private) (commands2.Adapters, error) {
 	wire.Build(
 		wire.Struct(new(commands2.Adapters), "*"),
 
@@ -140,20 +190,19 @@ func BuildService(identity.Private, Config) (Service, error) {
 
 		boxstream2.NewHandshaker,
 
-		network2.NewListener,
+		network3.NewListener,
 
 		commands2.NewRawMessageHandler,
 		wire.Bind(new(replication2.RawMessageHandler), new(*commands2.RawMessageHandler)),
 
 		network2.NewPeerInitializer,
-		wire.Bind(new(network2.ServerPeerInitializer), new(*network2.PeerInitializer)),
-		wire.Bind(new(network2.ClientPeerInitializer), new(*network2.PeerInitializer)),
+		wire.Bind(new(network3.ServerPeerInitializer), new(*network2.PeerInitializer)),
+		wire.Bind(new(network.ClientPeerInitializer), new(*network2.PeerInitializer)),
 
-		network2.NewDialer,
-		wire.Bind(new(commands2.Dialer), new(*network2.Dialer)),
+		network.NewDialer,
+		wire.Bind(new(commands2.Dialer), new(*network.Dialer)),
 
 		domain.NewPeerManager,
-		wire.Bind(new(network2.NewPeerHandler), new(*domain.PeerManager)),
 		wire.Bind(new(commands2.NewPeerHandler), new(*domain.PeerManager)),
 
 		adapters2.NewTransactionProvider,
@@ -164,10 +213,13 @@ func BuildService(identity.Private, Config) (Service, error) {
 		wire.Bind(new(replication2.Storage), new(*adapters2.BoltContactsRepository)),
 		newContactRepositoriesFactory,
 
-		muxSet,
+		portsSet,
 		applicationSet,
 		replicatorSet,
 		formatsSet,
+		requestPubSubSet,
+		messagePubSubSet,
+		adaptersSet,
 
 		newLogger,
 
@@ -176,29 +228,9 @@ func BuildService(identity.Private, Config) (Service, error) {
 	return Service{}, nil
 }
 
-func newMuxHandlers(
-	createHistoryStream *rpc2.HandlerCreateHistoryStream,
-	blobsGet *rpc2.HandlerBlobsGet,
-) []rpc3.Handler {
-	return []rpc3.Handler{
-		createHistoryStream,
-		blobsGet,
-	}
-}
-
-func newMuxWithHandlers(logger logging.Logger, handlers []rpc3.Handler) (*rpc3.Mux, error) {
-	mux := rpc3.NewMux(logger)
-	for _, handler := range handlers {
-		if err := mux.AddHandler(handler); err != nil {
-			return nil, err
-		}
-	}
-	return mux, nil
-}
-
 func newAdaptersFactory(local identity.Private) adapters2.AdaptersFactory {
 	return func(tx *bbolt.Tx) (commands2.Adapters, error) {
-		return BuildAdapters(tx, local)
+		return BuildTransactableAdapters(tx, local)
 	}
 }
 

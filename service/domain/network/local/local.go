@@ -5,9 +5,8 @@ import (
 	"net"
 	"time"
 
-	"github.com/planetary-social/go-ssb/service/domain/identity"
-
 	"github.com/boreq/errors"
+	"github.com/planetary-social/go-ssb/service/domain/identity"
 )
 
 type BroadcasterOptions struct {
@@ -70,7 +69,7 @@ func determineBroadcastAddresses() error {
 	return nil
 }
 
-var errNetworkHasNoBroadcast = errors.New("network has no broadcast")
+var errNetworkHasNoBroadcast = errors.New("transport has no broadcast")
 
 func calculateBroadcast(addr net.IP, mask net.IPMask) (net.IP, error) {
 	var convertedAddress []byte

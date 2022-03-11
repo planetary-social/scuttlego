@@ -4,23 +4,23 @@ import (
 	"context"
 	"time"
 
+	"github.com/boreq/errors"
+	"github.com/planetary-social/go-ssb/logging"
 	"github.com/planetary-social/go-ssb/service/domain/feeds"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/content"
 	"github.com/planetary-social/go-ssb/service/domain/identity"
 	"github.com/planetary-social/go-ssb/service/domain/invites"
-	network2 "github.com/planetary-social/go-ssb/service/domain/network"
-	boxstream2 "github.com/planetary-social/go-ssb/service/domain/network/boxstream"
-	rpc2 "github.com/planetary-social/go-ssb/service/domain/network/rpc"
-	"github.com/planetary-social/go-ssb/service/domain/network/rpc/messages"
+	"github.com/planetary-social/go-ssb/service/domain/messages"
+	"github.com/planetary-social/go-ssb/service/domain/network"
 	"github.com/planetary-social/go-ssb/service/domain/refs"
-
-	"github.com/boreq/errors"
-	"github.com/planetary-social/go-ssb/logging"
+	"github.com/planetary-social/go-ssb/service/domain/transport"
+	"github.com/planetary-social/go-ssb/service/domain/transport/boxstream"
+	"github.com/planetary-social/go-ssb/service/domain/transport/rpc"
 )
 
 type Dialer interface {
-	DialWithInitializer(initializer network2.ClientPeerInitializer, remote identity.Public, addr network2.Address) (network2.Peer, error)
-	Dial(remote identity.Public, address network2.Address) (network2.Peer, error)
+	DialWithInitializer(initializer network.ClientPeerInitializer, remote identity.Public, addr network.Address) (transport.Peer, error)
+	Dial(remote identity.Public, address network.Address) (transport.Peer, error)
 }
 
 type RedeemInvite struct {
@@ -30,18 +30,18 @@ type RedeemInvite struct {
 type RedeemInviteHandler struct {
 	dialer         Dialer
 	transaction    TransactionProvider
-	networkKey     boxstream2.NetworkKey
+	networkKey     boxstream.NetworkKey
 	local          identity.Private
-	requestHandler rpc2.RequestHandler
+	requestHandler rpc.RequestHandler
 	logger         logging.Logger
 }
 
 func NewRedeemInviteHandler(
 	dialer Dialer,
 	transaction TransactionProvider,
-	networkKey boxstream2.NetworkKey,
+	networkKey boxstream.NetworkKey,
 	local identity.Private,
-	requestHandler rpc2.RequestHandler,
+	requestHandler rpc.RequestHandler,
 	logger logging.Logger,
 ) *RedeemInviteHandler {
 	return &RedeemInviteHandler{
@@ -128,28 +128,28 @@ func (h *RedeemInviteHandler) redeemInvite(ctx context.Context, cmd RedeemInvite
 	return nil
 }
 
-func (h *RedeemInviteHandler) dial(cmd RedeemInvite) (network2.Peer, error) {
+func (h *RedeemInviteHandler) dial(cmd RedeemInvite) (transport.Peer, error) {
 	local, err := identity.NewPrivateFromSeed(cmd.Invite.SecretKeySeed())
 	if err != nil {
-		return network2.Peer{}, errors.Wrap(err, "could not create a private identity")
+		return transport.Peer{}, errors.Wrap(err, "could not create a private identity")
 	}
 
-	handshaker, err := boxstream2.NewHandshaker(local, h.networkKey)
+	handshaker, err := boxstream.NewHandshaker(local, h.networkKey)
 	if err != nil {
-		return network2.Peer{}, errors.Wrap(err, "could not create a handshaker")
+		return transport.Peer{}, errors.Wrap(err, "could not create a handshaker")
 	}
 
-	initializer := network2.NewPeerInitializer(handshaker, h.requestHandler, h.logger)
+	initializer := transport.NewPeerInitializer(handshaker, h.requestHandler, h.logger)
 
 	peer, err := h.dialer.DialWithInitializer(initializer, cmd.Invite.Remote().Identity(), cmd.Invite.Address())
 	if err != nil {
-		return network2.Peer{}, errors.Wrap(err, "failed to dial")
+		return transport.Peer{}, errors.Wrap(err, "failed to dial")
 	}
 
 	return peer, nil
 }
 
-func (h *RedeemInviteHandler) createRequest() (*rpc2.Request, error) {
+func (h *RedeemInviteHandler) createRequest() (*rpc.Request, error) {
 	public, err := refs.NewIdentityFromPublic(h.local.Public())
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create a ref")

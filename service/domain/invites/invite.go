@@ -4,10 +4,9 @@ import (
 	"encoding/base64"
 	"strings"
 
+	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/service/domain/network"
 	"github.com/planetary-social/go-ssb/service/domain/refs"
-
-	"github.com/boreq/errors"
 )
 
 type Invite struct {

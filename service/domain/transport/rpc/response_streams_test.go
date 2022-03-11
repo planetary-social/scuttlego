@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/planetary-social/go-ssb/fixtures"
-	rpc2 "github.com/planetary-social/go-ssb/service/domain/network/rpc"
-	"github.com/planetary-social/go-ssb/service/domain/network/rpc/transport"
+	rpc2 "github.com/planetary-social/go-ssb/service/domain/transport/rpc"
+	"github.com/planetary-social/go-ssb/service/domain/transport/rpc/transport"
 	"github.com/stretchr/testify/require"
 )
 

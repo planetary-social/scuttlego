@@ -3,15 +3,13 @@ package domain
 import (
 	"context"
 
-	"github.com/planetary-social/go-ssb/service/domain/network"
-
 	"github.com/hashicorp/go-multierror"
-
 	"github.com/planetary-social/go-ssb/logging"
+	"github.com/planetary-social/go-ssb/service/domain/transport"
 )
 
 type Replicator interface {
-	Replicate(ctx context.Context, peer network.Peer) error
+	Replicate(ctx context.Context, peer transport.Peer) error
 }
 
 type PeerManager struct {
@@ -26,18 +24,18 @@ func NewPeerManager(replicator Replicator, logger logging.Logger) *PeerManager {
 	}
 }
 
-func (p PeerManager) HandleNewPeer(peer network.Peer) {
+func (p PeerManager) HandleNewPeer(peer transport.Peer) {
 	go p.processConnection(peer)
 }
 
-func (p PeerManager) processConnection(peer network.Peer) {
+func (p PeerManager) processConnection(peer transport.Peer) {
 	p.logger.Debug("handling a new peer")
 	if err := p.handleConnection(peer); err != nil {
 		p.logger.WithError(err).WithField("peer", peer).Debug("connection ended")
 	}
 }
 
-func (p PeerManager) handleConnection(peer network.Peer) error {
+func (p PeerManager) handleConnection(peer transport.Peer) error {
 	ch := make(chan error)
 
 	ctx, cancel := context.WithCancel(context.Background())

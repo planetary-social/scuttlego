@@ -3,11 +3,10 @@ package adapters
 import (
 	"encoding/json"
 
+	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/service/domain/graph"
 	"github.com/planetary-social/go-ssb/service/domain/identity"
 	"github.com/planetary-social/go-ssb/service/domain/refs"
-
-	"github.com/boreq/errors"
 	"go.etcd.io/bbolt"
 )
 

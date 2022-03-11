@@ -1,10 +1,9 @@
 package main
 
 import (
+	"context"
 	"os"
 	"path"
-	"runtime/pprof"
-	"time"
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/cmd/ssb-test/di"
@@ -25,15 +24,17 @@ func run() error {
 	}
 	defer f.Close()
 
-	if err := pprof.StartCPUProfile(f); err != nil {
-		return errors.Wrap(err, "could not start cpu profile")
-	}
+	//if err := pprof.StartCPUProfile(f); err != nil {
+	//	return errors.Wrap(err, "could not start cpu profile")
+	//}
 
-	go func() {
-		<-time.After(60 * time.Second)
-		pprof.StopCPUProfile()
-		panic("profile done")
-	}()
+	//go func() {
+	//	<-time.After(60 * time.Second)
+	//	pprof.StopCPUProfile()
+	//	panic("profile done")
+	//}()
+
+	ctx := context.Background()
 
 	config := di.Config{DataDirectory: os.Args[1]}
 
@@ -47,7 +48,7 @@ func run() error {
 		return errors.Wrap(err, "could not build a service")
 	}
 
-	return service.Run()
+	return service.Run(ctx)
 }
 
 func loadOrGenerateIdentity(config di.Config) (identity.Private, error) {

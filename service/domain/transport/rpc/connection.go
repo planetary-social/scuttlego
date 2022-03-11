@@ -6,7 +6,7 @@ import (
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/logging"
-	transport "github.com/planetary-social/go-ssb/service/domain/network/rpc/transport"
+	transport "github.com/planetary-social/go-ssb/service/domain/transport/rpc/transport"
 )
 
 var ErrEndOrErr = errors.New("end or error")
@@ -39,6 +39,7 @@ func NewConnection(
 		responseStreams: NewResponseStreams(raw, logger),
 		requestStreams:  NewRequestStreams(raw, handler, logger),
 		logger:          logger.New("connection"),
+		doneCh:          make(chan struct{}),
 	}
 
 	go conn.readLoop()

@@ -3,10 +3,9 @@ package rpc
 import (
 	"io"
 
-	rpc2 "github.com/planetary-social/go-ssb/service/domain/network/rpc"
-	"github.com/planetary-social/go-ssb/service/domain/network/rpc/messages"
-
 	"github.com/boreq/errors"
+	"github.com/planetary-social/go-ssb/service/domain/messages"
+	"github.com/planetary-social/go-ssb/service/domain/transport/rpc"
 )
 
 type BlobStorage interface {
@@ -20,11 +19,11 @@ func NewHandlerBlobsGet() *HandlerBlobsGet {
 	return &HandlerBlobsGet{}
 }
 
-func (h HandlerBlobsGet) Procedure() rpc2.Procedure {
+func (h HandlerBlobsGet) Procedure() rpc.Procedure {
 	return messages.BlobsGetProcedure
 }
 
-func (h HandlerBlobsGet) Handle(req *rpc2.Request, w *rpc2.ResponseWriter) error {
+func (h HandlerBlobsGet) Handle(req *rpc.Request, w *rpc.ResponseWriter) error {
 	_, err := messages.NewBlobsGetArgumentsFromBytes(req.Arguments())
 	if err != nil {
 		return errors.Wrap(err, "invalid arguments")

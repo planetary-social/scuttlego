@@ -4,10 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/planetary-social/go-ssb/service/domain/refs"
-
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/logging"
+	"github.com/planetary-social/go-ssb/service/domain/refs"
 )
 
 var ErrFeedNotFound = errors.New("feed not found")
@@ -44,6 +43,8 @@ func (m Manager) GetFeedsToReplicate(ctx context.Context) <-chan ReplicateFeedTa
 const timeForReplicationLoop = 60 * time.Second
 
 func (m Manager) sendFeedsToReplicateLoop(ctx context.Context, ch chan ReplicateFeedTask) {
+	defer close(ch)
+
 	// todo make this event driven
 	for {
 		batchCtx, cancel := context.WithTimeout(ctx, timeForReplicationLoop)

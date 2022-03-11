@@ -34,7 +34,7 @@ func (h *RawMessageHandler) Handle(rawMsg message.RawMessage) error {
 	h.logger.
 		WithField("sequence", msg.Sequence().Int()).
 		WithField("feed", msg.Feed().String()).
-		Debug("handling a new message")
+		Trace("handling a new message")
 
 	if err := h.transaction.Transact(func(adapters Adapters) error {
 		return h.storeMessage(adapters, msg)

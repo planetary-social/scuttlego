@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-// networkKeyLength is implied to be constant due to an assumption that this key is used as an hmac key when calling
+// networkKeyLength is implied to be constant due to an assumption that this key is used as an HMAC key when calling
 // libsodium's crypto_auth during handshakes.
 // https://doc.libsodium.org/secret-key_cryptography/secret-key_authentication
 // https://ssbc.github.io/scuttlebutt-protocol-guide/#handshake
@@ -18,7 +18,7 @@ type NetworkKey struct {
 
 func NewKey(b []byte) (NetworkKey, error) {
 	if len(b) != networkKeyLength {
-		return NetworkKey{}, fmt.Errorf("invalid network key length, must be '%d'", networkKeyLength)
+		return NetworkKey{}, fmt.Errorf("invalid transport key length, must be '%d'", networkKeyLength)
 	}
 
 	var buf []byte

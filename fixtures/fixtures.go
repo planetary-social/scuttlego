@@ -14,8 +14,8 @@ import (
 	"github.com/planetary-social/go-ssb/service/domain/feeds/content"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
 	"github.com/planetary-social/go-ssb/service/domain/identity"
-	"github.com/planetary-social/go-ssb/service/domain/network/rpc"
 	"github.com/planetary-social/go-ssb/service/domain/refs"
+	"github.com/planetary-social/go-ssb/service/domain/transport/rpc"
 	"go.etcd.io/bbolt"
 )
 
@@ -73,6 +73,10 @@ func SomeContent() message.MessageContent {
 	return content.MustNewUnknown(SomeBytes())
 }
 
+func SomeSequence() message.Sequence {
+	return message.MustNewSequence(rand.Int())
+}
+
 func SomeBytes() []byte {
 	r := make([]byte, 10+rand.Intn(100))
 	_, err := rand.Read(r)
@@ -88,6 +92,25 @@ func SomeJSON() []byte {
 
 func SomeRawMessage() message.RawMessage {
 	return message.NewRawMessage(SomeBytes())
+}
+
+func SomeMessage(seq message.Sequence, feed refs.Feed) message.Message {
+	var previous *refs.Message
+	if !seq.IsFirst() {
+		tmp := SomeRefMessage()
+		previous = &tmp
+	}
+
+	return message.MustNewMessage(
+		SomeRefMessage(),
+		previous,
+		seq,
+		SomeRefAuthor(),
+		feed,
+		SomeTime(),
+		SomeContent(),
+		SomeRawMessage(),
+	)
 }
 
 func randomBase64(bytes int) string {

@@ -34,7 +34,7 @@ func NewMessage(s string) (Message, error) {
 
 	b, err := base64.StdEncoding.DecodeString(noSuffixAndPrefix)
 	if err != nil {
-		return Message{}, errors.Wrapf(err, "invalid base64 '%s'", noSuffixAndPrefix)
+		return Message{}, errors.Wrap(err, "invalid base64")
 	}
 
 	if l := len(b); l != messageHashLength {

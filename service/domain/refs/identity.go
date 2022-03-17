@@ -5,16 +5,13 @@ import (
 	"encoding/base64"
 	"strings"
 
-	ssbidentity "github.com/planetary-social/go-ssb/service/domain/identity"
-
 	"github.com/boreq/errors"
+	ssbidentity "github.com/planetary-social/go-ssb/service/domain/identity"
 )
 
 const (
 	identityPrefix = "@"
 	identitySuffix = ".ed25519"
-
-	maxIdentityLength = 100
 )
 
 type identity struct {
@@ -32,10 +29,6 @@ func newIdentityFromString(s string) (identity, error) {
 	}
 
 	trimmed := s[len(identityPrefix) : len(s)-len(identitySuffix)]
-
-	if base64.StdEncoding.DecodedLen(len(trimmed)) > maxIdentityLength {
-		return identity{}, errors.New("encoded data is too long")
-	}
 
 	k, err := base64.StdEncoding.DecodeString(trimmed)
 	if err != nil {

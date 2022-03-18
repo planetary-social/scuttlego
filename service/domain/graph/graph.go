@@ -3,9 +3,8 @@ package graph
 import (
 	"sort"
 
-	"github.com/planetary-social/go-ssb/service/domain/refs"
-
 	"github.com/boreq/errors"
+	"github.com/planetary-social/go-ssb/service/domain/refs"
 )
 
 type Storage interface {
@@ -79,6 +78,8 @@ type Contact struct {
 	Hops Hops
 }
 
+// Hops specify the number of hops in the graph required to reach a contact. Therefore: 0 is yourself, 1 is a
+// person you follow, 2 is a person that is followed by a person that you follow, and so on.
 type Hops struct {
 	n int
 }

@@ -18,7 +18,7 @@ func NewTransactionProvider(db *bbolt.DB, factory AdaptersFactory) *TransactionP
 }
 
 func (t TransactionProvider) Transact(f func(adapters commands.Adapters) error) error {
-	return t.db.Update(func(tx *bbolt.Tx) error {
+	return t.db.Batch(func(tx *bbolt.Tx) error {
 		adapters, err := t.factory(tx)
 		if err != nil {
 			return errors.Wrap(err, "failed to build adapters")

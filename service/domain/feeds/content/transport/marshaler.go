@@ -3,12 +3,12 @@ package transport
 import (
 	"encoding/json"
 	"fmt"
-
-	"github.com/planetary-social/go-ssb/service/domain/feeds/content"
-	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
+	"strings"
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/logging"
+	"github.com/planetary-social/go-ssb/service/domain/feeds/content"
+	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
 )
 
 type Marshaler struct {
@@ -45,7 +45,10 @@ func (m *Marshaler) Unmarshal(b []byte) (message.MessageContent, error) {
 
 	typ, err := m.identifyContentType(b)
 	if err != nil {
-		logger.WithError(err).Error("failed to identify message content type")
+		// todo how to deal with box
+		if !strings.HasSuffix(string(b), ".box\"") {
+			logger.WithError(err).Error("failed to identify message content type")
+		}
 		return content.NewUnknown(b)
 	}
 

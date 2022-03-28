@@ -169,9 +169,9 @@ func getFeedBucket(tx *bbolt.Tx, ref refs.Feed) (*bbolt.Bucket, error) {
 	return getBucket(tx, bucketNames), nil
 }
 
-func feedBucketPath(ref refs.Feed) []BucketName {
-	return []BucketName{
-		BucketName("feeds"),
-		BucketName(ref.String()),
+func feedBucketPath(ref refs.Feed) []bucketName {
+	return []bucketName{
+		bucketName("feeds"),
+		bucketName(ref.String()),
 	}
 }

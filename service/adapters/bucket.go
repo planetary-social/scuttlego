@@ -5,9 +5,9 @@ import (
 	"go.etcd.io/bbolt"
 )
 
-type BucketName []byte
+type bucketName []byte
 
-func getBucket(tx *bbolt.Tx, bucketNames []BucketName) *bbolt.Bucket {
+func getBucket(tx *bbolt.Tx, bucketNames []bucketName) *bbolt.Bucket {
 	bucket := tx.Bucket(bucketNames[0])
 
 	if bucket == nil {
@@ -24,7 +24,7 @@ func getBucket(tx *bbolt.Tx, bucketNames []BucketName) *bbolt.Bucket {
 	return bucket
 }
 
-func createBucket(tx *bbolt.Tx, bucketNames []BucketName) (bucket *bbolt.Bucket, err error) {
+func createBucket(tx *bbolt.Tx, bucketNames []bucketName) (bucket *bbolt.Bucket, err error) {
 	bucket, err = tx.CreateBucketIfNotExists(bucketNames[0])
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create a bucket")

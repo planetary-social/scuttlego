@@ -133,14 +133,14 @@ func (r *SocialGraphRepository) getFeedBucket(ref refs.Identity) (*bbolt.Bucket,
 	return getBucket(r.tx, bucketNames), nil
 }
 
-func (r *SocialGraphRepository) pathFunc(who refs.Identity) []BucketName {
-	return []BucketName{
-		BucketName("graph"),
-		BucketName(who.String()),
+func (r *SocialGraphRepository) pathFunc(who refs.Identity) []bucketName {
+	return []bucketName{
+		bucketName("graph"),
+		bucketName(who.String()),
 	}
 }
 
-func (s *SocialGraphRepository) key(target refs.Identity) BucketName {
+func (s *SocialGraphRepository) key(target refs.Identity) bucketName {
 	return []byte(target.String())
 }
 

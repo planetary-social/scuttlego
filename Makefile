@@ -17,7 +17,7 @@ generate:
 
 .PHONY: fmt
 fmt:
-	goimports -l -w ./
+	gosimports -l -w ./
 
 .PHONY: test
 test:
@@ -30,5 +30,5 @@ lint:
 
 .PHONY: tools
 tools:
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.44.2
-	go install golang.org/x/tools/cmd/goimports@latest
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.45.2
+	go install github.com/rinchsan/gosimports/cmd/gosimports@latest # https://github.com/golang/go/issues/20818

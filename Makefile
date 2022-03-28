@@ -26,7 +26,7 @@ test:
 .PHONY: lint
 lint:
 	go vet ./...
-	golangci-lint --skip-dirs "network/local" run ./... # todo: enable for all directories
+	golangci-lint run ./...
 
 .PHONY: tools
 tools:

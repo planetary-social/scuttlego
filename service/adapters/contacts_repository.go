@@ -3,7 +3,7 @@ package adapters
 import (
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/service/domain/refs"
-	replication2 "github.com/planetary-social/go-ssb/service/domain/replication"
+	"github.com/planetary-social/go-ssb/service/domain/replication"
 	"go.etcd.io/bbolt"
 )
 
@@ -24,8 +24,8 @@ func NewBoltContactsRepository(db *bbolt.DB, factory RepositoriesFactory) *BoltC
 	return &BoltContactsRepository{db: db, factory: factory}
 }
 
-func (b BoltContactsRepository) GetContacts() ([]replication2.Contact, error) {
-	var result []replication2.Contact
+func (b BoltContactsRepository) GetContacts() ([]replication.Contact, error) {
+	var result []replication.Contact
 
 	if err := b.db.View(func(tx *bbolt.Tx) error {
 		r, err := b.factory(tx)
@@ -46,7 +46,7 @@ func (b BoltContactsRepository) GetContacts() ([]replication2.Contact, error) {
 				return errors.Wrap(err, "could not get feed state")
 			}
 
-			result = append(result, replication2.Contact{
+			result = append(result, replication.Contact{
 				Who:       f,
 				FeedState: feedState,
 			})
@@ -60,13 +60,13 @@ func (b BoltContactsRepository) GetContacts() ([]replication2.Contact, error) {
 	return result, nil
 }
 
-func (b BoltContactsRepository) getFeedState(repository *BoltFeedRepository, feed refs.Feed) (replication2.FeedState, error) {
+func (b BoltContactsRepository) getFeedState(repository *BoltFeedRepository, feed refs.Feed) (replication.FeedState, error) {
 	f, err := repository.GetFeed(feed)
 	if err != nil {
-		if errors.Is(err, replication2.ErrFeedNotFound) {
-			return replication2.NewEmptyFeedState(), nil
+		if errors.Is(err, replication.ErrFeedNotFound) {
+			return replication.NewEmptyFeedState(), nil
 		}
-		return replication2.FeedState{}, errors.Wrap(err, "could not get a feed")
+		return replication.FeedState{}, errors.Wrap(err, "could not get a feed")
 	}
-	return replication2.NewFeedState(f.Sequence()), nil
+	return replication.NewFeedState(f.Sequence()), nil
 }

@@ -6,8 +6,8 @@ import (
 
 	"github.com/planetary-social/go-ssb/fixtures"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/content"
-	transport2 "github.com/planetary-social/go-ssb/service/domain/feeds/content/transport"
-	message2 "github.com/planetary-social/go-ssb/service/domain/feeds/message"
+	"github.com/planetary-social/go-ssb/service/domain/feeds/content/transport"
+	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
 	"github.com/planetary-social/go-ssb/service/domain/identity"
 	"github.com/planetary-social/go-ssb/service/domain/refs"
 	"github.com/stretchr/testify/require"
@@ -16,7 +16,7 @@ import (
 // todo abstract away dependencies
 func TestMarshaler(t *testing.T) {
 	logger := fixtures.SomeLogger()
-	marshaler, err := transport2.NewMarshaler(transport2.DefaultMappings(), logger)
+	marshaler, err := transport.NewMarshaler(transport.DefaultMappings(), logger)
 	require.NoError(t, err)
 
 	f := NewScuttlebutt(marshaler)
@@ -27,9 +27,9 @@ func TestMarshaler(t *testing.T) {
 	authorRef, err := refs.NewIdentityFromPublic(author.Public())
 	require.NoError(t, err)
 
-	unsignedMessage, err := message2.NewUnsignedMessage(
+	unsignedMessage, err := message.NewUnsignedMessage(
 		nil,
-		message2.FirstSequence,
+		message.FirstSequence,
 		authorRef,
 		authorRef.MainFeed(),
 		time.Now(),
@@ -44,7 +44,7 @@ func TestMarshaler(t *testing.T) {
 // todo abstract away dependencies
 func TestMarshalerPrevious(t *testing.T) {
 	logger := fixtures.SomeLogger()
-	marshaler, err := transport2.NewMarshaler(transport2.DefaultMappings(), logger)
+	marshaler, err := transport.NewMarshaler(transport.DefaultMappings(), logger)
 	require.NoError(t, err)
 
 	f := NewScuttlebutt(marshaler)
@@ -57,9 +57,9 @@ func TestMarshalerPrevious(t *testing.T) {
 
 	previous := fixtures.SomeRefMessage()
 
-	unsignedMessage, err := message2.NewUnsignedMessage(
+	unsignedMessage, err := message.NewUnsignedMessage(
 		&previous,
-		message2.MustNewSequence(2),
+		message.MustNewSequence(2),
 		authorRef,
 		authorRef.MainFeed(),
 		time.Now(),

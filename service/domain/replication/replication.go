@@ -6,7 +6,7 @@ import (
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/logging"
-	message2 "github.com/planetary-social/go-ssb/service/domain/feeds/message"
+	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
 	"github.com/planetary-social/go-ssb/service/domain/messages"
 	"github.com/planetary-social/go-ssb/service/domain/refs"
 	"github.com/planetary-social/go-ssb/service/domain/transport"
@@ -26,7 +26,7 @@ type ReplicationManager interface {
 }
 
 type RawMessageHandler interface {
-	Handle(msg message2.RawMessage) error
+	Handle(msg message.RawMessage) error
 }
 
 type GossipReplicator struct {
@@ -111,7 +111,7 @@ func (r GossipReplicator) replicateFeed(peer transport.Peer, feed ReplicateFeedT
 			return counter, errors.Wrap(err, "response stream error")
 		}
 
-		rawMsg := message2.NewRawMessage(response.Value.Bytes())
+		rawMsg := message.NewRawMessage(response.Value.Bytes())
 
 		if err := r.handler.Handle(rawMsg); err != nil {
 			return counter, errors.Wrap(err, "could not process the raw message")
@@ -124,7 +124,7 @@ func (r GossipReplicator) replicateFeed(peer transport.Peer, feed ReplicateFeedT
 }
 
 func (r GossipReplicator) newCreateHistoryStreamArguments(id refs.Feed, state FeedState) (messages.CreateHistoryStreamArguments, error) {
-	var seq *message2.Sequence
+	var seq *message.Sequence
 	if sequence, hasAnyMessages := state.Sequence(); hasAnyMessages {
 		seq = &sequence
 	}
@@ -136,24 +136,24 @@ func (r GossipReplicator) newCreateHistoryStreamArguments(id refs.Feed, state Fe
 }
 
 type FeedState struct {
-	sequence *message2.Sequence
+	sequence *message.Sequence
 }
 
 func NewEmptyFeedState() FeedState {
 	return FeedState{}
 }
 
-func NewFeedState(sequence message2.Sequence) FeedState {
+func NewFeedState(sequence message.Sequence) FeedState {
 	return FeedState{
 		sequence: &sequence,
 	}
 }
 
-func (s FeedState) Sequence() (message2.Sequence, bool) {
+func (s FeedState) Sequence() (message.Sequence, bool) {
 	if s.sequence != nil {
 		return *s.sequence, true
 	}
-	return message2.Sequence{}, false
+	return message.Sequence{}, false
 }
 
 func (s FeedState) String() string {

@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/planetary-social/go-ssb/fixtures"
-	rpc2 "github.com/planetary-social/go-ssb/service/domain/transport/rpc"
+	"github.com/planetary-social/go-ssb/service/domain/transport/rpc"
 	"github.com/planetary-social/go-ssb/service/domain/transport/rpc/transport"
 	"github.com/stretchr/testify/require"
 )
@@ -16,7 +16,7 @@ func TestCancellingContextReleasesChannel(t *testing.T) {
 	ctx := fixtures.TestContext(t)
 	req := someRequest()
 
-	streams := rpc2.NewResponseStreams(sender, logger)
+	streams := rpc.NewResponseStreams(sender, logger)
 
 	stream, err := streams.Open(ctx, req)
 	require.NoError(t, err)
@@ -42,14 +42,14 @@ func TestCancellingContextReleasesChannel(t *testing.T) {
 
 	select {
 	case resp := <-stream.Channel():
-		require.ErrorIs(t, resp.Err, rpc2.ErrEndOrErr)
+		require.ErrorIs(t, resp.Err, rpc.ErrEndOrErr)
 	case <-time.After(5 * time.Second):
 		t.Fatal("channel was not released")
 	}
 }
 
-func someRequest() *rpc2.Request {
-	req, err := rpc2.NewRequest(
+func someRequest() *rpc.Request {
+	req, err := rpc.NewRequest(
 		fixtures.SomeProcedureName(),
 		fixtures.SomeProcedureType(),
 		fixtures.SomeBool(),

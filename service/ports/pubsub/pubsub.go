@@ -23,7 +23,7 @@ func (p *PubSub) Run(ctx context.Context) error {
 	requests := p.pubsub.SubscribeToRequests(ctx)
 
 	for request := range requests {
-		go p.mux.HandleRequest(request.Req, request.Rw)
+		go p.mux.HandleRequest(request.Ctx, request.Req, request.Rw)
 	}
 
 	return nil

@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"context"
 	"io"
 
 	"github.com/boreq/errors"
@@ -23,7 +24,7 @@ func (h HandlerBlobsGet) Procedure() rpc.Procedure {
 	return messages.BlobsGetProcedure
 }
 
-func (h HandlerBlobsGet) Handle(req *rpc.Request, w *rpc.ResponseWriter) error {
+func (h HandlerBlobsGet) Handle(ctx context.Context, req *rpc.Request, w *rpc.ResponseWriter) error {
 	_, err := messages.NewBlobsGetArgumentsFromBytes(req.Arguments())
 	if err != nil {
 		return errors.Wrap(err, "invalid arguments")

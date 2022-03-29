@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/boreq/errors"
@@ -14,7 +15,7 @@ type Handler interface {
 
 	// Handle should perform actions requested by the provided request and return the response using the provided
 	// response writer. Request is never nil.
-	Handle(req *Request, rw *ResponseWriter) error
+	Handle(ctx context.Context, req *Request, rw *ResponseWriter) error
 }
 
 type Mux struct {
@@ -41,7 +42,7 @@ func (m Mux) AddHandler(handler Handler) error {
 	return nil
 }
 
-func (m Mux) HandleRequest(req *Request, rw *ResponseWriter) {
+func (m Mux) HandleRequest(ctx context.Context, req *Request, rw *ResponseWriter) {
 	handler, err := m.getHandler(req)
 	if err != nil {
 		if err := rw.CloseWithError(errors.New("method not supported")); err != nil {
@@ -50,7 +51,7 @@ func (m Mux) HandleRequest(req *Request, rw *ResponseWriter) {
 		return
 	}
 
-	if err := handler.Handle(req, rw); err != nil {
+	if err := handler.Handle(ctx, req, rw); err != nil {
 		if err := rw.CloseWithError(err); err != nil {
 			m.logger.WithError(err).Debug("could not write an error returned by the handler")
 		}

@@ -24,8 +24,8 @@ func (h HandlerCreateHistoryStream) Procedure() rpc.Procedure {
 	return messages.CreateHistoryStreamProcedure
 }
 
-func (h HandlerCreateHistoryStream) Handle(req *rpc.Request, w *rpc.ResponseWriter) error {
-	ctx, cancel := context.WithCancel(context.TODO())
+func (h HandlerCreateHistoryStream) Handle(ctx context.Context, req *rpc.Request, w *rpc.ResponseWriter) error {
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	query, err := h.newQuery(req)

@@ -12,7 +12,7 @@ import (
 )
 
 type RequestHandler interface {
-	HandleRequest(req *Request, rw *ResponseWriter)
+	HandleRequest(ctx context.Context, req *Request, rw *ResponseWriter)
 }
 
 type responseWriters map[int]*ResponseWriter
@@ -88,7 +88,7 @@ func (r *RequestStreams) openWriter(msg *transport.Message) error {
 	r.writers[requestNumber] = rw
 	go r.waitAndCleanupWriter(rw)
 
-	go r.handler.HandleRequest(req, rw)
+	go r.handler.HandleRequest(context.TODO(), req, rw) // todo add a real context associated with the connextion
 
 	return nil
 }

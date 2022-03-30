@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/boreq/errors"
-	refs2 "github.com/planetary-social/go-ssb/service/domain/refs"
+	"github.com/planetary-social/go-ssb/service/domain/refs"
 )
 
 type RawMessage struct {
@@ -35,10 +35,10 @@ type UnsignedMessage struct {
 }
 
 func NewUnsignedMessage(
-	previous *refs2.Message,
+	previous *refs.Message,
 	sequence Sequence,
-	author refs2.Identity,
-	feed refs2.Feed,
+	author refs.Identity,
+	feed refs.Feed,
 	timestamp time.Time,
 	content MessageContent,
 ) (UnsignedMessage, error) {
@@ -55,16 +55,16 @@ func NewUnsignedMessage(
 type Message struct {
 	baseMessageFields
 
-	id  refs2.Message
+	id  refs.Message
 	raw RawMessage
 }
 
 func NewMessage(
-	id refs2.Message,
-	previous *refs2.Message,
+	id refs.Message,
+	previous *refs.Message,
 	sequence Sequence,
-	author refs2.Identity,
-	feed refs2.Feed,
+	author refs.Identity,
+	feed refs.Feed,
 	timestamp time.Time,
 	content MessageContent,
 	raw RawMessage,
@@ -90,11 +90,11 @@ func NewMessage(
 }
 
 func MustNewMessage(
-	id refs2.Message,
-	previous *refs2.Message,
+	id refs.Message,
+	previous *refs.Message,
 	sequence Sequence,
-	author refs2.Identity,
-	feed refs2.Feed,
+	author refs.Identity,
+	feed refs.Feed,
 	timestamp time.Time,
 	content MessageContent,
 	raw RawMessage,
@@ -106,7 +106,7 @@ func MustNewMessage(
 	return msg
 }
 
-func (m Message) Id() refs2.Message {
+func (m Message) Id() refs.Message {
 	return m.id
 }
 
@@ -145,19 +145,19 @@ func (t MessageContentType) IsZero() bool {
 }
 
 type baseMessageFields struct {
-	previous  *refs2.Message
+	previous  *refs.Message
 	sequence  Sequence
-	author    refs2.Identity
-	feed      refs2.Feed
+	author    refs.Identity
+	feed      refs.Feed
 	timestamp time.Time
 	content   MessageContent
 }
 
 func newBaseMessageFields(
-	previous *refs2.Message,
+	previous *refs.Message,
 	sequence Sequence,
-	author refs2.Identity,
-	feed refs2.Feed,
+	author refs.Identity,
+	feed refs.Feed,
 	timestamp time.Time,
 	content MessageContent,
 ) (baseMessageFields, error) {
@@ -197,7 +197,7 @@ func newBaseMessageFields(
 	}, nil
 }
 
-func (k baseMessageFields) Previous() *refs2.Message {
+func (k baseMessageFields) Previous() *refs.Message {
 	return k.previous
 }
 
@@ -205,11 +205,11 @@ func (k baseMessageFields) Sequence() Sequence {
 	return k.sequence
 }
 
-func (k baseMessageFields) Author() refs2.Identity {
+func (k baseMessageFields) Author() refs.Identity {
 	return k.author
 }
 
-func (k baseMessageFields) Feed() refs2.Feed {
+func (k baseMessageFields) Feed() refs.Feed {
 	return k.feed
 }
 

@@ -22,11 +22,11 @@ const (
 
 type LogrusLogger struct {
 	name   string
-	logger logrus.FieldLogger
+	logger logrus.Ext1FieldLogger
 	level  Level
 }
 
-func NewLogrusLogger(logger logrus.FieldLogger, name string, level Level) LogrusLogger {
+func NewLogrusLogger(logger logrus.Ext1FieldLogger, name string, level Level) LogrusLogger {
 	return LogrusLogger{
 		name:   name,
 		logger: logger,
@@ -60,11 +60,11 @@ func (l LogrusLogger) Debug(message string) {
 
 func (l LogrusLogger) Trace(message string) {
 	if l.level >= LevelTrace {
-		l.withName().Debug(message)
+		l.withName().Trace(message)
 	}
 }
 
-func (l LogrusLogger) withName() logrus.FieldLogger {
+func (l LogrusLogger) withName() logrus.Ext1FieldLogger {
 	return l.logger.WithField("name", l.name)
 }
 

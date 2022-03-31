@@ -8,6 +8,7 @@ import (
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/cmd/ssb-test/di"
 	"github.com/planetary-social/go-ssb/cmd/ssb-test/storage"
+	"github.com/planetary-social/go-ssb/logging"
 	"github.com/planetary-social/go-ssb/service/domain/identity"
 )
 
@@ -18,11 +19,11 @@ func main() {
 }
 
 func run() error {
-	f, err := os.Create("/tmp/cpu.profile")
-	if err != nil {
-		return errors.Wrap(err, "could not create cpu profile")
-	}
-	defer f.Close()
+	//f, err := os.Create("/tmp/cpu.profile")
+	//if err != nil {
+	//	return errors.Wrap(err, "could not create cpu profile")
+	//}
+	//defer f.Close()
 
 	//if err := pprof.StartCPUProfile(f); err != nil {
 	//	return errors.Wrap(err, "could not start cpu profile")
@@ -36,7 +37,11 @@ func run() error {
 
 	ctx := context.Background()
 
-	config := di.Config{DataDirectory: os.Args[1]}
+	config := di.Config{
+		LoggingLevel:  logging.LevelTrace,
+		DataDirectory: os.Args[1],
+		ListenAddress: ":8008",
+	}
 
 	local, err := loadOrGenerateIdentity(config)
 	if err != nil {

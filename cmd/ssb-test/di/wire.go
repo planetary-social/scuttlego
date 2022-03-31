@@ -23,6 +23,7 @@ import (
 	"github.com/planetary-social/go-ssb/service/domain/graph"
 	"github.com/planetary-social/go-ssb/service/domain/identity"
 	"github.com/planetary-social/go-ssb/service/domain/network"
+	"github.com/planetary-social/go-ssb/service/domain/network/local"
 	replication2 "github.com/planetary-social/go-ssb/service/domain/replication"
 	network2 "github.com/planetary-social/go-ssb/service/domain/transport"
 	boxstream2 "github.com/planetary-social/go-ssb/service/domain/transport/boxstream"
@@ -146,7 +147,7 @@ func BuildApplicationForTests() (TestApplication, error) {
 
 }
 
-func BuildTransactableAdapters(*bbolt.Tx, identity.Private) (commands2.Adapters, error) {
+func BuildTransactableAdapters(*bbolt.Tx, identity.Private, logging.Logger) (commands2.Adapters, error) {
 	wire.Build(
 		wire.Struct(new(commands2.Adapters), "*"),
 
@@ -158,8 +159,7 @@ func BuildTransactableAdapters(*bbolt.Tx, identity.Private) (commands2.Adapters,
 
 		formatsSet,
 
-		newPublicIdentity,
-		newLogger,
+		privateIdentityToPublicIdentity,
 
 		wire.Value(hops),
 	)
@@ -167,7 +167,7 @@ func BuildTransactableAdapters(*bbolt.Tx, identity.Private) (commands2.Adapters,
 	return commands2.Adapters{}, nil
 }
 
-func BuildAdaptersForContactsRepository(*bbolt.Tx, identity.Private) (adapters2.Repositories, error) {
+func BuildAdaptersForContactsRepository(*bbolt.Tx, identity.Private, logging.Logger) (adapters2.Repositories, error) {
 	wire.Build(
 		wire.Struct(new(adapters2.Repositories), "*"),
 
@@ -176,8 +176,7 @@ func BuildAdaptersForContactsRepository(*bbolt.Tx, identity.Private) (adapters2.
 
 		formatsSet,
 
-		newPublicIdentity,
-		newLogger,
+		privateIdentityToPublicIdentity,
 
 		wire.Value(hops),
 	)
@@ -192,8 +191,6 @@ func BuildService(identity.Private, Config) (Service, error) {
 		boxstream2.NewDefaultNetworkKey,
 
 		boxstream2.NewHandshaker,
-
-		network3.NewListener,
 
 		commands2.NewRawMessageHandler,
 		wire.Bind(new(replication2.RawMessageHandler), new(*commands2.RawMessageHandler)),
@@ -216,6 +213,10 @@ func BuildService(identity.Private, Config) (Service, error) {
 		wire.Bind(new(replication2.Storage), new(*adapters2.BoltContactsRepository)),
 		newContactRepositoriesFactory,
 
+		newAdvertiser,
+		newListener,
+		privateIdentityToPublicIdentity,
+
 		portsSet,
 		applicationSet,
 		replicatorSet,
@@ -231,15 +232,28 @@ func BuildService(identity.Private, Config) (Service, error) {
 	return Service{}, nil
 }
 
-func newAdaptersFactory(local identity.Private) adapters2.AdaptersFactory {
+func newAdvertiser(l identity.Public, config Config) (*local.Advertiser, error) {
+	return local.NewAdvertiser(l, config.ListenAddress)
+}
+
+func newListener(
+	initializer network3.ServerPeerInitializer,
+	app app.Application,
+	config Config,
+	logger logging.Logger,
+) (*network3.Listener, error) {
+	return network3.NewListener(initializer, app, config.ListenAddress, logger)
+}
+
+func newAdaptersFactory(local identity.Private, logger logging.Logger) adapters2.AdaptersFactory {
 	return func(tx *bbolt.Tx) (commands2.Adapters, error) {
-		return BuildTransactableAdapters(tx, local)
+		return BuildTransactableAdapters(tx, local, logger)
 	}
 }
 
-func newContactRepositoriesFactory(local identity.Private) adapters2.RepositoriesFactory {
+func newContactRepositoriesFactory(local identity.Private, logger logging.Logger) adapters2.RepositoriesFactory {
 	return func(tx *bbolt.Tx) (adapters2.Repositories, error) {
-		return BuildAdaptersForContactsRepository(tx, local)
+		return BuildAdaptersForContactsRepository(tx, local, logger)
 	}
 }
 
@@ -252,14 +266,14 @@ func newBolt(config Config) (*bbolt.DB, error) {
 	return b, nil
 }
 
-func newPublicIdentity(p identity.Private) identity.Public {
+func privateIdentityToPublicIdentity(p identity.Private) identity.Public {
 	return p.Public()
 }
 
-func newLogger() logging.Logger {
+func newLogger(config Config) logging.Logger {
 	log := logrus.New()
-	log.SetLevel(logrus.DebugLevel)
-	return logging.NewLogrusLogger(log, "main", logging.LevelDebug)
+	log.SetLevel(logrus.TraceLevel)
+	return logging.NewLogrusLogger(log, "main", config.LoggingLevel)
 }
 
 func newFormats(

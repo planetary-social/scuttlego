@@ -1,6 +1,7 @@
 package network
 
 import (
+	"context"
 	"io"
 	"net"
 
@@ -18,19 +19,22 @@ type ServerPeerInitializer interface {
 type Listener struct {
 	initializer ServerPeerInitializer
 	app         app.Application
+	address     string
 	logger      logging.Logger
 }
 
-func NewListener(initializer ServerPeerInitializer, app app.Application, logger logging.Logger) (*Listener, error) {
+func NewListener(initializer ServerPeerInitializer, app app.Application, address string, logger logging.Logger) (*Listener, error) {
 	return &Listener{
 		initializer: initializer,
 		app:         app,
+		address:     address,
 		logger:      logger.New("listener"),
 	}, nil
 }
 
-func (l *Listener) ListenAndServe() error {
-	listener, err := net.Listen("tcp", ":8001") // todo configure the address
+func (l *Listener) ListenAndServe(ctx context.Context) error {
+	var lc net.ListenConfig
+	listener, err := lc.Listen(ctx, "tcp", l.address)
 	if err != nil {
 		return errors.Wrap(err, "could not start a listener")
 	}

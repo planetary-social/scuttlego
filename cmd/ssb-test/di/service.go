@@ -70,7 +70,7 @@ func (s Service) Run(ctx context.Context) error {
 	go func() {
 		<-time.After(5 * time.Second)
 
-		err := s.app.Connect.Handle(localConnect)
+		err := s.app.Commands.Connect.Handle(localConnect)
 		if err != nil {
 			panic(err)
 		}

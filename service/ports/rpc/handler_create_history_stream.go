@@ -2,21 +2,26 @@ package rpc
 
 import (
 	"context"
+	"time"
 
 	"github.com/boreq/errors"
-	"github.com/planetary-social/go-ssb/service/app"
 	"github.com/planetary-social/go-ssb/service/app/queries"
+	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
 	"github.com/planetary-social/go-ssb/service/domain/messages"
 	"github.com/planetary-social/go-ssb/service/domain/transport/rpc"
 )
 
-type HandlerCreateHistoryStream struct {
-	app app.Application
+type CreateHistoryStreamQueryHandler interface {
+	Handle(ctx context.Context, query queries.CreateHistoryStream) <-chan queries.MessageWithErr
 }
 
-func NewHandlerCreateHistoryStream(app app.Application) *HandlerCreateHistoryStream {
+type HandlerCreateHistoryStream struct {
+	q CreateHistoryStreamQueryHandler
+}
+
+func NewHandlerCreateHistoryStream(q CreateHistoryStreamQueryHandler) *HandlerCreateHistoryStream {
 	return &HandlerCreateHistoryStream{
-		app: app,
+		q: q,
 	}
 }
 
@@ -24,49 +29,55 @@ func (h HandlerCreateHistoryStream) Procedure() rpc.Procedure {
 	return messages.CreateHistoryStreamProcedure
 }
 
-func (h HandlerCreateHistoryStream) Handle(ctx context.Context, req *rpc.Request, w *rpc.ResponseWriter) error {
+func (h HandlerCreateHistoryStream) Handle(ctx context.Context, req *rpc.Request, rw *rpc.ResponseWriter) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	query, err := h.newQuery(req)
+	args, err := messages.NewCreateHistoryStreamArgumentsFromBytes(req.Arguments())
 	if err != nil {
-		return errors.Wrap(err, "could not construct a query")
+		return errors.Wrap(err, "invalid arguments")
 	}
 
-	msgCh := h.app.Queries.CreateHistoryStream.Handle(ctx, query)
+	query := queries.CreateHistoryStream{
+		Id:    args.Id(),
+		Seq:   args.Sequence(),
+		Limit: args.Limit(),
+		Live:  args.Live(),
+		Old:   args.Old(),
+	}
+
+	msgCh := h.q.Handle(ctx, query)
 
 	for msgWithError := range msgCh {
 		if msgWithError.Err != nil {
 			return errors.Wrap(err, "query returned an error")
 		}
 
-		// todo write messages
+		if err := h.sendMessage(args, msgWithError.Message, rw); err != nil {
+			return errors.Wrap(err, "could not send a message")
+		}
 	}
 
 	return nil
 }
 
-func (h HandlerCreateHistoryStream) newQuery(req *rpc.Request) (queries.CreateHistoryStream, error) {
-	args, err := messages.NewCreateHistoryStreamArgumentsFromBytes(req.Arguments())
+func (h HandlerCreateHistoryStream) sendMessage(args messages.CreateHistoryStreamArguments, msg message.Message, rw *rpc.ResponseWriter) error {
+	b, err := h.createResponse(args, msg)
 	if err != nil {
-		return queries.CreateHistoryStream{}, errors.Wrap(err, "invalid arguments")
+		return errors.Wrap(err, "could not create a response")
 	}
 
-	live := false
-	if args.Live() != nil {
-		live = *args.Live()
+	if err := rw.WriteMessage(b); err != nil {
+		return errors.Wrap(err, "could not write the message")
 	}
 
-	old := true
-	if args.Old() != nil {
-		old = *args.Old()
-	}
+	return nil
+}
 
-	return queries.CreateHistoryStream{
-		Id:    args.Id(),
-		Seq:   args.Sequence(),
-		Limit: args.Limit(),
-		Live:  live,
-		Old:   old,
-	}, nil
+func (h HandlerCreateHistoryStream) createResponse(args messages.CreateHistoryStreamArguments, msg message.Message) ([]byte, error) {
+	if args.Keys() {
+		// todo what is the timestamp used for? do we actually need to remember when we stored something?
+		return messages.NewCreateHistoryStreamResponse(msg.Id(), msg.Raw(), time.Now()).MarshalJSON()
+	}
+	return msg.Raw().Bytes(), nil
 }

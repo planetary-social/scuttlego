@@ -88,7 +88,7 @@ func (r *RequestStreams) openWriter(msg *transport.Message) error {
 	r.writers[requestNumber] = rw
 	go r.waitAndCleanupWriter(rw)
 
-	go r.handler.HandleRequest(context.TODO(), req, rw) // todo add a real context associated with the connextion
+	go r.handler.HandleRequest(context.TODO(), req, rw) // todo add a real context associated with the connection
 
 	return nil
 }
@@ -136,11 +136,11 @@ func (s *RequestStreams) waitAndCleanupWriter(rw *ResponseWriter) {
 	s.writersLock.Lock()
 	defer s.writersLock.Unlock()
 
-	delete(s.writers, rw.number)
+	delete(s.writers, rw.requestNumber)
 }
 
 type ResponseWriter struct {
-	number int
+	requestNumber int
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -151,8 +151,8 @@ func NewResponseWriter(number int, raw MessageSender) *ResponseWriter {
 	ctx, cancel := context.WithCancel(context.TODO())
 
 	rs := &ResponseWriter{
-		number: number,
-		raw:    raw,
+		requestNumber: number,
+		raw:           raw,
 
 		ctx:    ctx,
 		cancel: cancel,
@@ -161,13 +161,38 @@ func NewResponseWriter(number int, raw MessageSender) *ResponseWriter {
 	return rs
 }
 
+func (rs ResponseWriter) WriteMessage(body []byte) error {
+	// todo do this correctly? are the flags correct?
+	flags := transport.MessageHeaderFlags{
+		Stream:     true,
+		EndOrError: false,
+		BodyType:   transport.MessageBodyTypeJSON,
+	}
+
+	header, err := transport.NewMessageHeader(flags, uint32(len(body)), int32(-rs.requestNumber))
+	if err != nil {
+		return errors.Wrap(err, "could not create a message header")
+	}
+
+	msg, err := transport.NewMessage(header, body)
+	if err != nil {
+		return errors.Wrap(err, "could not create a message")
+	}
+
+	if err := rs.raw.Send(&msg); err != nil {
+		return errors.Wrap(err, "could not send a message")
+	}
+
+	return nil
+}
+
 func (rs ResponseWriter) CloseWithError(err error) error {
 	rs.cancel()
 	return rs.sendCloseStream(err)
 }
 
 func (rs *ResponseWriter) sendCloseStream(err error) error {
-	return sendCloseStream(rs.raw, -rs.number, err)
+	return sendCloseStream(rs.raw, -rs.requestNumber, err)
 }
 
 func sendCloseStream(raw MessageSender, number int, err error) error {
@@ -191,11 +216,7 @@ func sendCloseStream(raw MessageSender, number int, err error) error {
 		}
 	}
 
-	header, err := transport.NewMessageHeader(
-		flags,
-		uint32(len(content)),
-		int32(number),
-	)
+	header, err := transport.NewMessageHeader(flags, uint32(len(content)), int32(number))
 	if err != nil {
 		return errors.Wrap(err, "could not create a message header")
 	}

@@ -6,12 +6,15 @@ import (
 )
 
 type Application struct {
+	Commands Commands
+	Queries  Queries
+}
+
+type Commands struct {
 	RedeemInvite  *commands.RedeemInviteHandler
 	Follow        *commands.FollowHandler
 	Connect       *commands.ConnectHandler
 	AcceptNewPeer *commands.AcceptNewPeerHandler
-
-	Queries Queries
 }
 
 type Queries struct {

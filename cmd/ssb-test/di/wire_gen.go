@@ -7,9 +7,6 @@
 package di
 
 import (
-	"path"
-	"time"
-
 	"github.com/boreq/errors"
 	"github.com/google/wire"
 	"github.com/planetary-social/go-ssb/logging"
@@ -35,6 +32,8 @@ import (
 	"github.com/planetary-social/go-ssb/service/ports/rpc"
 	"github.com/sirupsen/logrus"
 	"go.etcd.io/bbolt"
+	"path"
+	"time"
 )
 
 // Injectors from wire.go:
@@ -144,6 +143,12 @@ func BuildService(private identity.Private, config Config) (Service, error) {
 	peerManager := domain.NewPeerManager(gossipReplicator, logger)
 	connectHandler := commands.NewConnectHandler(dialer, peerManager, logger)
 	acceptNewPeerHandler := commands.NewAcceptNewPeerHandler(peerManager)
+	appCommands := app.Commands{
+		RedeemInvite:  redeemInviteHandler,
+		Follow:        followHandler,
+		Connect:       connectHandler,
+		AcceptNewPeer: acceptNewPeerHandler,
+	}
 	boltMessageRepository := adapters.NewBoltMessageRepository(db, rawMessageIdentifier)
 	messagePubSub := pubsub.NewMessagePubSub()
 	createHistoryStreamHandler := queries.NewCreateHistoryStreamHandler(boltMessageRepository, messagePubSub)
@@ -151,17 +156,14 @@ func BuildService(private identity.Private, config Config) (Service, error) {
 		CreateHistoryStream: createHistoryStreamHandler,
 	}
 	application := app.Application{
-		RedeemInvite:  redeemInviteHandler,
-		Follow:        followHandler,
-		Connect:       connectHandler,
-		AcceptNewPeer: acceptNewPeerHandler,
-		Queries:       appQueries,
+		Commands: appCommands,
+		Queries:  appQueries,
 	}
 	listener, err := network2.NewListener(peerInitializer, application, logger)
 	if err != nil {
 		return Service{}, err
 	}
-	handlerCreateHistoryStream := rpc.NewHandlerCreateHistoryStream(application)
+	handlerCreateHistoryStream := rpc.NewHandlerCreateHistoryStream(createHistoryStreamHandler)
 	handlerBlobsGet := rpc.NewHandlerBlobsGet()
 	v2 := rpc.NewMuxHandlers(handlerCreateHistoryStream, handlerBlobsGet)
 	mux, err := rpc.NewMux(logger, v2)
@@ -175,7 +177,7 @@ func BuildService(private identity.Private, config Config) (Service, error) {
 
 // wire.go:
 
-var applicationSet = wire.NewSet(wire.Struct(new(app.Application), "*"), commands.NewRedeemInviteHandler, commands.NewFollowHandler, commands.NewConnectHandler, commands.NewAcceptNewPeerHandler, wire.Struct(new(app.Queries), "*"), queries.NewCreateHistoryStreamHandler)
+var applicationSet = wire.NewSet(wire.Struct(new(app.Application), "*"), wire.Struct(new(app.Commands), "*"), commands.NewRedeemInviteHandler, commands.NewFollowHandler, commands.NewConnectHandler, commands.NewAcceptNewPeerHandler, wire.Struct(new(app.Queries), "*"), queries.NewCreateHistoryStreamHandler, wire.Bind(new(rpc.CreateHistoryStreamQueryHandler), new(*queries.CreateHistoryStreamHandler)))
 
 var replicatorSet = wire.NewSet(replication.NewManager, wire.Bind(new(replication.ReplicationManager), new(*replication.Manager)), replication.NewGossipReplicator, wire.Bind(new(domain.Replicator), new(*replication.GossipReplicator)))
 

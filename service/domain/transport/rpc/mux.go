@@ -14,7 +14,8 @@ type Handler interface {
 	Procedure() Procedure
 
 	// Handle should perform actions requested by the provided request and return the response using the provided
-	// response writer. Request is never nil.
+	// response writer. The handler returns errors to make the flow of control within the handler reasier to follow.
+	// If an error is returned it will be sent over the RPC connection. Request is never nil.
 	Handle(ctx context.Context, req *Request, rw *ResponseWriter) error
 }
 

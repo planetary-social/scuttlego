@@ -28,8 +28,8 @@ import (
 	boxstream2 "github.com/planetary-social/go-ssb/service/domain/transport/boxstream"
 	"github.com/planetary-social/go-ssb/service/domain/transport/rpc"
 	network3 "github.com/planetary-social/go-ssb/service/ports/network"
-	pubsub2 "github.com/planetary-social/go-ssb/service/ports/pubsub"
-	rpc2 "github.com/planetary-social/go-ssb/service/ports/rpc"
+	portspubsub "github.com/planetary-social/go-ssb/service/ports/pubsub"
+	portsrpc "github.com/planetary-social/go-ssb/service/ports/rpc"
 	"github.com/sirupsen/logrus"
 	"go.etcd.io/bbolt"
 )
@@ -37,13 +37,16 @@ import (
 var applicationSet = wire.NewSet(
 	wire.Struct(new(app.Application), "*"),
 
+	wire.Struct(new(app.Commands), "*"),
 	commands2.NewRedeemInviteHandler,
 	commands2.NewFollowHandler,
 	commands2.NewConnectHandler,
 	commands2.NewAcceptNewPeerHandler,
 
 	wire.Struct(new(app.Queries), "*"),
+
 	queries.NewCreateHistoryStreamHandler,
+	wire.Bind(new(portsrpc.CreateHistoryStreamQueryHandler), new(*queries.CreateHistoryStreamHandler)),
 )
 
 var replicatorSet = wire.NewSet(
@@ -70,13 +73,13 @@ var formatsSet = wire.NewSet(
 )
 
 var portsSet = wire.NewSet(
-	rpc2.NewMux,
+	portsrpc.NewMux,
 
-	rpc2.NewMuxHandlers,
-	rpc2.NewHandlerBlobsGet,
-	rpc2.NewHandlerCreateHistoryStream,
+	portsrpc.NewMuxHandlers,
+	portsrpc.NewHandlerBlobsGet,
+	portsrpc.NewHandlerCreateHistoryStream,
 
-	pubsub2.NewPubSub,
+	portspubsub.NewPubSub,
 )
 
 var requestPubSubSet = wire.NewSet(

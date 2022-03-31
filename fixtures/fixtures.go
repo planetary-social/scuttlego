@@ -38,7 +38,11 @@ func SomeProcedureType() rpc.ProcedureType {
 }
 
 func SomeBool() bool {
-	return true
+	return rand.Int()%2 == 0
+}
+
+func SomeInt() int {
+	return rand.Int()
 }
 
 func SomeRefMessage() refs.Message {
@@ -91,7 +95,21 @@ func SomeJSON() []byte {
 }
 
 func SomeRawMessage() message.RawMessage {
-	return message.NewRawMessage(SomeBytes())
+	msg := `
+{
+	"previous": null,
+	"author": "@FCX/tsDLpubCPKKfIrw4gc+SQkHcaD17s7GI6i/ziWY=.ed25519",
+	"sequence": 1,
+	"timestamp": 1514517067954,
+	"hash": "sha256",
+	"content": {
+	"type": "post",
+		"text": "This is the first post!"
+	},
+	"signature": "QYOR/zU9dxE1aKBaxc3C0DJ4gRyZtlMfPLt+CGJcY73sv5abKKKxr1SqhOvnm8TY784VHE8kZHCD8RdzFl1tBA==.sig.ed25519"
+}
+`
+	return message.NewRawMessage([]byte(msg))
 }
 
 func SomeMessage(seq message.Sequence, feed refs.Feed) message.Message {

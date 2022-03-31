@@ -15,6 +15,8 @@ func NewRawMessage(data []byte) RawMessage {
 	tmp := make([]byte, len(data))
 	copy(tmp, data)
 
+	// todo check if valid json?
+
 	return RawMessage{
 		data: tmp,
 	}

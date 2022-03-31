@@ -2,6 +2,7 @@ package messages
 
 import (
 	"encoding/json"
+	"time"
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
@@ -28,32 +29,38 @@ func NewCreateHistoryStream(arguments CreateHistoryStreamArguments) (*rpc.Reques
 	)
 }
 
+const (
+	defaultLive = false
+	defaultOld  = true
+	defaultKeys = true
+)
+
 type CreateHistoryStreamArguments struct {
 	id       refs.Feed
 	sequence *message.Sequence
 	limit    *int
-	live     *bool
-	old      *bool
-	keys     *bool
+	live     bool
+	old      bool
+	keys     bool
 }
 
 func NewCreateHistoryStreamArguments(
 	id refs.Feed,
 	sequence *message.Sequence, // nil => start from beginning
-	limit *int, // nil => unlimited
-	live *bool, // nil => false
-	old *bool, // nil => true
-	keys *bool, // nil => true
+	limit *int,
+	live *bool,
+	old *bool,
+	keys *bool,
 ) (CreateHistoryStreamArguments, error) {
-	// todo checks as some arguments can't be used together
+	// todo checks as some arguments can't be used together? note: I think they can after all
 
 	return CreateHistoryStreamArguments{
 		id:       id,
 		sequence: sequence,
 		limit:    limit,
-		live:     live,
-		old:      old,
-		keys:     keys,
+		live:     valueOrDefault(live, defaultLive),
+		old:      valueOrDefault(old, defaultOld),
+		keys:     valueOrDefault(keys, defaultKeys),
 	}, nil
 }
 
@@ -106,15 +113,15 @@ func (c CreateHistoryStreamArguments) Limit() *int {
 	return c.limit
 }
 
-func (c CreateHistoryStreamArguments) Live() *bool {
+func (c CreateHistoryStreamArguments) Live() bool {
 	return c.live
 }
 
-func (c CreateHistoryStreamArguments) Old() *bool {
+func (c CreateHistoryStreamArguments) Old() bool {
 	return c.old
 }
 
-func (c CreateHistoryStreamArguments) Keys() *bool {
+func (c CreateHistoryStreamArguments) Keys() bool {
 	return c.keys
 }
 
@@ -124,10 +131,37 @@ func (c CreateHistoryStreamArguments) MarshalJSON() ([]byte, error) {
 			Id:       c.id.String(),
 			Sequence: sequencePointerToIntPointer(c.sequence),
 			Limit:    c.limit,
-			Live:     c.live,
-			Old:      c.old,
-			Keys:     c.keys,
+			Live:     nilIfDefault(c.live, defaultLive),
+			Old:      nilIfDefault(c.old, defaultOld),
+			Keys:     nilIfDefault(c.keys, defaultKeys),
 		},
+	}
+	return json.Marshal(transport)
+}
+
+type CreateHistoryStreamResponse struct {
+	key       refs.Message
+	value     message.RawMessage
+	timestamp time.Time
+}
+
+func NewCreateHistoryStreamResponse(
+	key refs.Message,
+	value message.RawMessage,
+	timestamp time.Time,
+) *CreateHistoryStreamResponse {
+	return &CreateHistoryStreamResponse{
+		key:       key,
+		value:     value,
+		timestamp: timestamp,
+	}
+}
+
+func (c CreateHistoryStreamResponse) MarshalJSON() ([]byte, error) {
+	transport := createHistoryStreamResponseTransport{
+		Key:       c.key.String(),
+		Value:     c.value.Bytes(),
+		Timestamp: c.timestamp.UnixMilli(),
 	}
 	return json.Marshal(transport)
 }
@@ -147,4 +181,24 @@ type createHistoryStreamArgumentsTransport struct {
 	Live     *bool  `json:"live,omitempty"`
 	Old      *bool  `json:"old,omitempty"`
 	Keys     *bool  `json:"keys,omitempty"`
+}
+
+type createHistoryStreamResponseTransport struct {
+	Key       string          `json:"key"`
+	Value     json.RawMessage `json:"value"`
+	Timestamp int64           `json:"timestamp"`
+}
+
+func valueOrDefault(v *bool, def bool) bool {
+	if v != nil {
+		return *v
+	}
+	return def
+}
+
+func nilIfDefault(v bool, def bool) *bool {
+	if v == def {
+		return nil
+	}
+	return &v
 }

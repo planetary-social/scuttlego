@@ -53,7 +53,7 @@ func (l *Listener) handleNewConnection(conn net.Conn) {
 		return
 	}
 
-	err = l.app.AcceptNewPeer.Handle(commands.AcceptNewPeer{Peer: p})
+	err = l.app.Commands.AcceptNewPeer.Handle(commands.AcceptNewPeer{Peer: p})
 	if err != nil {
 		p.Conn().Close()
 		l.logger.WithError(err).Debug("could not accept a new peer")

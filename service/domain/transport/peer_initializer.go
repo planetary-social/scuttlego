@@ -8,6 +8,7 @@ import (
 	"github.com/planetary-social/go-ssb/service/domain/identity"
 	"github.com/planetary-social/go-ssb/service/domain/transport/boxstream"
 	"github.com/planetary-social/go-ssb/service/domain/transport/rpc"
+	"github.com/planetary-social/go-ssb/service/domain/transport/rpc/transport"
 )
 
 type PeerInitializer struct {
@@ -47,7 +48,9 @@ func (i PeerInitializer) InitializeClientPeer(rwc io.ReadWriteCloser, remote ide
 }
 
 func (i PeerInitializer) initializePeer(boxStream *boxstream.Stream) (Peer, error) {
-	rpcConn, err := rpc.NewConnection(boxStream, i.requestHandler, i.logger)
+	raw := transport.NewRawConnection(boxStream, i.logger)
+
+	rpcConn, err := rpc.NewConnection(raw, i.requestHandler, i.logger)
 	if err != nil {
 		return Peer{}, errors.Wrap(err, "failed to establish an RPC connection")
 	}

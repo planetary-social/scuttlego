@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"context"
-	"io"
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/logging"
@@ -29,11 +28,10 @@ type Connection struct {
 }
 
 func NewConnection(
-	rw io.ReadWriteCloser,
+	raw RawConnection,
 	handler RequestHandler,
 	logger logging.Logger,
 ) (*Connection, error) {
-	raw := transport.NewRawConnection(rw, logger)
 	conn := &Connection{
 		raw:             raw,
 		responseStreams: NewResponseStreams(raw, logger),

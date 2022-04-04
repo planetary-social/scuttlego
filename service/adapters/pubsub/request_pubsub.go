@@ -8,8 +8,8 @@ import (
 
 type Request struct {
 	Ctx context.Context
+	Rw  rpc.ResponseWriter
 	Req *rpc.Request
-	Rw  *rpc.ResponseWriter
 }
 
 type RequestPubSub struct {
@@ -22,8 +22,14 @@ func NewRequestPubSub() *RequestPubSub {
 	}
 }
 
-func (m *RequestPubSub) HandleRequest(ctx context.Context, req *rpc.Request, rw *rpc.ResponseWriter) {
-	m.pubsub.Publish(Request{Ctx: ctx, Req: req, Rw: rw})
+func (m *RequestPubSub) HandleRequest(ctx context.Context, rw rpc.ResponseWriter, req *rpc.Request) {
+	m.pubsub.Publish(
+		Request{
+			Ctx: ctx,
+			Rw:  rw,
+			Req: req,
+		},
+	)
 }
 
 func (m *RequestPubSub) SubscribeToRequests(ctx context.Context) <-chan Request {

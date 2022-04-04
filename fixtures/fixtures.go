@@ -16,11 +16,12 @@ import (
 	"github.com/planetary-social/go-ssb/service/domain/identity"
 	"github.com/planetary-social/go-ssb/service/domain/refs"
 	"github.com/planetary-social/go-ssb/service/domain/transport/rpc"
+	"github.com/sirupsen/logrus"
 	"go.etcd.io/bbolt"
 )
 
 func SomeLogger() logging.Logger {
-	return logging.NewDevNullLogger()
+	return logging.NewLogrusLogger(logrus.New(), "test", logging.LevelTrace)
 }
 
 func TestContext(t *testing.T) context.Context {
@@ -43,6 +44,10 @@ func SomeBool() bool {
 
 func SomeInt() int {
 	return rand.Int()
+}
+
+func SomeUint32() uint32 {
+	return rand.Uint32()
 }
 
 func SomeRefMessage() refs.Message {

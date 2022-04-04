@@ -1,11 +1,14 @@
 package transport
 
 import (
+	"fmt"
 	"io"
+	"math/rand"
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/logging"
 	"github.com/planetary-social/go-ssb/service/domain/identity"
+	"github.com/planetary-social/go-ssb/service/domain/refs"
 	"github.com/planetary-social/go-ssb/service/domain/transport/boxstream"
 	"github.com/planetary-social/go-ssb/service/domain/transport/rpc"
 	"github.com/planetary-social/go-ssb/service/domain/transport/rpc/transport"
@@ -48,12 +51,28 @@ func (i PeerInitializer) InitializeClientPeer(rwc io.ReadWriteCloser, remote ide
 }
 
 func (i PeerInitializer) initializePeer(boxStream *boxstream.Stream) (Peer, error) {
-	raw := transport.NewRawConnection(boxStream, i.logger)
+	logger, err := i.peerLogger(boxStream)
+	if err != nil {
+		return Peer{}, errors.Wrap(err, "failed to create a peer logger")
+	}
 
-	rpcConn, err := rpc.NewConnection(raw, i.requestHandler, i.logger)
+	raw := transport.NewRawConnection(boxStream, logger)
+
+	rpcConn, err := rpc.NewConnection(raw, i.requestHandler, logger)
 	if err != nil {
 		return Peer{}, errors.Wrap(err, "failed to establish an RPC connection")
 	}
 
 	return NewPeer(boxStream.Remote(), rpcConn), nil
+}
+
+func (i PeerInitializer) peerLogger(boxStream *boxstream.Stream) (logging.Logger, error) {
+	ref, err := refs.NewIdentityFromPublic(boxStream.Remote())
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create an identity ref")
+	}
+
+	correlationId := fmt.Sprintf("peer-%d", rand.Int())
+
+	return i.logger.New(correlationId).WithField("id", ref.String()), nil
 }

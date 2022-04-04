@@ -24,7 +24,6 @@ func NewCreateHistoryStream(arguments CreateHistoryStreamArguments) (*rpc.Reques
 	return rpc.NewRequest(
 		CreateHistoryStreamProcedure.Name(),
 		CreateHistoryStreamProcedure.Typ(),
-		true,
 		j,
 	)
 }

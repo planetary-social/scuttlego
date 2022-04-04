@@ -176,7 +176,7 @@ func BuildService(private identity.Private, config Config) (Service, error) {
 	if err != nil {
 		return Service{}, err
 	}
-	service := NewService(listener, pubSub, advertiser, application)
+	service := NewService(application, listener, pubSub, advertiser)
 	return service, nil
 }
 

@@ -31,14 +31,14 @@ func (s *Scuttlebutt) Verify(raw message.RawMessage) (message.Message, error) {
 		return message.Message{}, errors.Wrap(err, "verification failed")
 	}
 
-	id, err := refs.NewMessage(ssbRef.Ref())
+	id, err := refs.NewMessage(ssbRef.Sigil())
 	if err != nil {
 		return message.Message{}, errors.Wrap(err, "invalid message id")
 	}
 
 	var previous *refs.Message
 	if ssbMessage.Previous != nil {
-		tmp, err := refs.NewMessage(ssbMessage.Previous.Ref())
+		tmp, err := refs.NewMessage(ssbMessage.Previous.Sigil())
 		if err != nil {
 			return message.Message{}, errors.Wrap(err, "invalid previous message id")
 		}
@@ -50,12 +50,12 @@ func (s *Scuttlebutt) Verify(raw message.RawMessage) (message.Message, error) {
 		return message.Message{}, errors.Wrap(err, "invalid sequence")
 	}
 
-	author, err := refs.NewIdentity(ssbMessage.Author.Ref())
+	author, err := refs.NewIdentity(ssbMessage.Author.Sigil())
 	if err != nil {
 		return message.Message{}, errors.Wrap(err, "invalid author")
 	}
 
-	feed, err := refs.NewFeed(ssbMessage.Author.Ref())
+	feed, err := refs.NewFeed(ssbMessage.Author.Sigil())
 	if err != nil {
 		return message.Message{}, errors.Wrap(err, "invalid feed")
 	}

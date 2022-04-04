@@ -10,11 +10,10 @@ import (
 type Request struct {
 	name      ProcedureName
 	typ       ProcedureType
-	stream    bool
 	arguments json.RawMessage
 }
 
-func NewRequest(name ProcedureName, typ ProcedureType, stream bool, arguments json.RawMessage) (*Request, error) {
+func NewRequest(name ProcedureName, typ ProcedureType, arguments json.RawMessage) (*Request, error) {
 	if name.IsZero() {
 		return nil, errors.New("zero value of request name")
 	}
@@ -26,9 +25,17 @@ func NewRequest(name ProcedureName, typ ProcedureType, stream bool, arguments js
 	return &Request{
 		name:      name,
 		typ:       typ,
-		stream:    stream,
 		arguments: arguments,
 	}, nil
+}
+
+func MustNewRequest(name ProcedureName, typ ProcedureType, arguments json.RawMessage) *Request {
+	v, err := NewRequest(name, typ, arguments)
+	if err != nil {
+		panic(err)
+	}
+
+	return v
 }
 
 func (r Request) Name() ProcedureName {
@@ -37,10 +44,6 @@ func (r Request) Name() ProcedureName {
 
 func (r Request) Type() ProcedureType {
 	return r.typ
-}
-
-func (r Request) Stream() bool {
-	return r.stream
 }
 
 func (r Request) Arguments() json.RawMessage {

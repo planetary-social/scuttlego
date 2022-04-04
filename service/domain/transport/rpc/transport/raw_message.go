@@ -92,6 +92,14 @@ func NewMessageHeader(flags MessageHeaderFlags, bodyLength uint32, requestNumber
 	return header, nil
 }
 
+func MustNewMessageHeader(flags MessageHeaderFlags, bodyLength uint32, requestNumber int32) MessageHeader {
+	v, err := NewMessageHeader(flags, bodyLength, requestNumber)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
 func (m MessageHeader) Flags() MessageHeaderFlags {
 	return m.flags
 }

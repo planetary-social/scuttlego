@@ -46,21 +46,13 @@ func (s RawConnection) Next() (*Message, error) {
 		return nil, errors.Wrap(err, "could not create a message")
 	}
 
-	s.logger.
-		WithField("header.flags", msg.Header.Flags()).
-		WithField("header.number", msg.Header.RequestNumber()).
-		WithField("header.bodyLength", msg.Header.BodyLength()).
-		WithField("body", string(msg.Body)).
-		Trace("message received")
+	s.loggerWithMessageFields(&msg).Trace("received a message")
 
 	return &msg, nil
 }
 
 func (s RawConnection) Send(msg *Message) error {
-	s.logger.
-		WithField("number", msg.Header.RequestNumber()).
-		WithField("body", string(msg.Body)).
-		Trace("sending a message")
+	s.loggerWithMessageFields(msg).Trace("sending a message")
 
 	b, err := msg.Header.Bytes()
 	if err != nil {
@@ -82,6 +74,14 @@ func (s RawConnection) Send(msg *Message) error {
 
 func (s RawConnection) Close() error {
 	return s.rw.Close()
+}
+
+func (s RawConnection) loggerWithMessageFields(msg *Message) logging.Logger {
+	return s.logger.
+		WithField("header.flags", msg.Header.Flags()).
+		WithField("header.number", msg.Header.RequestNumber()).
+		WithField("header.bodyLength", msg.Header.BodyLength()).
+		WithField("body", string(msg.Body))
 }
 
 func isTermination(bytes []byte) bool {

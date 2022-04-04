@@ -22,7 +22,6 @@ func NewInviteUse(arguments InviteUseArguments) (*rpc.Request, error) {
 	return rpc.NewRequest(
 		InviteUseProcedure.Name(),
 		InviteUseProcedure.Typ(),
-		false,
 		j,
 	)
 }

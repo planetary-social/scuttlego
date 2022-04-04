@@ -3,7 +3,6 @@ package rpc
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"sync"
 
 	"github.com/boreq/errors"
@@ -11,18 +10,24 @@ import (
 	"github.com/planetary-social/go-ssb/service/domain/transport/rpc/transport"
 )
 
-type RequestHandler interface {
-	HandleRequest(ctx context.Context, req *Request, rw *ResponseWriter)
+type ResponseWriter interface {
+	WriteMessage(body []byte) error
+	CloseWithError(err error) error
 }
 
-type responseWriters map[int]*ResponseWriter
+type RequestHandler interface {
+	// HandleRequest must eventually call ResponseWriter.CloseWithError to avoid memory leaks. HandleRequest may block
+	// indefinitely.
+	HandleRequest(ctx context.Context, rw ResponseWriter, req *Request)
+}
 
+// RequestStreams is used for handling incoming data (with positive request numbers).
 type RequestStreams struct {
-	closed      bool
-	writers     responseWriters
-	writersLock sync.Mutex
+	closed bool
 
-	incomingRequestNumber int
+	writers       map[int]*responseWriter
+	closedWriters map[int]struct{}
+	writersLock   sync.Mutex // guards writers and closedWriters
 
 	handler RequestHandler
 
@@ -32,91 +37,95 @@ type RequestStreams struct {
 
 func NewRequestStreams(raw MessageSender, handler RequestHandler, logger logging.Logger) *RequestStreams {
 	return &RequestStreams{
-		raw:     raw,
-		writers: make(responseWriters),
-		handler: handler,
-		logger:  logger.New("response_streams"),
+		raw:           raw,
+		writers:       make(map[int]*responseWriter),
+		closedWriters: make(map[int]struct{}),
+		handler:       handler,
+		logger:        logger.New("response_streams"),
 	}
 }
 
-func (r *RequestStreams) HandleIncomingRequest(msg *transport.Message) error {
+func (s *RequestStreams) HandleIncomingRequest(msg *transport.Message) error {
+	s.writersLock.Lock()
+	defer s.writersLock.Unlock()
+
 	if !msg.Header.IsRequest() {
 		return errors.New("passed a response")
 	}
 
-	r.writersLock.Lock()
-	defer r.writersLock.Unlock()
-
-	if msg.Header.Flags().EndOrError {
-		return r.terminateWriter(msg)
-	} else {
-		return r.openWriter(msg)
+	if s.closed {
+		return errors.New("streams closed")
 	}
-}
 
-func (r *RequestStreams) terminateWriter(msg *transport.Message) error {
 	requestNumber := msg.Header.RequestNumber()
 
-	rw, ok := r.writers[requestNumber]
-	if !ok {
+	// Unfortunately we are not able to distinguish "start of stream" messages from "part of stream" messages in the
+	// case of duplex connections. This is a problem which exists at the design level of the Secure Scuttlebutt's RPC
+	// protocol. Both the initial message in a duplex connection and follow-up messages:
+	// - have the stream flag set
+	// - have the same request number
+	// It is therefore impossible to distinguish them without really weird payload-level heuristics or broken
+	// bookkeeping like the one applied here which may eventually cause the program to run out of memory.
+	//
+	// Real scenario:
+	// If we close a duplex connection and then a new message with the same request number comes in we have to remember
+	// that we should discard it instead of opening a new stream based on this message. We have no other means to
+	// realise that this message is not a new request.
+	//
+	// This could be partially mitigated if we assumed that new request numbers can only be larger than previous
+	// request numbers but protocol docs make no such assumptions. Technically they don't also mention that request
+	// numbers can't be reused but there is simply no way to implement the RPC protocol without making that assumption.
+	if _, ok := s.closedWriters[requestNumber]; ok {
 		return nil
 	}
 
-	rw.cancel()
-	return nil
-}
-
-func (r *RequestStreams) openWriter(msg *transport.Message) error {
-	r.incomingRequestNumber += 1
-	if got, expected := msg.Header.RequestNumber(), r.incomingRequestNumber; got != expected {
-		return fmt.Errorf("invalid request number (got: %d, expected: %d)", got, expected)
+	if msg.Header.Flags().EndOrError {
+		s.tryTerminateWriter(requestNumber)
+		return nil
 	}
 
-	req, err := r.unmarshalRequest(msg)
+	existingWriter, ok := s.writers[requestNumber]
+	if ok {
+		return existingWriter.handleNewMessage(msg)
+	}
+
+	return s.openNewWriter(msg)
+}
+
+func (s *RequestStreams) tryTerminateWriter(requestNumber int) {
+	rw, ok := s.writers[requestNumber]
+	if !ok {
+		return
+	}
+
+	rw.cancel()
+}
+
+func (s *RequestStreams) openNewWriter(msg *transport.Message) error {
+	requestNumber := msg.Header.RequestNumber()
+
+	req, err := unmarshalRequest(msg)
 	if err != nil {
 		return errors.Wrap(err, "unmarshal request failed")
 	}
 
-	requestNumber := msg.Header.RequestNumber()
+	rw := newResponseWriter(requestNumber, req.Type(), s.raw)
+	s.writers[requestNumber] = rw
+	go s.waitAndCleanupWriter(rw)
 
-	_, ok := r.writers[requestNumber]
-	if ok {
-		return errors.New("duplicate request number")
-	}
-
-	rw := NewResponseWriter(requestNumber, r.raw)
-	r.writers[requestNumber] = rw
-	go r.waitAndCleanupWriter(rw)
-
-	go r.handler.HandleRequest(context.TODO(), req, rw) // todo add a real context associated with the connection
+	go s.handler.HandleRequest(context.TODO(), rw, req) // todo add a real context associated with the connection
 
 	return nil
 }
 
-func (s *RequestStreams) unmarshalRequest(msg *transport.Message) (*Request, error) {
-	var requestBody RequestBody
-	if err := json.Unmarshal(msg.Body, &requestBody); err != nil {
-		return nil, errors.Wrap(err, "could not unmarshal the request body")
-	}
+func (s *RequestStreams) waitAndCleanupWriter(rw *responseWriter) {
+	<-rw.ctx.Done()
 
-	procedureName, err := NewProcedureName(requestBody.Name)
-	if err != nil {
-		return nil, errors.Wrap(err, "could not create a procedure name")
-	}
+	s.writersLock.Lock()
+	defer s.writersLock.Unlock()
 
-	procedureType := decodeProcedureType(requestBody.Type)
-
-	req, err := NewRequest(
-		procedureName,
-		procedureType,
-		msg.Header.Flags().Stream,
-		requestBody.Args,
-	)
-	if err != nil {
-		return nil, errors.Wrap(err, "could not create a request")
-	}
-
-	return req, err
+	delete(s.writers, rw.requestNumber)
+	s.closedWriters[rw.requestNumber] = struct{}{}
 }
 
 func (s *RequestStreams) Close() {
@@ -130,38 +139,31 @@ func (s *RequestStreams) Close() {
 	}
 }
 
-func (s *RequestStreams) waitAndCleanupWriter(rw *ResponseWriter) {
-	<-rw.ctx.Done()
-
-	s.writersLock.Lock()
-	defer s.writersLock.Unlock()
-
-	delete(s.writers, rw.requestNumber)
-}
-
-type ResponseWriter struct {
+type responseWriter struct {
 	requestNumber int
+	typ           ProcedureType
 
 	ctx    context.Context
 	cancel context.CancelFunc
 	raw    MessageSender
 }
 
-func NewResponseWriter(number int, raw MessageSender) *ResponseWriter {
+func newResponseWriter(number int, typ ProcedureType, raw MessageSender) *responseWriter {
 	ctx, cancel := context.WithCancel(context.TODO())
 
-	rs := &ResponseWriter{
+	rs := &responseWriter{
 		requestNumber: number,
-		raw:           raw,
+		typ:           typ,
 
 		ctx:    ctx,
 		cancel: cancel,
+		raw:    raw,
 	}
 
 	return rs
 }
 
-func (rs ResponseWriter) WriteMessage(body []byte) error {
+func (rs responseWriter) WriteMessage(body []byte) error {
 	// todo do this correctly? are the flags correct?
 	flags := transport.MessageHeaderFlags{
 		Stream:     true,
@@ -186,13 +188,22 @@ func (rs ResponseWriter) WriteMessage(body []byte) error {
 	return nil
 }
 
-func (rs ResponseWriter) CloseWithError(err error) error {
+func (rs responseWriter) CloseWithError(err error) error {
 	rs.cancel()
 	return rs.sendCloseStream(err)
 }
 
-func (rs *ResponseWriter) sendCloseStream(err error) error {
+func (rs *responseWriter) sendCloseStream(err error) error {
 	return sendCloseStream(rs.raw, -rs.requestNumber, err)
+}
+
+func (rs responseWriter) handleNewMessage(msg *transport.Message) error {
+	if rs.typ != ProcedureTypeDuplex {
+		return errors.New("illegal duplicate request number")
+	}
+
+	// todo pass msg to the handler
+	return nil
 }
 
 func sendCloseStream(raw MessageSender, number int, err error) error {
@@ -231,4 +242,29 @@ func sendCloseStream(raw MessageSender, number int, err error) error {
 	}
 
 	return nil
+}
+
+func unmarshalRequest(msg *transport.Message) (*Request, error) {
+	var requestBody RequestBody
+	if err := json.Unmarshal(msg.Body, &requestBody); err != nil {
+		return nil, errors.Wrap(err, "could not unmarshal the request body")
+	}
+
+	procedureName, err := NewProcedureName(requestBody.Name)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not create a procedure name")
+	}
+
+	procedureType := decodeProcedureType(requestBody.Type)
+
+	req, err := NewRequest(
+		procedureName,
+		procedureType,
+		requestBody.Args,
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not create a request")
+	}
+
+	return req, err
 }

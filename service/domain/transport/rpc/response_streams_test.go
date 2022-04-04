@@ -52,7 +52,6 @@ func someRequest() *rpc.Request {
 	req, err := rpc.NewRequest(
 		fixtures.SomeProcedureName(),
 		fixtures.SomeProcedureType(),
-		fixtures.SomeBool(),
 		fixtures.SomeJSON(),
 	)
 	if err != nil {

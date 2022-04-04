@@ -83,6 +83,14 @@ func NewIdentityFromPublic(public ssbidentity.Public) (Identity, error) {
 	return Identity{identity}, err
 }
 
+func MustNewIdentityFromPublic(public ssbidentity.Public) Identity {
+	identity, err := NewIdentityFromPublic(public)
+	if err != nil {
+		panic(err)
+	}
+	return identity
+}
+
 func MustNewIdentity(s string) Identity {
 	identity, err := NewIdentity(s)
 	if err != nil {

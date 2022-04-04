@@ -2,8 +2,8 @@ package rpc
 
 import (
 	"context"
-	"encoding/json"
 	"sync"
+	"sync/atomic"
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/logging"
@@ -15,7 +15,7 @@ type ResponseStreams struct {
 	streams     map[int]*ResponseStream
 	streamsLock sync.Mutex
 
-	outgoingRequestNumber int
+	outgoingRequestNumber uint32
 
 	raw    MessageSender
 	logger logging.Logger
@@ -72,25 +72,6 @@ func (r *ResponseStreams) HandleIncomingResponse(msg *transport.Message) error {
 	r.streamsLock.Lock()
 	defer r.streamsLock.Unlock()
 
-	//	if msg.Header.Flags().EndOrError {
-	//		return r.terminateStream(msg)
-	//	} else {
-	//		return r.openStream(msg)
-	//	}
-	//
-	//}
-	//
-	//func (r *ResponseStreams) terminateStream(msg *transport.Message) error {
-	//	rw, ok := r.streams[-msg.Header.RequestNumber()]
-	//	if !ok {
-	//		return nil
-	//	}
-	//
-	//	rw.cancel()
-	//	return nil
-	//}
-	//
-	//func (r *ResponseStreams) openStream(msg *transport.Message) error {
 	rs, ok := r.streams[-msg.Header.RequestNumber()]
 	if !ok {
 		return nil
@@ -111,45 +92,12 @@ func (r *ResponseStreams) HandleIncomingResponse(msg *transport.Message) error {
 }
 
 func (s *ResponseStreams) marshalRequest(req *Request) (*transport.Message, error) {
-	encodedType, err := encodeProcedureType(req.Type())
-	if err != nil {
-		return nil, errors.Wrap(err, "could not encode the procedure type")
-	}
+	requestNumber := s.newOutgoingRequestNumber()
+	return marshalRequest(req, requestNumber)
+}
 
-	body := RequestBody{
-		Name: req.Name().Components(),
-		Type: encodedType,
-		Args: req.Arguments(),
-	}
-
-	j, err := json.Marshal(body)
-	if err != nil {
-		return nil, errors.Wrap(err, "could not marshal the request body")
-	}
-
-	s.outgoingRequestNumber++
-
-	flags := transport.MessageHeaderFlags{
-		Stream:     req.stream,
-		EndOrError: false,
-		BodyType:   transport.MessageBodyTypeJSON,
-	}
-
-	header, err := transport.NewMessageHeader(
-		flags,
-		uint32(len(j)),
-		int32(s.outgoingRequestNumber),
-	)
-	if err != nil {
-		return nil, errors.Wrap(err, "could not create a message header")
-	}
-
-	msg, err := transport.NewMessage(header, j)
-	if err != nil {
-		return nil, errors.Wrap(err, "could not create a message")
-	}
-
-	return &msg, nil
+func (s *ResponseStreams) newOutgoingRequestNumber() uint32 {
+	return atomic.AddUint32(&s.outgoingRequestNumber, 1)
 }
 
 func (s *ResponseStreams) Close() {
@@ -237,4 +185,44 @@ func (rs ResponseStream) Channel() <-chan ResponseWithError {
 type ResponseWithError struct {
 	Value *Response
 	Err   error
+}
+
+func marshalRequest(req *Request, requestNumber uint32) (*transport.Message, error) {
+	j, err := MarshalRequestBody(req)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not marshal the request body")
+	}
+
+	flags := transport.MessageHeaderFlags{
+		Stream:     guessStream(req.Type()),
+		EndOrError: false,
+		BodyType:   transport.MessageBodyTypeJSON,
+	}
+
+	header, err := transport.NewMessageHeader(
+		flags,
+		uint32(len(j)),
+		int32(requestNumber),
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not create a message header")
+	}
+
+	msg, err := transport.NewMessage(header, j)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not create a message")
+	}
+
+	return &msg, nil
+}
+
+func guessStream(procedureType ProcedureType) bool {
+	switch procedureType {
+	case ProcedureTypeDuplex:
+		return true
+	case ProcedureTypeSource:
+		return true
+	default:
+		return false
+	}
 }

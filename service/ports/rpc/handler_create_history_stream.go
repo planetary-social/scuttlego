@@ -9,6 +9,7 @@ import (
 	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
 	"github.com/planetary-social/go-ssb/service/domain/messages"
 	"github.com/planetary-social/go-ssb/service/domain/transport/rpc"
+	"github.com/planetary-social/go-ssb/service/domain/transport/rpc/mux"
 )
 
 type CreateHistoryStreamQueryHandler interface {
@@ -29,7 +30,7 @@ func (h HandlerCreateHistoryStream) Procedure() rpc.Procedure {
 	return messages.CreateHistoryStreamProcedure
 }
 
-func (h HandlerCreateHistoryStream) Handle(ctx context.Context, req *rpc.Request, rw *rpc.ResponseWriter) error {
+func (h HandlerCreateHistoryStream) Handle(ctx context.Context, rw mux.ResponseWriter, req *rpc.Request) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -61,7 +62,7 @@ func (h HandlerCreateHistoryStream) Handle(ctx context.Context, req *rpc.Request
 	return nil
 }
 
-func (h HandlerCreateHistoryStream) sendMessage(args messages.CreateHistoryStreamArguments, msg message.Message, rw *rpc.ResponseWriter) error {
+func (h HandlerCreateHistoryStream) sendMessage(args messages.CreateHistoryStreamArguments, msg message.Message, rw mux.ResponseWriter) error {
 	b, err := h.createResponse(args, msg)
 	if err != nil {
 		return errors.Wrap(err, "could not create a response")

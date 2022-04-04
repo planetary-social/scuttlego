@@ -52,14 +52,14 @@ func (l *Listener) ListenAndServe(ctx context.Context) error {
 func (l *Listener) handleNewConnection(conn net.Conn) {
 	p, err := l.initializer.InitializeServerPeer(conn)
 	if err != nil {
-		p.Conn().Close()
+		conn.Close()
 		l.logger.WithError(err).Debug("could not init a peer")
 		return
 	}
 
 	err = l.app.Commands.AcceptNewPeer.Handle(commands.AcceptNewPeer{Peer: p})
 	if err != nil {
-		p.Conn().Close()
+		conn.Close()
 		l.logger.WithError(err).Debug("could not accept a new peer")
 		return
 	}

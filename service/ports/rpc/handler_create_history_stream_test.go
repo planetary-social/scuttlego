@@ -10,7 +10,6 @@ import (
 	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
 	"github.com/planetary-social/go-ssb/service/domain/messages"
 	transportrpc "github.com/planetary-social/go-ssb/service/domain/transport/rpc"
-	"github.com/planetary-social/go-ssb/service/domain/transport/rpc/transport"
 	"github.com/planetary-social/go-ssb/service/ports/rpc"
 	"github.com/stretchr/testify/require"
 )
@@ -42,8 +41,7 @@ func TestCreateHistoryStream(t *testing.T) {
 		t.Run(testCase.Name, func(t *testing.T) {
 			ctx := fixtures.TestContext(t)
 			queryHandler := NewMockCreateHistoryStreamQueryHandler()
-			sender := NewMockMessageSender()
-			rw := transportrpc.NewResponseWriter(fixtures.SomeInt(), sender)
+			rw := NewMockResponseWriter()
 			h := rpc.NewHandlerCreateHistoryStream(queryHandler)
 
 			queryHandler.MessagesToSend = []message.Message{
@@ -53,13 +51,13 @@ func TestCreateHistoryStream(t *testing.T) {
 
 			req := createHistoryStreamRequest(t, testCase.Keys)
 
-			err := h.Handle(ctx, req, rw)
+			err := h.Handle(ctx, rw, req)
 			require.NoError(t, err)
 
-			require.Len(t, sender.SentMessages, 2)
-			for _, sentMessage := range sender.SentMessages {
+			require.Len(t, rw.WrittenMessages, 2)
+			for _, body := range rw.WrittenMessages {
 				keyJSON := []byte(`"key":`)
-				require.Equal(t, testCase.ContainsKeys, bytes.Contains(sentMessage.Body, keyJSON))
+				require.Equal(t, testCase.ContainsKeys, bytes.Contains(body, keyJSON))
 			}
 		})
 	}
@@ -83,7 +81,6 @@ func createHistoryStreamRequest(t *testing.T, keys *bool) *transportrpc.Request 
 	req, err := transportrpc.NewRequest(
 		fixtures.SomeProcedureName(),
 		fixtures.SomeProcedureType(),
-		fixtures.SomeBool(),
 		argsBytes,
 	)
 	require.NoError(t, err)
@@ -91,16 +88,16 @@ func createHistoryStreamRequest(t *testing.T, keys *bool) *transportrpc.Request 
 	return req
 }
 
-type MockMessageSender struct {
-	SentMessages []transport.Message
+type MockResponseWriter struct {
+	WrittenMessages [][]byte
 }
 
-func NewMockMessageSender() *MockMessageSender {
-	return &MockMessageSender{}
+func NewMockResponseWriter() *MockResponseWriter {
+	return &MockResponseWriter{}
 }
 
-func (m *MockMessageSender) Send(msg *transport.Message) error {
-	m.SentMessages = append(m.SentMessages, *msg)
+func (m *MockResponseWriter) WriteMessage(body []byte) error {
+	m.WrittenMessages = append(m.WrittenMessages, body)
 	return nil
 }
 

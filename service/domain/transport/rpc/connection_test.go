@@ -15,6 +15,9 @@ import (
 )
 
 func TestIncomingRequests(t *testing.T) {
+	flagsNoTermination := transport.MustNewMessageHeaderFlags(true, false, transport.MessageBodyTypeJSON)
+	flagsTermination := transport.MustNewMessageHeaderFlags(true, true, transport.MessageBodyTypeJSON)
+
 	testCases := []struct {
 		Name                 string
 		MessagesToReceive    []*transport.Message
@@ -25,11 +28,7 @@ func TestIncomingRequests(t *testing.T) {
 			MessagesToReceive: []*transport.Message{
 				{
 					Header: transport.MustNewMessageHeader(
-						transport.MessageHeaderFlags{
-							Stream:     true,
-							EndOrError: false,
-							BodyType:   transport.MessageBodyTypeJSON,
-						},
+						flagsNoTermination,
 						fixtures.SomeUint32(),
 						2,
 					),
@@ -43,11 +42,7 @@ func TestIncomingRequests(t *testing.T) {
 				},
 				{
 					Header: transport.MustNewMessageHeader(
-						transport.MessageHeaderFlags{
-							Stream:     true,
-							EndOrError: false,
-							BodyType:   transport.MessageBodyTypeJSON,
-						},
+						flagsNoTermination,
 						fixtures.SomeUint32(),
 						1,
 					),
@@ -63,11 +58,7 @@ func TestIncomingRequests(t *testing.T) {
 			ExpectedSentMessages: []*transport.Message{
 				{
 					Header: transport.MustNewMessageHeader(
-						transport.MessageHeaderFlags{
-							Stream:     true,
-							EndOrError: true,
-							BodyType:   transport.MessageBodyTypeJSON,
-						},
+						flagsTermination,
 						4,
 						-1,
 					),
@@ -75,11 +66,7 @@ func TestIncomingRequests(t *testing.T) {
 				},
 				{
 					Header: transport.MustNewMessageHeader(
-						transport.MessageHeaderFlags{
-							Stream:     true,
-							EndOrError: true,
-							BodyType:   transport.MessageBodyTypeJSON,
-						},
+						flagsTermination,
 						4,
 						-2,
 					),
@@ -92,11 +79,7 @@ func TestIncomingRequests(t *testing.T) {
 			MessagesToReceive: []*transport.Message{
 				{
 					Header: transport.MustNewMessageHeader(
-						transport.MessageHeaderFlags{
-							Stream:     true,
-							EndOrError: false,
-							BodyType:   transport.MessageBodyTypeJSON,
-						},
+						flagsNoTermination,
 						fixtures.SomeUint32(),
 						1,
 					),
@@ -110,11 +93,7 @@ func TestIncomingRequests(t *testing.T) {
 				},
 				{
 					Header: transport.MustNewMessageHeader(
-						transport.MessageHeaderFlags{
-							Stream:     true,
-							EndOrError: false,
-							BodyType:   transport.MessageBodyTypeJSON,
-						},
+						flagsNoTermination,
 						fixtures.SomeUint32(),
 						2,
 					),
@@ -130,11 +109,7 @@ func TestIncomingRequests(t *testing.T) {
 			ExpectedSentMessages: []*transport.Message{
 				{
 					Header: transport.MustNewMessageHeader(
-						transport.MessageHeaderFlags{
-							Stream:     true,
-							EndOrError: true,
-							BodyType:   transport.MessageBodyTypeJSON,
-						},
+						flagsTermination,
 						4,
 						-1,
 					),
@@ -142,11 +117,7 @@ func TestIncomingRequests(t *testing.T) {
 				},
 				{
 					Header: transport.MustNewMessageHeader(
-						transport.MessageHeaderFlags{
-							Stream:     true,
-							EndOrError: true,
-							BodyType:   transport.MessageBodyTypeJSON,
-						},
+						flagsTermination,
 						4,
 						-2,
 					),
@@ -159,11 +130,7 @@ func TestIncomingRequests(t *testing.T) {
 			MessagesToReceive: []*transport.Message{
 				{
 					Header: transport.MustNewMessageHeader(
-						transport.MessageHeaderFlags{
-							Stream:     true,
-							EndOrError: false,
-							BodyType:   transport.MessageBodyTypeJSON,
-						},
+						flagsNoTermination,
 						fixtures.SomeUint32(),
 						1,
 					),
@@ -177,11 +144,7 @@ func TestIncomingRequests(t *testing.T) {
 				},
 				{
 					Header: transport.MustNewMessageHeader(
-						transport.MessageHeaderFlags{
-							Stream:     true,
-							EndOrError: false,
-							BodyType:   transport.MessageBodyTypeJSON,
-						},
+						flagsNoTermination,
 						fixtures.SomeUint32(),
 						2,
 					),
@@ -197,11 +160,7 @@ func TestIncomingRequests(t *testing.T) {
 			ExpectedSentMessages: []*transport.Message{
 				{
 					Header: transport.MustNewMessageHeader(
-						transport.MessageHeaderFlags{
-							Stream:     true,
-							EndOrError: true,
-							BodyType:   transport.MessageBodyTypeJSON,
-						},
+						flagsTermination,
 						4,
 						-1,
 					),
@@ -209,11 +168,7 @@ func TestIncomingRequests(t *testing.T) {
 				},
 				{
 					Header: transport.MustNewMessageHeader(
-						transport.MessageHeaderFlags{
-							Stream:     true,
-							EndOrError: true,
-							BodyType:   transport.MessageBodyTypeJSON,
-						},
+						flagsTermination,
 						4,
 						-2,
 					),
@@ -226,11 +181,7 @@ func TestIncomingRequests(t *testing.T) {
 			MessagesToReceive: []*transport.Message{
 				{
 					Header: transport.MustNewMessageHeader(
-						transport.MessageHeaderFlags{
-							Stream:     true,
-							EndOrError: false,
-							BodyType:   transport.MessageBodyTypeJSON,
-						},
+						flagsNoTermination,
 						fixtures.SomeUint32(),
 						1,
 					),
@@ -244,11 +195,7 @@ func TestIncomingRequests(t *testing.T) {
 				},
 				{
 					Header: transport.MustNewMessageHeader(
-						transport.MessageHeaderFlags{
-							Stream:     true,
-							EndOrError: false,
-							BodyType:   transport.MessageBodyTypeJSON,
-						},
+						flagsNoTermination,
 						fixtures.SomeUint32(),
 						2,
 					),
@@ -264,11 +211,7 @@ func TestIncomingRequests(t *testing.T) {
 			ExpectedSentMessages: []*transport.Message{
 				{
 					Header: transport.MustNewMessageHeader(
-						transport.MessageHeaderFlags{
-							Stream:     true,
-							EndOrError: true,
-							BodyType:   transport.MessageBodyTypeJSON,
-						},
+						flagsTermination,
 						4,
 						-1,
 					),
@@ -276,11 +219,7 @@ func TestIncomingRequests(t *testing.T) {
 				},
 				{
 					Header: transport.MustNewMessageHeader(
-						transport.MessageHeaderFlags{
-							Stream:     true,
-							EndOrError: true,
-							BodyType:   transport.MessageBodyTypeJSON,
-						},
+						flagsTermination,
 						4,
 						-2,
 					),
@@ -293,11 +232,7 @@ func TestIncomingRequests(t *testing.T) {
 			MessagesToReceive: []*transport.Message{
 				{
 					Header: transport.MustNewMessageHeader(
-						transport.MessageHeaderFlags{
-							Stream:     true,
-							EndOrError: false,
-							BodyType:   transport.MessageBodyTypeJSON,
-						},
+						flagsNoTermination,
 						fixtures.SomeUint32(),
 						1,
 					),
@@ -311,11 +246,7 @@ func TestIncomingRequests(t *testing.T) {
 				},
 				{
 					Header: transport.MustNewMessageHeader(
-						transport.MessageHeaderFlags{
-							Stream:     true,
-							EndOrError: false,
-							BodyType:   transport.MessageBodyTypeJSON,
-						},
+						flagsNoTermination,
 						fixtures.SomeUint32(),
 						1,
 					),
@@ -323,11 +254,7 @@ func TestIncomingRequests(t *testing.T) {
 				},
 				{
 					Header: transport.MustNewMessageHeader(
-						transport.MessageHeaderFlags{
-							Stream:     true,
-							EndOrError: false,
-							BodyType:   transport.MessageBodyTypeJSON,
-						},
+						flagsNoTermination,
 						fixtures.SomeUint32(),
 						2,
 					),
@@ -343,11 +270,7 @@ func TestIncomingRequests(t *testing.T) {
 			ExpectedSentMessages: []*transport.Message{
 				{
 					Header: transport.MustNewMessageHeader(
-						transport.MessageHeaderFlags{
-							Stream:     true,
-							EndOrError: true,
-							BodyType:   transport.MessageBodyTypeJSON,
-						},
+						flagsTermination,
 						4,
 						-1,
 					),
@@ -355,11 +278,7 @@ func TestIncomingRequests(t *testing.T) {
 				},
 				{
 					Header: transport.MustNewMessageHeader(
-						transport.MessageHeaderFlags{
-							Stream:     true,
-							EndOrError: true,
-							BodyType:   transport.MessageBodyTypeJSON,
-						},
+						flagsTermination,
 						4,
 						-2,
 					),
@@ -408,7 +327,111 @@ func TestIncomingRequests(t *testing.T) {
 			)
 		})
 	}
+}
 
+func TestPrematureTerminationByRemote(t *testing.T) {
+	const requestNumber = 1
+
+	testCases := []struct {
+		Name                 string
+		Handler              func(ctx context.Context, rw rpc.ResponseWriter, req *rpc.Request)
+		ExpectedSentMessages []*transport.Message
+	}{
+		{
+			Name: "sending_close_is_not_automatic",
+			Handler: func(ctx context.Context, rw rpc.ResponseWriter, req *rpc.Request) {
+				<-ctx.Done()
+				require.Error(t, ctx.Err())
+			},
+			ExpectedSentMessages: nil,
+		},
+		{
+			Name: "sending_close_with_error",
+			Handler: func(ctx context.Context, rw rpc.ResponseWriter, req *rpc.Request) {
+				<-ctx.Done()
+				require.Error(t, ctx.Err())
+
+				err := rw.CloseWithError(ctx.Err())
+				require.NoError(t, err)
+			},
+			ExpectedSentMessages: []*transport.Message{
+				{
+					Header: transport.MustNewMessageHeader(
+						transport.MustNewMessageHeaderFlags(true, true, transport.MessageBodyTypeJSON),
+						28,
+						-requestNumber,
+					),
+					Body: []byte(`{"error":"context canceled"}`),
+				},
+			},
+		},
+		{
+			Name: "sending_close_without_error",
+			Handler: func(ctx context.Context, rw rpc.ResponseWriter, req *rpc.Request) {
+				<-ctx.Done()
+				require.Error(t, ctx.Err())
+
+				err := rw.CloseWithError(nil)
+				require.NoError(t, err)
+			},
+			ExpectedSentMessages: []*transport.Message{
+				{
+					Header: transport.MustNewMessageHeader(
+						transport.MustNewMessageHeaderFlags(true, true, transport.MessageBodyTypeJSON),
+						4,
+						-requestNumber,
+					),
+					Body: []byte("true"),
+				},
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			logger := fixtures.SomeLogger()
+			raw := newRawConnectionMock()
+
+			var requestHandlerTerminatedCorrectly bool
+
+			handler := newRequestHandlerFunc(func(ctx context.Context, rw rpc.ResponseWriter, req *rpc.Request) {
+				testCase.Handler(ctx, rw, req)
+				requestHandlerTerminatedCorrectly = true
+			})
+
+			conn, err := rpc.NewConnection(raw, handler, logger)
+			require.NoError(t, err)
+			defer conn.Close()
+
+			go raw.ReceiveMessages(
+				&transport.Message{
+					Header: transport.MustNewMessageHeader(
+						transport.MustNewMessageHeaderFlags(fixtures.SomeBool(), false, transport.MessageBodyTypeJSON),
+						fixtures.SomeUint32(),
+						requestNumber,
+					),
+					Body: rpc.MustMarshalRequestBody(
+						rpc.MustNewRequest(
+							fixtures.SomeProcedureName(),
+							rpc.ProcedureTypeSource,
+							[]byte("[]"),
+						),
+					),
+				},
+				&transport.Message{
+					Header: transport.MustNewMessageHeader(
+						transport.MustNewMessageHeaderFlags(fixtures.SomeBool(), true, fixtures.SomeMessageBodyType()),
+						fixtures.SomeUint32(),
+						requestNumber,
+					),
+					Body: fixtures.SomeBytes(),
+				},
+			)
+
+			require.Eventually(t, func() bool { return requestHandlerTerminatedCorrectly }, 1*time.Second, 10*time.Millisecond)
+			require.Equal(t, testCase.ExpectedSentMessages, raw.SentMessages)
+		})
+	}
 }
 
 type handlerFunc func(ctx context.Context, rw rpc.ResponseWriter, req *rpc.Request)

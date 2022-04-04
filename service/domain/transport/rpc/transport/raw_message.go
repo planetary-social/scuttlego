@@ -73,20 +73,18 @@ func NewMessageHeader(flags MessageHeaderFlags, bodyLength uint32, requestNumber
 		requestNumber: requestNumber,
 	}
 
+	if flags.IsZero() {
+		return MessageHeader{}, errors.New("zero value of flags")
+	}
+
 	if requestNumber == 0 {
 		return MessageHeader{}, errors.New("request number can not be set to zero")
 	}
 
-	if header.IsRequest() {
-		if flags.BodyType != MessageBodyTypeJSON {
+	if header.IsRequest() && !header.Flags().EndOrError() {
+		if flags.BodyType() != MessageBodyTypeJSON {
 			return MessageHeader{}, errors.New("requests should have body type set to JSON")
 		}
-
-		// todo this seems to be false for messages closing the stream
-
-		//if flags.EndOrError {
-		//	return MessageHeader{}, errors.New("requests should not have the end or error bit set")
-		//}
 	}
 
 	return header, nil
@@ -138,9 +136,29 @@ func (m MessageHeader) Bytes() ([]byte, error) {
 }
 
 type MessageHeaderFlags struct {
-	Stream     bool
-	EndOrError bool
-	BodyType   MessageBodyType
+	stream     bool
+	endOrError bool
+	bodyType   MessageBodyType
+}
+
+func NewMessageHeaderFlags(stream bool, endOrError bool, bodyType MessageBodyType) (MessageHeaderFlags, error) {
+	if bodyType.IsZero() {
+		return MessageHeaderFlags{}, errors.New("zero value of message body type")
+	}
+
+	return MessageHeaderFlags{
+		stream:     stream,
+		endOrError: endOrError,
+		bodyType:   bodyType,
+	}, nil
+}
+
+func MustNewMessageHeaderFlags(stream bool, endOrError bool, bodyType MessageBodyType) MessageHeaderFlags {
+	v, err := NewMessageHeaderFlags(stream, endOrError, bodyType)
+	if err != nil {
+		panic(err)
+	}
+	return v
 }
 
 func NewMessageHeaderFlagsFromByte(headerFlags byte) (MessageHeaderFlags, error) {
@@ -150,15 +168,15 @@ func NewMessageHeaderFlagsFromByte(headerFlags byte) (MessageHeaderFlags, error)
 	}
 
 	flags := MessageHeaderFlags{
-		BodyType: bodyType,
+		bodyType: bodyType,
 	}
 
 	if headerFlags&headerFlagsMaskStream != 0 {
-		flags.Stream = true
+		flags.stream = true
 	}
 
 	if headerFlags&headerFlagsMaskEndOrError != 0 {
-		flags.EndOrError = true
+		flags.endOrError = true
 	}
 
 	return flags, nil
@@ -167,23 +185,39 @@ func NewMessageHeaderFlagsFromByte(headerFlags byte) (MessageHeaderFlags, error)
 func (f MessageHeaderFlags) Marshal() (byte, error) {
 	var flags byte
 
-	if err := f.BodyType.Marshal(&flags); err != nil {
+	if err := f.bodyType.Marshal(&flags); err != nil {
 		return 0, errors.Wrap(err, "could not marshal the body type")
 	}
 
-	if f.Stream {
+	if f.stream {
 		flags |= headerFlagsMaskStream
 	}
 
-	if f.EndOrError {
+	if f.endOrError {
 		flags |= headerFlagsMaskEndOrError
 	}
 
 	return flags, nil
 }
 
+func (f MessageHeaderFlags) Stream() bool {
+	return f.stream
+}
+
+func (f MessageHeaderFlags) EndOrError() bool {
+	return f.endOrError
+}
+
+func (f MessageHeaderFlags) BodyType() MessageBodyType {
+	return f.bodyType
+}
+
 func (f MessageHeaderFlags) String() string {
-	return fmt.Sprintf("<stream=%t endOrError=%t bodyType=%s>", f.Stream, f.EndOrError, f.BodyType)
+	return fmt.Sprintf("<stream=%t endOrError=%t bodyType=%s>", f.stream, f.endOrError, f.bodyType)
+}
+
+func (f MessageHeaderFlags) IsZero() bool {
+	return f == MessageHeaderFlags{}
 }
 
 type MessageBodyType struct {

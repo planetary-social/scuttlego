@@ -78,7 +78,7 @@ func (r *ResponseStreams) HandleIncomingResponse(msg *transport.Message) error {
 	}
 
 	var err error
-	if msg.Header.Flags().EndOrError {
+	if msg.Header.Flags().EndOrError() {
 		err = ErrEndOrErr
 		defer rs.cancel()
 	}
@@ -127,12 +127,12 @@ func (s *ResponseStreams) waitAndCloseResponseStream(rs *ResponseStream) {
 	close(rs.ch)
 }
 
+// todo deduplicate code
 func (s *ResponseStreams) sendCloseStream(number int) error {
 	// todo do this correctly? are the flags correct?
-	flags := transport.MessageHeaderFlags{
-		Stream:     true,
-		EndOrError: true,
-		BodyType:   transport.MessageBodyTypeJSON,
+	flags, err := transport.NewMessageHeaderFlags(true, true, transport.MessageBodyTypeJSON)
+	if err != nil {
+		return errors.Wrap(err, "could not create message header flags")
 	}
 
 	j := []byte("true")
@@ -193,10 +193,9 @@ func marshalRequest(req *Request, requestNumber uint32) (*transport.Message, err
 		return nil, errors.Wrap(err, "could not marshal the request body")
 	}
 
-	flags := transport.MessageHeaderFlags{
-		Stream:     guessStream(req.Type()),
-		EndOrError: false,
-		BodyType:   transport.MessageBodyTypeJSON,
+	flags, err := transport.NewMessageHeaderFlags(guessStream(req.Type()), false, transport.MessageBodyTypeJSON)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not create message header flags")
 	}
 
 	header, err := transport.NewMessageHeader(

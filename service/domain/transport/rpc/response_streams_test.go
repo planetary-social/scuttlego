@@ -65,7 +65,7 @@ func createResponse(req *transport.Message) *transport.Message {
 	content := fixtures.SomeBytes()
 
 	header, err := transport.NewMessageHeader(
-		transport.MessageHeaderFlags{},
+		transport.MustNewMessageHeaderFlags(fixtures.SomeBool(), false, transport.MessageBodyTypeJSON),
 		uint32(len(content)),
 		int32(-req.Header.RequestNumber()),
 	)
@@ -83,9 +83,7 @@ func createResponse(req *transport.Message) *transport.Message {
 
 func createTermination(req *transport.Message) *transport.Message {
 	header, err := transport.NewMessageHeader(
-		transport.MessageHeaderFlags{
-			EndOrError: true,
-		},
+		transport.MustNewMessageHeaderFlags(fixtures.SomeBool(), true, fixtures.SomeMessageBodyType()),
 		0,
 		int32(-req.Header.RequestNumber()),
 	)

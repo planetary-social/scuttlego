@@ -25,7 +25,7 @@ type RequestHandler interface {
 type RequestStreams struct {
 	closed bool
 
-	writers       map[int]*responseWriter
+	writers       map[int]*requestStream
 	closedWriters map[int]struct{}
 	writersLock   sync.Mutex // guards writers and closedWriters
 
@@ -38,7 +38,7 @@ type RequestStreams struct {
 func NewRequestStreams(raw MessageSender, handler RequestHandler, logger logging.Logger) *RequestStreams {
 	return &RequestStreams{
 		raw:           raw,
-		writers:       make(map[int]*responseWriter),
+		writers:       make(map[int]*requestStream),
 		closedWriters: make(map[int]struct{}),
 		handler:       handler,
 		logger:        logger.New("response_streams"),
@@ -79,7 +79,7 @@ func (s *RequestStreams) HandleIncomingRequest(msg *transport.Message) error {
 		return nil
 	}
 
-	if msg.Header.Flags().EndOrError {
+	if msg.Header.Flags().EndOrError() {
 		s.tryTerminateWriter(requestNumber)
 		return nil
 	}
@@ -98,7 +98,7 @@ func (s *RequestStreams) tryTerminateWriter(requestNumber int) {
 		return
 	}
 
-	rw.cancel()
+	rw.terminatedByRemote()
 }
 
 func (s *RequestStreams) openNewWriter(msg *transport.Message) error {
@@ -109,16 +109,16 @@ func (s *RequestStreams) openNewWriter(msg *transport.Message) error {
 		return errors.Wrap(err, "unmarshal request failed")
 	}
 
-	rw := newResponseWriter(requestNumber, req.Type(), s.raw)
+	rw := newRequestStream(requestNumber, req.Type(), s.raw)
 	s.writers[requestNumber] = rw
 	go s.waitAndCleanupWriter(rw)
 
-	go s.handler.HandleRequest(context.TODO(), rw, req) // todo add a real context associated with the connection
+	go s.handler.HandleRequest(rw.ctx, rw, req)
 
 	return nil
 }
 
-func (s *RequestStreams) waitAndCleanupWriter(rw *responseWriter) {
+func (s *RequestStreams) waitAndCleanupWriter(rw *requestStream) {
 	<-rw.ctx.Done()
 
 	s.writersLock.Lock()
@@ -139,19 +139,23 @@ func (s *RequestStreams) Close() {
 	}
 }
 
-type responseWriter struct {
+type requestStream struct {
 	requestNumber int
 	typ           ProcedureType
+
+	closed      bool
+	closedMutex sync.Mutex
 
 	ctx    context.Context
 	cancel context.CancelFunc
 	raw    MessageSender
 }
 
-func newResponseWriter(number int, typ ProcedureType, raw MessageSender) *responseWriter {
+func newRequestStream(number int, typ ProcedureType, raw MessageSender) *requestStream {
+	// todo add a real context associated with the stream / connection
 	ctx, cancel := context.WithCancel(context.TODO())
 
-	rs := &responseWriter{
+	rs := &requestStream{
 		requestNumber: number,
 		typ:           typ,
 
@@ -163,12 +167,15 @@ func newResponseWriter(number int, typ ProcedureType, raw MessageSender) *respon
 	return rs
 }
 
-func (rs responseWriter) WriteMessage(body []byte) error {
+func (rs *requestStream) WriteMessage(body []byte) error {
+	if err := rs.ensureNotClosed(); err != nil {
+		return err
+	}
+
 	// todo do this correctly? are the flags correct?
-	flags := transport.MessageHeaderFlags{
-		Stream:     true,
-		EndOrError: false,
-		BodyType:   transport.MessageBodyTypeJSON,
+	flags, err := transport.NewMessageHeaderFlags(true, false, transport.MessageBodyTypeJSON)
+	if err != nil {
+		return errors.Wrap(err, "could not create message header flags")
 	}
 
 	header, err := transport.NewMessageHeader(flags, uint32(len(body)), int32(-rs.requestNumber))
@@ -188,42 +195,61 @@ func (rs responseWriter) WriteMessage(body []byte) error {
 	return nil
 }
 
-func (rs responseWriter) CloseWithError(err error) error {
-	rs.cancel()
-	return rs.sendCloseStream(err)
-}
+func (rs *requestStream) CloseWithError(err error) error {
+	rs.closedMutex.Lock()
+	defer rs.closedMutex.Unlock()
 
-func (rs *responseWriter) sendCloseStream(err error) error {
+	if rs.closed {
+		return errors.New("already closed")
+	}
+
+	rs.cancel()
+	rs.closed = true
 	return sendCloseStream(rs.raw, -rs.requestNumber, err)
 }
 
-func (rs responseWriter) handleNewMessage(msg *transport.Message) error {
+func (rs *requestStream) ensureNotClosed() error {
+	rs.closedMutex.Lock()
+	defer rs.closedMutex.Unlock()
+
+	if rs.closed {
+		return errors.New("already closed")
+	}
+
+	return nil
+}
+
+func (rs *requestStream) terminatedByRemote() {
+	rs.cancel()
+}
+
+func (rs *requestStream) handleNewMessage(msg *transport.Message) error {
 	if rs.typ != ProcedureTypeDuplex {
 		return errors.New("illegal duplicate request number")
 	}
 
 	// todo pass msg to the handler
+
 	return nil
 }
 
-func sendCloseStream(raw MessageSender, number int, err error) error {
+func sendCloseStream(raw MessageSender, number int, errToSent error) error {
 	// todo do this correctly? are the flags correct?
-	flags := transport.MessageHeaderFlags{
-		Stream:     true,
-		EndOrError: true,
-		BodyType:   transport.MessageBodyTypeJSON,
+	flags, err := transport.NewMessageHeaderFlags(true, true, transport.MessageBodyTypeJSON)
+	if err != nil {
+		return errors.Wrap(err, "could not create message header flags")
 	}
 
 	var content []byte
-	if err == nil {
-		content = []byte("true")
+	if errToSent == nil {
+		content = []byte("true") // todo why true is there any reason for this? do we have to send something specific? is this documented?
 	} else {
 		var mErr error
 		content, mErr = json.Marshal(struct {
 			Error string `json:"error"`
-		}{err.Error()})
+		}{errToSent.Error()})
 		if mErr != nil {
-			panic(mErr)
+			panic(mErr) // tests would have caught this eg. TestPrematureTerminationByRemote
 		}
 	}
 

@@ -16,6 +16,7 @@ import (
 	"github.com/planetary-social/go-ssb/service/domain/identity"
 	"github.com/planetary-social/go-ssb/service/domain/refs"
 	"github.com/planetary-social/go-ssb/service/domain/transport/rpc"
+	"github.com/planetary-social/go-ssb/service/domain/transport/rpc/transport"
 	"github.com/sirupsen/logrus"
 	"go.etcd.io/bbolt"
 )
@@ -80,6 +81,14 @@ func SomePublicIdentity() identity.Public {
 
 func SomeContent() message.MessageContent {
 	return content.MustNewUnknown(SomeBytes())
+}
+
+func SomeMessageBodyType() transport.MessageBodyType {
+	if rand.Int()%2 == 0 {
+		return transport.MessageBodyTypeJSON
+	} else {
+		return transport.MessageBodyTypeBinary
+	}
 }
 
 func SomeSequence() message.Sequence {

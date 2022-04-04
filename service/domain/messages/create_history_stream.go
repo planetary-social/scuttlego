@@ -81,9 +81,24 @@ func NewCreateHistoryStreamArgumentsFromBytes(b []byte) (CreateHistoryStreamArgu
 		return CreateHistoryStreamArguments{}, errors.Wrap(err, "invalid feed ref")
 	}
 
+	if arg.Sequence != nil && arg.Seq != nil {
+		if *arg.Sequence != *arg.Seq {
+			return CreateHistoryStreamArguments{}, errors.New("inconsistent sequence argument")
+		}
+	}
+
 	var sequence *message.Sequence
+
 	if arg.Sequence != nil {
 		tmp, err := message.NewSequence(*arg.Sequence)
+		if err != nil {
+			return CreateHistoryStreamArguments{}, errors.Wrap(err, "invalid sequence")
+		}
+		sequence = &tmp
+	}
+
+	if arg.Seq != nil {
+		tmp, err := message.NewSequence(*arg.Seq)
 		if err != nil {
 			return CreateHistoryStreamArguments{}, errors.Wrap(err, "invalid sequence")
 		}
@@ -176,6 +191,7 @@ func sequencePointerToIntPointer(sequence *message.Sequence) *int {
 type createHistoryStreamArgumentsTransport struct {
 	Id       string `json:"id"`
 	Sequence *int   `json:"sequence,omitempty"`
+	Seq      *int   `json:"seq,omitempty"`
 	Limit    *int   `json:"limit,omitempty"`
 	Live     *bool  `json:"live,omitempty"`
 	Old      *bool  `json:"old,omitempty"`

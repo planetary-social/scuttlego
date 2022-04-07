@@ -2,26 +2,29 @@ package transport
 
 import (
 	"io"
+	"sync"
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/logging"
 )
 
 type RawConnection struct {
-	rw     io.ReadWriteCloser
+	rwc    io.ReadWriteCloser
+	lock   *sync.Mutex // lock guards against simultaneous writes to rw
 	logger logging.Logger
 }
 
-func NewRawConnection(rw io.ReadWriteCloser, logger logging.Logger) RawConnection {
+func NewRawConnection(rwc io.ReadWriteCloser, logger logging.Logger) RawConnection {
 	return RawConnection{
-		rw:     rw,
+		rwc:    rwc,
+		lock:   &sync.Mutex{},
 		logger: logger.New("raw"),
 	}
 }
 
 func (s RawConnection) Next() (*Message, error) {
 	headerBuf := make([]byte, MessageHeaderSize)
-	_, err := io.ReadFull(s.rw, headerBuf[:])
+	_, err := io.ReadFull(s.rwc, headerBuf[:])
 	if err != nil {
 		return nil, errors.Wrap(err, "could not read the message header")
 	}
@@ -36,7 +39,7 @@ func (s RawConnection) Next() (*Message, error) {
 	}
 
 	bodyBuf := make([]byte, messageHeader.bodyLength)
-	_, err = io.ReadFull(s.rw, bodyBuf[:])
+	_, err = io.ReadFull(s.rwc, bodyBuf[:])
 	if err != nil {
 		return nil, errors.Wrap(err, "could not read the message body")
 	}
@@ -51,7 +54,11 @@ func (s RawConnection) Next() (*Message, error) {
 	return &msg, nil
 }
 
+// Send marshals the message and writes it to the underlying writer. Send can be called from multiple goroutines.
 func (s RawConnection) Send(msg *Message) error {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
 	s.loggerWithMessageFields(msg).Trace("sending a message")
 
 	b, err := msg.Header.Bytes()
@@ -59,12 +66,12 @@ func (s RawConnection) Send(msg *Message) error {
 		return errors.Wrap(err, "failed to serialize the message header")
 	}
 
-	_, err = s.rw.Write(b)
+	_, err = s.rwc.Write(b)
 	if err != nil {
 		return errors.Wrap(err, "failed to write the message header")
 	}
 
-	_, err = s.rw.Write(msg.Body)
+	_, err = s.rwc.Write(msg.Body)
 	if err != nil {
 		return errors.Wrap(err, "failed to write the message body")
 	}
@@ -73,7 +80,7 @@ func (s RawConnection) Send(msg *Message) error {
 }
 
 func (s RawConnection) Close() error {
-	return s.rw.Close()
+	return s.rwc.Close()
 }
 
 func (s RawConnection) loggerWithMessageFields(msg *Message) logging.Logger {

@@ -28,26 +28,11 @@ import (
 	network2 "github.com/planetary-social/go-ssb/service/domain/transport"
 	boxstream2 "github.com/planetary-social/go-ssb/service/domain/transport/boxstream"
 	"github.com/planetary-social/go-ssb/service/domain/transport/rpc"
-	network3 "github.com/planetary-social/go-ssb/service/ports/network"
+	portsnetwork "github.com/planetary-social/go-ssb/service/ports/network"
 	portspubsub "github.com/planetary-social/go-ssb/service/ports/pubsub"
 	portsrpc "github.com/planetary-social/go-ssb/service/ports/rpc"
 	"github.com/sirupsen/logrus"
 	"go.etcd.io/bbolt"
-)
-
-var applicationSet = wire.NewSet(
-	wire.Struct(new(app.Application), "*"),
-
-	wire.Struct(new(app.Commands), "*"),
-	commands2.NewRedeemInviteHandler,
-	commands2.NewFollowHandler,
-	commands2.NewConnectHandler,
-	commands2.NewAcceptNewPeerHandler,
-
-	wire.Struct(new(app.Queries), "*"),
-
-	queries.NewCreateHistoryStreamHandler,
-	wire.Bind(new(portsrpc.CreateHistoryStreamQueryHandler), new(*queries.CreateHistoryStreamHandler)),
 )
 
 var replicatorSet = wire.NewSet(
@@ -81,6 +66,9 @@ var portsSet = wire.NewSet(
 	portsrpc.NewHandlerCreateHistoryStream,
 
 	portspubsub.NewPubSub,
+
+	local.NewDiscoverer,
+	portsnetwork.NewDiscoverer,
 )
 
 var requestPubSubSet = wire.NewSet(
@@ -196,7 +184,7 @@ func BuildService(identity.Private, Config) (Service, error) {
 		wire.Bind(new(replication2.RawMessageHandler), new(*commands2.RawMessageHandler)),
 
 		network2.NewPeerInitializer,
-		wire.Bind(new(network3.ServerPeerInitializer), new(*network2.PeerInitializer)),
+		wire.Bind(new(portsnetwork.ServerPeerInitializer), new(*network2.PeerInitializer)),
 		wire.Bind(new(network.ClientPeerInitializer), new(*network2.PeerInitializer)),
 
 		network.NewDialer,
@@ -237,12 +225,12 @@ func newAdvertiser(l identity.Public, config Config) (*local.Advertiser, error) 
 }
 
 func newListener(
-	initializer network3.ServerPeerInitializer,
+	initializer portsnetwork.ServerPeerInitializer,
 	app app.Application,
 	config Config,
 	logger logging.Logger,
-) (*network3.Listener, error) {
-	return network3.NewListener(initializer, app, config.ListenAddress, logger)
+) (*portsnetwork.Listener, error) {
+	return portsnetwork.NewListener(initializer, app, config.ListenAddress, logger)
 }
 
 func newAdaptersFactory(local identity.Private, logger logging.Logger) adapters2.AdaptersFactory {

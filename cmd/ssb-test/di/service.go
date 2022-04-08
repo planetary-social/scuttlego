@@ -15,6 +15,7 @@ type Service struct {
 	App app.Application
 
 	listener   *networkport.Listener
+	discoverer *networkport.Discoverer
 	pubsub     *pubsubport.PubSub
 	advertiser *local.Advertiser
 }
@@ -24,6 +25,7 @@ func NewService(
 	listener *networkport.Listener,
 	pubsub *pubsubport.PubSub,
 	advertiser *local.Advertiser,
+	discoverer *networkport.Discoverer,
 ) Service {
 	return Service{
 		App: app,
@@ -31,6 +33,7 @@ func NewService(
 		listener:   listener,
 		pubsub:     pubsub,
 		advertiser: advertiser,
+		discoverer: discoverer,
 	}
 }
 
@@ -54,6 +57,11 @@ func (s Service) Run(ctx context.Context) error {
 	runners++
 	go func() {
 		errCh <- s.advertiser.Run(ctx)
+	}()
+
+	runners++
+	go func() {
+		errCh <- s.discoverer.Run(ctx)
 	}()
 
 	var err error

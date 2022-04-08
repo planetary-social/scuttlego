@@ -43,7 +43,7 @@ func NewAdvertiser(local identity.Public, address string) (*Advertiser, error) {
 		kp,
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not create an advertiser")
+		return nil, errors.Wrap(err, "could not create a go-ssb advertiser")
 	}
 
 	return &Advertiser{

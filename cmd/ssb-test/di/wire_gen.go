@@ -143,11 +143,13 @@ func BuildService(private identity.Private, config Config) (Service, error) {
 	peerManager := domain.NewPeerManager(gossipReplicator, logger)
 	connectHandler := commands.NewConnectHandler(dialer, peerManager, logger)
 	acceptNewPeerHandler := commands.NewAcceptNewPeerHandler(peerManager)
+	processNewLocalDiscoveryHandler := commands.NewProcessNewLocalDiscoveryHandler(logger)
 	appCommands := app.Commands{
-		RedeemInvite:  redeemInviteHandler,
-		Follow:        followHandler,
-		Connect:       connectHandler,
-		AcceptNewPeer: acceptNewPeerHandler,
+		RedeemInvite:             redeemInviteHandler,
+		Follow:                   followHandler,
+		Connect:                  connectHandler,
+		AcceptNewPeer:            acceptNewPeerHandler,
+		ProcessNewLocalDiscovery: processNewLocalDiscoveryHandler,
 	}
 	boltMessageRepository := adapters.NewBoltMessageRepository(db, rawMessageIdentifier)
 	messagePubSub := pubsub.NewMessagePubSub()
@@ -176,13 +178,16 @@ func BuildService(private identity.Private, config Config) (Service, error) {
 	if err != nil {
 		return Service{}, err
 	}
-	service := NewService(application, listener, pubSub, advertiser)
+	discoverer, err := local.NewDiscoverer(public, logger)
+	if err != nil {
+		return Service{}, err
+	}
+	networkDiscoverer := network2.NewDiscoverer(discoverer, application, logger)
+	service := NewService(application, listener, pubSub, advertiser, networkDiscoverer)
 	return service, nil
 }
 
 // wire.go:
-
-var applicationSet = wire.NewSet(wire.Struct(new(app.Application), "*"), wire.Struct(new(app.Commands), "*"), commands.NewRedeemInviteHandler, commands.NewFollowHandler, commands.NewConnectHandler, commands.NewAcceptNewPeerHandler, wire.Struct(new(app.Queries), "*"), queries.NewCreateHistoryStreamHandler, wire.Bind(new(rpc.CreateHistoryStreamQueryHandler), new(*queries.CreateHistoryStreamHandler)))
 
 var replicatorSet = wire.NewSet(replication.NewManager, wire.Bind(new(replication.ReplicationManager), new(*replication.Manager)), replication.NewGossipReplicator, wire.Bind(new(domain.Replicator), new(*replication.GossipReplicator)))
 
@@ -190,7 +195,7 @@ var formatsSet = wire.NewSet(
 	newFormats, formats.NewScuttlebutt, transport.NewMarshaler, wire.Bind(new(formats.Marshaler), new(*transport.Marshaler)), transport.DefaultMappings, formats.NewRawMessageIdentifier, wire.Bind(new(commands.RawMessageIdentifier), new(*formats.RawMessageIdentifier)), wire.Bind(new(adapters.RawMessageIdentifier), new(*formats.RawMessageIdentifier)),
 )
 
-var portsSet = wire.NewSet(rpc.NewMux, rpc.NewMuxHandlers, rpc.NewHandlerBlobsGet, rpc.NewHandlerCreateHistoryStream, pubsub2.NewPubSub)
+var portsSet = wire.NewSet(rpc.NewMux, rpc.NewMuxHandlers, rpc.NewHandlerBlobsGet, rpc.NewHandlerCreateHistoryStream, pubsub2.NewPubSub, local.NewDiscoverer, network2.NewDiscoverer)
 
 var requestPubSubSet = wire.NewSet(pubsub.NewRequestPubSub, wire.Bind(new(rpc2.RequestHandler), new(*pubsub.RequestPubSub)))
 

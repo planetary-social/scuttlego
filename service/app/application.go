@@ -11,10 +11,11 @@ type Application struct {
 }
 
 type Commands struct {
-	RedeemInvite  *commands.RedeemInviteHandler
-	Follow        *commands.FollowHandler
-	Connect       *commands.ConnectHandler
-	AcceptNewPeer *commands.AcceptNewPeerHandler
+	RedeemInvite             *commands.RedeemInviteHandler
+	Follow                   *commands.FollowHandler
+	Connect                  *commands.ConnectHandler
+	AcceptNewPeer            *commands.AcceptNewPeerHandler
+	ProcessNewLocalDiscovery *commands.ProcessNewLocalDiscoveryHandler
 }
 
 type Queries struct {

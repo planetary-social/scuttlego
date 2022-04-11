@@ -55,13 +55,14 @@ func BuildApplicationForTests() (TestApplication, error) {
 	return testApplication, nil
 }
 
-func BuildTransactableAdapters(tx *bbolt.Tx, private identity.Private, logger logging.Logger) (commands.Adapters, error) {
+func BuildTransactableAdapters(tx *bbolt.Tx, private identity.Private, logger logging.Logger, config Config) (commands.Adapters, error) {
 	messageContentMappings := transport.DefaultMappings()
 	marshaler, err := transport.NewMarshaler(messageContentMappings, logger)
 	if err != nil {
 		return commands.Adapters{}, err
 	}
-	scuttlebutt := formats.NewScuttlebutt(marshaler)
+	messageHMAC := newMessageHMACFromConfig(config)
+	scuttlebutt := formats.NewScuttlebutt(marshaler, messageHMAC)
 	v := newFormats(scuttlebutt)
 	rawMessageIdentifier := formats.NewRawMessageIdentifier(v)
 	public := privateIdentityToPublicIdentity(private)
@@ -79,13 +80,14 @@ var (
 	_wireHopsValue = hops
 )
 
-func BuildAdaptersForContactsRepository(tx *bbolt.Tx, private identity.Private, logger logging.Logger) (adapters.Repositories, error) {
+func BuildAdaptersForContactsRepository(tx *bbolt.Tx, private identity.Private, logger logging.Logger, config Config) (adapters.Repositories, error) {
 	messageContentMappings := transport.DefaultMappings()
 	marshaler, err := transport.NewMarshaler(messageContentMappings, logger)
 	if err != nil {
 		return adapters.Repositories{}, err
 	}
-	scuttlebutt := formats.NewScuttlebutt(marshaler)
+	messageHMAC := newMessageHMACFromConfig(config)
+	scuttlebutt := formats.NewScuttlebutt(marshaler, messageHMAC)
 	v := newFormats(scuttlebutt)
 	rawMessageIdentifier := formats.NewRawMessageIdentifier(v)
 	public := privateIdentityToPublicIdentity(private)
@@ -104,7 +106,7 @@ var (
 )
 
 func BuildService(private identity.Private, config Config) (Service, error) {
-	networkKey := boxstream.NewDefaultNetworkKey()
+	networkKey := newNetworkKeyFromConfig(config)
 	handshaker, err := boxstream.NewHandshaker(private, networkKey)
 	if err != nil {
 		return Service{}, err
@@ -120,11 +122,11 @@ func BuildService(private identity.Private, config Config) (Service, error) {
 	if err != nil {
 		return Service{}, err
 	}
-	adaptersFactory := newAdaptersFactory(private, logger)
+	adaptersFactory := newAdaptersFactory(config, private, logger)
 	transactionProvider := adapters.NewTransactionProvider(db, adaptersFactory)
 	redeemInviteHandler := commands.NewRedeemInviteHandler(dialer, transactionProvider, networkKey, private, requestPubSub, logger)
 	followHandler := commands.NewFollowHandler(transactionProvider, private, logger)
-	repositoriesFactory := newContactRepositoriesFactory(private, logger)
+	repositoriesFactory := newContactRepositoriesFactory(private, logger, config)
 	boltContactsRepository := adapters.NewBoltContactsRepository(db, repositoriesFactory)
 	manager := replication.NewManager(logger, boltContactsRepository)
 	messageContentMappings := transport.DefaultMappings()
@@ -132,7 +134,8 @@ func BuildService(private identity.Private, config Config) (Service, error) {
 	if err != nil {
 		return Service{}, err
 	}
-	scuttlebutt := formats.NewScuttlebutt(marshaler)
+	messageHMAC := newMessageHMACFromConfig(config)
+	scuttlebutt := formats.NewScuttlebutt(marshaler, messageHMAC)
 	v := newFormats(scuttlebutt)
 	rawMessageIdentifier := formats.NewRawMessageIdentifier(v)
 	rawMessageHandler := commands.NewRawMessageHandler(transactionProvider, rawMessageIdentifier, logger)
@@ -229,15 +232,15 @@ func newListener(
 	return network2.NewListener(initializer, app2, config.ListenAddress, logger)
 }
 
-func newAdaptersFactory(local2 identity.Private, logger logging.Logger) adapters.AdaptersFactory {
+func newAdaptersFactory(config Config, local2 identity.Private, logger logging.Logger) adapters.AdaptersFactory {
 	return func(tx *bbolt.Tx) (commands.Adapters, error) {
-		return BuildTransactableAdapters(tx, local2, logger)
+		return BuildTransactableAdapters(tx, local2, logger, config)
 	}
 }
 
-func newContactRepositoriesFactory(local2 identity.Private, logger logging.Logger) adapters.RepositoriesFactory {
+func newContactRepositoriesFactory(local2 identity.Private, logger logging.Logger, config Config) adapters.RepositoriesFactory {
 	return func(tx *bbolt.Tx) (adapters.Repositories, error) {
-		return BuildAdaptersForContactsRepository(tx, local2, logger)
+		return BuildAdaptersForContactsRepository(tx, local2, logger, config)
 	}
 }
 
@@ -266,4 +269,12 @@ func newFormats(
 	return []feeds.FeedFormat{
 		s,
 	}
+}
+
+func newNetworkKeyFromConfig(config Config) boxstream.NetworkKey {
+	return config.NetworkKey
+}
+
+func newMessageHMACFromConfig(config Config) formats.MessageHMAC {
+	return config.MessageHMAC
 }

@@ -14,19 +14,18 @@ import (
 
 type Scuttlebutt struct {
 	marshaler Marshaler
+	hmac      MessageHMAC
 }
 
-func NewScuttlebutt(marshaler Marshaler) *Scuttlebutt {
+func NewScuttlebutt(marshaler Marshaler, hmac MessageHMAC) *Scuttlebutt {
 	return &Scuttlebutt{
 		marshaler: marshaler,
+		hmac:      hmac,
 	}
 }
 
-// todo should we have a way to set hmac for testing purposes? what this hmac is for:
-// https://github.com/ssb-js/ssb-validate#state--validateappendstate-hmac_key-msg
-
 func (s *Scuttlebutt) Verify(raw message.RawMessage) (message.Message, error) {
-	ssbRef, ssbMessage, err := legacy.Verify(raw.Bytes(), nil)
+	ssbRef, ssbMessage, err := legacy.Verify(raw.Bytes(), s.convertHMAC())
 	if err != nil {
 		return message.Message{}, errors.Wrap(err, "verification failed")
 	}
@@ -108,10 +107,18 @@ func (s *Scuttlebutt) Sign(unsigned message.UnsignedMessage, private identity.Pr
 		Content:   json.RawMessage(marshaledContent),
 	}
 
-	_, raw, err := msgToSign.Sign(private.PrivateKey(), nil)
+	_, raw, err := msgToSign.Sign(private.PrivateKey(), s.convertHMAC())
 	if err != nil {
 		return message.Message{}, errors.New("could not sign a message")
 	}
 
 	return s.Verify(message.NewRawMessage(raw))
+}
+
+func (s *Scuttlebutt) convertHMAC() *[32]byte {
+	if s.hmac.IsZero() {
+		return nil
+	}
+
+	return (*[32]byte)(s.hmac.Bytes())
 }

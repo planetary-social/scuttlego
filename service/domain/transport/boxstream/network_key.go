@@ -16,12 +16,12 @@ type NetworkKey struct {
 	b []byte
 }
 
-func NewKey(b []byte) (NetworkKey, error) {
+func NewNetworkKey(b []byte) (NetworkKey, error) {
 	if len(b) != networkKeyLength {
 		return NetworkKey{}, fmt.Errorf("invalid transport key length, must be '%d'", networkKeyLength)
 	}
 
-	var buf []byte
+	buf := make([]byte, networkKeyLength)
 	copy(buf, b)
 	return NetworkKey{buf}, nil
 }
@@ -34,4 +34,8 @@ func (k NetworkKey) Bytes() []byte {
 	tmp := make([]byte, len(k.b))
 	copy(tmp, k.b)
 	return tmp
+}
+
+func (k NetworkKey) IsZero() bool {
+	return len(k.b) == 0
 }

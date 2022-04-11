@@ -13,13 +13,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// todo abstract away dependencies
 func TestMarshaler(t *testing.T) {
-	logger := fixtures.SomeLogger()
-	marshaler, err := transport.NewMarshaler(transport.DefaultMappings(), logger)
-	require.NoError(t, err)
-
-	f := NewScuttlebutt(marshaler)
+	f := newScuttlebuttFormat(t, NewDefaultMessageHMAC())
 
 	author, err := identity.NewPrivate()
 	require.NoError(t, err)
@@ -41,13 +36,8 @@ func TestMarshaler(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// todo abstract away dependencies
 func TestMarshalerPrevious(t *testing.T) {
-	logger := fixtures.SomeLogger()
-	marshaler, err := transport.NewMarshaler(transport.DefaultMappings(), logger)
-	require.NoError(t, err)
-
-	f := NewScuttlebutt(marshaler)
+	f := newScuttlebuttFormat(t, NewDefaultMessageHMAC())
 
 	author, err := identity.NewPrivate()
 	require.NoError(t, err)
@@ -69,4 +59,46 @@ func TestMarshalerPrevious(t *testing.T) {
 
 	_, err = f.Sign(unsignedMessage, author)
 	require.NoError(t, err)
+}
+
+func TestMarshalerHMAC(t *testing.T) {
+	hmac, err := NewMessageHMAC([]byte("somehmacthatislongenoughblablabl"))
+	require.NoError(t, err)
+
+	f := newScuttlebuttFormat(t, hmac)
+
+	author, err := identity.NewPrivate()
+	require.NoError(t, err)
+
+	authorRef, err := refs.NewIdentityFromPublic(author.Public())
+	require.NoError(t, err)
+
+	unsignedMessage, err := message.NewUnsignedMessage(
+		nil,
+		message.FirstSequence,
+		authorRef,
+		authorRef.MainFeed(),
+		time.Now(),
+		content.MustNewContact(fixtures.SomeRefAuthor(), content.ContactActionFollow),
+	)
+	require.NoError(t, err)
+
+	msg, err := f.Sign(unsignedMessage, author)
+	require.NoError(t, err)
+
+	_, err = f.Verify(msg.Raw())
+	require.NoError(t, err)
+
+	defaultFormat := newScuttlebuttFormat(t, NewDefaultMessageHMAC())
+	_, err = defaultFormat.Verify(msg.Raw())
+	require.Contains(t, err.Error(), "invalid signature")
+}
+
+// todo abstract away dependencies
+func newScuttlebuttFormat(t *testing.T, hmac MessageHMAC) *Scuttlebutt {
+	logger := fixtures.SomeLogger()
+	marshaler, err := transport.NewMarshaler(transport.DefaultMappings(), logger)
+	require.NoError(t, err)
+
+	return NewScuttlebutt(marshaler, hmac)
 }

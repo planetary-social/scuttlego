@@ -135,7 +135,7 @@ func BuildApplicationForTests() (TestApplication, error) {
 
 }
 
-func BuildTransactableAdapters(*bbolt.Tx, identity.Private, logging.Logger) (commands2.Adapters, error) {
+func BuildTransactableAdapters(*bbolt.Tx, identity.Private, logging.Logger, Config) (commands2.Adapters, error) {
 	wire.Build(
 		wire.Struct(new(commands2.Adapters), "*"),
 
@@ -149,13 +149,15 @@ func BuildTransactableAdapters(*bbolt.Tx, identity.Private, logging.Logger) (com
 
 		privateIdentityToPublicIdentity,
 
+		newMessageHMACFromConfig,
+
 		wire.Value(hops),
 	)
 
 	return commands2.Adapters{}, nil
 }
 
-func BuildAdaptersForContactsRepository(*bbolt.Tx, identity.Private, logging.Logger) (adapters2.Repositories, error) {
+func BuildAdaptersForContactsRepository(*bbolt.Tx, identity.Private, logging.Logger, Config) (adapters2.Repositories, error) {
 	wire.Build(
 		wire.Struct(new(adapters2.Repositories), "*"),
 
@@ -165,6 +167,8 @@ func BuildAdaptersForContactsRepository(*bbolt.Tx, identity.Private, logging.Log
 		formatsSet,
 
 		privateIdentityToPublicIdentity,
+
+		newMessageHMACFromConfig,
 
 		wire.Value(hops),
 	)
@@ -176,7 +180,8 @@ func BuildService(identity.Private, Config) (Service, error) {
 	wire.Build(
 		NewService,
 
-		boxstream2.NewDefaultNetworkKey,
+		newNetworkKeyFromConfig,
+		newMessageHMACFromConfig,
 
 		boxstream2.NewHandshaker,
 
@@ -233,15 +238,15 @@ func newListener(
 	return portsnetwork.NewListener(initializer, app, config.ListenAddress, logger)
 }
 
-func newAdaptersFactory(local identity.Private, logger logging.Logger) adapters2.AdaptersFactory {
+func newAdaptersFactory(config Config, local identity.Private, logger logging.Logger) adapters2.AdaptersFactory {
 	return func(tx *bbolt.Tx) (commands2.Adapters, error) {
-		return BuildTransactableAdapters(tx, local, logger)
+		return BuildTransactableAdapters(tx, local, logger, config)
 	}
 }
 
-func newContactRepositoriesFactory(local identity.Private, logger logging.Logger) adapters2.RepositoriesFactory {
+func newContactRepositoriesFactory(local identity.Private, logger logging.Logger, config Config) adapters2.RepositoriesFactory {
 	return func(tx *bbolt.Tx) (adapters2.Repositories, error) {
-		return BuildAdaptersForContactsRepository(tx, local, logger)
+		return BuildAdaptersForContactsRepository(tx, local, logger, config)
 	}
 }
 
@@ -270,4 +275,12 @@ func newFormats(
 	return []feeds.FeedFormat{
 		s,
 	}
+}
+
+func newNetworkKeyFromConfig(config Config) boxstream2.NetworkKey {
+	return config.NetworkKey
+}
+
+func newMessageHMACFromConfig(config Config) formats2.MessageHMAC {
+	return config.MessageHMAC
 }

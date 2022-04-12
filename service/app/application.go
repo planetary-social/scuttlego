@@ -16,6 +16,7 @@ type Commands struct {
 	Connect                  *commands.ConnectHandler
 	AcceptNewPeer            *commands.AcceptNewPeerHandler
 	ProcessNewLocalDiscovery *commands.ProcessNewLocalDiscoveryHandler
+	PublishRaw               *commands.PublishRawHandler
 }
 
 type Queries struct {

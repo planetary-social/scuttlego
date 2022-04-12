@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/boreq/errors"
+	"github.com/planetary-social/go-ssb/service/domain/feeds/content"
 	"github.com/planetary-social/go-ssb/service/domain/refs"
 )
 
@@ -32,8 +33,44 @@ func (m RawMessage) IsZero() bool {
 	return len(m.data) == 0
 }
 
+type RawMessageContent struct {
+	data []byte
+}
+
+func NewRawMessageContent(data []byte) (RawMessageContent, error) {
+	if len(data) == 0 {
+		return RawMessageContent{}, errors.New("empty content")
+	}
+
+	tmp := make([]byte, len(data))
+	copy(tmp, data)
+
+	return RawMessageContent{
+		data: tmp,
+	}, nil
+}
+
+func MustNewRawMessageContent(data []byte) RawMessageContent {
+	v, err := NewRawMessageContent(data)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
+func (m RawMessageContent) Bytes() []byte {
+	tmp := make([]byte, len(m.data))
+	copy(tmp, m.data)
+	return tmp
+}
+
+func (m RawMessageContent) IsZero() bool {
+	return len(m.data) == 0
+}
+
 type UnsignedMessage struct {
 	baseMessageFields
+	content RawMessageContent
 }
 
 func NewUnsignedMessage(
@@ -42,20 +79,30 @@ func NewUnsignedMessage(
 	author refs.Identity,
 	feed refs.Feed,
 	timestamp time.Time,
-	content MessageContent,
+	content RawMessageContent,
 ) (UnsignedMessage, error) {
-	fields, err := newBaseMessageFields(previous, sequence, author, feed, timestamp, content)
+	fields, err := newBaseMessageFields(previous, sequence, author, feed, timestamp)
 	if err != nil {
 		return UnsignedMessage{}, errors.Wrap(err, "could not create base message fields")
 	}
 
+	if content.IsZero() {
+		return UnsignedMessage{}, errors.Wrap(err, "zero value of content")
+	}
+
 	return UnsignedMessage{
 		baseMessageFields: fields,
+		content:           content,
 	}, nil
+}
+
+func (m UnsignedMessage) Content() RawMessageContent {
+	return m.content
 }
 
 type Message struct {
 	baseMessageFields
+	content content.KnownMessageContent
 
 	id  refs.Message
 	raw RawMessage
@@ -68,16 +115,20 @@ func NewMessage(
 	author refs.Identity,
 	feed refs.Feed,
 	timestamp time.Time,
-	content MessageContent,
+	content content.KnownMessageContent,
 	raw RawMessage,
 ) (Message, error) {
-	fields, err := newBaseMessageFields(previous, sequence, author, feed, timestamp, content)
+	fields, err := newBaseMessageFields(previous, sequence, author, feed, timestamp)
 	if err != nil {
 		return Message{}, errors.Wrap(err, "could not create base message fields")
 	}
 
 	if id.IsZero() {
 		return Message{}, errors.New("zero value of id")
+	}
+
+	if content == nil {
+		return Message{}, errors.Wrap(err, "content is nil")
 	}
 
 	if raw.IsZero() {
@@ -98,7 +149,7 @@ func MustNewMessage(
 	author refs.Identity,
 	feed refs.Feed,
 	timestamp time.Time,
-	content MessageContent,
+	content content.KnownMessageContent,
 	raw RawMessage,
 ) Message {
 	msg, err := NewMessage(id, previous, sequence, author, feed, timestamp, content, raw)
@@ -110,6 +161,10 @@ func MustNewMessage(
 
 func (m Message) Id() refs.Message {
 	return m.id
+}
+
+func (m Message) Content() content.KnownMessageContent {
+	return m.content
 }
 
 func (m Message) Raw() RawMessage {
@@ -131,28 +186,12 @@ func (m Message) IsZero() bool {
 	return m.id.IsZero()
 }
 
-// One of:
-// - Contact
-// - Pub
-// - Unknown
-// todo generics once they are available
-type MessageContent interface {
-	Type() MessageContentType
-}
-
-type MessageContentType string // todo struct with strings.ToLower or pragma nocompare?
-
-func (t MessageContentType) IsZero() bool {
-	return t == ""
-}
-
 type baseMessageFields struct {
 	previous  *refs.Message
 	sequence  Sequence
 	author    refs.Identity
 	feed      refs.Feed
 	timestamp time.Time
-	content   MessageContent
 }
 
 func newBaseMessageFields(
@@ -161,7 +200,6 @@ func newBaseMessageFields(
 	author refs.Identity,
 	feed refs.Feed,
 	timestamp time.Time,
-	content MessageContent,
 ) (baseMessageFields, error) {
 	if previous != nil && previous.IsZero() {
 		return baseMessageFields{}, errors.New("zero value of previous")
@@ -185,17 +223,12 @@ func newBaseMessageFields(
 
 	// there is no way to validate the timestamp as it can be set to anything
 
-	if content == nil {
-		return baseMessageFields{}, errors.New("nil content")
-	}
-
 	return baseMessageFields{
 		previous:  previous,
 		sequence:  sequence,
 		author:    author,
 		feed:      feed,
 		timestamp: timestamp,
-		content:   content,
 	}, nil
 }
 
@@ -217,8 +250,4 @@ func (k baseMessageFields) Feed() refs.Feed {
 
 func (k baseMessageFields) Timestamp() time.Time {
 	return k.timestamp
-}
-
-func (k baseMessageFields) Content() MessageContent {
-	return k.content
 }

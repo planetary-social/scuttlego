@@ -23,6 +23,7 @@ var commandsSet = wire.NewSet(
 	commands.NewConnectHandler,
 	commands.NewAcceptNewPeerHandler,
 	commands.NewProcessNewLocalDiscoveryHandler,
+	commands.NewPublishRawHandler,
 )
 
 var queriesSet = wire.NewSet(

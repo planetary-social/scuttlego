@@ -29,35 +29,40 @@ func NewMarshaler(mappings MessageContentMappings, logger logging.Logger) (*Mars
 	}, nil
 }
 
-func (m *Marshaler) Marshal(content message.MessageContent) ([]byte, error) {
+func (m *Marshaler) Marshal(content content.KnownMessageContent) (message.RawMessageContent, error) {
 	typ := content.Type()
 
 	mapping, ok := m.mappings[typ]
 	if !ok {
-		return nil, fmt.Errorf("no mapping for '%s'", typ)
+		return message.RawMessageContent{}, fmt.Errorf("no mapping for '%s'", typ)
 	}
 
-	return mapping.Marshal(content)
+	b, err := mapping.Marshal(content)
+	if err != nil {
+		return message.RawMessageContent{}, errors.Wrap(err, "invalid content")
+	}
+
+	return message.NewRawMessageContent(b)
 }
 
-func (m *Marshaler) Unmarshal(b []byte) (message.MessageContent, error) {
-	logger := m.logger.WithField("content", string(b))
+func (m *Marshaler) Unmarshal(b message.RawMessageContent) (content.KnownMessageContent, error) {
+	logger := m.logger.WithField("content", string(b.Bytes()))
 
 	typ, err := m.identifyContentType(b)
 	if err != nil {
 		// todo how to deal with box
-		if !strings.HasSuffix(string(b), ".box\"") {
+		if !strings.HasSuffix(string(b.Bytes()), ".box\"") {
 			logger.WithError(err).Error("failed to identify message content type")
 		}
-		return content.NewUnknown(b)
+		return content.NewUnknown(b.Bytes())
 	}
 
 	mapping, ok := m.mappings[typ]
 	if !ok {
-		return content.NewUnknown(b)
+		return content.NewUnknown(b.Bytes())
 	}
 
-	cnt, err := mapping.Unmarshal(b)
+	cnt, err := mapping.Unmarshal(b.Bytes())
 	if err != nil {
 		logger.WithField("typ", typ).WithError(err).Error("mapping returned an error")
 		return nil, errors.Wrapf(err, "mapping '%s' returned an error", typ)
@@ -66,15 +71,15 @@ func (m *Marshaler) Unmarshal(b []byte) (message.MessageContent, error) {
 	return cnt, nil
 }
 
-func (m *Marshaler) identifyContentType(b []byte) (message.MessageContentType, error) {
+func (m *Marshaler) identifyContentType(b message.RawMessageContent) (content.MessageContentType, error) {
 	var typ messageContentType
-	if err := json.Unmarshal(b, &typ); err != nil {
+	if err := json.Unmarshal(b.Bytes(), &typ); err != nil {
 		return "", errors.Wrap(err, "json unmarshal of message content type failed")
 	}
-	if typ.MessageContentType == string((content.Unknown{}).Type()) {
+	if typ.MessageContentType == "" {
 		return "", errors.New("empty content type")
 	}
-	return message.MessageContentType(typ.MessageContentType), nil
+	return content.MessageContentType(typ.MessageContentType), nil
 }
 
 type messageContentType struct {

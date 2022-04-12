@@ -2,14 +2,13 @@ package transport
 
 import (
 	"github.com/planetary-social/go-ssb/service/domain/feeds/content"
-	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
 )
 
-type MessageContentMappings map[message.MessageContentType]MessageContentMapping
+type MessageContentMappings map[content.MessageContentType]MessageContentMapping
 
 type MessageContentMapping struct {
-	Marshal   func(con message.MessageContent) ([]byte, error)
-	Unmarshal func(b []byte) (message.MessageContent, error)
+	Marshal   func(con content.KnownMessageContent) ([]byte, error)
+	Unmarshal func(b []byte) (content.KnownMessageContent, error)
 }
 
 func DefaultMappings() MessageContentMappings {

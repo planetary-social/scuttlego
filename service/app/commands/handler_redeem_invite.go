@@ -8,6 +8,7 @@ import (
 	"github.com/planetary-social/go-ssb/logging"
 	"github.com/planetary-social/go-ssb/service/domain/feeds"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/content"
+	"github.com/planetary-social/go-ssb/service/domain/feeds/formats"
 	"github.com/planetary-social/go-ssb/service/domain/identity"
 	"github.com/planetary-social/go-ssb/service/domain/invites"
 	"github.com/planetary-social/go-ssb/service/domain/messages"
@@ -33,6 +34,7 @@ type RedeemInviteHandler struct {
 	networkKey     boxstream.NetworkKey
 	local          identity.Private
 	requestHandler rpc.RequestHandler
+	marshaler      formats.Marshaler
 	logger         logging.Logger
 }
 
@@ -42,6 +44,7 @@ func NewRedeemInviteHandler(
 	networkKey boxstream.NetworkKey,
 	local identity.Private,
 	requestHandler rpc.RequestHandler,
+	marshaler formats.Marshaler,
 	logger logging.Logger,
 ) *RedeemInviteHandler {
 	return &RedeemInviteHandler{
@@ -50,6 +53,7 @@ func NewRedeemInviteHandler(
 		networkKey:     networkKey,
 		local:          local,
 		requestHandler: requestHandler,
+		marshaler:      marshaler,
 		logger:         logger.New("follow_handler"),
 	}
 }
@@ -69,6 +73,11 @@ func (h *RedeemInviteHandler) Handle(ctx context.Context, cmd RedeemInvite) erro
 		return errors.Wrap(err, "could not create a follow message")
 	}
 
+	content, err := h.marshaler.Marshal(follow)
+	if err != nil {
+		return errors.Wrap(err, "failed to create message content")
+	}
+
 	// todo indempotency
 
 	myRef, err := refs.NewIdentityFromPublic(h.local.Public())
@@ -78,7 +87,7 @@ func (h *RedeemInviteHandler) Handle(ctx context.Context, cmd RedeemInvite) erro
 
 	if err := h.transaction.Transact(func(adapters Adapters) error {
 		if err := adapters.Feed.UpdateFeed(myRef.MainFeed(), func(feed *feeds.Feed) (*feeds.Feed, error) {
-			if err := feed.CreateMessage(follow, time.Now(), h.local); err != nil {
+			if _, err := feed.CreateMessage(content, time.Now(), h.local); err != nil {
 				return nil, errors.Wrap(err, "could not append a message")
 			}
 

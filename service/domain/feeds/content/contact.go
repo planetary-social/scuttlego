@@ -2,7 +2,6 @@ package content
 
 import (
 	"github.com/boreq/errors"
-	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
 	"github.com/planetary-social/go-ssb/service/domain/refs"
 )
 
@@ -42,7 +41,7 @@ func (c Contact) Action() ContactAction {
 	return c.action
 }
 
-func (c Contact) Type() message.MessageContentType {
+func (c Contact) Type() MessageContentType {
 	return "contact"
 }
 

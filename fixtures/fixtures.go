@@ -79,7 +79,7 @@ func SomePublicIdentity() identity.Public {
 	return v.Public()
 }
 
-func SomeContent() message.MessageContent {
+func SomeContent() content.KnownMessageContent {
 	return content.MustNewUnknown(SomeBytes())
 }
 

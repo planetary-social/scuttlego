@@ -129,16 +129,16 @@ func BuildService(private identity.Private, config Config) (Service, error) {
 	}
 	adaptersFactory := newAdaptersFactory(config, private, logger)
 	transactionProvider := adapters.NewTransactionProvider(db, adaptersFactory)
-	redeemInviteHandler := commands.NewRedeemInviteHandler(dialer, transactionProvider, networkKey, private, requestPubSub, logger)
-	followHandler := commands.NewFollowHandler(transactionProvider, private, logger)
-	repositoriesFactory := newContactRepositoriesFactory(private, logger, config)
-	boltContactsRepository := adapters.NewBoltContactsRepository(db, repositoriesFactory)
-	manager := replication.NewManager(logger, boltContactsRepository)
 	messageContentMappings := transport.DefaultMappings()
 	marshaler, err := transport.NewMarshaler(messageContentMappings, logger)
 	if err != nil {
 		return Service{}, err
 	}
+	redeemInviteHandler := commands.NewRedeemInviteHandler(dialer, transactionProvider, networkKey, private, requestPubSub, marshaler, logger)
+	followHandler := commands.NewFollowHandler(transactionProvider, private, marshaler, logger)
+	repositoriesFactory := newContactRepositoriesFactory(private, logger, config)
+	boltContactsRepository := adapters.NewBoltContactsRepository(db, repositoriesFactory)
+	manager := replication.NewManager(logger, boltContactsRepository)
 	messageHMAC := newMessageHMACFromConfig(config)
 	scuttlebutt := formats.NewScuttlebutt(marshaler, messageHMAC)
 	v := newFormats(scuttlebutt)
@@ -152,12 +152,14 @@ func BuildService(private identity.Private, config Config) (Service, error) {
 	connectHandler := commands.NewConnectHandler(dialer, peerManager, logger)
 	acceptNewPeerHandler := commands.NewAcceptNewPeerHandler(peerManager)
 	processNewLocalDiscoveryHandler := commands.NewProcessNewLocalDiscoveryHandler(logger)
+	publishRawHandler := commands.NewPublishRawHandler(transactionProvider, private, logger)
 	appCommands := app.Commands{
 		RedeemInvite:             redeemInviteHandler,
 		Follow:                   followHandler,
 		Connect:                  connectHandler,
 		AcceptNewPeer:            acceptNewPeerHandler,
 		ProcessNewLocalDiscovery: processNewLocalDiscoveryHandler,
+		PublishRaw:               publishRawHandler,
 	}
 	boltMessageRepository := adapters.NewBoltMessageRepository(db, rawMessageIdentifier)
 	messagePubSub := pubsub.NewMessagePubSub()

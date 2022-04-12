@@ -6,12 +6,11 @@ import (
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/content"
-	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
 	"github.com/planetary-social/go-ssb/service/domain/refs"
 )
 
 var contactMapping = MessageContentMapping{
-	Marshal: func(con message.MessageContent) ([]byte, error) {
+	Marshal: func(con content.KnownMessageContent) ([]byte, error) {
 		msg := con.(content.Contact)
 
 		t := transportContact{
@@ -26,7 +25,7 @@ var contactMapping = MessageContentMapping{
 
 		return json.Marshal(t)
 	},
-	Unmarshal: func(b []byte) (message.MessageContent, error) {
+	Unmarshal: func(b []byte) (content.KnownMessageContent, error) {
 		var t transportContact
 
 		if err := json.Unmarshal(b, &t); err != nil {

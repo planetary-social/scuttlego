@@ -61,7 +61,12 @@ func (s *Scuttlebutt) Verify(raw message.RawMessage) (message.Message, error) {
 
 	timestamp := time.UnixMilli(int64(ssbMessage.Timestamp))
 
-	content, err := s.marshaler.Unmarshal(ssbMessage.Content)
+	rawMessageContent, err := message.NewRawMessageContent(ssbMessage.Content)
+	if err != nil {
+		return message.Message{}, errors.Wrap(err, "could not create raw message content")
+	}
+
+	content, err := s.marshaler.Unmarshal(rawMessageContent)
 	if err != nil {
 		return message.Message{}, errors.Wrap(err, "could not unmarshal message content")
 	}
@@ -93,23 +98,18 @@ func (s *Scuttlebutt) Sign(unsigned message.UnsignedMessage, private identity.Pr
 		previous = &tmp
 	}
 
-	marshaledContent, err := s.marshaler.Marshal(unsigned.Content())
-	if err != nil {
-		return message.Message{}, errors.Wrap(err, "could not marshal message content")
-	}
-
 	msgToSign := legacy.LegacyMessage{
 		Previous:  previous,
 		Author:    unsigned.Author().String(),
 		Sequence:  int64(unsigned.Sequence().Int()),
 		Timestamp: unsigned.Timestamp().UnixMilli(),
 		Hash:      "sha256",
-		Content:   json.RawMessage(marshaledContent),
+		Content:   json.RawMessage(unsigned.Content().Bytes()),
 	}
 
 	_, raw, err := msgToSign.Sign(private.PrivateKey(), s.convertHMAC())
 	if err != nil {
-		return message.Message{}, errors.New("could not sign a message")
+		return message.Message{}, errors.Wrap(err, "could not sign a message")
 	}
 
 	return s.Verify(message.NewRawMessage(raw))

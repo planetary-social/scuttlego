@@ -1,9 +1,5 @@
 package content
 
-import (
-	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
-)
-
 type Unknown struct {
 	b []byte
 }
@@ -20,7 +16,7 @@ func MustNewUnknown(b []byte) Unknown {
 	return u
 }
 
-func (u Unknown) Type() message.MessageContentType {
+func (u Unknown) Type() MessageContentType {
 	return ""
 }
 

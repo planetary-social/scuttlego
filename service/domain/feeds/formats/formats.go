@@ -6,12 +6,13 @@ import (
 	"github.com/boreq/errors"
 	"github.com/hashicorp/go-multierror"
 	"github.com/planetary-social/go-ssb/service/domain/feeds"
+	"github.com/planetary-social/go-ssb/service/domain/feeds/content"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
 )
 
 type Marshaler interface {
-	Marshal(content message.MessageContent) ([]byte, error)
-	Unmarshal(b []byte) (message.MessageContent, error)
+	Marshal(content content.KnownMessageContent) (message.RawMessageContent, error)
+	Unmarshal(b message.RawMessageContent) (content.KnownMessageContent, error)
 }
 
 type RawMessageIdentifier struct {

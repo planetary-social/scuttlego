@@ -5,17 +5,17 @@ import (
 
 	"github.com/boreq/errors"
 	msgcontents "github.com/planetary-social/go-ssb/service/domain/feeds/content"
-	message2 "github.com/planetary-social/go-ssb/service/domain/feeds/message"
+	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
 	"github.com/planetary-social/go-ssb/service/domain/identity"
 	"github.com/planetary-social/go-ssb/service/domain/refs"
 )
 
 type Feed struct {
-	lastMsg *message2.Message
+	lastMsg *message.Message
 
 	format FeedFormat
 
-	messagesToSave []message2.Message
+	messagesToSave []message.Message
 	contactsToSave []ContactToSave
 }
 
@@ -55,7 +55,7 @@ func NewFeed(format FeedFormat) *Feed {
 //	return nil, errors.New("not implemented")
 //}
 
-func NewFeedFromHistory(lastMsg message2.Message, format FeedFormat) (*Feed, error) {
+func NewFeedFromHistory(lastMsg message.Message, format FeedFormat) (*Feed, error) {
 	return &Feed{
 		lastMsg: &lastMsg,
 		format:  format,
@@ -70,7 +70,7 @@ func NewFeedFromHistory(lastMsg message2.Message, format FeedFormat) (*Feed, err
 //	return f, nil
 //}
 
-func (f *Feed) AppendMessage(msg message2.Message) error {
+func (f *Feed) AppendMessage(msg message.Message) error {
 	if f.lastMsg != nil {
 		if !msg.Sequence().ComesAfter(f.lastMsg.Sequence()) {
 			return nil // idempotency
@@ -104,29 +104,42 @@ func (f *Feed) AppendMessage(msg message2.Message) error {
 	return f.onNewMessage(msg)
 }
 
-func (f *Feed) CreateMessage(content message2.MessageContent, timestamp time.Time, private identity.Private) error {
+func (f *Feed) CreateMessage(content message.RawMessageContent, timestamp time.Time, private identity.Private) (refs.Message, error) {
+	if content.IsZero() {
+		return refs.Message{}, errors.New("zero value of raw message content")
+	}
+
+	if timestamp.IsZero() {
+		return refs.Message{}, errors.New("zero value of timestamp")
+	}
+
 	unsigned, err := f.createMessage(content, timestamp, private.Public())
 	if err != nil {
-		return errors.Wrap(err, "failed to create a new unsigned message")
+		return refs.Message{}, errors.Wrap(err, "failed to create a new unsigned message")
 	}
 
 	msg, err := f.format.Sign(unsigned, private)
 	if err != nil {
-		return errors.Wrap(err, "failed to sign the new message")
+		return refs.Message{}, errors.Wrap(err, "failed to sign the new message")
 	}
 
-	return f.onNewMessage(msg)
+	err = f.onNewMessage(msg)
+	if err != nil {
+		return refs.Message{}, errors.Wrap(err, "failed to sign the new message")
+	}
+
+	return msg.Id(), nil
 }
 
-func (f *Feed) createMessage(content message2.MessageContent, timestamp time.Time, author identity.Public) (message2.UnsignedMessage, error) {
+func (f *Feed) createMessage(content message.RawMessageContent, timestamp time.Time, author identity.Public) (message.UnsignedMessage, error) {
 	authorRef, err := refs.NewIdentityFromPublic(author)
 	if err != nil {
-		return message2.UnsignedMessage{}, errors.Wrap(err, "could not create an author")
+		return message.UnsignedMessage{}, errors.Wrap(err, "could not create an author")
 	}
 
 	if f.lastMsg != nil {
 		previousId := f.lastMsg.Id()
-		return message2.NewUnsignedMessage(
+		return message.NewUnsignedMessage(
 			&previousId,
 			f.lastMsg.Sequence().Next(),
 			authorRef,
@@ -135,9 +148,9 @@ func (f *Feed) createMessage(content message2.MessageContent, timestamp time.Tim
 			content,
 		)
 	} else {
-		return message2.NewUnsignedMessage(
+		return message.NewUnsignedMessage(
 			nil,
-			message2.FirstSequence,
+			message.FirstSequence,
 			authorRef,
 			authorRef.MainFeed(),
 			timestamp,
@@ -146,16 +159,16 @@ func (f *Feed) createMessage(content message2.MessageContent, timestamp time.Tim
 	}
 }
 
-func (f *Feed) Sequence() message2.Sequence {
+func (f *Feed) Sequence() message.Sequence {
 	return f.lastMsg.Sequence() // todo can be nil
 }
 
-func (f *Feed) PopForPersisting() ([]message2.Message, []ContactToSave) {
+func (f *Feed) PopForPersisting() ([]message.Message, []ContactToSave) {
 	defer func() { f.messagesToSave = nil; f.contactsToSave = nil }()
 	return f.messagesToSave, f.contactsToSave
 }
 
-func (f *Feed) onNewMessage(msg message2.Message) error {
+func (f *Feed) onNewMessage(msg message.Message) error {
 	contacts, err := f.processMessageContent(msg)
 	if err != nil {
 		return errors.New("failed to process message content")
@@ -168,7 +181,7 @@ func (f *Feed) onNewMessage(msg message2.Message) error {
 }
 
 // todo ignore repeated calls to follow someone if the current state of the feed suggests that this is already done (indempotency)
-func (f *Feed) processMessageContent(msg message2.Message) ([]ContactToSave, error) {
+func (f *Feed) processMessageContent(msg message.Message) ([]ContactToSave, error) {
 	switch v := msg.Content().(type) {
 	case msgcontents.Contact:
 		return []ContactToSave{NewContactToSave(msg.Author(), v)}, nil

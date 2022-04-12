@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/planetary-social/go-ssb/fixtures"
-	"github.com/planetary-social/go-ssb/service/domain/feeds/content"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/content/transport"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
 	"github.com/planetary-social/go-ssb/service/domain/identity"
@@ -28,7 +27,7 @@ func TestMarshaler(t *testing.T) {
 		authorRef,
 		authorRef.MainFeed(),
 		time.Now(),
-		content.MustNewContact(fixtures.SomeRefAuthor(), content.ContactActionFollow),
+		someContent(),
 	)
 	require.NoError(t, err)
 
@@ -53,7 +52,7 @@ func TestMarshalerPrevious(t *testing.T) {
 		authorRef,
 		authorRef.MainFeed(),
 		time.Now(),
-		content.MustNewContact(fixtures.SomeRefAuthor(), content.ContactActionFollow),
+		someContent(),
 	)
 	require.NoError(t, err)
 
@@ -79,7 +78,7 @@ func TestMarshalerHMAC(t *testing.T) {
 		authorRef,
 		authorRef.MainFeed(),
 		time.Now(),
-		content.MustNewContact(fixtures.SomeRefAuthor(), content.ContactActionFollow),
+		someContent(),
 	)
 	require.NoError(t, err)
 
@@ -92,6 +91,10 @@ func TestMarshalerHMAC(t *testing.T) {
 	defaultFormat := newScuttlebuttFormat(t, NewDefaultMessageHMAC())
 	_, err = defaultFormat.Verify(msg.Raw())
 	require.Contains(t, err.Error(), "invalid signature")
+}
+
+func someContent() message.RawMessageContent {
+	return message.MustNewRawMessageContent([]byte(`{"type": "something"}`))
 }
 
 // todo abstract away dependencies

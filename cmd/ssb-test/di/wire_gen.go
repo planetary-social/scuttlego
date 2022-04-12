@@ -44,8 +44,11 @@ func BuildApplicationForTests() (TestApplication, error) {
 	feedRepositoryMock := mocks.NewFeedRepositoryMock()
 	messagePubSubMock := mocks.NewMessagePubSubMock()
 	createHistoryStreamHandler := queries.NewCreateHistoryStreamHandler(feedRepositoryMock, messagePubSubMock)
+	receiveLogRepositoryMock := mocks.NewReceiveLogRepositoryMock()
+	getReceiveLogHandler := queries.NewGetReceiveLogHandler(receiveLogRepositoryMock)
 	appQueries := app.Queries{
 		CreateHistoryStream: createHistoryStreamHandler,
+		GetReceiveLog:       getReceiveLogHandler,
 	}
 	testApplication := TestApplication{
 		Queries:        appQueries,
@@ -68,7 +71,8 @@ func BuildTransactableAdapters(tx *bbolt.Tx, private identity.Private, logger lo
 	public := privateIdentityToPublicIdentity(private)
 	graphHops := _wireHopsValue
 	socialGraphRepository := adapters.NewSocialGraphRepository(tx, public, graphHops)
-	boltFeedRepository := adapters.NewBoltFeedRepository(tx, rawMessageIdentifier, socialGraphRepository, scuttlebutt)
+	receiveLogRepository := adapters.NewReceiveLogRepository(tx, rawMessageIdentifier)
+	boltFeedRepository := adapters.NewBoltFeedRepository(tx, rawMessageIdentifier, socialGraphRepository, receiveLogRepository, scuttlebutt)
 	commandsAdapters := commands.Adapters{
 		Feed:        boltFeedRepository,
 		SocialGraph: socialGraphRepository,
@@ -93,7 +97,8 @@ func BuildAdaptersForContactsRepository(tx *bbolt.Tx, private identity.Private, 
 	public := privateIdentityToPublicIdentity(private)
 	graphHops := _wireGraphHopsValue
 	socialGraphRepository := adapters.NewSocialGraphRepository(tx, public, graphHops)
-	boltFeedRepository := adapters.NewBoltFeedRepository(tx, rawMessageIdentifier, socialGraphRepository, scuttlebutt)
+	receiveLogRepository := adapters.NewReceiveLogRepository(tx, rawMessageIdentifier)
+	boltFeedRepository := adapters.NewBoltFeedRepository(tx, rawMessageIdentifier, socialGraphRepository, receiveLogRepository, scuttlebutt)
 	repositories := adapters.Repositories{
 		Feed:  boltFeedRepository,
 		Graph: socialGraphRepository,
@@ -157,8 +162,11 @@ func BuildService(private identity.Private, config Config) (Service, error) {
 	boltMessageRepository := adapters.NewBoltMessageRepository(db, rawMessageIdentifier)
 	messagePubSub := pubsub.NewMessagePubSub()
 	createHistoryStreamHandler := queries.NewCreateHistoryStreamHandler(boltMessageRepository, messagePubSub)
+	receiveLogReadRepository := adapters.NewReceiveLogReadRepository(db, rawMessageIdentifier)
+	getReceiveLogHandler := queries.NewGetReceiveLogHandler(receiveLogReadRepository)
 	appQueries := app.Queries{
 		CreateHistoryStream: createHistoryStreamHandler,
+		GetReceiveLog:       getReceiveLogHandler,
 	}
 	application := app.Application{
 		Commands: appCommands,

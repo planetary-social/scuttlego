@@ -22,6 +22,7 @@ type BoltFeedRepository struct {
 	tx                *bbolt.Tx
 	identifier        RawMessageIdentifier
 	graph             *SocialGraphRepository
+	receiveLog        *ReceiveLogRepository
 	formatScuttlebutt *formats.Scuttlebutt
 }
 
@@ -29,12 +30,14 @@ func NewBoltFeedRepository(
 	tx *bbolt.Tx,
 	identifier RawMessageIdentifier,
 	graph *SocialGraphRepository,
+	receiveLog *ReceiveLogRepository,
 	formatScuttlebutt *formats.Scuttlebutt,
 ) *BoltFeedRepository {
 	return &BoltFeedRepository{
 		tx:                tx,
 		identifier:        identifier,
 		graph:             graph,
+		receiveLog:        receiveLog,
 		formatScuttlebutt: formatScuttlebutt,
 	}
 }
@@ -112,6 +115,10 @@ func (b BoltFeedRepository) saveFeed(ref refs.Feed, feed *feeds.Feed) error {
 		for _, msg := range msgs {
 			if err := b.saveMessage(bucket, msg); err != nil {
 				return errors.Wrap(err, "could not save a message")
+			}
+
+			if err := b.receiveLog.Put(msg); err != nil {
+				return errors.Wrap(err, "could not save a message in the receive log")
 			}
 		}
 	}

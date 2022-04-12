@@ -128,6 +128,9 @@ func BuildApplicationForTests() (TestApplication, error) {
 		mocks.NewFeedRepositoryMock,
 		wire.Bind(new(queries.FeedRepository), new(*mocks.FeedRepositoryMock)),
 
+		mocks.NewReceiveLogRepositoryMock,
+		wire.Bind(new(queries.ReceiveLogRepository), new(*mocks.ReceiveLogRepositoryMock)),
+
 		wire.Struct(new(TestApplication), "*"),
 	)
 
@@ -144,6 +147,8 @@ func BuildTransactableAdapters(*bbolt.Tx, identity.Private, logging.Logger, Conf
 
 		adapters2.NewSocialGraphRepository,
 		wire.Bind(new(commands2.SocialGraphRepository), new(*adapters2.SocialGraphRepository)),
+
+		adapters2.NewReceiveLogRepository,
 
 		formatsSet,
 
@@ -163,6 +168,7 @@ func BuildAdaptersForContactsRepository(*bbolt.Tx, identity.Private, logging.Log
 
 		adapters2.NewBoltFeedRepository,
 		adapters2.NewSocialGraphRepository,
+		adapters2.NewReceiveLogRepository,
 
 		formatsSet,
 
@@ -205,6 +211,9 @@ func BuildService(identity.Private, Config) (Service, error) {
 		adapters2.NewBoltContactsRepository,
 		wire.Bind(new(replication2.Storage), new(*adapters2.BoltContactsRepository)),
 		newContactRepositoriesFactory,
+
+		adapters2.NewReceiveLogReadRepository,
+		wire.Bind(new(queries.ReceiveLogRepository), new(*adapters2.ReceiveLogReadRepository)),
 
 		newAdvertiser,
 		newListener,

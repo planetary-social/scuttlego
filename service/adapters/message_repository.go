@@ -67,6 +67,19 @@ func (r BoltMessageRepository) Get(id refs.Message) (message.Message, error) {
 	return msg, nil
 }
 
+func (r BoltMessageRepository) Count() (int, error) {
+	bucket, err := r.getBucket()
+	if err != nil {
+		return 0, errors.Wrap(err, "could not get the bucket")
+	}
+
+	if bucket == nil {
+		return 0, nil
+	}
+
+	return bucket.Stats().KeyN, nil
+}
+
 func (r BoltMessageRepository) messageKey(id refs.Message) []byte {
 	return []byte(id.String())
 }
@@ -83,4 +96,33 @@ func (r BoltMessageRepository) bucketPath() []bucketName {
 	return []bucketName{
 		bucketName("messages"),
 	}
+}
+
+type ReadBoltMessageRepository struct {
+	db         *bbolt.DB
+	identifier RawMessageIdentifier
+}
+
+func NewReadBoltMessageRepository(db *bbolt.DB, identifier RawMessageIdentifier) *ReadBoltMessageRepository {
+	return &ReadBoltMessageRepository{db: db, identifier: identifier}
+}
+
+func (r ReadBoltMessageRepository) Count() (int, error) {
+	var result int
+
+	if err := r.db.View(func(tx *bbolt.Tx) error {
+		r := NewBoltMessageRepository(tx, r.identifier)
+		n, err := r.Count()
+		if err != nil {
+			return errors.Wrap(err, "failed calling the repo")
+		}
+
+		result = n
+
+		return nil
+	}); err != nil {
+		return 0, errors.Wrap(err, "transaction failed")
+	}
+
+	return result, nil
 }

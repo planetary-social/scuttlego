@@ -33,4 +33,5 @@ var queriesSet = wire.NewSet(
 	wire.Bind(new(portsrpc.CreateHistoryStreamQueryHandler), new(*queries.CreateHistoryStreamHandler)),
 
 	queries.NewGetReceiveLogHandler,
+	queries.NewStatsHandler,
 )

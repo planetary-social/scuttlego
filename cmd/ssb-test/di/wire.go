@@ -114,8 +114,9 @@ var hops = graph.MustNewHops(3)
 type TestApplication struct {
 	Queries app.Queries
 
-	FeedRepository *mocks.FeedRepositoryMock
-	MessagePubSub  *mocks.MessagePubSubMock
+	FeedRepository    *mocks.FeedRepositoryMock
+	MessagePubSub     *mocks.MessagePubSubMock
+	MessageRepository *mocks.MessageRepositoryMock
 }
 
 func BuildApplicationForTests() (TestApplication, error) {
@@ -130,6 +131,9 @@ func BuildApplicationForTests() (TestApplication, error) {
 
 		mocks.NewReceiveLogRepositoryMock,
 		wire.Bind(new(queries.ReceiveLogRepository), new(*mocks.ReceiveLogRepositoryMock)),
+
+		mocks.NewMessageRepositoryMock,
+		wire.Bind(new(queries.MessageRepository), new(*mocks.MessageRepositoryMock)),
 
 		wire.Struct(new(TestApplication), "*"),
 	)
@@ -216,6 +220,9 @@ func BuildService(identity.Private, Config) (Service, error) {
 
 		adapters2.NewReceiveLogReadRepository,
 		wire.Bind(new(queries.ReceiveLogRepository), new(*adapters2.ReceiveLogReadRepository)),
+
+		adapters2.NewReadBoltMessageRepository,
+		wire.Bind(new(queries.MessageRepository), new(*adapters2.ReadBoltMessageRepository)),
 
 		newAdvertiser,
 		newListener,

@@ -46,14 +46,18 @@ func BuildApplicationForTests() (TestApplication, error) {
 	createHistoryStreamHandler := queries.NewCreateHistoryStreamHandler(feedRepositoryMock, messagePubSubMock)
 	receiveLogRepositoryMock := mocks.NewReceiveLogRepositoryMock()
 	getReceiveLogHandler := queries.NewGetReceiveLogHandler(receiveLogRepositoryMock)
+	messageRepositoryMock := mocks.NewMessageRepositoryMock()
+	statsHandler := queries.NewStatsHandler(messageRepositoryMock)
 	appQueries := app.Queries{
 		CreateHistoryStream: createHistoryStreamHandler,
 		GetReceiveLog:       getReceiveLogHandler,
+		Stats:               statsHandler,
 	}
 	testApplication := TestApplication{
-		Queries:        appQueries,
-		FeedRepository: feedRepositoryMock,
-		MessagePubSub:  messagePubSubMock,
+		Queries:           appQueries,
+		FeedRepository:    feedRepositoryMock,
+		MessagePubSub:     messagePubSubMock,
+		MessageRepository: messageRepositoryMock,
 	}
 	return testApplication, nil
 }
@@ -168,9 +172,12 @@ func BuildService(private identity.Private, config Config) (Service, error) {
 	createHistoryStreamHandler := queries.NewCreateHistoryStreamHandler(boltFeedMessagesRepository, messagePubSub)
 	receiveLogReadRepository := adapters.NewReceiveLogReadRepository(db, rawMessageIdentifier)
 	getReceiveLogHandler := queries.NewGetReceiveLogHandler(receiveLogReadRepository)
+	readBoltMessageRepository := adapters.NewReadBoltMessageRepository(db, rawMessageIdentifier)
+	statsHandler := queries.NewStatsHandler(readBoltMessageRepository)
 	appQueries := app.Queries{
 		CreateHistoryStream: createHistoryStreamHandler,
 		GetReceiveLog:       getReceiveLogHandler,
+		Stats:               statsHandler,
 	}
 	application := app.Application{
 		Commands: appCommands,
@@ -227,8 +234,9 @@ var hops = graph.MustNewHops(3)
 type TestApplication struct {
 	Queries app.Queries
 
-	FeedRepository *mocks.FeedRepositoryMock
-	MessagePubSub  *mocks.MessagePubSubMock
+	FeedRepository    *mocks.FeedRepositoryMock
+	MessagePubSub     *mocks.MessagePubSubMock
+	MessageRepository *mocks.MessageRepositoryMock
 }
 
 func newAdvertiser(l identity.Public, config Config) (*local.Advertiser, error) {

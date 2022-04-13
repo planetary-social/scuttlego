@@ -22,4 +22,5 @@ type Commands struct {
 type Queries struct {
 	CreateHistoryStream *queries.CreateHistoryStreamHandler
 	GetReceiveLog       *queries.GetReceiveLogHandler
+	Stats               *queries.StatsHandler
 }

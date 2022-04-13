@@ -12,6 +12,7 @@ import (
 
 	"github.com/boreq/errors"
 	"github.com/google/wire"
+	"github.com/planetary-social/go-ssb/fixtures"
 	"github.com/planetary-social/go-ssb/logging"
 	"github.com/planetary-social/go-ssb/service/adapters/bolt"
 	"github.com/planetary-social/go-ssb/service/adapters/mocks"
@@ -39,6 +40,22 @@ import (
 )
 
 // Injectors from wire.go:
+
+func BuildAdaptersForTest(db *bbolt.DB) (TestAdapters, error) {
+	private, err := identity.NewPrivate()
+	if err != nil {
+		return TestAdapters{}, err
+	}
+	public := privateIdentityToPublicIdentity(private)
+	logger := fixtures.SomeLogger()
+	messageHMAC := formats.NewDefaultMessageHMAC()
+	txRepositoriesFactory := newTxRepositoriesFactory(public, logger, messageHMAC)
+	readMessageRepository := bolt.NewReadMessageRepository(db, txRepositoriesFactory)
+	testAdapters := TestAdapters{
+		MessageRepository: readMessageRepository,
+	}
+	return testAdapters, nil
+}
 
 func BuildApplicationForTests() (TestApplication, error) {
 	feedRepositoryMock := mocks.NewFeedRepositoryMock()
@@ -88,13 +105,12 @@ var (
 	_wireHopsValue = hops
 )
 
-func BuildTxRepositories(tx *bbolt.Tx, public identity.Public, logger logging.Logger, config Config) (bolt.TxRepositories, error) {
+func BuildTxRepositories(tx *bbolt.Tx, public identity.Public, logger logging.Logger, messageHMAC formats.MessageHMAC) (bolt.TxRepositories, error) {
 	messageContentMappings := transport.DefaultMappings()
 	marshaler, err := transport.NewMarshaler(messageContentMappings, logger)
 	if err != nil {
 		return bolt.TxRepositories{}, err
 	}
-	messageHMAC := extractMessageHMACFromConfig(config)
 	scuttlebutt := formats.NewScuttlebutt(marshaler, messageHMAC)
 	v := newFormats(scuttlebutt)
 	rawMessageIdentifier := formats.NewRawMessageIdentifier(v)
@@ -143,10 +159,10 @@ func BuildService(private identity.Private, config Config) (Service, error) {
 	}
 	redeemInviteHandler := commands.NewRedeemInviteHandler(dialer, transactionProvider, networkKey, private, requestPubSub, marshaler, logger)
 	followHandler := commands.NewFollowHandler(transactionProvider, private, marshaler, logger)
-	txRepositoriesFactory := newTxRepositoriesFactory(public, logger, config)
+	messageHMAC := extractMessageHMACFromConfig(config)
+	txRepositoriesFactory := newTxRepositoriesFactory(public, logger, messageHMAC)
 	boltContactsRepository := bolt.NewBoltContactsRepository(db, txRepositoriesFactory)
 	manager := replication.NewManager(logger, boltContactsRepository)
-	messageHMAC := extractMessageHMACFromConfig(config)
 	scuttlebutt := formats.NewScuttlebutt(marshaler, messageHMAC)
 	v := newFormats(scuttlebutt)
 	rawMessageIdentifier := formats.NewRawMessageIdentifier(v)
@@ -224,6 +240,10 @@ var requestPubSubSet = wire.NewSet(pubsub.NewRequestPubSub, wire.Bind(new(rpc2.R
 var messagePubSubSet = wire.NewSet(pubsub.NewMessagePubSub, wire.Bind(new(queries.MessageSubscriber), new(*pubsub.MessagePubSub)))
 
 var hops = graph.MustNewHops(3)
+
+type TestAdapters struct {
+	MessageRepository *bolt.ReadMessageRepository
+}
 
 type TestApplication struct {
 	Queries app.Queries

@@ -1,6 +1,7 @@
 package bolt_test
 
 import (
+	"github.com/planetary-social/go-ssb/cmd/ssb-test/di"
 	"testing"
 
 	"github.com/planetary-social/go-ssb/fixtures"
@@ -67,6 +68,30 @@ func TestMessageRepository_Put_Get(t *testing.T) {
 		return nil
 	})
 	require.NoError(t, err)
+}
+
+func TestReadMessageRepository_Count(t *testing.T) {
+	db := fixtures.Bolt(t)
+	identifier := NewRawMessageIdentifierMock()
+
+	msg := fixtures.SomeMessage(fixtures.SomeSequence(), fixtures.SomeRefFeed())
+
+	a, err := di.BuildAdaptersForTest(db)
+	require.NoError(t, err)
+
+	count, err := a.MessageRepository.Count()
+	require.NoError(t, err)
+	require.Equal(t, 0, count)
+
+	err = db.Update(func(tx *bbolt.Tx) error {
+		repository := bolt.NewMessageRepository(tx, identifier)
+		return repository.Put(msg)
+	})
+	require.NoError(t, err)
+
+	count, err = a.MessageRepository.Count()
+	require.NoError(t, err)
+	require.Equal(t, 1, count)
 }
 
 type RawMessageIdentifierMock struct {

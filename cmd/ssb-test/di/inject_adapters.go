@@ -6,6 +6,7 @@ import (
 	"github.com/planetary-social/go-ssb/service/adapters/bolt"
 	"github.com/planetary-social/go-ssb/service/app/commands"
 	"github.com/planetary-social/go-ssb/service/app/queries"
+	"github.com/planetary-social/go-ssb/service/domain/feeds/formats"
 	"github.com/planetary-social/go-ssb/service/domain/identity"
 	"github.com/planetary-social/go-ssb/service/domain/replication"
 	"go.etcd.io/bbolt"
@@ -40,8 +41,8 @@ var boltAdaptersSet = wire.NewSet(
 	newTxRepositoriesFactory,
 )
 
-func newTxRepositoriesFactory(local identity.Public, logger logging.Logger, config Config) bolt.TxRepositoriesFactory {
+func newTxRepositoriesFactory(local identity.Public, logger logging.Logger, hmac formats.MessageHMAC) bolt.TxRepositoriesFactory {
 	return func(tx *bbolt.Tx) (bolt.TxRepositories, error) {
-		return BuildTxRepositories(tx, local, logger, config)
+		return BuildTxRepositories(tx, local, logger, hmac)
 	}
 }

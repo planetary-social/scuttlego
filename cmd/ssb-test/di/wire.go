@@ -9,6 +9,7 @@ import (
 
 	"github.com/boreq/errors"
 	"github.com/google/wire"
+	"github.com/planetary-social/go-ssb/fixtures"
 	"github.com/planetary-social/go-ssb/logging"
 	"github.com/planetary-social/go-ssb/service/adapters/bolt"
 	"github.com/planetary-social/go-ssb/service/adapters/mocks"
@@ -83,31 +84,26 @@ var messagePubSubSet = wire.NewSet(
 
 var hops = graph.MustNewHops(3)
 
-//type TestAdapters struct {
-//	MessageRepository *bolt.ReadMessageRepository
-//}
-//
-//func BuildAdaptersForTest(*bbolt.DB) (TestAdapters, error) {
-//	wire.Build(
-//		wire.Struct(new(TestAdapters), "*"),
-//
-//		boltAdaptersSet,
-//
-//		//txBoltAdaptersSet,
-//		//adapters.NewBoltFeedRepository,
-//		//adapters.NewSocialGraphRepository,
-//		//
-//		//newLogger,
-//		//
-//		//formats.NewRawMessageIdentifier,
-//		//wire.Bind(new(adapters.RawMessageIdentifier), new(*formats.RawMessageIdentifier)),
-//		//
-//		//formatsSet,
-//	)
-//
-//	return TestAdapters{}, nil
-//
-//}
+type TestAdapters struct {
+	MessageRepository *bolt.ReadMessageRepository
+}
+
+func BuildAdaptersForTest(*bbolt.DB) (TestAdapters, error) {
+	wire.Build(
+		wire.Struct(new(TestAdapters), "*"),
+
+		boltAdaptersSet,
+
+		identity.NewPrivate,
+		privateIdentityToPublicIdentity,
+
+		formats.NewDefaultMessageHMAC,
+
+		fixtures.SomeLogger,
+	)
+
+	return TestAdapters{}, nil
+}
 
 type TestApplication struct {
 	Queries app.Queries
@@ -155,14 +151,12 @@ func BuildTransactableAdapters(*bbolt.Tx, identity.Public, logging.Logger, Confi
 	return commands.Adapters{}, nil
 }
 
-func BuildTxRepositories(*bbolt.Tx, identity.Public, logging.Logger, Config) (bolt.TxRepositories, error) {
+func BuildTxRepositories(*bbolt.Tx, identity.Public, logging.Logger, formats.MessageHMAC) (bolt.TxRepositories, error) {
 	wire.Build(
 		wire.Struct(new(bolt.TxRepositories), "*"),
 
 		txBoltAdaptersSet,
 		formatsSet,
-
-		extractMessageHMACFromConfig,
 
 		wire.Value(hops),
 	)

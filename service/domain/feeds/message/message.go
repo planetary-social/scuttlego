@@ -138,6 +138,7 @@ func NewMessage(
 	return Message{
 		id:                id,
 		baseMessageFields: fields,
+		content:           content,
 		raw:               raw,
 	}, nil
 }

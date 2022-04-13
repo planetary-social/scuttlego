@@ -1,4 +1,4 @@
-package adapters_test
+package bolt_test
 
 // todo build tags for integration tests
 

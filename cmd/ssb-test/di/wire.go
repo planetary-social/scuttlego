@@ -10,7 +10,7 @@ import (
 	"github.com/boreq/errors"
 	"github.com/google/wire"
 	"github.com/planetary-social/go-ssb/logging"
-	adapters2 "github.com/planetary-social/go-ssb/service/adapters"
+	"github.com/planetary-social/go-ssb/service/adapters/bolt"
 	"github.com/planetary-social/go-ssb/service/adapters/mocks"
 	"github.com/planetary-social/go-ssb/service/adapters/pubsub"
 	"github.com/planetary-social/go-ssb/service/app"
@@ -55,7 +55,7 @@ var formatsSet = wire.NewSet(
 
 	formats2.NewRawMessageIdentifier,
 	wire.Bind(new(commands2.RawMessageIdentifier), new(*formats2.RawMessageIdentifier)),
-	wire.Bind(new(adapters2.RawMessageIdentifier), new(*formats2.RawMessageIdentifier)),
+	wire.Bind(new(bolt.RawMessageIdentifier), new(*formats2.RawMessageIdentifier)),
 )
 
 var portsSet = wire.NewSet(
@@ -82,12 +82,12 @@ var messagePubSubSet = wire.NewSet(
 )
 
 var adaptersSet = wire.NewSet(
-	adapters2.NewBoltFeedMessagesRepository,
-	wire.Bind(new(queries.FeedRepository), new(*adapters2.BoltFeedMessagesRepository)),
+	bolt.NewBoltFeedMessagesRepository,
+	wire.Bind(new(queries.FeedRepository), new(*bolt.BoltFeedMessagesRepository)),
 )
 
 type TestAdapters struct {
-	Feed *adapters2.BoltFeedRepository
+	Feed *bolt.FeedRepository
 }
 
 //func BuildAdaptersForTest(*bbolt.Tx) (TestAdapters, error) {
@@ -146,14 +146,14 @@ func BuildTransactableAdapters(*bbolt.Tx, identity.Private, logging.Logger, Conf
 	wire.Build(
 		wire.Struct(new(commands2.Adapters), "*"),
 
-		adapters2.NewBoltFeedRepository,
-		wire.Bind(new(commands2.FeedRepository), new(*adapters2.BoltFeedRepository)),
+		bolt.NewFeedRepository,
+		wire.Bind(new(commands2.FeedRepository), new(*bolt.FeedRepository)),
 
-		adapters2.NewSocialGraphRepository,
-		wire.Bind(new(commands2.SocialGraphRepository), new(*adapters2.SocialGraphRepository)),
+		bolt.NewSocialGraphRepository,
+		wire.Bind(new(commands2.SocialGraphRepository), new(*bolt.SocialGraphRepository)),
 
-		adapters2.NewReceiveLogRepository,
-		adapters2.NewBoltMessageRepository,
+		bolt.NewReceiveLogRepository,
+		bolt.NewMessageRepository,
 
 		formatsSet,
 
@@ -167,14 +167,14 @@ func BuildTransactableAdapters(*bbolt.Tx, identity.Private, logging.Logger, Conf
 	return commands2.Adapters{}, nil
 }
 
-func BuildAdaptersForContactsRepository(*bbolt.Tx, identity.Private, logging.Logger, Config) (adapters2.Repositories, error) {
+func BuildAdaptersForContactsRepository(*bbolt.Tx, identity.Private, logging.Logger, Config) (bolt.Repositories, error) {
 	wire.Build(
-		wire.Struct(new(adapters2.Repositories), "*"),
+		wire.Struct(new(bolt.Repositories), "*"),
 
-		adapters2.NewBoltFeedRepository,
-		adapters2.NewSocialGraphRepository,
-		adapters2.NewReceiveLogRepository,
-		adapters2.NewBoltMessageRepository,
+		bolt.NewFeedRepository,
+		bolt.NewSocialGraphRepository,
+		bolt.NewReceiveLogRepository,
+		bolt.NewMessageRepository,
 
 		formatsSet,
 
@@ -185,7 +185,7 @@ func BuildAdaptersForContactsRepository(*bbolt.Tx, identity.Private, logging.Log
 		wire.Value(hops),
 	)
 
-	return adapters2.Repositories{}, nil
+	return bolt.Repositories{}, nil
 }
 
 func BuildService(identity.Private, Config) (Service, error) {
@@ -210,19 +210,19 @@ func BuildService(identity.Private, Config) (Service, error) {
 		domain.NewPeerManager,
 		wire.Bind(new(commands2.NewPeerHandler), new(*domain.PeerManager)),
 
-		adapters2.NewTransactionProvider,
-		wire.Bind(new(commands2.TransactionProvider), new(*adapters2.TransactionProvider)),
+		bolt.NewTransactionProvider,
+		wire.Bind(new(commands2.TransactionProvider), new(*bolt.TransactionProvider)),
 		newAdaptersFactory,
 
-		adapters2.NewBoltContactsRepository,
-		wire.Bind(new(replication2.Storage), new(*adapters2.BoltContactsRepository)),
+		bolt.NewBoltContactsRepository,
+		wire.Bind(new(replication2.Storage), new(*bolt.BoltContactsRepository)),
 		newContactRepositoriesFactory,
 
-		adapters2.NewReceiveLogReadRepository,
-		wire.Bind(new(queries.ReceiveLogRepository), new(*adapters2.ReceiveLogReadRepository)),
+		bolt.NewReceiveLogReadRepository,
+		wire.Bind(new(queries.ReceiveLogRepository), new(*bolt.ReceiveLogReadRepository)),
 
-		adapters2.NewReadBoltMessageRepository,
-		wire.Bind(new(queries.MessageRepository), new(*adapters2.ReadBoltMessageRepository)),
+		bolt.NewReadMessageRepository,
+		wire.Bind(new(queries.MessageRepository), new(*bolt.ReadMessageRepository)),
 
 		newAdvertiser,
 		newListener,
@@ -256,14 +256,14 @@ func newListener(
 	return portsnetwork.NewListener(initializer, app, config.ListenAddress, logger)
 }
 
-func newAdaptersFactory(config Config, local identity.Private, logger logging.Logger) adapters2.AdaptersFactory {
+func newAdaptersFactory(config Config, local identity.Private, logger logging.Logger) bolt.AdaptersFactory {
 	return func(tx *bbolt.Tx) (commands2.Adapters, error) {
 		return BuildTransactableAdapters(tx, local, logger, config)
 	}
 }
 
-func newContactRepositoriesFactory(local identity.Private, logger logging.Logger, config Config) adapters2.RepositoriesFactory {
-	return func(tx *bbolt.Tx) (adapters2.Repositories, error) {
+func newContactRepositoriesFactory(local identity.Private, logger logging.Logger, config Config) bolt.RepositoriesFactory {
+	return func(tx *bbolt.Tx) (bolt.Repositories, error) {
 		return BuildAdaptersForContactsRepository(tx, local, logger, config)
 	}
 }

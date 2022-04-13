@@ -1,4 +1,4 @@
-package adapters
+package bolt
 
 import (
 	"github.com/boreq/errors"
@@ -11,22 +11,22 @@ type RawMessageIdentifier interface {
 	IdentifyRawMessage(raw message.RawMessage) (message.Message, error)
 }
 
-type BoltMessageRepository struct {
+type MessageRepository struct {
 	tx         *bbolt.Tx
 	identifier RawMessageIdentifier
 }
 
-func NewBoltMessageRepository(
+func NewMessageRepository(
 	tx *bbolt.Tx,
 	identifier RawMessageIdentifier,
-) *BoltMessageRepository {
-	return &BoltMessageRepository{
+) *MessageRepository {
+	return &MessageRepository{
 		tx:         tx,
 		identifier: identifier,
 	}
 }
 
-func (r BoltMessageRepository) Put(msg message.Message) error {
+func (r MessageRepository) Put(msg message.Message) error {
 	bucket, err := r.createBucket()
 	if err != nil {
 		return errors.Wrap(err, "could not create the bucket")
@@ -41,7 +41,7 @@ func (r BoltMessageRepository) Put(msg message.Message) error {
 	return nil
 }
 
-func (r BoltMessageRepository) Get(id refs.Message) (message.Message, error) {
+func (r MessageRepository) Get(id refs.Message) (message.Message, error) {
 	bucket, err := r.getBucket()
 	if err != nil {
 		return message.Message{}, errors.Wrap(err, "could not get the bucket")
@@ -67,7 +67,7 @@ func (r BoltMessageRepository) Get(id refs.Message) (message.Message, error) {
 	return msg, nil
 }
 
-func (r BoltMessageRepository) Count() (int, error) {
+func (r MessageRepository) Count() (int, error) {
 	bucket, err := r.getBucket()
 	if err != nil {
 		return 0, errors.Wrap(err, "could not get the bucket")
@@ -80,38 +80,38 @@ func (r BoltMessageRepository) Count() (int, error) {
 	return bucket.Stats().KeyN, nil
 }
 
-func (r BoltMessageRepository) messageKey(id refs.Message) []byte {
+func (r MessageRepository) messageKey(id refs.Message) []byte {
 	return []byte(id.String())
 }
 
-func (r BoltMessageRepository) createBucket() (*bbolt.Bucket, error) {
+func (r MessageRepository) createBucket() (*bbolt.Bucket, error) {
 	return createBucket(r.tx, r.bucketPath())
 }
 
-func (r BoltMessageRepository) getBucket() (*bbolt.Bucket, error) {
+func (r MessageRepository) getBucket() (*bbolt.Bucket, error) {
 	return getBucket(r.tx, r.bucketPath())
 }
 
-func (r BoltMessageRepository) bucketPath() []bucketName {
+func (r MessageRepository) bucketPath() []bucketName {
 	return []bucketName{
 		bucketName("messages"),
 	}
 }
 
-type ReadBoltMessageRepository struct {
+type ReadMessageRepository struct {
 	db         *bbolt.DB
 	identifier RawMessageIdentifier
 }
 
-func NewReadBoltMessageRepository(db *bbolt.DB, identifier RawMessageIdentifier) *ReadBoltMessageRepository {
-	return &ReadBoltMessageRepository{db: db, identifier: identifier}
+func NewReadMessageRepository(db *bbolt.DB, identifier RawMessageIdentifier) *ReadMessageRepository {
+	return &ReadMessageRepository{db: db, identifier: identifier}
 }
 
-func (r ReadBoltMessageRepository) Count() (int, error) {
+func (r ReadMessageRepository) Count() (int, error) {
 	var result int
 
 	if err := r.db.View(func(tx *bbolt.Tx) error {
-		r := NewBoltMessageRepository(tx, r.identifier)
+		r := NewMessageRepository(tx, r.identifier)
 		n, err := r.Count()
 		if err != nil {
 			return errors.Wrap(err, "failed calling the repo")

@@ -1,4 +1,4 @@
-package adapters
+package bolt
 
 import (
 	"github.com/boreq/errors"
@@ -11,7 +11,7 @@ import (
 type RepositoriesFactory func(tx *bbolt.Tx) (Repositories, error)
 
 type Repositories struct {
-	Feed  *BoltFeedRepository
+	Feed  *FeedRepository
 	Graph *SocialGraphRepository
 }
 
@@ -60,7 +60,7 @@ func (b BoltContactsRepository) GetContacts() ([]replication.Contact, error) {
 	return result, nil
 }
 
-func (b BoltContactsRepository) getFeedState(repository *BoltFeedRepository, feed refs.Feed) (replication.FeedState, error) {
+func (b BoltContactsRepository) getFeedState(repository *FeedRepository, feed refs.Feed) (replication.FeedState, error) {
 	f, err := repository.GetFeed(feed)
 	if err != nil {
 		if errors.Is(err, replication.ErrFeedNotFound) {

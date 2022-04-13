@@ -1,20 +1,20 @@
-package adapters
+package bolt
 
 import (
 	"encoding/binary"
-	"github.com/planetary-social/go-ssb/service/domain/refs"
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
+	"github.com/planetary-social/go-ssb/service/domain/refs"
 	"go.etcd.io/bbolt"
 )
 
 type ReceiveLogRepository struct {
 	tx                *bbolt.Tx
-	messageRepository BoltMessageRepository
+	messageRepository *MessageRepository
 }
 
-func NewReceiveLogRepository(tx *bbolt.Tx, messageRepository BoltMessageRepository) *ReceiveLogRepository {
+func NewReceiveLogRepository(tx *bbolt.Tx, messageRepository *MessageRepository) *ReceiveLogRepository {
 	return &ReceiveLogRepository{
 		tx:                tx,
 		messageRepository: messageRepository,
@@ -84,14 +84,14 @@ func (r ReceiveLogRepository) receiveLogBucketPath() []bucketName {
 }
 
 type ReceiveLogReadRepository struct {
-	db                *bbolt.DB
-	messageRepository BoltMessageRepository
+	db         *bbolt.DB
+	identifier RawMessageIdentifier
 }
 
-func NewReceiveLogReadRepository(db *bbolt.DB, messageRepository BoltMessageRepository) *ReceiveLogReadRepository {
+func NewReceiveLogReadRepository(db *bbolt.DB, identifier RawMessageIdentifier) *ReceiveLogReadRepository {
 	return &ReceiveLogReadRepository{
-		db:                db,
-		messageRepository: messageRepository,
+		db:         db,
+		identifier: identifier,
 	}
 }
 
@@ -99,7 +99,9 @@ func (r ReceiveLogReadRepository) Next(lastSeq uint64) ([]message.Message, error
 	var result []message.Message
 
 	if err := r.db.View(func(tx *bbolt.Tx) error {
-		repository := NewReceiveLogRepository(tx, r.messageRepository)
+		messageRepository := NewMessageRepository(tx, r.identifier)
+
+		repository := NewReceiveLogRepository(tx, messageRepository)
 		msgs, err := repository.Next(lastSeq)
 		if err != nil {
 			return errors.Wrap(err, "failed to call the repository")

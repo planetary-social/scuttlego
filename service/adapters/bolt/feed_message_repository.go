@@ -1,4 +1,4 @@
-package adapters
+package bolt
 
 import (
 	"github.com/boreq/errors"
@@ -26,7 +26,7 @@ func (b BoltFeedMessagesRepository) GetMessages(id refs.Feed, seq *message.Seque
 	var messages []message.Message
 
 	if err := b.db.View(func(tx *bbolt.Tx) error {
-		messageRepository := NewBoltMessageRepository(tx, b.identifier) // todo wire
+		messageRepository := NewMessageRepository(tx, b.identifier) // todo wire
 
 		bucket, err := getFeedBucket(tx, id)
 		if err != nil {

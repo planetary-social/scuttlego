@@ -1,4 +1,4 @@
-package adapters
+package bolt
 
 import (
 	"encoding/binary"
@@ -14,23 +14,23 @@ import (
 	"go.etcd.io/bbolt"
 )
 
-type BoltFeedRepository struct {
+type FeedRepository struct {
 	tx                *bbolt.Tx
 	graph             *SocialGraphRepository
 	receiveLog        *ReceiveLogRepository
-	messageRepository *BoltMessageRepository
+	messageRepository *MessageRepository
 	formatScuttlebutt *formats.Scuttlebutt
 }
 
-func NewBoltFeedRepository(
+func NewFeedRepository(
 	tx *bbolt.Tx,
 	identifier RawMessageIdentifier,
 	graph *SocialGraphRepository,
 	receiveLog *ReceiveLogRepository,
-	messageRepository *BoltMessageRepository,
+	messageRepository *MessageRepository,
 	formatScuttlebutt *formats.Scuttlebutt,
-) *BoltFeedRepository {
-	return &BoltFeedRepository{
+) *FeedRepository {
+	return &FeedRepository{
 		tx:                tx,
 		graph:             graph,
 		receiveLog:        receiveLog,
@@ -39,7 +39,7 @@ func NewBoltFeedRepository(
 	}
 }
 
-func (b BoltFeedRepository) UpdateFeed(ref refs.Feed, f func(feed *feeds.Feed) (*feeds.Feed, error)) error {
+func (b FeedRepository) UpdateFeed(ref refs.Feed, f func(feed *feeds.Feed) (*feeds.Feed, error)) error {
 	feed, err := b.loadFeed(ref)
 	if err != nil {
 		return errors.Wrap(err, "could not load a feed")
@@ -56,7 +56,7 @@ func (b BoltFeedRepository) UpdateFeed(ref refs.Feed, f func(feed *feeds.Feed) (
 
 	return b.saveFeed(ref, feed)
 }
-func (b BoltFeedRepository) GetFeed(ref refs.Feed) (*feeds.Feed, error) {
+func (b FeedRepository) GetFeed(ref refs.Feed) (*feeds.Feed, error) {
 	f, err := b.loadFeed(ref)
 	if err != nil {
 		return nil, errors.Wrap(err, "loading failed")
@@ -69,7 +69,7 @@ func (b BoltFeedRepository) GetFeed(ref refs.Feed) (*feeds.Feed, error) {
 	return f, nil
 }
 
-func (b BoltFeedRepository) loadFeed(ref refs.Feed) (*feeds.Feed, error) {
+func (b FeedRepository) loadFeed(ref refs.Feed) (*feeds.Feed, error) {
 	bucket, err := getFeedBucket(b.tx, ref)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not get the bucket")
@@ -103,7 +103,7 @@ func (b BoltFeedRepository) loadFeed(ref refs.Feed) (*feeds.Feed, error) {
 	return feed, nil
 }
 
-func (b BoltFeedRepository) saveFeed(ref refs.Feed, feed *feeds.Feed) error {
+func (b FeedRepository) saveFeed(ref refs.Feed, feed *feeds.Feed) error {
 	msgs, contacts := feed.PopForPersisting()
 
 	if len(msgs) != 0 {
@@ -128,7 +128,7 @@ func (b BoltFeedRepository) saveFeed(ref refs.Feed, feed *feeds.Feed) error {
 	return nil
 }
 
-func (b BoltFeedRepository) saveContact(contact feeds.ContactToSave) error {
+func (b FeedRepository) saveContact(contact feeds.ContactToSave) error {
 	switch contact.Msg().Action() {
 	case content.ContactActionFollow:
 		return b.graph.Follow(contact.Who(), contact.Msg().Contact())
@@ -143,7 +143,7 @@ func (b BoltFeedRepository) saveContact(contact feeds.ContactToSave) error {
 	}
 }
 
-func (b BoltFeedRepository) saveMessage(bucket *bbolt.Bucket, msg message.Message) error {
+func (b FeedRepository) saveMessage(bucket *bbolt.Bucket, msg message.Message) error {
 	key := messageKey(msg.Sequence())
 	value := []byte(msg.Id().String())
 
@@ -155,7 +155,7 @@ func (b BoltFeedRepository) saveMessage(bucket *bbolt.Bucket, msg message.Messag
 		return errors.Wrap(err, "message repository put failed")
 	}
 
-	if err := b.receiveLog.Put(msg); err != nil {
+	if err := b.receiveLog.Put(msg.Id()); err != nil {
 		return errors.Wrap(err, "receive log put failed")
 	}
 

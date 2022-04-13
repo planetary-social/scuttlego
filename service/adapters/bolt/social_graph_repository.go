@@ -1,4 +1,4 @@
-package adapters
+package bolt
 
 import (
 	"encoding/json"

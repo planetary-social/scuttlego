@@ -1,9 +1,9 @@
 package bolt_test
 
 import (
-	"github.com/planetary-social/go-ssb/cmd/ssb-test/di"
 	"testing"
 
+	"github.com/planetary-social/go-ssb/cmd/ssb-test/di"
 	"github.com/planetary-social/go-ssb/fixtures"
 	"github.com/planetary-social/go-ssb/service/adapters/bolt"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/message"

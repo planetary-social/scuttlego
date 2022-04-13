@@ -11,6 +11,7 @@ import (
 //nolint:deadcode,varcheck
 var applicationSet = wire.NewSet(
 	wire.Struct(new(app.Application), "*"),
+
 	commandsSet,
 	queriesSet,
 )

@@ -99,20 +99,27 @@ func (r MessageRepository) bucketPath() []bucketName {
 }
 
 type ReadMessageRepository struct {
-	db         *bbolt.DB
-	identifier RawMessageIdentifier
+	db      *bbolt.DB
+	factory TxRepositoriesFactory
 }
 
-func NewReadMessageRepository(db *bbolt.DB, identifier RawMessageIdentifier) *ReadMessageRepository {
-	return &ReadMessageRepository{db: db, identifier: identifier}
+func NewReadMessageRepository(db *bbolt.DB, factory TxRepositoriesFactory) *ReadMessageRepository {
+	return &ReadMessageRepository{
+		db:      db,
+		factory: factory,
+	}
 }
 
 func (r ReadMessageRepository) Count() (int, error) {
 	var result int
 
 	if err := r.db.View(func(tx *bbolt.Tx) error {
-		r := NewMessageRepository(tx, r.identifier)
-		n, err := r.Count()
+		r, err := r.factory(tx)
+		if err != nil {
+			return errors.Wrap(err, "could not call the factory")
+		}
+
+		n, err := r.Message.Count()
 		if err != nil {
 			return errors.Wrap(err, "failed calling the repo")
 		}

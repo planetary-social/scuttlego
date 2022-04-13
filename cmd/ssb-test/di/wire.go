@@ -14,19 +14,19 @@ import (
 	"github.com/planetary-social/go-ssb/service/adapters/mocks"
 	"github.com/planetary-social/go-ssb/service/adapters/pubsub"
 	"github.com/planetary-social/go-ssb/service/app"
-	commands2 "github.com/planetary-social/go-ssb/service/app/commands"
+	"github.com/planetary-social/go-ssb/service/app/commands"
 	"github.com/planetary-social/go-ssb/service/app/queries"
 	"github.com/planetary-social/go-ssb/service/domain"
 	"github.com/planetary-social/go-ssb/service/domain/feeds"
-	transport2 "github.com/planetary-social/go-ssb/service/domain/feeds/content/transport"
-	formats2 "github.com/planetary-social/go-ssb/service/domain/feeds/formats"
+	"github.com/planetary-social/go-ssb/service/domain/feeds/content/transport"
+	"github.com/planetary-social/go-ssb/service/domain/feeds/formats"
 	"github.com/planetary-social/go-ssb/service/domain/graph"
 	"github.com/planetary-social/go-ssb/service/domain/identity"
 	"github.com/planetary-social/go-ssb/service/domain/network"
 	"github.com/planetary-social/go-ssb/service/domain/network/local"
-	replication2 "github.com/planetary-social/go-ssb/service/domain/replication"
-	network2 "github.com/planetary-social/go-ssb/service/domain/transport"
-	boxstream2 "github.com/planetary-social/go-ssb/service/domain/transport/boxstream"
+	"github.com/planetary-social/go-ssb/service/domain/replication"
+	domaintransport "github.com/planetary-social/go-ssb/service/domain/transport"
+	"github.com/planetary-social/go-ssb/service/domain/transport/boxstream"
 	"github.com/planetary-social/go-ssb/service/domain/transport/rpc"
 	portsnetwork "github.com/planetary-social/go-ssb/service/ports/network"
 	portspubsub "github.com/planetary-social/go-ssb/service/ports/pubsub"
@@ -36,26 +36,26 @@ import (
 )
 
 var replicatorSet = wire.NewSet(
-	replication2.NewManager,
-	wire.Bind(new(replication2.ReplicationManager), new(*replication2.Manager)),
+	replication.NewManager,
+	wire.Bind(new(replication.ReplicationManager), new(*replication.Manager)),
 
-	replication2.NewGossipReplicator,
-	wire.Bind(new(domain.Replicator), new(*replication2.GossipReplicator)),
+	replication.NewGossipReplicator,
+	wire.Bind(new(domain.Replicator), new(*replication.GossipReplicator)),
 )
 
 var formatsSet = wire.NewSet(
 	newFormats,
 
-	formats2.NewScuttlebutt,
+	formats.NewScuttlebutt,
 
-	transport2.NewMarshaler,
-	wire.Bind(new(formats2.Marshaler), new(*transport2.Marshaler)),
+	transport.NewMarshaler,
+	wire.Bind(new(formats.Marshaler), new(*transport.Marshaler)),
 
-	transport2.DefaultMappings,
+	transport.DefaultMappings,
 
-	formats2.NewRawMessageIdentifier,
-	wire.Bind(new(commands2.RawMessageIdentifier), new(*formats2.RawMessageIdentifier)),
-	wire.Bind(new(bolt.RawMessageIdentifier), new(*formats2.RawMessageIdentifier)),
+	formats.NewRawMessageIdentifier,
+	wire.Bind(new(commands.RawMessageIdentifier), new(*formats.RawMessageIdentifier)),
+	wire.Bind(new(bolt.RawMessageIdentifier), new(*formats.RawMessageIdentifier)),
 )
 
 var portsSet = wire.NewSet(
@@ -81,14 +81,11 @@ var messagePubSubSet = wire.NewSet(
 	wire.Bind(new(queries.MessageSubscriber), new(*pubsub.MessagePubSub)),
 )
 
-var adaptersSet = wire.NewSet(
-	bolt.NewBoltFeedMessagesRepository,
-	wire.Bind(new(queries.FeedRepository), new(*bolt.BoltFeedMessagesRepository)),
-)
+var hops = graph.MustNewHops(3)
 
-type TestAdapters struct {
-	Feed *bolt.FeedRepository
-}
+//type TestAdapters struct {
+//	Feed *bolt.FeedRepository
+//}
 
 //func BuildAdaptersForTest(*bbolt.Tx) (TestAdapters, error) {
 //	wire.Build(
@@ -108,8 +105,6 @@ type TestAdapters struct {
 //	return TestAdapters{}, nil
 //
 //}
-
-var hops = graph.MustNewHops(3)
 
 type TestApplication struct {
 	Queries app.Queries
@@ -142,87 +137,63 @@ func BuildApplicationForTests() (TestApplication, error) {
 
 }
 
-func BuildTransactableAdapters(*bbolt.Tx, identity.Private, logging.Logger, Config) (commands2.Adapters, error) {
+func BuildTransactableAdapters(*bbolt.Tx, identity.Private, logging.Logger, Config) (commands.Adapters, error) {
 	wire.Build(
-		wire.Struct(new(commands2.Adapters), "*"),
+		wire.Struct(new(commands.Adapters), "*"),
 
-		bolt.NewFeedRepository,
-		wire.Bind(new(commands2.FeedRepository), new(*bolt.FeedRepository)),
-
-		bolt.NewSocialGraphRepository,
-		wire.Bind(new(commands2.SocialGraphRepository), new(*bolt.SocialGraphRepository)),
-
-		bolt.NewReceiveLogRepository,
-		bolt.NewMessageRepository,
-
+		txBoltAdaptersSet,
 		formatsSet,
 
 		privateIdentityToPublicIdentity,
-
-		newMessageHMACFromConfig,
+		extractMessageHMACFromConfig,
 
 		wire.Value(hops),
 	)
 
-	return commands2.Adapters{}, nil
+	return commands.Adapters{}, nil
 }
 
-func BuildAdaptersForContactsRepository(*bbolt.Tx, identity.Private, logging.Logger, Config) (bolt.Repositories, error) {
+func BuildTxRepositories(*bbolt.Tx, identity.Private, logging.Logger, Config) (bolt.TxRepositories, error) {
 	wire.Build(
-		wire.Struct(new(bolt.Repositories), "*"),
+		wire.Struct(new(bolt.TxRepositories), "*"),
 
-		bolt.NewFeedRepository,
-		bolt.NewSocialGraphRepository,
-		bolt.NewReceiveLogRepository,
-		bolt.NewMessageRepository,
-
+		txBoltAdaptersSet,
 		formatsSet,
 
 		privateIdentityToPublicIdentity,
-
-		newMessageHMACFromConfig,
+		extractMessageHMACFromConfig,
 
 		wire.Value(hops),
 	)
 
-	return bolt.Repositories{}, nil
+	return bolt.TxRepositories{}, nil
 }
 
 func BuildService(identity.Private, Config) (Service, error) {
 	wire.Build(
 		NewService,
 
-		newNetworkKeyFromConfig,
-		newMessageHMACFromConfig,
+		extractNetworkKeyFromConfig,
+		extractMessageHMACFromConfig,
 
-		boxstream2.NewHandshaker,
+		boxstream.NewHandshaker,
 
-		commands2.NewRawMessageHandler,
-		wire.Bind(new(replication2.RawMessageHandler), new(*commands2.RawMessageHandler)),
+		commands.NewRawMessageHandler,
+		wire.Bind(new(replication.RawMessageHandler), new(*commands.RawMessageHandler)),
 
-		network2.NewPeerInitializer,
-		wire.Bind(new(portsnetwork.ServerPeerInitializer), new(*network2.PeerInitializer)),
-		wire.Bind(new(network.ClientPeerInitializer), new(*network2.PeerInitializer)),
+		domaintransport.NewPeerInitializer,
+		wire.Bind(new(portsnetwork.ServerPeerInitializer), new(*domaintransport.PeerInitializer)),
+		wire.Bind(new(network.ClientPeerInitializer), new(*domaintransport.PeerInitializer)),
 
 		network.NewDialer,
-		wire.Bind(new(commands2.Dialer), new(*network.Dialer)),
+		wire.Bind(new(commands.Dialer), new(*network.Dialer)),
 
 		domain.NewPeerManager,
-		wire.Bind(new(commands2.NewPeerHandler), new(*domain.PeerManager)),
+		wire.Bind(new(commands.NewPeerHandler), new(*domain.PeerManager)),
 
 		bolt.NewTransactionProvider,
-		wire.Bind(new(commands2.TransactionProvider), new(*bolt.TransactionProvider)),
+		wire.Bind(new(commands.TransactionProvider), new(*bolt.TransactionProvider)),
 		newAdaptersFactory,
-
-		bolt.NewBoltContactsRepository,
-		wire.Bind(new(replication2.Storage), new(*bolt.BoltContactsRepository)),
-		newContactRepositoriesFactory,
-
-		bolt.NewReceiveLogReadRepository,
-		wire.Bind(new(queries.ReceiveLogRepository), new(*bolt.ReceiveLogReadRepository)),
-
-		bolt.NewReadMessageRepository,
-		wire.Bind(new(queries.MessageRepository), new(*bolt.ReadMessageRepository)),
 
 		newAdvertiser,
 		newListener,
@@ -234,7 +205,7 @@ func BuildService(identity.Private, Config) (Service, error) {
 		formatsSet,
 		requestPubSubSet,
 		messagePubSubSet,
-		adaptersSet,
+		boltAdaptersSet,
 
 		newLogger,
 
@@ -257,14 +228,8 @@ func newListener(
 }
 
 func newAdaptersFactory(config Config, local identity.Private, logger logging.Logger) bolt.AdaptersFactory {
-	return func(tx *bbolt.Tx) (commands2.Adapters, error) {
+	return func(tx *bbolt.Tx) (commands.Adapters, error) {
 		return BuildTransactableAdapters(tx, local, logger, config)
-	}
-}
-
-func newContactRepositoriesFactory(local identity.Private, logger logging.Logger, config Config) bolt.RepositoriesFactory {
-	return func(tx *bbolt.Tx) (bolt.Repositories, error) {
-		return BuildAdaptersForContactsRepository(tx, local, logger, config)
 	}
 }
 
@@ -288,17 +253,17 @@ func newLogger(config Config) logging.Logger {
 }
 
 func newFormats(
-	s *formats2.Scuttlebutt,
+	s *formats.Scuttlebutt,
 ) []feeds.FeedFormat {
 	return []feeds.FeedFormat{
 		s,
 	}
 }
 
-func newNetworkKeyFromConfig(config Config) boxstream2.NetworkKey {
+func extractNetworkKeyFromConfig(config Config) boxstream.NetworkKey {
 	return config.NetworkKey
 }
 
-func newMessageHMACFromConfig(config Config) formats2.MessageHMAC {
+func extractMessageHMACFromConfig(config Config) formats.MessageHMAC {
 	return config.MessageHMAC
 }

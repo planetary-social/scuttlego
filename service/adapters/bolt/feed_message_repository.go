@@ -8,17 +8,17 @@ import (
 )
 
 type BoltFeedMessagesRepository struct {
-	db         *bbolt.DB
-	identifier RawMessageIdentifier
+	db      *bbolt.DB
+	factory TxRepositoriesFactory
 }
 
 func NewBoltFeedMessagesRepository(
 	db *bbolt.DB,
-	identifier RawMessageIdentifier,
+	factory TxRepositoriesFactory,
 ) *BoltFeedMessagesRepository {
 	return &BoltFeedMessagesRepository{
-		db:         db,
-		identifier: identifier,
+		db:      db,
+		factory: factory,
 	}
 }
 
@@ -26,7 +26,10 @@ func (b BoltFeedMessagesRepository) GetMessages(id refs.Feed, seq *message.Seque
 	var messages []message.Message
 
 	if err := b.db.View(func(tx *bbolt.Tx) error {
-		messageRepository := NewMessageRepository(tx, b.identifier) // todo wire
+		r, err := b.factory(tx)
+		if err != nil {
+			return errors.Wrap(err, "factory returned an error")
+		}
 
 		bucket, err := getFeedBucket(tx, id)
 		if err != nil {
@@ -45,7 +48,7 @@ func (b BoltFeedMessagesRepository) GetMessages(id refs.Feed, seq *message.Seque
 				return errors.Wrap(err, "failed to create a message ref")
 			}
 
-			msg, err := messageRepository.Get(msgId)
+			msg, err := r.Message.Get(msgId)
 			if err != nil {
 				return errors.Wrap(err, "failed to get the message")
 			}

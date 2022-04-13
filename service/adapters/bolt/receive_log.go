@@ -84,14 +84,14 @@ func (r ReceiveLogRepository) receiveLogBucketPath() []bucketName {
 }
 
 type ReceiveLogReadRepository struct {
-	db         *bbolt.DB
-	identifier RawMessageIdentifier
+	db      *bbolt.DB
+	factory TxRepositoriesFactory
 }
 
-func NewReceiveLogReadRepository(db *bbolt.DB, identifier RawMessageIdentifier) *ReceiveLogReadRepository {
+func NewReceiveLogReadRepository(db *bbolt.DB, factory TxRepositoriesFactory) *ReceiveLogReadRepository {
 	return &ReceiveLogReadRepository{
-		db:         db,
-		identifier: identifier,
+		db:      db,
+		factory: factory,
 	}
 }
 
@@ -99,10 +99,12 @@ func (r ReceiveLogReadRepository) Next(lastSeq uint64) ([]message.Message, error
 	var result []message.Message
 
 	if err := r.db.View(func(tx *bbolt.Tx) error {
-		messageRepository := NewMessageRepository(tx, r.identifier)
+		r, err := r.factory(tx)
+		if err != nil {
+			return errors.Wrap(err, "could not call the factory")
+		}
 
-		repository := NewReceiveLogRepository(tx, messageRepository)
-		msgs, err := repository.Next(lastSeq)
+		msgs, err := r.ReceiveLog.Next(lastSeq)
 		if err != nil {
 			return errors.Wrap(err, "failed to call the repository")
 		}

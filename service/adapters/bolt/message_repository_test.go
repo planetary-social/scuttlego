@@ -69,29 +69,6 @@ func TestMessageRepository_Put_Get(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestReadBoltMessageRepository_Count(t *testing.T) {
-	db := fixtures.Bolt(t)
-	identifier := NewRawMessageIdentifierMock()
-
-	msg := fixtures.SomeMessage(fixtures.SomeSequence(), fixtures.SomeRefFeed())
-
-	readRepository := bolt.NewReadMessageRepository(db, identifier)
-
-	n, err := readRepository.Count()
-	require.NoError(t, err)
-	require.Equal(t, 0, n)
-
-	err = db.Update(func(tx *bbolt.Tx) error {
-		repository := bolt.NewMessageRepository(tx, identifier)
-		return repository.Put(msg)
-	})
-	require.NoError(t, err)
-
-	n, err = readRepository.Count()
-	require.NoError(t, err)
-	require.Equal(t, 1, n)
-}
-
 type RawMessageIdentifierMock struct {
 }
 

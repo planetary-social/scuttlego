@@ -27,3 +27,12 @@ func (t TransactionProvider) Transact(f func(adapters commands.Adapters) error) 
 		return f(adapters)
 	})
 }
+
+type TxRepositoriesFactory func(tx *bbolt.Tx) (TxRepositories, error)
+
+type TxRepositories struct {
+	Feed       *FeedRepository
+	Graph      *SocialGraphRepository
+	ReceiveLog *ReceiveLogRepository
+	Message    *MessageRepository
+}

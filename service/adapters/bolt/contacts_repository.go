@@ -7,20 +7,12 @@ import (
 	"go.etcd.io/bbolt"
 )
 
-// todo cleanup
-type RepositoriesFactory func(tx *bbolt.Tx) (Repositories, error)
-
-type Repositories struct {
-	Feed  *FeedRepository
-	Graph *SocialGraphRepository
-}
-
 type BoltContactsRepository struct {
 	db      *bbolt.DB
-	factory RepositoriesFactory
+	factory TxRepositoriesFactory
 }
 
-func NewBoltContactsRepository(db *bbolt.DB, factory RepositoriesFactory) *BoltContactsRepository {
+func NewBoltContactsRepository(db *bbolt.DB, factory TxRepositoriesFactory) *BoltContactsRepository {
 	return &BoltContactsRepository{db: db, factory: factory}
 }
 

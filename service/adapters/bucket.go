@@ -7,25 +7,33 @@ import (
 
 type bucketName []byte
 
-func getBucket(tx *bbolt.Tx, bucketNames []bucketName) *bbolt.Bucket {
+func getBucket(tx *bbolt.Tx, bucketNames []bucketName) (*bbolt.Bucket, error) {
+	if len(bucketNames) == 0 {
+		return nil, errors.New("empty bucket names")
+	}
+
 	bucket := tx.Bucket(bucketNames[0])
 
 	if bucket == nil {
-		return nil
+		return nil, nil
 	}
 
 	for i := 1; i < len(bucketNames); i++ {
 		bucket = bucket.Bucket(bucketNames[i])
 		if bucket == nil {
-			return nil
+			return nil, nil
 		}
 	}
 
-	return bucket
+	return bucket, nil
 }
 
-func createBucket(tx *bbolt.Tx, bucketNames []bucketName) (bucket *bbolt.Bucket, err error) {
-	bucket, err = tx.CreateBucketIfNotExists(bucketNames[0])
+func createBucket(tx *bbolt.Tx, bucketNames []bucketName) (*bbolt.Bucket, error) {
+	if len(bucketNames) == 0 {
+		return nil, errors.New("empty bucket names")
+	}
+
+	bucket, err := tx.CreateBucketIfNotExists(bucketNames[0])
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create a bucket")
 	}

@@ -7,25 +7,27 @@ import (
 	"go.etcd.io/bbolt"
 )
 
-type BoltMessageRepository struct {
+type BoltFeedMessagesRepository struct {
 	db         *bbolt.DB
 	identifier RawMessageIdentifier
 }
 
-func NewBoltMessageRepository(
+func NewBoltFeedMessagesRepository(
 	db *bbolt.DB,
 	identifier RawMessageIdentifier,
-) *BoltMessageRepository {
-	return &BoltMessageRepository{
+) *BoltFeedMessagesRepository {
+	return &BoltFeedMessagesRepository{
 		db:         db,
 		identifier: identifier,
 	}
 }
 
-func (b BoltMessageRepository) GetMessages(id refs.Feed, seq *message.Sequence, limit *int) ([]message.Message, error) {
+func (b BoltFeedMessagesRepository) GetMessages(id refs.Feed, seq *message.Sequence, limit *int) ([]message.Message, error) {
 	var messages []message.Message
 
 	if err := b.db.View(func(tx *bbolt.Tx) error {
+		messageRepository := NewBoltMessageRepository(tx, b.identifier) // todo wire
+
 		bucket, err := getFeedBucket(tx, id)
 		if err != nil {
 			return errors.Wrap(err, "could not get the bucket")
@@ -38,11 +40,14 @@ func (b BoltMessageRepository) GetMessages(id refs.Feed, seq *message.Sequence, 
 		// todo not stupid implementation (with a cursor)
 
 		if err := bucket.ForEach(func(key, value []byte) error {
-			rawMsg := message.NewRawMessage(value)
-
-			msg, err := b.identifier.IdentifyRawMessage(rawMsg)
+			msgId, err := refs.NewMessage(string(value))
 			if err != nil {
-				return errors.Wrap(err, "could not identify the raw message")
+				return errors.Wrap(err, "failed to create a message ref")
+			}
+
+			msg, err := messageRepository.Get(msgId)
+			if err != nil {
+				return errors.Wrap(err, "failed to get the message")
 			}
 
 			if (limit == nil || len(messages) < *limit) && (seq == nil || !seq.ComesAfter(msg.Sequence())) {

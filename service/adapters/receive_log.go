@@ -85,21 +85,11 @@ func itob(v uint64) []byte {
 }
 
 func createReceiveLogBucket(tx *bbolt.Tx) (bucket *bbolt.Bucket, err error) {
-	bucketNames := receiveLogBucketPath()
-	if len(bucketNames) == 0 {
-		return nil, errors.New("path func returned an empty slice")
-	}
-
-	return createBucket(tx, bucketNames)
+	return createBucket(tx, receiveLogBucketPath())
 }
 
 func getReceiveLogBucket(tx *bbolt.Tx) (*bbolt.Bucket, error) {
-	bucketNames := receiveLogBucketPath()
-	if len(bucketNames) == 0 {
-		return nil, errors.New("path func returned an empty slice")
-	}
-
-	return getBucket(tx, bucketNames), nil
+	return getBucket(tx, receiveLogBucketPath())
 }
 
 func receiveLogBucketPath() []bucketName {

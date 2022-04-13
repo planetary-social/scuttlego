@@ -72,7 +72,8 @@ func BuildTransactableAdapters(tx *bbolt.Tx, private identity.Private, logger lo
 	graphHops := _wireHopsValue
 	socialGraphRepository := adapters.NewSocialGraphRepository(tx, public, graphHops)
 	receiveLogRepository := adapters.NewReceiveLogRepository(tx, rawMessageIdentifier)
-	boltFeedRepository := adapters.NewBoltFeedRepository(tx, rawMessageIdentifier, socialGraphRepository, receiveLogRepository, scuttlebutt)
+	boltMessageRepository := adapters.NewBoltMessageRepository(tx, rawMessageIdentifier)
+	boltFeedRepository := adapters.NewBoltFeedRepository(tx, rawMessageIdentifier, socialGraphRepository, receiveLogRepository, boltMessageRepository, scuttlebutt)
 	commandsAdapters := commands.Adapters{
 		Feed:        boltFeedRepository,
 		SocialGraph: socialGraphRepository,
@@ -98,7 +99,8 @@ func BuildAdaptersForContactsRepository(tx *bbolt.Tx, private identity.Private, 
 	graphHops := _wireGraphHopsValue
 	socialGraphRepository := adapters.NewSocialGraphRepository(tx, public, graphHops)
 	receiveLogRepository := adapters.NewReceiveLogRepository(tx, rawMessageIdentifier)
-	boltFeedRepository := adapters.NewBoltFeedRepository(tx, rawMessageIdentifier, socialGraphRepository, receiveLogRepository, scuttlebutt)
+	boltMessageRepository := adapters.NewBoltMessageRepository(tx, rawMessageIdentifier)
+	boltFeedRepository := adapters.NewBoltFeedRepository(tx, rawMessageIdentifier, socialGraphRepository, receiveLogRepository, boltMessageRepository, scuttlebutt)
 	repositories := adapters.Repositories{
 		Feed:  boltFeedRepository,
 		Graph: socialGraphRepository,
@@ -161,9 +163,9 @@ func BuildService(private identity.Private, config Config) (Service, error) {
 		ProcessNewLocalDiscovery: processNewLocalDiscoveryHandler,
 		PublishRaw:               publishRawHandler,
 	}
-	boltMessageRepository := adapters.NewBoltMessageRepository(db, rawMessageIdentifier)
+	boltFeedMessagesRepository := adapters.NewBoltFeedMessagesRepository(db, rawMessageIdentifier)
 	messagePubSub := pubsub.NewMessagePubSub()
-	createHistoryStreamHandler := queries.NewCreateHistoryStreamHandler(boltMessageRepository, messagePubSub)
+	createHistoryStreamHandler := queries.NewCreateHistoryStreamHandler(boltFeedMessagesRepository, messagePubSub)
 	receiveLogReadRepository := adapters.NewReceiveLogReadRepository(db, rawMessageIdentifier)
 	getReceiveLogHandler := queries.NewGetReceiveLogHandler(receiveLogReadRepository)
 	appQueries := app.Queries{
@@ -214,7 +216,7 @@ var requestPubSubSet = wire.NewSet(pubsub.NewRequestPubSub, wire.Bind(new(rpc2.R
 
 var messagePubSubSet = wire.NewSet(pubsub.NewMessagePubSub, wire.Bind(new(queries.MessageSubscriber), new(*pubsub.MessagePubSub)))
 
-var adaptersSet = wire.NewSet(adapters.NewBoltMessageRepository, wire.Bind(new(queries.FeedRepository), new(*adapters.BoltMessageRepository)))
+var adaptersSet = wire.NewSet(adapters.NewBoltFeedMessagesRepository, wire.Bind(new(queries.FeedRepository), new(*adapters.BoltFeedMessagesRepository)))
 
 type TestAdapters struct {
 	Feed *adapters.BoltFeedRepository

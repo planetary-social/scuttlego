@@ -82,8 +82,8 @@ var messagePubSubSet = wire.NewSet(
 )
 
 var adaptersSet = wire.NewSet(
-	adapters2.NewBoltMessageRepository,
-	wire.Bind(new(queries.FeedRepository), new(*adapters2.BoltMessageRepository)),
+	adapters2.NewBoltFeedMessagesRepository,
+	wire.Bind(new(queries.FeedRepository), new(*adapters2.BoltFeedMessagesRepository)),
 )
 
 type TestAdapters struct {
@@ -149,6 +149,7 @@ func BuildTransactableAdapters(*bbolt.Tx, identity.Private, logging.Logger, Conf
 		wire.Bind(new(commands2.SocialGraphRepository), new(*adapters2.SocialGraphRepository)),
 
 		adapters2.NewReceiveLogRepository,
+		adapters2.NewBoltMessageRepository,
 
 		formatsSet,
 
@@ -169,6 +170,7 @@ func BuildAdaptersForContactsRepository(*bbolt.Tx, identity.Private, logging.Log
 		adapters2.NewBoltFeedRepository,
 		adapters2.NewSocialGraphRepository,
 		adapters2.NewReceiveLogRepository,
+		adapters2.NewBoltMessageRepository,
 
 		formatsSet,
 

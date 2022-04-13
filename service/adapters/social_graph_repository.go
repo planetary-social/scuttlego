@@ -115,22 +115,12 @@ func (s *SocialGraphRepository) modifyContact(who, contact refs.Identity, f func
 
 }
 
-func (r *SocialGraphRepository) createFeedBucket(ref refs.Identity) (bucket *bbolt.Bucket, err error) {
-	bucketNames := r.pathFunc(ref)
-	if len(bucketNames) == 0 {
-		return nil, errors.New("path func returned an empty slice")
-	}
-
-	return createBucket(r.tx, bucketNames)
+func (r *SocialGraphRepository) createFeedBucket(ref refs.Identity) (*bbolt.Bucket, error) {
+	return createBucket(r.tx, r.pathFunc(ref))
 }
 
 func (r *SocialGraphRepository) getFeedBucket(ref refs.Identity) (*bbolt.Bucket, error) {
-	bucketNames := r.pathFunc(ref)
-	if len(bucketNames) == 0 {
-		return nil, errors.New("path func returned an empty slice")
-	}
-
-	return getBucket(r.tx, bucketNames), nil
+	return getBucket(r.tx, r.pathFunc(ref))
 }
 
 func (r *SocialGraphRepository) pathFunc(who refs.Identity) []bucketName {

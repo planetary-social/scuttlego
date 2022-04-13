@@ -14,15 +14,11 @@ import (
 	"go.etcd.io/bbolt"
 )
 
-type RawMessageIdentifier interface {
-	IdentifyRawMessage(raw message.RawMessage) (message.Message, error)
-}
-
 type BoltFeedRepository struct {
 	tx                *bbolt.Tx
-	identifier        RawMessageIdentifier
 	graph             *SocialGraphRepository
 	receiveLog        *ReceiveLogRepository
+	messageRepository *BoltMessageRepository
 	formatScuttlebutt *formats.Scuttlebutt
 }
 
@@ -31,13 +27,14 @@ func NewBoltFeedRepository(
 	identifier RawMessageIdentifier,
 	graph *SocialGraphRepository,
 	receiveLog *ReceiveLogRepository,
+	messageRepository *BoltMessageRepository,
 	formatScuttlebutt *formats.Scuttlebutt,
 ) *BoltFeedRepository {
 	return &BoltFeedRepository{
 		tx:                tx,
-		identifier:        identifier,
 		graph:             graph,
 		receiveLog:        receiveLog,
+		messageRepository: messageRepository,
 		formatScuttlebutt: formatScuttlebutt,
 	}
 }
@@ -88,11 +85,14 @@ func (b BoltFeedRepository) loadFeed(ref refs.Feed) (*feeds.Feed, error) {
 		return nil, nil // to be honest this should not be possible anyway as buckets are created only when saving
 	}
 
-	rawMsg := message.NewRawMessage(value)
-
-	msg, err := b.identifier.IdentifyRawMessage(rawMsg)
+	msgId, err := refs.NewMessage(string(value))
 	if err != nil {
-		return nil, errors.Wrap(err, "could not identify the raw message")
+		return nil, errors.Wrap(err, "failed to create a message ref")
+	}
+
+	msg, err := b.messageRepository.Get(msgId)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get the message")
 	}
 
 	feed, err := feeds.NewFeedFromHistory(msg, b.formatScuttlebutt)
@@ -115,10 +115,6 @@ func (b BoltFeedRepository) saveFeed(ref refs.Feed, feed *feeds.Feed) error {
 		for _, msg := range msgs {
 			if err := b.saveMessage(bucket, msg); err != nil {
 				return errors.Wrap(err, "could not save a message")
-			}
-
-			if err := b.receiveLog.Put(msg); err != nil {
-				return errors.Wrap(err, "could not save a message in the receive log")
 			}
 		}
 	}
@@ -149,7 +145,21 @@ func (b BoltFeedRepository) saveContact(contact feeds.ContactToSave) error {
 
 func (b BoltFeedRepository) saveMessage(bucket *bbolt.Bucket, msg message.Message) error {
 	key := messageKey(msg.Sequence())
-	return bucket.Put(key, msg.Raw().Bytes())
+	value := []byte(msg.Id().String())
+
+	if err := bucket.Put(key, value); err != nil {
+		return errors.Wrap(err, "writing to the bucket failed")
+	}
+
+	if err := b.messageRepository.Put(msg); err != nil {
+		return errors.Wrap(err, "message repository put failed")
+	}
+
+	if err := b.receiveLog.Put(msg); err != nil {
+		return errors.Wrap(err, "receive log put failed")
+	}
+
+	return nil
 }
 
 func messageKey(seq message.Sequence) []byte {
@@ -159,21 +169,11 @@ func messageKey(seq message.Sequence) []byte {
 }
 
 func createFeedBucket(tx *bbolt.Tx, ref refs.Feed) (bucket *bbolt.Bucket, err error) {
-	bucketNames := feedBucketPath(ref)
-	if len(bucketNames) == 0 {
-		return nil, errors.New("path func returned an empty slice")
-	}
-
-	return createBucket(tx, bucketNames)
+	return createBucket(tx, feedBucketPath(ref))
 }
 
 func getFeedBucket(tx *bbolt.Tx, ref refs.Feed) (*bbolt.Bucket, error) {
-	bucketNames := feedBucketPath(ref)
-	if len(bucketNames) == 0 {
-		return nil, errors.New("path func returned an empty slice")
-	}
-
-	return getBucket(tx, bucketNames), nil
+	return getBucket(tx, feedBucketPath(ref))
 }
 
 func feedBucketPath(ref refs.Feed) []bucketName {

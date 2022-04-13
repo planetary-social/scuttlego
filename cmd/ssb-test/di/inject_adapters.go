@@ -40,7 +40,7 @@ var boltAdaptersSet = wire.NewSet(
 	newTxRepositoriesFactory,
 )
 
-func newTxRepositoriesFactory(local identity.Private, logger logging.Logger, config Config) bolt.TxRepositoriesFactory {
+func newTxRepositoriesFactory(local identity.Public, logger logging.Logger, config Config) bolt.TxRepositoriesFactory {
 	return func(tx *bbolt.Tx) (bolt.TxRepositories, error) {
 		return BuildTxRepositories(tx, local, logger, config)
 	}

@@ -84,22 +84,25 @@ var messagePubSubSet = wire.NewSet(
 var hops = graph.MustNewHops(3)
 
 //type TestAdapters struct {
-//	Feed *bolt.FeedRepository
+//	MessageRepository *bolt.ReadMessageRepository
 //}
-
-//func BuildAdaptersForTest(*bbolt.Tx) (TestAdapters, error) {
+//
+//func BuildAdaptersForTest(*bbolt.DB) (TestAdapters, error) {
 //	wire.Build(
 //		wire.Struct(new(TestAdapters), "*"),
 //
-//		adapters.NewBoltFeedRepository,
-//		adapters.NewSocialGraphRepository,
+//		boltAdaptersSet,
 //
-//		newLogger,
-//
-//		formats.NewRawMessageIdentifier,
-//		wire.Bind(new(adapters.RawMessageIdentifier), new(*formats.RawMessageIdentifier)),
-//
-//		formatsSet,
+//		//txBoltAdaptersSet,
+//		//adapters.NewBoltFeedRepository,
+//		//adapters.NewSocialGraphRepository,
+//		//
+//		//newLogger,
+//		//
+//		//formats.NewRawMessageIdentifier,
+//		//wire.Bind(new(adapters.RawMessageIdentifier), new(*formats.RawMessageIdentifier)),
+//		//
+//		//formatsSet,
 //	)
 //
 //	return TestAdapters{}, nil
@@ -137,14 +140,13 @@ func BuildApplicationForTests() (TestApplication, error) {
 
 }
 
-func BuildTransactableAdapters(*bbolt.Tx, identity.Private, logging.Logger, Config) (commands.Adapters, error) {
+func BuildTransactableAdapters(*bbolt.Tx, identity.Public, logging.Logger, Config) (commands.Adapters, error) {
 	wire.Build(
 		wire.Struct(new(commands.Adapters), "*"),
 
 		txBoltAdaptersSet,
 		formatsSet,
 
-		privateIdentityToPublicIdentity,
 		extractMessageHMACFromConfig,
 
 		wire.Value(hops),
@@ -153,14 +155,13 @@ func BuildTransactableAdapters(*bbolt.Tx, identity.Private, logging.Logger, Conf
 	return commands.Adapters{}, nil
 }
 
-func BuildTxRepositories(*bbolt.Tx, identity.Private, logging.Logger, Config) (bolt.TxRepositories, error) {
+func BuildTxRepositories(*bbolt.Tx, identity.Public, logging.Logger, Config) (bolt.TxRepositories, error) {
 	wire.Build(
 		wire.Struct(new(bolt.TxRepositories), "*"),
 
 		txBoltAdaptersSet,
 		formatsSet,
 
-		privateIdentityToPublicIdentity,
 		extractMessageHMACFromConfig,
 
 		wire.Value(hops),
@@ -227,7 +228,7 @@ func newListener(
 	return portsnetwork.NewListener(initializer, app, config.ListenAddress, logger)
 }
 
-func newAdaptersFactory(config Config, local identity.Private, logger logging.Logger) bolt.AdaptersFactory {
+func newAdaptersFactory(config Config, local identity.Public, logger logging.Logger) bolt.AdaptersFactory {
 	return func(tx *bbolt.Tx) (commands.Adapters, error) {
 		return BuildTransactableAdapters(tx, local, logger, config)
 	}

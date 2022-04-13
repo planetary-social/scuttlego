@@ -62,17 +62,16 @@ func BuildApplicationForTests() (TestApplication, error) {
 	return testApplication, nil
 }
 
-func BuildTransactableAdapters(tx *bbolt.Tx, private identity.Private, logger logging.Logger, config Config) (commands.Adapters, error) {
+func BuildTransactableAdapters(tx *bbolt.Tx, public identity.Public, logger logging.Logger, config Config) (commands.Adapters, error) {
 	messageContentMappings := transport.DefaultMappings()
 	marshaler, err := transport.NewMarshaler(messageContentMappings, logger)
 	if err != nil {
 		return commands.Adapters{}, err
 	}
-	messageHMAC := newMessageHMACFromConfig(config)
+	messageHMAC := extractMessageHMACFromConfig(config)
 	scuttlebutt := formats.NewScuttlebutt(marshaler, messageHMAC)
 	v := newFormats(scuttlebutt)
 	rawMessageIdentifier := formats.NewRawMessageIdentifier(v)
-	public := privateIdentityToPublicIdentity(private)
 	graphHops := _wireHopsValue
 	socialGraphRepository := bolt.NewSocialGraphRepository(tx, public, graphHops)
 	messageRepository := bolt.NewMessageRepository(tx, rawMessageIdentifier)
@@ -89,17 +88,16 @@ var (
 	_wireHopsValue = hops
 )
 
-func BuildTxRepositories(tx *bbolt.Tx, private identity.Private, logger logging.Logger, config Config) (bolt.TxRepositories, error) {
+func BuildTxRepositories(tx *bbolt.Tx, public identity.Public, logger logging.Logger, config Config) (bolt.TxRepositories, error) {
 	messageContentMappings := transport.DefaultMappings()
 	marshaler, err := transport.NewMarshaler(messageContentMappings, logger)
 	if err != nil {
 		return bolt.TxRepositories{}, err
 	}
-	messageHMAC := newMessageHMACFromConfig(config)
+	messageHMAC := extractMessageHMACFromConfig(config)
 	scuttlebutt := formats.NewScuttlebutt(marshaler, messageHMAC)
 	v := newFormats(scuttlebutt)
 	rawMessageIdentifier := formats.NewRawMessageIdentifier(v)
-	public := privateIdentityToPublicIdentity(private)
 	graphHops := _wireGraphHopsValue
 	socialGraphRepository := bolt.NewSocialGraphRepository(tx, public, graphHops)
 	messageRepository := bolt.NewMessageRepository(tx, rawMessageIdentifier)
@@ -119,7 +117,7 @@ var (
 )
 
 func BuildService(private identity.Private, config Config) (Service, error) {
-	networkKey := newNetworkKeyFromConfig(config)
+	networkKey := extractNetworkKeyFromConfig(config)
 	handshaker, err := boxstream.NewHandshaker(private, networkKey)
 	if err != nil {
 		return Service{}, err
@@ -135,7 +133,8 @@ func BuildService(private identity.Private, config Config) (Service, error) {
 	if err != nil {
 		return Service{}, err
 	}
-	adaptersFactory := newAdaptersFactory(config, private, logger)
+	public := privateIdentityToPublicIdentity(private)
+	adaptersFactory := newAdaptersFactory(config, public, logger)
 	transactionProvider := bolt.NewTransactionProvider(db, adaptersFactory)
 	messageContentMappings := transport.DefaultMappings()
 	marshaler, err := transport.NewMarshaler(messageContentMappings, logger)
@@ -144,10 +143,10 @@ func BuildService(private identity.Private, config Config) (Service, error) {
 	}
 	redeemInviteHandler := commands.NewRedeemInviteHandler(dialer, transactionProvider, networkKey, private, requestPubSub, marshaler, logger)
 	followHandler := commands.NewFollowHandler(transactionProvider, private, marshaler, logger)
-	txRepositoriesFactory := newTxRepositoriesFactory(private, logger, config)
+	txRepositoriesFactory := newTxRepositoriesFactory(public, logger, config)
 	boltContactsRepository := bolt.NewBoltContactsRepository(db, txRepositoriesFactory)
 	manager := replication.NewManager(logger, boltContactsRepository)
-	messageHMAC := newMessageHMACFromConfig(config)
+	messageHMAC := extractMessageHMACFromConfig(config)
 	scuttlebutt := formats.NewScuttlebutt(marshaler, messageHMAC)
 	v := newFormats(scuttlebutt)
 	rawMessageIdentifier := formats.NewRawMessageIdentifier(v)
@@ -197,7 +196,6 @@ func BuildService(private identity.Private, config Config) (Service, error) {
 		return Service{}, err
 	}
 	pubSub := pubsub2.NewPubSub(requestPubSub, mux)
-	public := privateIdentityToPublicIdentity(private)
 	advertiser, err := newAdvertiser(public, config)
 	if err != nil {
 		return Service{}, err
@@ -248,7 +246,7 @@ func newListener(
 	return network2.NewListener(initializer, app2, config.ListenAddress, logger)
 }
 
-func newAdaptersFactory(config Config, local2 identity.Private, logger logging.Logger) bolt.AdaptersFactory {
+func newAdaptersFactory(config Config, local2 identity.Public, logger logging.Logger) bolt.AdaptersFactory {
 	return func(tx *bbolt.Tx) (commands.Adapters, error) {
 		return BuildTransactableAdapters(tx, local2, logger, config)
 	}
@@ -281,10 +279,10 @@ func newFormats(
 	}
 }
 
-func newNetworkKeyFromConfig(config Config) boxstream.NetworkKey {
+func extractNetworkKeyFromConfig(config Config) boxstream.NetworkKey {
 	return config.NetworkKey
 }
 
-func newMessageHMACFromConfig(config Config) formats.MessageHMAC {
+func extractMessageHMACFromConfig(config Config) formats.MessageHMAC {
 	return config.MessageHMAC
 }

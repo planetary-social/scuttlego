@@ -1,3 +1,4 @@
+// Package rpc implements various handlers for incoming Secure Scuttlebutt RPC requests.
 package rpc
 
 import (
@@ -6,6 +7,7 @@ import (
 	"github.com/planetary-social/go-ssb/service/domain/transport/rpc/mux"
 )
 
+// NewMuxHandlers is a convenience function used to create a list of all handlers implemented by this program.
 func NewMuxHandlers(
 	createHistoryStream *HandlerCreateHistoryStream,
 	blobsGet *HandlerBlobsGet,
@@ -16,6 +18,7 @@ func NewMuxHandlers(
 	}
 }
 
+// NewMux is a convenience function which creates a new mux initialized with the provided list of handlers.
 func NewMux(logger logging.Logger, handlers []mux.Handler) (*mux.Mux, error) {
 	mux := mux.NewMux(logger)
 

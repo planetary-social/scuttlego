@@ -1,3 +1,4 @@
+// Package pubsub receives internal events.
 package pubsub
 
 import (
@@ -7,6 +8,7 @@ import (
 	"github.com/planetary-social/go-ssb/service/domain/transport/rpc/mux"
 )
 
+// PubSub receives internal events containing arriving RPC requests and passes them to the RPC mux.
 type PubSub struct {
 	pubsub *pubsub.RequestPubSub
 	mux    *mux.Mux

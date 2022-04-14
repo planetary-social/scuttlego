@@ -83,8 +83,34 @@ var messagePubSubSet = wire.NewSet(
 
 var hops = graph.MustNewHops(3)
 
+type TxTestAdapters struct {
+	MessageRepository *bolt.MessageRepository
+	FeedRepository    *bolt.FeedRepository
+}
+
+func BuildTxAdaptersForTest(*bbolt.Tx) (TxTestAdapters, error) {
+	wire.Build(
+		wire.Struct(new(TxTestAdapters), "*"),
+
+		txBoltAdaptersSet,
+
+		identity.NewPrivate,
+		privateIdentityToPublicIdentity,
+
+		formats.NewDefaultMessageHMAC,
+
+		fixtures.SomeLogger,
+
+		formatsSet,
+		wire.Value(hops),
+	)
+
+	return TxTestAdapters{}, nil
+}
+
 type TestAdapters struct {
 	MessageRepository *bolt.ReadMessageRepository
+	FeedRepository    *bolt.ReadFeedRepository
 }
 
 func BuildAdaptersForTest(*bbolt.DB) (TestAdapters, error) {

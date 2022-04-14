@@ -12,13 +12,18 @@ type FeedRepositoryMockCall struct {
 }
 
 type FeedRepositoryMock struct {
-	Calls       []FeedRepositoryMockCall
-	ReturnValue []message.Message
-	ReturnErr   error
+	Calls            []FeedRepositoryMockCall
+	ReturnValue      []message.Message
+	ReturnErr        error
+	CountReturnValue int
 }
 
 func NewFeedRepositoryMock() *FeedRepositoryMock {
 	return &FeedRepositoryMock{}
+}
+
+func (f *FeedRepositoryMock) Count() (int, error) {
+	return f.CountReturnValue, nil
 }
 
 func (f *FeedRepositoryMock) GetMessages(id refs.Feed, seq *message.Sequence, limit *int) ([]message.Message, error) {

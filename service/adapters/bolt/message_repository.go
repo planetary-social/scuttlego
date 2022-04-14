@@ -77,6 +77,7 @@ func (r MessageRepository) Count() (int, error) {
 		return 0, nil
 	}
 
+	// this works only because there are no nested buckets inside of the message bucket
 	return bucket.Stats().KeyN, nil
 }
 

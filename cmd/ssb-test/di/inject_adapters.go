@@ -26,8 +26,8 @@ var txBoltAdaptersSet = wire.NewSet(
 
 //nolint:deadcode,varcheck
 var boltAdaptersSet = wire.NewSet(
-	bolt.NewBoltFeedMessagesRepository,
-	wire.Bind(new(queries.FeedRepository), new(*bolt.BoltFeedMessagesRepository)),
+	bolt.NewReadFeedRepository,
+	wire.Bind(new(queries.FeedRepository), new(*bolt.ReadFeedRepository)),
 
 	bolt.NewBoltContactsRepository,
 	wire.Bind(new(replication.Storage), new(*bolt.BoltContactsRepository)),

@@ -40,6 +40,38 @@ import (
 
 // Injectors from wire.go:
 
+func BuildTxAdaptersForTest(tx *bbolt.Tx) (TxTestAdapters, error) {
+	messageContentMappings := transport.DefaultMappings()
+	logger := fixtures.SomeLogger()
+	marshaler, err := transport.NewMarshaler(messageContentMappings, logger)
+	if err != nil {
+		return TxTestAdapters{}, err
+	}
+	messageHMAC := formats.NewDefaultMessageHMAC()
+	scuttlebutt := formats.NewScuttlebutt(marshaler, messageHMAC)
+	v := newFormats(scuttlebutt)
+	rawMessageIdentifier := formats.NewRawMessageIdentifier(v)
+	messageRepository := bolt.NewMessageRepository(tx, rawMessageIdentifier)
+	private, err := identity.NewPrivate()
+	if err != nil {
+		return TxTestAdapters{}, err
+	}
+	public := privateIdentityToPublicIdentity(private)
+	graphHops := _wireHopsValue
+	socialGraphRepository := bolt.NewSocialGraphRepository(tx, public, graphHops)
+	receiveLogRepository := bolt.NewReceiveLogRepository(tx, messageRepository)
+	feedRepository := bolt.NewFeedRepository(tx, socialGraphRepository, receiveLogRepository, messageRepository, scuttlebutt)
+	txTestAdapters := TxTestAdapters{
+		MessageRepository: messageRepository,
+		FeedRepository:    feedRepository,
+	}
+	return txTestAdapters, nil
+}
+
+var (
+	_wireHopsValue = hops
+)
+
 func BuildAdaptersForTest(db *bbolt.DB) (TestAdapters, error) {
 	private, err := identity.NewPrivate()
 	if err != nil {
@@ -50,8 +82,10 @@ func BuildAdaptersForTest(db *bbolt.DB) (TestAdapters, error) {
 	messageHMAC := formats.NewDefaultMessageHMAC()
 	txRepositoriesFactory := newTxRepositoriesFactory(public, logger, messageHMAC)
 	readMessageRepository := bolt.NewReadMessageRepository(db, txRepositoriesFactory)
+	readFeedRepository := bolt.NewReadFeedRepository(db, txRepositoriesFactory)
 	testAdapters := TestAdapters{
 		MessageRepository: readMessageRepository,
+		FeedRepository:    readFeedRepository,
 	}
 	return testAdapters, nil
 }
@@ -63,7 +97,7 @@ func BuildApplicationForTests() (TestApplication, error) {
 	receiveLogRepositoryMock := mocks.NewReceiveLogRepositoryMock()
 	getReceiveLogHandler := queries.NewGetReceiveLogHandler(receiveLogRepositoryMock)
 	messageRepositoryMock := mocks.NewMessageRepositoryMock()
-	statsHandler := queries.NewStatsHandler(messageRepositoryMock)
+	statsHandler := queries.NewStatsHandler(messageRepositoryMock, feedRepositoryMock)
 	appQueries := app.Queries{
 		CreateHistoryStream: createHistoryStreamHandler,
 		GetReceiveLog:       getReceiveLogHandler,
@@ -79,6 +113,8 @@ func BuildApplicationForTests() (TestApplication, error) {
 }
 
 func BuildTransactableAdapters(tx *bbolt.Tx, public identity.Public, logger logging.Logger, config Config) (commands.Adapters, error) {
+	graphHops := _wireGraphHopsValue
+	socialGraphRepository := bolt.NewSocialGraphRepository(tx, public, graphHops)
 	messageContentMappings := transport.DefaultMappings()
 	marshaler, err := transport.NewMarshaler(messageContentMappings, logger)
 	if err != nil {
@@ -88,11 +124,9 @@ func BuildTransactableAdapters(tx *bbolt.Tx, public identity.Public, logger logg
 	scuttlebutt := formats.NewScuttlebutt(marshaler, messageHMAC)
 	v := newFormats(scuttlebutt)
 	rawMessageIdentifier := formats.NewRawMessageIdentifier(v)
-	graphHops := _wireHopsValue
-	socialGraphRepository := bolt.NewSocialGraphRepository(tx, public, graphHops)
 	messageRepository := bolt.NewMessageRepository(tx, rawMessageIdentifier)
 	receiveLogRepository := bolt.NewReceiveLogRepository(tx, messageRepository)
-	feedRepository := bolt.NewFeedRepository(tx, rawMessageIdentifier, socialGraphRepository, receiveLogRepository, messageRepository, scuttlebutt)
+	feedRepository := bolt.NewFeedRepository(tx, socialGraphRepository, receiveLogRepository, messageRepository, scuttlebutt)
 	adapters := commands.Adapters{
 		Feed:        feedRepository,
 		SocialGraph: socialGraphRepository,
@@ -101,10 +135,12 @@ func BuildTransactableAdapters(tx *bbolt.Tx, public identity.Public, logger logg
 }
 
 var (
-	_wireHopsValue = hops
+	_wireGraphHopsValue = hops
 )
 
 func BuildTxRepositories(tx *bbolt.Tx, public identity.Public, logger logging.Logger, messageHMAC formats.MessageHMAC) (bolt.TxRepositories, error) {
+	graphHops := _wireHopsValue2
+	socialGraphRepository := bolt.NewSocialGraphRepository(tx, public, graphHops)
 	messageContentMappings := transport.DefaultMappings()
 	marshaler, err := transport.NewMarshaler(messageContentMappings, logger)
 	if err != nil {
@@ -113,11 +149,9 @@ func BuildTxRepositories(tx *bbolt.Tx, public identity.Public, logger logging.Lo
 	scuttlebutt := formats.NewScuttlebutt(marshaler, messageHMAC)
 	v := newFormats(scuttlebutt)
 	rawMessageIdentifier := formats.NewRawMessageIdentifier(v)
-	graphHops := _wireGraphHopsValue
-	socialGraphRepository := bolt.NewSocialGraphRepository(tx, public, graphHops)
 	messageRepository := bolt.NewMessageRepository(tx, rawMessageIdentifier)
 	receiveLogRepository := bolt.NewReceiveLogRepository(tx, messageRepository)
-	feedRepository := bolt.NewFeedRepository(tx, rawMessageIdentifier, socialGraphRepository, receiveLogRepository, messageRepository, scuttlebutt)
+	feedRepository := bolt.NewFeedRepository(tx, socialGraphRepository, receiveLogRepository, messageRepository, scuttlebutt)
 	txRepositories := bolt.TxRepositories{
 		Feed:       feedRepository,
 		Graph:      socialGraphRepository,
@@ -128,7 +162,7 @@ func BuildTxRepositories(tx *bbolt.Tx, public identity.Public, logger logging.Lo
 }
 
 var (
-	_wireGraphHopsValue = hops
+	_wireHopsValue2 = hops
 )
 
 func BuildService(private identity.Private, config Config) (Service, error) {
@@ -183,13 +217,13 @@ func BuildService(private identity.Private, config Config) (Service, error) {
 		ProcessNewLocalDiscovery: processNewLocalDiscoveryHandler,
 		PublishRaw:               publishRawHandler,
 	}
-	boltFeedMessagesRepository := bolt.NewBoltFeedMessagesRepository(db, txRepositoriesFactory)
+	readFeedRepository := bolt.NewReadFeedRepository(db, txRepositoriesFactory)
 	messagePubSub := pubsub.NewMessagePubSub()
-	createHistoryStreamHandler := queries.NewCreateHistoryStreamHandler(boltFeedMessagesRepository, messagePubSub)
+	createHistoryStreamHandler := queries.NewCreateHistoryStreamHandler(readFeedRepository, messagePubSub)
 	receiveLogReadRepository := bolt.NewReceiveLogReadRepository(db, txRepositoriesFactory)
 	getReceiveLogHandler := queries.NewGetReceiveLogHandler(receiveLogReadRepository)
 	readMessageRepository := bolt.NewReadMessageRepository(db, txRepositoriesFactory)
-	statsHandler := queries.NewStatsHandler(readMessageRepository)
+	statsHandler := queries.NewStatsHandler(readMessageRepository, readFeedRepository)
 	appQueries := app.Queries{
 		CreateHistoryStream: createHistoryStreamHandler,
 		GetReceiveLog:       getReceiveLogHandler,
@@ -240,8 +274,14 @@ var messagePubSubSet = wire.NewSet(pubsub.NewMessagePubSub, wire.Bind(new(querie
 
 var hops = graph.MustNewHops(3)
 
+type TxTestAdapters struct {
+	MessageRepository *bolt.MessageRepository
+	FeedRepository    *bolt.FeedRepository
+}
+
 type TestAdapters struct {
 	MessageRepository *bolt.ReadMessageRepository
+	FeedRepository    *bolt.ReadFeedRepository
 }
 
 type TestApplication struct {

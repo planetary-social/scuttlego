@@ -12,11 +12,14 @@ func TestStats(t *testing.T) {
 	require.NoError(t, err)
 
 	expectedMessageCount := 123
+	expectedFeedCount := 456
 
 	a.MessageRepository.CountReturnValue = expectedMessageCount
+	a.FeedRepository.CountReturnValue = expectedFeedCount
 
 	result, err := a.Queries.Stats.Handle()
 	require.NoError(t, err)
 
 	require.Equal(t, expectedMessageCount, result.NumberOfMessages)
+	require.Equal(t, expectedFeedCount, result.NumberOfFeeds)
 }

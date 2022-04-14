@@ -13,6 +13,9 @@ type FeedRepository interface {
 	// messages starting from the beginning of the feed are returned. Limit specifies the max number of returned
 	// messages. If limit is nil then all messages matching the sequence criteria are returned.
 	GetMessages(id refs.Feed, seq *message.Sequence, limit *int) ([]message.Message, error) // todo iterator instead of returning a huge array
+
+	// Count returns the number of stored feeds.
+	Count() (int, error)
 }
 
 type MessageSubscriber interface {

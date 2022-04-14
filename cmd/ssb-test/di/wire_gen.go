@@ -35,7 +35,6 @@ import (
 	network2 "github.com/planetary-social/go-ssb/service/ports/network"
 	pubsub2 "github.com/planetary-social/go-ssb/service/ports/pubsub"
 	"github.com/planetary-social/go-ssb/service/ports/rpc"
-	"github.com/sirupsen/logrus"
 	"go.etcd.io/bbolt"
 )
 
@@ -139,7 +138,7 @@ func BuildService(private identity.Private, config Config) (Service, error) {
 		return Service{}, err
 	}
 	requestPubSub := pubsub.NewRequestPubSub()
-	logger := newLogger(config)
+	logger := extractLoggerFromConfig(config)
 	peerInitializer := transport2.NewPeerInitializer(handshaker, requestPubSub, logger)
 	dialer, err := network.NewDialer(peerInitializer, logger)
 	if err != nil {
@@ -285,12 +284,6 @@ func privateIdentityToPublicIdentity(p identity.Private) identity.Public {
 	return p.Public()
 }
 
-func newLogger(config Config) logging.Logger {
-	log := logrus.New()
-	log.SetLevel(logrus.TraceLevel)
-	return logging.NewLogrusLogger(log, "main", config.LoggingLevel)
-}
-
 func newFormats(
 	s *formats.Scuttlebutt,
 ) []feeds.FeedFormat {
@@ -305,4 +298,8 @@ func extractNetworkKeyFromConfig(config Config) boxstream.NetworkKey {
 
 func extractMessageHMACFromConfig(config Config) formats.MessageHMAC {
 	return config.MessageHMAC
+}
+
+func extractLoggerFromConfig(config Config) logging.Logger {
+	return config.Logger
 }

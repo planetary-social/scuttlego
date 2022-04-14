@@ -32,7 +32,6 @@ import (
 	portsnetwork "github.com/planetary-social/go-ssb/service/ports/network"
 	portspubsub "github.com/planetary-social/go-ssb/service/ports/pubsub"
 	portsrpc "github.com/planetary-social/go-ssb/service/ports/rpc"
-	"github.com/sirupsen/logrus"
 	"go.etcd.io/bbolt"
 )
 
@@ -170,6 +169,7 @@ func BuildService(identity.Private, Config) (Service, error) {
 
 		extractNetworkKeyFromConfig,
 		extractMessageHMACFromConfig,
+		extractLoggerFromConfig,
 
 		boxstream.NewHandshaker,
 
@@ -201,8 +201,6 @@ func BuildService(identity.Private, Config) (Service, error) {
 		requestPubSubSet,
 		messagePubSubSet,
 		boltAdaptersSet,
-
-		newLogger,
 
 		newBolt,
 	)
@@ -241,12 +239,6 @@ func privateIdentityToPublicIdentity(p identity.Private) identity.Public {
 	return p.Public()
 }
 
-func newLogger(config Config) logging.Logger {
-	log := logrus.New()
-	log.SetLevel(logrus.TraceLevel)
-	return logging.NewLogrusLogger(log, "main", config.LoggingLevel)
-}
-
 func newFormats(
 	s *formats.Scuttlebutt,
 ) []feeds.FeedFormat {
@@ -261,4 +253,8 @@ func extractNetworkKeyFromConfig(config Config) boxstream.NetworkKey {
 
 func extractMessageHMACFromConfig(config Config) formats.MessageHMAC {
 	return config.MessageHMAC
+}
+
+func extractLoggerFromConfig(config Config) logging.Logger {
+	return config.Logger
 }

@@ -7,20 +7,43 @@ import (
 )
 
 type Config struct {
-	LoggingLevel  logging.Level
+	// DataDirectory specifies where the primary database and other data
+	// will be stored.
 	DataDirectory string
+
+	// ListenAddress for the TCP listener in the format accepted by the
+	// standard library.
+	// Optional, defaults to ":8008".
 	ListenAddress string
 
-	NetworkKey  boxstream.NetworkKey
+	// Setting NetworkKey is mainly useful for test networks.
+	// Optional, defaults to boxstream.NewDefaultNetworkKey().
+	NetworkKey boxstream.NetworkKey
+
+	// Setting MessageHMAC is mainly useful for test networks.
+	// Optional, defaults to formats.NewDefaultMessageHMAC().
 	MessageHMAC formats.MessageHMAC
+
+	// Logger is the logger used for logging by this library. It is most
+	// likely useful to configure at least to log errors.
+	// Optional, defaults to logging.NewDevNullLogger().
+	Logger logging.Logger
 }
 
 func (c *Config) SetDefaults() {
+	if c.ListenAddress == "" {
+		c.ListenAddress = ":8008"
+	}
+
 	if c.NetworkKey.IsZero() {
 		c.NetworkKey = boxstream.NewDefaultNetworkKey()
 	}
 
 	if c.MessageHMAC.IsZero() {
 		c.MessageHMAC = formats.NewDefaultMessageHMAC()
+	}
+
+	if c.Logger == nil {
+		c.Logger = logging.NewDevNullLogger()
 	}
 }

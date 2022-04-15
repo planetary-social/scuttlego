@@ -30,7 +30,15 @@ func (r ReceiveLogRepository) Put(id refs.Message) error {
 	return r.saveMessage(bucket, id)
 }
 
-func (r ReceiveLogRepository) Next(lastSeq uint64) ([]message.Message, error) {
+func (r ReceiveLogRepository) Get(startSeq int, limit int) ([]message.Message, error) {
+	if startSeq < 0 {
+		return nil, errors.New("start seq can't be negative")
+	}
+
+	if limit <= 0 {
+		return nil, errors.New("limit must be positive")
+	}
+
 	bucket, err := r.getReceiveLogBucket(r.tx)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create a bucket")
@@ -40,22 +48,23 @@ func (r ReceiveLogRepository) Next(lastSeq uint64) ([]message.Message, error) {
 		return nil, nil
 	}
 
-	key, value := bucket.Cursor().Seek(itob(lastSeq))
-	if key == nil {
-		return nil, nil
+	var result []message.Message
+
+	c := bucket.Cursor()
+	for key, value := c.Seek(itob(uint64(startSeq))); key != nil; key, value = c.Next() {
+		msg, err := r.loadMessage(value)
+		if err != nil {
+			return nil, errors.New("could not load a message")
+		}
+
+		result = append(result, msg)
+
+		if len(result) >= limit {
+			break
+		}
 	}
 
-	id, err := refs.NewMessage(string(value))
-	if err != nil {
-		return nil, errors.New("could not create a message ref")
-	}
-
-	msg, err := r.messageRepository.Get(id)
-	if err != nil {
-		return nil, errors.New("could not get the message")
-	}
-
-	return []message.Message{msg}, nil
+	return result, nil
 }
 
 func (r ReceiveLogRepository) saveMessage(bucket *bbolt.Bucket, id refs.Message) error {
@@ -64,9 +73,23 @@ func (r ReceiveLogRepository) saveMessage(bucket *bbolt.Bucket, id refs.Message)
 		return errors.Wrap(err, "could not get the next sequence")
 	}
 
-	key := itob(seq)
+	key := itob(seq - 1) // NextSequence starts with 1 while our log is 0 indexed
 
 	return bucket.Put(key, []byte(id.String()))
+}
+
+func (r ReceiveLogRepository) loadMessage(value []byte) (message.Message, error) {
+	id, err := refs.NewMessage(string(value))
+	if err != nil {
+		return message.Message{}, errors.New("could not create a message ref")
+	}
+
+	msg, err := r.messageRepository.Get(id)
+	if err != nil {
+		return message.Message{}, errors.New("could not get the message")
+	}
+
+	return msg, nil
 }
 
 func (r ReceiveLogRepository) createReceiveLogBucket(tx *bbolt.Tx) (*bbolt.Bucket, error) {
@@ -83,19 +106,19 @@ func (r ReceiveLogRepository) receiveLogBucketPath() []bucketName {
 	}
 }
 
-type ReceiveLogReadRepository struct {
+type ReadReceiveLogRepository struct {
 	db      *bbolt.DB
 	factory TxRepositoriesFactory
 }
 
-func NewReceiveLogReadRepository(db *bbolt.DB, factory TxRepositoriesFactory) *ReceiveLogReadRepository {
-	return &ReceiveLogReadRepository{
+func NewReadReceiveLogRepository(db *bbolt.DB, factory TxRepositoriesFactory) *ReadReceiveLogRepository {
+	return &ReadReceiveLogRepository{
 		db:      db,
 		factory: factory,
 	}
 }
 
-func (r ReceiveLogReadRepository) Next(lastSeq uint64) ([]message.Message, error) {
+func (r ReadReceiveLogRepository) Get(startSeq int, limit int) ([]message.Message, error) {
 	var result []message.Message
 
 	if err := r.db.View(func(tx *bbolt.Tx) error {
@@ -104,7 +127,7 @@ func (r ReceiveLogReadRepository) Next(lastSeq uint64) ([]message.Message, error
 			return errors.Wrap(err, "could not call the factory")
 		}
 
-		msgs, err := r.ReceiveLog.Next(lastSeq)
+		msgs, err := r.ReceiveLog.Get(startSeq, limit)
 		if err != nil {
 			return errors.Wrap(err, "failed to call the repository")
 		}

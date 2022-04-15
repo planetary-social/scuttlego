@@ -12,6 +12,6 @@ func NewReceiveLogRepositoryMock() *ReceiveLogRepositoryMock {
 	return &ReceiveLogRepositoryMock{}
 }
 
-func (r ReceiveLogRepositoryMock) Next(lastSeq uint64) ([]message.Message, error) {
+func (r ReceiveLogRepositoryMock) Get(startSeq int, limit int) ([]message.Message, error) {
 	return nil, errors.New("not implemented")
 }

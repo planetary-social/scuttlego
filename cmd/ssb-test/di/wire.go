@@ -86,6 +86,7 @@ var hops = graph.MustNewHops(3)
 type TxTestAdapters struct {
 	MessageRepository *bolt.MessageRepository
 	FeedRepository    *bolt.FeedRepository
+	ReceiveLog        *bolt.ReceiveLogRepository
 }
 
 func BuildTxAdaptersForTest(*bbolt.Tx) (TxTestAdapters, error) {
@@ -111,6 +112,7 @@ func BuildTxAdaptersForTest(*bbolt.Tx) (TxTestAdapters, error) {
 type TestAdapters struct {
 	MessageRepository *bolt.ReadMessageRepository
 	FeedRepository    *bolt.ReadFeedRepository
+	ReceiveLog        *bolt.ReadReceiveLogRepository
 }
 
 func BuildAdaptersForTest(*bbolt.DB) (TestAdapters, error) {

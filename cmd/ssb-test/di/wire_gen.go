@@ -64,6 +64,7 @@ func BuildTxAdaptersForTest(tx *bbolt.Tx) (TxTestAdapters, error) {
 	txTestAdapters := TxTestAdapters{
 		MessageRepository: messageRepository,
 		FeedRepository:    feedRepository,
+		ReceiveLog:        receiveLogRepository,
 	}
 	return txTestAdapters, nil
 }
@@ -83,9 +84,11 @@ func BuildAdaptersForTest(db *bbolt.DB) (TestAdapters, error) {
 	txRepositoriesFactory := newTxRepositoriesFactory(public, logger, messageHMAC)
 	readMessageRepository := bolt.NewReadMessageRepository(db, txRepositoriesFactory)
 	readFeedRepository := bolt.NewReadFeedRepository(db, txRepositoriesFactory)
+	readReceiveLogRepository := bolt.NewReadReceiveLogRepository(db, txRepositoriesFactory)
 	testAdapters := TestAdapters{
 		MessageRepository: readMessageRepository,
 		FeedRepository:    readFeedRepository,
+		ReceiveLog:        readReceiveLogRepository,
 	}
 	return testAdapters, nil
 }
@@ -220,8 +223,8 @@ func BuildService(private identity.Private, config Config) (Service, error) {
 	readFeedRepository := bolt.NewReadFeedRepository(db, txRepositoriesFactory)
 	messagePubSub := pubsub.NewMessagePubSub()
 	createHistoryStreamHandler := queries.NewCreateHistoryStreamHandler(readFeedRepository, messagePubSub)
-	receiveLogReadRepository := bolt.NewReceiveLogReadRepository(db, txRepositoriesFactory)
-	getReceiveLogHandler := queries.NewGetReceiveLogHandler(receiveLogReadRepository)
+	readReceiveLogRepository := bolt.NewReadReceiveLogRepository(db, txRepositoriesFactory)
+	getReceiveLogHandler := queries.NewGetReceiveLogHandler(readReceiveLogRepository)
 	readMessageRepository := bolt.NewReadMessageRepository(db, txRepositoriesFactory)
 	statsHandler := queries.NewStatsHandler(readMessageRepository, readFeedRepository)
 	appQueries := app.Queries{
@@ -277,11 +280,13 @@ var hops = graph.MustNewHops(3)
 type TxTestAdapters struct {
 	MessageRepository *bolt.MessageRepository
 	FeedRepository    *bolt.FeedRepository
+	ReceiveLog        *bolt.ReceiveLogRepository
 }
 
 type TestAdapters struct {
 	MessageRepository *bolt.ReadMessageRepository
 	FeedRepository    *bolt.ReadFeedRepository
+	ReceiveLog        *bolt.ReadReceiveLogRepository
 }
 
 type TestApplication struct {

@@ -5,11 +5,14 @@ import (
 )
 
 type ReceiveLogRepository interface {
-	Next(lastSeq uint64) ([]message.Message, error)
+	// Get returns messages from the log starting with the provided sequence. The log is zero indexed. If limit isn't
+	// positive an error is returned.
+	Get(startSeq int, limit int) ([]message.Message, error)
 }
 
 type GetReceiveLog struct {
-	LastSeq uint64
+	StartSeq int
+	Limit    int
 }
 
 type GetReceiveLogHandler struct {
@@ -21,5 +24,5 @@ func NewGetReceiveLogHandler(repository ReceiveLogRepository) *GetReceiveLogHand
 }
 
 func (h *GetReceiveLogHandler) Handle(query GetReceiveLog) ([]message.Message, error) {
-	return h.repository.Next(query.LastSeq)
+	return h.repository.Get(query.StartSeq, query.Limit)
 }

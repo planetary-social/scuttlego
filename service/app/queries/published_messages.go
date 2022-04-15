@@ -8,8 +8,7 @@ import (
 )
 
 type PublishedMessages struct {
-	// Get returns published messages starting with the provided message sequence. If limit isn't positive an error is
-	// returned.
+	// Only messages with a sequence greater or equal to the start sequence are returned.
 	StartSeq message.Sequence
 }
 

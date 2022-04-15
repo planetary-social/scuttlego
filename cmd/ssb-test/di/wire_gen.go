@@ -98,13 +98,23 @@ func BuildApplicationForTests() (TestApplication, error) {
 	messagePubSubMock := mocks.NewMessagePubSubMock()
 	createHistoryStreamHandler := queries.NewCreateHistoryStreamHandler(feedRepositoryMock, messagePubSubMock)
 	receiveLogRepositoryMock := mocks.NewReceiveLogRepositoryMock()
-	getReceiveLogHandler := queries.NewGetReceiveLogHandler(receiveLogRepositoryMock)
+	receiveLogHandler := queries.NewReceiveLogHandler(receiveLogRepositoryMock)
 	messageRepositoryMock := mocks.NewMessageRepositoryMock()
 	statsHandler := queries.NewStatsHandler(messageRepositoryMock, feedRepositoryMock)
+	private, err := identity.NewPrivate()
+	if err != nil {
+		return TestApplication{}, err
+	}
+	public := privateIdentityToPublicIdentity(private)
+	publishedMessagesHandler, err := queries.NewPublishedMessagesHandler(feedRepositoryMock, public)
+	if err != nil {
+		return TestApplication{}, err
+	}
 	appQueries := app.Queries{
 		CreateHistoryStream: createHistoryStreamHandler,
-		GetReceiveLog:       getReceiveLogHandler,
+		ReceiveLog:          receiveLogHandler,
 		Stats:               statsHandler,
+		PublishedMessages:   publishedMessagesHandler,
 	}
 	testApplication := TestApplication{
 		Queries:           appQueries,
@@ -224,13 +234,18 @@ func BuildService(private identity.Private, config Config) (Service, error) {
 	messagePubSub := pubsub.NewMessagePubSub()
 	createHistoryStreamHandler := queries.NewCreateHistoryStreamHandler(readFeedRepository, messagePubSub)
 	readReceiveLogRepository := bolt.NewReadReceiveLogRepository(db, txRepositoriesFactory)
-	getReceiveLogHandler := queries.NewGetReceiveLogHandler(readReceiveLogRepository)
+	receiveLogHandler := queries.NewReceiveLogHandler(readReceiveLogRepository)
 	readMessageRepository := bolt.NewReadMessageRepository(db, txRepositoriesFactory)
 	statsHandler := queries.NewStatsHandler(readMessageRepository, readFeedRepository)
+	publishedMessagesHandler, err := queries.NewPublishedMessagesHandler(readFeedRepository, public)
+	if err != nil {
+		return Service{}, err
+	}
 	appQueries := app.Queries{
 		CreateHistoryStream: createHistoryStreamHandler,
-		GetReceiveLog:       getReceiveLogHandler,
+		ReceiveLog:          receiveLogHandler,
 		Stats:               statsHandler,
+		PublishedMessages:   publishedMessagesHandler,
 	}
 	application := app.Application{
 		Commands: appCommands,

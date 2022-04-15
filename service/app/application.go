@@ -21,6 +21,7 @@ type Commands struct {
 
 type Queries struct {
 	CreateHistoryStream *queries.CreateHistoryStreamHandler
-	GetReceiveLog       *queries.GetReceiveLogHandler
+	ReceiveLog          *queries.ReceiveLogHandler
 	Stats               *queries.StatsHandler
+	PublishedMessages   *queries.PublishedMessagesHandler
 }

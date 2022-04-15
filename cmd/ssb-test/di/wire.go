@@ -157,6 +157,9 @@ func BuildApplicationForTests() (TestApplication, error) {
 		wire.Bind(new(queries.MessageRepository), new(*mocks.MessageRepositoryMock)),
 
 		wire.Struct(new(TestApplication), "*"),
+
+		identity.NewPrivate,
+		privateIdentityToPublicIdentity,
 	)
 
 	return TestApplication{}, nil

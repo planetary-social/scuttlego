@@ -42,3 +42,7 @@ func (s Sequence) ComesAfter(o Sequence) bool {
 func (s Sequence) Next() Sequence {
 	return Sequence{s.s + 1}
 }
+
+func (s Sequence) IsZero() bool {
+	return s == Sequence{}
+}

@@ -33,16 +33,16 @@ func MustNewContact(contact refs.Identity, action ContactAction) Contact {
 	return c
 }
 
+func (c Contact) Type() MessageContentType {
+	return "contact"
+}
+
 func (c Contact) Contact() refs.Identity {
 	return c.contact
 }
 
 func (c Contact) Action() ContactAction {
 	return c.action
-}
-
-func (c Contact) Type() MessageContentType {
-	return "contact"
 }
 
 type ContactAction struct {

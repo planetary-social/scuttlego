@@ -163,7 +163,7 @@ func (b FeedRepository) loadFeed(ref refs.Feed) (*feeds.Feed, error) {
 }
 
 func (b FeedRepository) saveFeed(ref refs.Feed, feed *feeds.Feed) error {
-	msgs, contacts := feed.PopForPersisting()
+	msgs, contacts, _ := feed.PopForPersisting()
 
 	if len(msgs) != 0 {
 		bucket, err := b.createFeedBucket(ref)

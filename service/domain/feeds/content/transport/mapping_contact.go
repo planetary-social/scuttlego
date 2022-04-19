@@ -14,7 +14,7 @@ var contactMapping = MessageContentMapping{
 		msg := con.(content.Contact)
 
 		t := transportContact{
-			messageContentType: messageContentType{string(content.Contact{}.Type())},
+			messageContentType: contentTypeToTransport(msg),
 			Contact:            msg.Contact().String(),
 		}
 

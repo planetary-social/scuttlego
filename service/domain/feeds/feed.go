@@ -17,6 +17,7 @@ type Feed struct {
 
 	messagesToSave []message.Message
 	contactsToSave []ContactToSave
+	pubsToSave     []msgcontents.Pub
 }
 
 func NewFeed(format FeedFormat) *Feed {
@@ -125,13 +126,13 @@ func (f *Feed) Sequence() message.Sequence {
 	return f.lastMsg.Sequence() // todo can be nil
 }
 
-func (f *Feed) PopForPersisting() ([]message.Message, []ContactToSave) {
-	defer func() { f.messagesToSave = nil; f.contactsToSave = nil }()
-	return f.messagesToSave, f.contactsToSave
+func (f *Feed) PopForPersisting() ([]message.Message, []ContactToSave, []msgcontents.Pub) {
+	defer func() { f.messagesToSave = nil; f.contactsToSave = nil; f.pubsToSave = nil }()
+	return f.messagesToSave, f.contactsToSave, f.pubsToSave
 }
 
 func (f *Feed) onNewMessage(msg message.Message) error {
-	contacts, err := f.processMessageContent(msg)
+	contacts, pubs, err := f.processMessageContent(msg)
 	if err != nil {
 		return errors.New("failed to process message content")
 	}
@@ -139,15 +140,18 @@ func (f *Feed) onNewMessage(msg message.Message) error {
 	f.lastMsg = &msg
 	f.messagesToSave = append(f.messagesToSave, msg)
 	f.contactsToSave = append(f.contactsToSave, contacts...)
+	f.pubsToSave = append(f.pubsToSave, pubs...)
 	return nil
 }
 
 // todo ignore repeated calls to follow someone if the current state of the feed suggests that this is already done (indempotency)
-func (f *Feed) processMessageContent(msg message.Message) ([]ContactToSave, error) {
+func (f *Feed) processMessageContent(msg message.Message) ([]ContactToSave, []msgcontents.Pub, error) {
 	switch v := msg.Content().(type) {
 	case msgcontents.Contact:
-		return []ContactToSave{NewContactToSave(msg.Author(), v)}, nil
+		return []ContactToSave{NewContactToSave(msg.Author(), v)}, nil, nil
+	case msgcontents.Pub:
+		return nil, []msgcontents.Pub{v}, nil
 	default:
-		return nil, nil
+		return nil, nil, nil
 	}
 }

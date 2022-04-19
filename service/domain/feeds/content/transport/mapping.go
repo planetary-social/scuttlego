@@ -14,5 +14,10 @@ type MessageContentMapping struct {
 func DefaultMappings() MessageContentMappings {
 	return MessageContentMappings{
 		content.Contact{}.Type(): contactMapping,
+		content.Pub{}.Type():     pubMapping,
 	}
+}
+
+func contentTypeToTransport(messageContent content.KnownMessageContent) messageContentType {
+	return messageContentType{string(messageContent.Type())}
 }

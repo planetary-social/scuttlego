@@ -25,50 +25,12 @@ func NewFeed(format FeedFormat) *Feed {
 	}
 }
 
-//func NewFeedFromMessageContent(content message.MessageContent, timestamp time.Time, private identity.Private) (*Feed, error) {
-//	// todo identify feed format, right now lets just hardcode it as we support only default ones
-//	//format := formats.NewScuttlebutt()
-//
-//	//author, err := refs.NewIdentityFromPublic(private.Public())
-//	//if err != nil {
-//	//	return nil, errors.Wrap(err, "could not create an author")
-//	//}
-//
-//	//unsigned, err := message.NewUnsignedMessage(
-//	//	nil,
-//	//	message.FirstSequence,
-//	//	author,
-//	//	author.MainFeed(),
-//	//	timestamp,
-//	//	content,
-//	//)
-//	//if err != nil {
-//	//	return nil, errors.Wrap(err, "failed to create a new unsigned message")
-//	//}
-//
-//	//msg, err := format.Sign(unsigned, private)
-//	//if err != nil {
-//	//	return nil, errors.Wrap(err, "failed to sign the new message")
-//	//}
-//
-//	//return newFeedFromMessage(msg)
-//	return nil, errors.New("not implemented")
-//}
-
 func NewFeedFromHistory(lastMsg message.Message, format FeedFormat) (*Feed, error) {
 	return &Feed{
 		lastMsg: &lastMsg,
 		format:  format,
 	}, nil
 }
-
-//func newFeedFromMessage(msg message.Message) (*Feed, error) {
-//	f := &Feed{}
-//	if err := f.onNewMessage(msg); err != nil {
-//		return nil, errors.Wrap(err, "failed to process a new message")
-//	}
-//	return f, nil
-//}
 
 func (f *Feed) AppendMessage(msg message.Message) error {
 	if f.lastMsg != nil {

@@ -56,7 +56,7 @@ func SomeRefMessage() refs.Message {
 	return refs.MustNewMessage(fmt.Sprintf("%%%s.sha256", randomBase64(32)))
 }
 
-func SomeRefAuthor() refs.Identity {
+func SomeRefIdentity() refs.Identity {
 	// todo improve this by using some kind of a better constructor
 	return refs.MustNewIdentity(fmt.Sprintf("@%s.ed25519", randomBase64(32)))
 }
@@ -137,7 +137,7 @@ func SomeMessage(seq message.Sequence, feed refs.Feed) message.Message {
 		SomeRefMessage(),
 		previous,
 		seq,
-		SomeRefAuthor(),
+		SomeRefIdentity(),
 		feed,
 		SomeTime(),
 		SomeContent(),

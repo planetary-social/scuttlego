@@ -10,11 +10,11 @@ import (
 )
 
 func TestContacts(t *testing.T) {
-	local := fixtures.SomeRefAuthor()
+	local := fixtures.SomeRefIdentity()
 
-	a := fixtures.SomeRefAuthor()
-	b := fixtures.SomeRefAuthor()
-	c := fixtures.SomeRefAuthor()
+	a := fixtures.SomeRefIdentity()
+	b := fixtures.SomeRefIdentity()
+	c := fixtures.SomeRefIdentity()
 
 	s := StorageMock{
 		contacts: map[string][]refs.Identity{

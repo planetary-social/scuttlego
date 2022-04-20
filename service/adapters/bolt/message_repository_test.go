@@ -106,7 +106,7 @@ func (r RawMessageIdentifierMock) IdentifyRawMessage(raw message.RawMessage) (me
 		fixtures.SomeRefMessage(),
 		nil,
 		message.MustNewSequence(1),
-		fixtures.SomeRefAuthor(),
+		fixtures.SomeRefIdentity(),
 		fixtures.SomeRefFeed(),
 		fixtures.SomeTime(),
 		fixtures.SomeContent(),

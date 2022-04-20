@@ -12,7 +12,7 @@ import (
 
 func TestAppend(t *testing.T) {
 	feed := fixtures.SomeRefFeed()
-	author := fixtures.SomeRefAuthor()
+	author := fixtures.SomeRefIdentity()
 
 	msg1 := message.MustNewMessage(
 		fixtures.SomeRefMessage(),
@@ -54,9 +54,9 @@ func TestAppend(t *testing.T) {
 
 func TestAppendMessageWithKnownContent(t *testing.T) {
 	msgId := fixtures.SomeRefMessage()
-	authorId := fixtures.SomeRefAuthor()
+	authorId := fixtures.SomeRefIdentity()
 
-	someIdentity := fixtures.SomeRefAuthor()
+	someIdentity := fixtures.SomeRefIdentity()
 
 	testCases := []struct {
 		Name             string

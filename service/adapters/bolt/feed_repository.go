@@ -19,6 +19,7 @@ type FeedRepository struct {
 	graph             *SocialGraphRepository
 	receiveLog        *ReceiveLogRepository
 	messageRepository *MessageRepository
+	pubRepository     *PubRepository
 	formatScuttlebutt *formats.Scuttlebutt
 }
 
@@ -27,6 +28,7 @@ func NewFeedRepository(
 	graph *SocialGraphRepository,
 	receiveLog *ReceiveLogRepository,
 	messageRepository *MessageRepository,
+	pubRepository *PubRepository,
 	formatScuttlebutt *formats.Scuttlebutt,
 ) *FeedRepository {
 	return &FeedRepository{
@@ -34,6 +36,7 @@ func NewFeedRepository(
 		graph:             graph,
 		receiveLog:        receiveLog,
 		messageRepository: messageRepository,
+		pubRepository:     pubRepository,
 		formatScuttlebutt: formatScuttlebutt,
 	}
 }
@@ -163,7 +166,7 @@ func (b FeedRepository) loadFeed(ref refs.Feed) (*feeds.Feed, error) {
 }
 
 func (b FeedRepository) saveFeed(ref refs.Feed, feed *feeds.Feed) error {
-	msgs, contacts, _ := feed.PopForPersisting()
+	msgs, contacts, pubs := feed.PopForPersisting()
 
 	if len(msgs) != 0 {
 		bucket, err := b.createFeedBucket(ref)
@@ -181,6 +184,12 @@ func (b FeedRepository) saveFeed(ref refs.Feed, feed *feeds.Feed) error {
 	for _, contact := range contacts {
 		if err := b.saveContact(contact); err != nil {
 			return errors.Wrap(err, "failed to save a contact")
+		}
+	}
+
+	for _, pub := range pubs {
+		if err := b.pubRepository.Put(pub); err != nil {
+			return errors.Wrap(err, "pub repository put failed")
 		}
 	}
 

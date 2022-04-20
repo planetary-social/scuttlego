@@ -17,7 +17,7 @@ type Feed struct {
 
 	messagesToSave []message.Message
 	contactsToSave []ContactToSave
-	pubsToSave     []msgcontents.Pub
+	pubsToSave     []PubToSave
 }
 
 func NewFeed(format FeedFormat) *Feed {
@@ -126,7 +126,7 @@ func (f *Feed) Sequence() message.Sequence {
 	return f.lastMsg.Sequence() // todo can be nil
 }
 
-func (f *Feed) PopForPersisting() ([]message.Message, []ContactToSave, []msgcontents.Pub) {
+func (f *Feed) PopForPersisting() ([]message.Message, []ContactToSave, []PubToSave) {
 	defer func() { f.messagesToSave = nil; f.contactsToSave = nil; f.pubsToSave = nil }()
 	return f.messagesToSave, f.contactsToSave, f.pubsToSave
 }
@@ -145,12 +145,12 @@ func (f *Feed) onNewMessage(msg message.Message) error {
 }
 
 // todo ignore repeated calls to follow someone if the current state of the feed suggests that this is already done (indempotency)
-func (f *Feed) processMessageContent(msg message.Message) ([]ContactToSave, []msgcontents.Pub, error) {
+func (f *Feed) processMessageContent(msg message.Message) ([]ContactToSave, []PubToSave, error) {
 	switch v := msg.Content().(type) {
 	case msgcontents.Contact:
 		return []ContactToSave{NewContactToSave(msg.Author(), v)}, nil, nil
 	case msgcontents.Pub:
-		return nil, []msgcontents.Pub{v}, nil
+		return nil, []PubToSave{NewPubToSave(msg.Author(), msg.Id(), v)}, nil
 	default:
 		return nil, nil, nil
 	}

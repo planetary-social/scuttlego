@@ -53,7 +53,8 @@ func TestAppend(t *testing.T) {
 }
 
 func TestAppendMessageWithKnownContent(t *testing.T) {
-	author := fixtures.SomeRefAuthor()
+	msgId := fixtures.SomeRefMessage()
+	authorId := fixtures.SomeRefAuthor()
 
 	someIdentity := fixtures.SomeRefAuthor()
 
@@ -61,7 +62,7 @@ func TestAppendMessageWithKnownContent(t *testing.T) {
 		Name             string
 		Content          msgcontents.KnownMessageContent
 		ExpectedContacts []feeds.ContactToSave
-		ExpectedPubs     []msgcontents.Pub
+		ExpectedPubs     []feeds.PubToSave
 	}{
 		{
 			Name: "contact",
@@ -71,7 +72,7 @@ func TestAppendMessageWithKnownContent(t *testing.T) {
 			),
 			ExpectedContacts: []feeds.ContactToSave{
 				feeds.NewContactToSave(
-					author,
+					authorId,
 					msgcontents.MustNewContact(
 						someIdentity,
 						msgcontents.ContactActionFollow,
@@ -86,11 +87,15 @@ func TestAppendMessageWithKnownContent(t *testing.T) {
 				"host",
 				1234,
 			),
-			ExpectedPubs: []msgcontents.Pub{
-				msgcontents.MustNewPub(
-					someIdentity,
-					"host",
-					1234,
+			ExpectedPubs: []feeds.PubToSave{
+				feeds.NewPubToSave(
+					authorId,
+					msgId,
+					msgcontents.MustNewPub(
+						someIdentity,
+						"host",
+						1234,
+					),
 				),
 			},
 		},
@@ -99,10 +104,10 @@ func TestAppendMessageWithKnownContent(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
 			msg := message.MustNewMessage(
-				fixtures.SomeRefMessage(),
+				msgId,
 				nil,
 				message.MustNewSequence(1),
-				author,
+				authorId,
 				fixtures.SomeRefFeed(),
 				fixtures.SomeTime(),
 				testCase.Content,

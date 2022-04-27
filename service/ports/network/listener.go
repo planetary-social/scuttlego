@@ -13,7 +13,9 @@ import (
 )
 
 type ServerPeerInitializer interface {
-	InitializeServerPeer(rwc io.ReadWriteCloser) (transport.Peer, error)
+	// InitializeServerPeer initializes incoming connections by performing a handshake and establishing an RPC
+	// connection using the provided ReadWriteCloser. Context is used as the RPC connection context.
+	InitializeServerPeer(ctx context.Context, rwc io.ReadWriteCloser) (transport.Peer, error)
 }
 
 type Listener struct {
@@ -50,7 +52,7 @@ func (l *Listener) ListenAndServe(ctx context.Context) error {
 }
 
 func (l *Listener) handleNewConnection(conn net.Conn) {
-	p, err := l.initializer.InitializeServerPeer(conn)
+	p, err := l.initializer.InitializeServerPeer(context.TODO(), conn)
 	if err != nil {
 		conn.Close()
 		l.logger.WithError(err).Debug("could not init a peer")

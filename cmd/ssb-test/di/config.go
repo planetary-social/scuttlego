@@ -2,6 +2,7 @@ package di
 
 import (
 	"github.com/planetary-social/go-ssb/logging"
+	"github.com/planetary-social/go-ssb/service/domain"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/formats"
 	"github.com/planetary-social/go-ssb/service/domain/transport/boxstream"
 )
@@ -28,6 +29,10 @@ type Config struct {
 	// likely useful to configure at least to log errors.
 	// Optional, defaults to logging.NewDevNullLogger().
 	Logger logging.Logger
+
+	// PeerManagerConfig specifies the config for the peer manager which is responsible for establishing new
+	// connections and managing existing connections.
+	PeerManagerConfig domain.PeerManagerConfig
 }
 
 func (c *Config) SetDefaults() {

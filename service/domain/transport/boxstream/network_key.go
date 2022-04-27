@@ -38,6 +38,14 @@ func NewNetworkKey(b []byte) (NetworkKey, error) {
 	return NetworkKey{buf}, nil
 }
 
+func MustNewNetworkKey(b []byte) NetworkKey {
+	v, err := NewNetworkKey(b)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
 // NewDefaultNetworkKey creates a key initialized with an arbitrarily chosen
 // value used in the default Secure Scuttlebutt network.
 func NewDefaultNetworkKey() NetworkKey {

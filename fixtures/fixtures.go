@@ -25,6 +25,10 @@ func SomeLogger() logging.Logger {
 	return logging.NewLogrusLogger(logrus.New(), "test", logging.LevelTrace)
 }
 
+func TestLogger(t *testing.T) logging.Logger {
+	return newTestingLogger(t.Name(), t)
+}
+
 func TestContext(t *testing.T) context.Context {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -188,4 +192,52 @@ func Bolt(t *testing.T) *bbolt.DB {
 	t.Cleanup(cleanup)
 
 	return db
+}
+
+type testingLogger struct {
+	name string
+	t    *testing.T
+	log  func(args ...any)
+}
+
+func newTestingLogger(name string, t *testing.T) testingLogger {
+	return testingLogger{name: name, t: t, log: t.Log}
+}
+
+func (t testingLogger) New(name string) logging.Logger {
+	return testingLogger{name: t.name + "." + name, t: t.t, log: t.log}
+}
+
+func (t testingLogger) WithError(err error) logging.Logger {
+	return t.withField("err", err)
+}
+
+func (t testingLogger) WithField(key string, v interface{}) logging.Logger {
+	t.t.Helper()
+	return t.withField(key, v)
+}
+
+func (t testingLogger) Error(message string) {
+	t.t.Helper()
+	t.withField("level", "error").log(message)
+}
+
+func (t testingLogger) Debug(message string) {
+	t.t.Helper()
+	t.withField("level", "debug").log(message)
+}
+
+func (t testingLogger) Trace(message string) {
+	t.t.Helper()
+	t.withField("level", "trace").log(message)
+}
+
+func (t testingLogger) withField(key string, v interface{}) testingLogger {
+	prev := t.log
+	return testingLogger{name: t.name, t: t.t, log: func(args ...any) {
+		t.t.Helper()
+		tmp := []any{fmt.Sprintf("%s=%s", key, v)}
+		tmp = append(tmp, args...)
+		prev(tmp)
+	}}
 }

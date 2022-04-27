@@ -11,19 +11,22 @@ import (
 )
 
 type ResponseWriter interface {
+	// WriteMessage sends a message over the underlying stream.
 	WriteMessage(body []byte) error
+
+	// CloseWithError terminates the underlying stream. Error is sent to the other party. Error can be nil.
 	CloseWithError(err error) error
 }
 
 type RequestHandler interface {
-	// HandleRequest must eventually call ResponseWriter.CloseWithError to avoid memory leaks. HandleRequest may block
-	// indefinitely.
+	// HandleRequest should respond to the provided request using the response writer. Implementations must eventually
+	// call ResponseWriter.CloseWithError. HandleRequest may block as it is executed in a goroutine.
 	HandleRequest(ctx context.Context, rw ResponseWriter, req *Request)
 }
 
 // RequestStreams is used for handling incoming data (with positive request numbers).
 type RequestStreams struct {
-	closed bool
+	ctx context.Context
 
 	writers       map[int]*requestStream
 	closedWriters map[int]struct{}
@@ -35,8 +38,11 @@ type RequestStreams struct {
 	logger logging.Logger
 }
 
-func NewRequestStreams(raw MessageSender, handler RequestHandler, logger logging.Logger) *RequestStreams {
+// NewRequestStreams create new RequestStreams which use the provided context as a base context for contexts provided
+// to the RequestHandler.
+func NewRequestStreams(ctx context.Context, raw MessageSender, handler RequestHandler, logger logging.Logger) *RequestStreams {
 	return &RequestStreams{
+		ctx:           ctx,
 		raw:           raw,
 		writers:       make(map[int]*requestStream),
 		closedWriters: make(map[int]struct{}),
@@ -45,6 +51,8 @@ func NewRequestStreams(raw MessageSender, handler RequestHandler, logger logging
 	}
 }
 
+// HandleIncomingRequest processes an incoming request. Returning an error from this function shuts down the entire
+// connection.
 func (s *RequestStreams) HandleIncomingRequest(msg *transport.Message) error {
 	s.writersLock.Lock()
 	defer s.writersLock.Unlock()
@@ -53,8 +61,10 @@ func (s *RequestStreams) HandleIncomingRequest(msg *transport.Message) error {
 		return errors.New("passed a response")
 	}
 
-	if s.closed {
-		return errors.New("streams closed")
+	select {
+	case <-s.ctx.Done():
+		return s.ctx.Err()
+	default:
 	}
 
 	requestNumber := msg.Header.RequestNumber()
@@ -106,10 +116,13 @@ func (s *RequestStreams) openNewWriter(msg *transport.Message) error {
 
 	req, err := unmarshalRequest(msg)
 	if err != nil {
+		s.logger.WithError(err).Debug("ignoring malformed request")
+		sendCloseStream(s.raw, -msg.Header.RequestNumber(), nil)
+		return nil // todo do not commit this line
 		return errors.Wrap(err, "unmarshal request failed")
 	}
 
-	rw := newRequestStream(requestNumber, req.Type(), s.raw)
+	rw := newRequestStream(s.ctx, requestNumber, req.Type(), s.raw)
 	s.writers[requestNumber] = rw
 	go s.waitAndCleanupWriter(rw)
 
@@ -128,17 +141,6 @@ func (s *RequestStreams) waitAndCleanupWriter(rw *requestStream) {
 	s.closedWriters[rw.requestNumber] = struct{}{}
 }
 
-func (s *RequestStreams) Close() {
-	s.writersLock.Lock()
-	defer s.writersLock.Unlock()
-
-	s.closed = true
-
-	for _, rs := range s.writers {
-		rs.cancel()
-	}
-}
-
 type requestStream struct {
 	requestNumber int
 	typ           ProcedureType
@@ -151,9 +153,8 @@ type requestStream struct {
 	raw    MessageSender
 }
 
-func newRequestStream(number int, typ ProcedureType, raw MessageSender) *requestStream {
-	// todo add a real context associated with the stream / connection
-	ctx, cancel := context.WithCancel(context.TODO())
+func newRequestStream(ctx context.Context, number int, typ ProcedureType, raw MessageSender) *requestStream {
+	ctx, cancel := context.WithCancel(ctx)
 
 	rs := &requestStream{
 		requestNumber: number,

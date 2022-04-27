@@ -17,36 +17,50 @@ type RawConnection interface {
 }
 
 type Connection struct {
+	ctx    context.Context
+	cancel context.CancelFunc
+
 	raw RawConnection
 
 	responseStreams *ResponseStreams
 	requestStreams  *RequestStreams
 
-	doneCh chan struct{}
-
 	logger logging.Logger
 }
 
+// NewConnection is the only way of creating a new Connection, zero value is invalid. Terminating the provided context
+// is equivalent to calling Close. The provided context is used as a base context for the contexts passed to the
+// request handler. Connection takes over managing RawConnection which must not be used further.
 func NewConnection(
+	ctx context.Context,
 	raw RawConnection,
 	handler RequestHandler,
 	logger logging.Logger,
 ) (*Connection, error) {
+	ctx, cancel := context.WithCancel(ctx)
+
 	conn := &Connection{
+		ctx:             ctx,
+		cancel:          cancel,
 		raw:             raw,
 		responseStreams: NewResponseStreams(raw, logger),
-		requestStreams:  NewRequestStreams(raw, handler, logger),
+		requestStreams:  NewRequestStreams(ctx, raw, handler, logger),
 		logger:          logger.New("connection"),
-		doneCh:          make(chan struct{}),
 	}
+
+	go func() {
+		<-ctx.Done()
+		defer conn.raw.Close()
+		defer conn.responseStreams.Close()
+	}()
 
 	go conn.readLoop()
 
 	return conn, nil
 }
 
-func (s *Connection) PerformRequest(ctx context.Context, req *Request) (*ResponseStream, error) {
-	stream, err := s.responseStreams.Open(ctx, req)
+func (c *Connection) PerformRequest(ctx context.Context, req *Request) (*ResponseStream, error) {
+	stream, err := c.responseStreams.Open(ctx, req)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to open a response stream")
 	}
@@ -54,19 +68,20 @@ func (s *Connection) PerformRequest(ctx context.Context, req *Request) (*Respons
 	return stream, nil
 }
 
-func (s *Connection) Done() <-chan struct{} {
-	return s.doneCh
+func (c *Connection) Done() <-chan struct{} {
+	return c.ctx.Done()
 }
 
-func (s *Connection) Close() error {
-	return s.raw.Close()
+// Close always returns nil. In theory shutting down a Secure Scuttlebutt RPC connection can result in an error as
+// a goodbye message for the entire connection has to be sent successfully to the other side but those errors are
+// not made available as it is unclear what to do with them.
+func (c *Connection) Close() error {
+	c.cancel()
+	return nil
 }
 
 func (c *Connection) readLoop() {
-	defer c.raw.Close()
-	defer c.responseStreams.Close()
-	defer c.requestStreams.Close()
-	defer close(c.doneCh)
+	defer c.cancel()
 
 	for {
 		if err := c.read(); err != nil {

@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"math/rand"
@@ -32,25 +33,25 @@ func NewPeerInitializer(
 	}
 }
 
-func (i PeerInitializer) InitializeServerPeer(rwc io.ReadWriteCloser) (Peer, error) {
+func (i PeerInitializer) InitializeServerPeer(ctx context.Context, rwc io.ReadWriteCloser) (Peer, error) {
 	boxStream, err := i.handshaker.OpenServerStream(rwc)
 	if err != nil {
 		return Peer{}, errors.Wrap(err, "failed to open a server stream")
 	}
 
-	return i.initializePeer(boxStream)
+	return i.initializePeer(ctx, boxStream)
 }
 
-func (i PeerInitializer) InitializeClientPeer(rwc io.ReadWriteCloser, remote identity.Public) (Peer, error) {
+func (i PeerInitializer) InitializeClientPeer(ctx context.Context, rwc io.ReadWriteCloser, remote identity.Public) (Peer, error) {
 	boxStream, err := i.handshaker.OpenClientStream(rwc, remote)
 	if err != nil {
 		return Peer{}, errors.Wrap(err, "failed to open a client stream")
 	}
 
-	return i.initializePeer(boxStream)
+	return i.initializePeer(ctx, boxStream)
 }
 
-func (i PeerInitializer) initializePeer(boxStream *boxstream.Stream) (Peer, error) {
+func (i PeerInitializer) initializePeer(ctx context.Context, boxStream *boxstream.Stream) (Peer, error) {
 	logger, err := i.peerLogger(boxStream)
 	if err != nil {
 		return Peer{}, errors.Wrap(err, "failed to create a peer logger")
@@ -58,7 +59,7 @@ func (i PeerInitializer) initializePeer(boxStream *boxstream.Stream) (Peer, erro
 
 	raw := transport.NewRawConnection(boxStream, logger)
 
-	rpcConn, err := rpc.NewConnection(raw, i.requestHandler, logger)
+	rpcConn, err := rpc.NewConnection(ctx, raw, i.requestHandler, logger)
 	if err != nil {
 		return Peer{}, errors.Wrap(err, "failed to establish an RPC connection")
 	}

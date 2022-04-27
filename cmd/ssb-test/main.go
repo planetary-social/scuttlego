@@ -2,20 +2,23 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"os"
 	"path"
+	"runtime/pprof"
+	"strings"
 	"time"
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/cmd/ssb-test/di"
 	"github.com/planetary-social/go-ssb/cmd/ssb-test/storage"
 	"github.com/planetary-social/go-ssb/logging"
-	"github.com/planetary-social/go-ssb/service/app/commands"
+	"github.com/planetary-social/go-ssb/service/domain"
+	"github.com/planetary-social/go-ssb/service/domain/feeds/formats"
 	"github.com/planetary-social/go-ssb/service/domain/identity"
 	"github.com/planetary-social/go-ssb/service/domain/invites"
-	"github.com/planetary-social/go-ssb/service/domain/network"
-	"github.com/planetary-social/go-ssb/service/domain/refs"
+	"github.com/planetary-social/go-ssb/service/domain/transport/boxstream"
 	"github.com/sirupsen/logrus"
 )
 
@@ -27,45 +30,51 @@ func main() {
 }
 
 var (
-	myPatchwork        = refs.MustNewIdentity("@qFtLJ6P5Eh9vKxnj7Rsh8SkE6B6Z36DVLP7ZOKNeQ/Y=.ed25519")
-	myPatchworkConnect = commands.Connect{
-		Remote:  myPatchwork.Identity(),
-		Address: network.NewAddress("127.0.0.1:8008"),
-	}
+//myPatchwork        = refs.MustNewIdentity("@qFtLJ6P5Eh9vKxnj7Rsh8SkE6B6Z36DVLP7ZOKNeQ/Y=.ed25519")
+//myPatchworkConnect = commands.Connect{
+//	Remote:  myPatchwork.Identity(),
+//	Address: network.NewAddress("127.0.0.1:8008"),
+//}
 
-	localGoSSB        = refs.MustNewIdentity("@ln1Bdt8lEy4/F/szWlFVAIAIdCBKmzH2MNEVad8BWus=.ed25519")
-	localGoSSBConnect = commands.Connect{
-		Remote:  localGoSSB.Identity(),
-		Address: network.NewAddress("127.0.0.1:8008"),
-	}
+//localGoSSB        = refs.MustNewIdentity("@ln1Bdt8lEy4/F/szWlFVAIAIdCBKmzH2MNEVad8BWus=.ed25519")
+//localGoSSBConnect = commands.Connect{
+//	Remote:  localGoSSB.Identity(),
+//	Address: network.NewAddress("127.0.0.1:8008"),
+//}
 
-	pubInvite = invites.MustNewInviteFromString("one.planetary.pub:8008:@CIlwTOK+m6v1hT2zUVOCJvvZq7KE/65ErN6yA2yrURY=.ed25519~KVvak/aZeQJQUrn1imLIvwU+EVTkCzGW8TJWTmK8lOk=")
+//pubInvite = invites.MustNewInviteFromString("one.planetary.pub:8008:@CIlwTOK+m6v1hT2zUVOCJvvZq7KE/65ErN6yA2yrURY=.ed25519~KVvak/aZeQJQUrn1imLIvwU+EVTkCzGW8TJWTmK8lOk=")
 
-	//soapdog = refs.MustNewIdentity("@qv10rF4IsmxRZb7g5ekJ33EakYBpdrmV/vtP1ij5BS4=.ed25519")
+//soapdog = refs.MustNewIdentity("@qv10rF4IsmxRZb7g5ekJ33EakYBpdrmV/vtP1ij5BS4=.ed25519")
 
-	//pub         = refs.MustNewIdentity("@CIlwTOK+m6v1hT2zUVOCJvvZq7KE/65ErN6yA2yrURY=.ed25519")
-	//hubConnect = commands2.Connect{
-	//	Remote:  pub.Identity(),
-	//	Address: network2.NewAddress("one.planetary.pub:8008"),
-	//}
+//pub         = refs.MustNewIdentity("@CIlwTOK+m6v1hT2zUVOCJvvZq7KE/65ErN6yA2yrURY=.ed25519")
+//hubConnect = commands2.Connect{
+//	Remote:  pub.Identity(),
+//	Address: network2.NewAddress("one.planetary.pub:8008"),
+//}
 )
 
+var (
+	testnetPub         = invites.MustNewInviteFromString("198.199.90.207:8008:@2xO+nZ1D46RIc6hGKk1fJ4ccynogPNry1S7q18XZQGk=.ed25519~9qgQcC9XngzFLV2A9kIOyVo0q8P+twN6VLKl4DBOgsQ=")
+	testnetNetworkKey  boxstream.NetworkKey
+	testnetMessageHMAC formats.MessageHMAC
+)
+
+func init() {
+	keyBytes, err := base64.StdEncoding.DecodeString("AHSrRkNQlQbJP3FyKxvBUI02LI0OdixEl0pYFTUHrMw=")
+	if err != nil {
+		panic(err)
+	}
+	testnetNetworkKey = boxstream.MustNewNetworkKey(keyBytes)
+
+	hmacBytes, err := base64.StdEncoding.DecodeString("d8mXyv5OAjxTLnPIAnXUk7TjjALroyfdJn+0RUGHxY4=")
+	if err != nil {
+		panic(err)
+	}
+	testnetMessageHMAC = formats.MustNewMessageHMAC(hmacBytes)
+}
+
 func run() error {
-	//f, err := os.Create("/tmp/cpu.profile")
-	//if err != nil {
-	//	return errors.Wrap(err, "could not create cpu profile")
-	//}
-	//defer f.Close()
-
-	//if err := pprof.StartCPUProfile(f); err != nil {
-	//	return errors.Wrap(err, "could not start cpu profile")
-	//}
-
-	//go func() {
-	//	<-time.After(60 * time.Second)
-	//	pprof.StopCPUProfile()
-	//	panic("profile done")
-	//}()
+	go captureProfiles()
 
 	ctx := context.Background()
 
@@ -75,8 +84,18 @@ func run() error {
 
 	config := di.Config{
 		DataDirectory: os.Args[1],
-		ListenAddress: ":8009",
+		ListenAddress: ":8008",
 		Logger:        newLogger(),
+		NetworkKey:    testnetNetworkKey,
+		MessageHMAC:   testnetMessageHMAC,
+		PeerManagerConfig: domain.PeerManagerConfig{
+			PreferredPubs: []domain.Pub{
+				{
+					Identity: testnetPub.Remote().Identity(),
+					Address:  testnetPub.Address(),
+				},
+			},
+		},
 	}
 
 	config.SetDefaults()
@@ -86,9 +105,9 @@ func run() error {
 		return errors.Wrap(err, "could not load the identity")
 	}
 
-	fmt.Println("my identity is", refs.MustNewIdentityFromPublic(local.Public()).String())
+	config.Logger.WithField("identity", local.Public()).Debug("my identity")
 
-	service, err := di.BuildService(local, config)
+	service, err := di.BuildService(ctx, local, config)
 	if err != nil {
 		return errors.Wrap(err, "could not build a service")
 	}
@@ -100,27 +119,36 @@ func run() error {
 	//}()
 
 	//go func() {
-	//	<-time.After(5 * time.Second)
-	//	err := service.App.Commands.Follow.Handle(commands.Follow{Target: myPatchwork})
-	//	fmt.Println("follow", err)
+	//<-time.After(5 * time.Second)
+	//err := service.App.Commands.Follow.Handle(commands.Follow{Target: testnetPub.Remote()})
+	//fmt.Println("follow", err)
 	//}()
 
-	go func() {
-		<-time.After(5 * time.Second)
-		if err := service.App.Commands.Connect.Handle(myPatchworkConnect); err != nil {
-			fmt.Println("error", err)
-		}
-	}()
+	//go func() {
+	//	<-time.After(5 * time.Second)
+	//	if err := service.App.Commands.Connect.Handle(myPatchworkConnect); err != nil {
+	//		fmt.Println("error", err)
+	//	}
+	//}()
 
 	go func() {
 		for {
 			<-time.After(1 * time.Second)
-			result, err := service.App.Queries.Stats.Handle()
+			result, err := service.App.Queries.Status.Handle()
 			if err != nil {
 				panic(err)
 			}
 
-			fmt.Printf("%+v\n", result)
+			var peers []string
+			for _, peer := range result.Peers {
+				peers = append(peers, peer.Identity.String())
+			}
+
+			config.Logger.
+				WithField("feeds", result.NumberOfFeeds).
+				WithField("messages", result.NumberOfMessages).
+				WithField("peers", strings.Join(peers, ", ")).
+				Debug("status")
 		}
 	}()
 
@@ -130,7 +158,7 @@ func run() error {
 func newLogger() logging.LogrusLogger {
 	log := logrus.New()
 	log.SetLevel(logrus.TraceLevel)
-	return logging.NewLogrusLogger(log, "main", logging.LevelTrace)
+	return logging.NewLogrusLogger(log, "main", logging.LevelDebug)
 }
 
 func loadOrGenerateIdentity(config di.Config) (identity.Private, error) {
@@ -155,4 +183,28 @@ func loadOrGenerateIdentity(config di.Config) (identity.Private, error) {
 	}
 
 	return i, nil
+}
+
+func captureProfiles() {
+	for {
+		if err := captureProfile(); err != nil {
+			fmt.Println("failed capturing profile", err)
+		}
+	}
+}
+
+func captureProfile() error {
+	f, err := os.Create(fmt.Sprintf("/tmp/cpu.profile-%s", time.Now()))
+	if err != nil {
+		return errors.Wrap(err, "could not create cpu profile")
+	}
+	defer f.Close()
+
+	if err := pprof.StartCPUProfile(f); err != nil {
+		return errors.Wrap(err, "could not start cpu profile")
+	}
+
+	<-time.After(60 * time.Second)
+	pprof.StopCPUProfile()
+	return nil
 }

@@ -4,6 +4,7 @@
 package di
 
 import (
+	"context"
 	"path"
 	"time"
 
@@ -69,6 +70,7 @@ var portsSet = wire.NewSet(
 
 	local.NewDiscoverer,
 	portsnetwork.NewDiscoverer,
+	portsnetwork.NewConnectionEstablisher,
 )
 
 var requestPubSubSet = wire.NewSet(
@@ -138,6 +140,7 @@ type TestApplication struct {
 	FeedRepository    *mocks.FeedRepositoryMock
 	MessagePubSub     *mocks.MessagePubSubMock
 	MessageRepository *mocks.MessageRepositoryMock
+	PeerManager       *mocks.PeerManagerMock
 }
 
 func BuildApplicationForTests() (TestApplication, error) {
@@ -155,6 +158,9 @@ func BuildApplicationForTests() (TestApplication, error) {
 
 		mocks.NewMessageRepositoryMock,
 		wire.Bind(new(queries.MessageRepository), new(*mocks.MessageRepositoryMock)),
+
+		mocks.NewPeerManagerMock,
+		wire.Bind(new(queries.PeerManager), new(*mocks.PeerManagerMock)),
 
 		wire.Struct(new(TestApplication), "*"),
 
@@ -194,13 +200,16 @@ func BuildTxRepositories(*bbolt.Tx, identity.Public, logging.Logger, formats.Mes
 	return bolt.TxRepositories{}, nil
 }
 
-func BuildService(identity.Private, Config) (Service, error) {
+// BuildService creates a new service which uses the provided context as a long-term context used as a base context for
+// e.g. established connections.
+func BuildService(context.Context, identity.Private, Config) (Service, error) {
 	wire.Build(
 		NewService,
 
 		extractNetworkKeyFromConfig,
 		extractMessageHMACFromConfig,
 		extractLoggerFromConfig,
+		extractPeerManagerConfigFromConfig,
 
 		boxstream.NewHandshaker,
 
@@ -213,9 +222,12 @@ func BuildService(identity.Private, Config) (Service, error) {
 
 		network.NewDialer,
 		wire.Bind(new(commands.Dialer), new(*network.Dialer)),
+		wire.Bind(new(domain.Dialer), new(*network.Dialer)),
 
 		domain.NewPeerManager,
 		wire.Bind(new(commands.NewPeerHandler), new(*domain.PeerManager)),
+		wire.Bind(new(commands.PeerManager), new(*domain.PeerManager)),
+		wire.Bind(new(queries.PeerManager), new(*domain.PeerManager)),
 
 		bolt.NewTransactionProvider,
 		wire.Bind(new(commands.TransactionProvider), new(*bolt.TransactionProvider)),
@@ -288,4 +300,8 @@ func extractMessageHMACFromConfig(config Config) formats.MessageHMAC {
 
 func extractLoggerFromConfig(config Config) logging.Logger {
 	return config.Logger
+}
+
+func extractPeerManagerConfigFromConfig(config Config) domain.PeerManagerConfig {
+	return config.PeerManagerConfig
 }

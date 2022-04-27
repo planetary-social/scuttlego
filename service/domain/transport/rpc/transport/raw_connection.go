@@ -80,6 +80,7 @@ func (s RawConnection) Send(msg *Message) error {
 }
 
 func (s RawConnection) Close() error {
+	// todo send termination?
 	return s.rwc.Close()
 }
 

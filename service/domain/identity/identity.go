@@ -3,6 +3,7 @@ package identity
 import (
 	"crypto/ed25519"
 	"crypto/rand"
+	"encoding/base64"
 
 	"github.com/boreq/errors"
 )
@@ -29,6 +30,10 @@ func (p Public) PublicKey() ed25519.PublicKey {
 
 func (p Public) IsZero() bool {
 	return len(p.key) == 0
+}
+
+func (p Public) String() string {
+	return base64.StdEncoding.EncodeToString(p.key)
 }
 
 type Private struct {

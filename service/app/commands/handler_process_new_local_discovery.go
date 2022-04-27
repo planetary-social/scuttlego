@@ -1,7 +1,7 @@
 package commands
 
 import (
-	"github.com/planetary-social/go-ssb/logging"
+	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/service/domain/identity"
 	"github.com/planetary-social/go-ssb/service/domain/network"
 )
@@ -12,16 +12,19 @@ type ProcessNewLocalDiscovery struct {
 }
 
 type ProcessNewLocalDiscoveryHandler struct {
-	logger logging.Logger
+	peerManager PeerManager
 }
 
-func NewProcessNewLocalDiscoveryHandler(logger logging.Logger) *ProcessNewLocalDiscoveryHandler {
+func NewProcessNewLocalDiscoveryHandler(peerManager PeerManager) *ProcessNewLocalDiscoveryHandler {
 	return &ProcessNewLocalDiscoveryHandler{
-		logger: logger,
+		peerManager: peerManager,
 	}
 }
 
 func (h *ProcessNewLocalDiscoveryHandler) Handle(cmd ProcessNewLocalDiscovery) error {
-	h.logger.WithField("address", cmd.Address).Debug("new local peer discovered")
+	if err := h.peerManager.ProcessNewLocalDiscovery(cmd.Remote, cmd.Address); err != nil {
+		return errors.Wrap(err, "error calling peer manager")
+	}
+
 	return nil
 }

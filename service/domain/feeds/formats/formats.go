@@ -72,6 +72,14 @@ func NewMessageHMAC(b []byte) (MessageHMAC, error) {
 	return MessageHMAC{buf}, nil
 }
 
+func MustNewMessageHMAC(b []byte) MessageHMAC {
+	v, err := NewMessageHMAC(b)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
 // NewDefaultMessageHMAC returns a MessageHMAC used by the main Secure
 // Secuttlebutt network. This value effectively means that message HMAC should
 // not be applied to messages.

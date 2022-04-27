@@ -7,36 +7,38 @@ import (
 	"github.com/planetary-social/go-ssb/service/domain/network"
 )
 
+// Connect tries to initiate the connection to the specified node. This is most likely useful when you want to
+// explicitly stimulate the program to talk to a specific node. Normally connections are initiated and managed
+// automatically. Executing this command doesn't necessarily mean that a new connection will be established, for
+// example the underlying implementation may decide not to do this if the connection with the specified identity
+// already exists.
 type Connect struct {
-	Remote  identity.Public
+	// Remote is the identity of the remote node.
+	Remote identity.Public
+
+	// Address is the address of the remote node.
 	Address network.Address
 }
 
 type ConnectHandler struct {
-	dialer      Dialer
-	peerHandler NewPeerHandler
+	peerManager PeerManager
 	logger      logging.Logger
 }
 
 func NewConnectHandler(
-	dialer Dialer,
-	peerHandler NewPeerHandler,
+	peerManager PeerManager,
 	logger logging.Logger,
 ) *ConnectHandler {
 	return &ConnectHandler{
-		dialer:      dialer,
-		peerHandler: peerHandler,
+		peerManager: peerManager,
 		logger:      logger,
 	}
 }
 
 func (h *ConnectHandler) Handle(cmd Connect) error {
-	peer, err := h.dialer.Dial(cmd.Remote, cmd.Address)
-	if err != nil {
-		return errors.Wrap(err, "dial failed")
+	if err := h.peerManager.Connect(cmd.Remote, cmd.Address); err != nil {
+		return errors.Wrap(err, "error initiating the connection")
 	}
-
-	h.peerHandler.HandleNewPeer(peer)
 
 	return nil
 }

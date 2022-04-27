@@ -14,26 +14,29 @@ import (
 type Service struct {
 	App app.Application
 
-	listener   *networkport.Listener
-	discoverer *networkport.Discoverer
-	pubsub     *pubsubport.PubSub
-	advertiser *local.Advertiser
+	listener              *networkport.Listener
+	discoverer            *networkport.Discoverer
+	connectionEstablisher *networkport.ConnectionEstablisher
+	pubsub                *pubsubport.PubSub
+	advertiser            *local.Advertiser
 }
 
 func NewService(
 	app app.Application,
 	listener *networkport.Listener,
+	discoverer *networkport.Discoverer,
+	connectionEstablisher *networkport.ConnectionEstablisher,
 	pubsub *pubsubport.PubSub,
 	advertiser *local.Advertiser,
-	discoverer *networkport.Discoverer,
 ) Service {
 	return Service{
 		App: app,
 
-		listener:   listener,
-		pubsub:     pubsub,
-		advertiser: advertiser,
-		discoverer: discoverer,
+		listener:              listener,
+		discoverer:            discoverer,
+		connectionEstablisher: connectionEstablisher,
+		pubsub:                pubsub,
+		advertiser:            advertiser,
 	}
 }
 
@@ -62,6 +65,11 @@ func (s Service) Run(ctx context.Context) error {
 	runners++
 	go func() {
 		errCh <- s.discoverer.Run(ctx)
+	}()
+
+	runners++
+	go func() {
+		errCh <- s.connectionEstablisher.Run(ctx)
 	}()
 
 	var err error

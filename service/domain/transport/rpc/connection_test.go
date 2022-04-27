@@ -290,6 +290,7 @@ func TestIncomingRequests(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
+			ctx := fixtures.TestContext(t)
 			logger := fixtures.SomeLogger()
 			raw := newRawConnectionMock()
 
@@ -298,7 +299,7 @@ func TestIncomingRequests(t *testing.T) {
 				require.NoError(t, err)
 			})
 
-			conn, err := rpc.NewConnection(raw, handler, logger)
+			conn, err := rpc.NewConnection(ctx, raw, handler, logger)
 			require.NoError(t, err)
 			defer conn.Close()
 
@@ -389,6 +390,7 @@ func TestPrematureTerminationByRemote(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
+			ctx := fixtures.TestContext(t)
 			logger := fixtures.SomeLogger()
 			raw := newRawConnectionMock()
 
@@ -399,7 +401,7 @@ func TestPrematureTerminationByRemote(t *testing.T) {
 				requestHandlerTerminatedCorrectly = true
 			})
 
-			conn, err := rpc.NewConnection(raw, handler, logger)
+			conn, err := rpc.NewConnection(ctx, raw, handler, logger)
 			require.NoError(t, err)
 			defer conn.Close()
 

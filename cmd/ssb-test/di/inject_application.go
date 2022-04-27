@@ -25,6 +25,7 @@ var commandsSet = wire.NewSet(
 	commands.NewAcceptNewPeerHandler,
 	commands.NewProcessNewLocalDiscoveryHandler,
 	commands.NewPublishRawHandler,
+	commands.NewEstablishNewConnectionsHandler,
 )
 
 var queriesSet = wire.NewSet(
@@ -34,6 +35,6 @@ var queriesSet = wire.NewSet(
 	wire.Bind(new(portsrpc.CreateHistoryStreamQueryHandler), new(*queries.CreateHistoryStreamHandler)),
 
 	queries.NewReceiveLogHandler,
-	queries.NewStatsHandler,
+	queries.NewStatusHandler,
 	queries.NewPublishedMessagesHandler,
 )

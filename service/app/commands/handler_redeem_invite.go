@@ -20,8 +20,8 @@ import (
 )
 
 type Dialer interface {
-	DialWithInitializer(initializer network.ClientPeerInitializer, remote identity.Public, addr network.Address) (transport.Peer, error)
-	Dial(remote identity.Public, address network.Address) (transport.Peer, error)
+	DialWithInitializer(ctx context.Context, initializer network.ClientPeerInitializer, remote identity.Public, addr network.Address) (transport.Peer, error)
+	Dial(ctx context.Context, remote identity.Public, address network.Address) (transport.Peer, error)
 }
 
 type RedeemInvite struct {
@@ -65,7 +65,7 @@ func (h *RedeemInviteHandler) Handle(ctx context.Context, cmd RedeemInvite) erro
 
 	// todo check reply
 
-	// todo publish contact and pub content
+	// todo publish contact and pub message?
 
 	// todo main feed or should the invite contain a feed ref?
 	follow, err := content.NewContact(cmd.Invite.Remote(), content.ContactActionFollow)
@@ -73,7 +73,7 @@ func (h *RedeemInviteHandler) Handle(ctx context.Context, cmd RedeemInvite) erro
 		return errors.Wrap(err, "could not create a follow message")
 	}
 
-	content, err := h.marshaler.Marshal(follow)
+	followContent, err := h.marshaler.Marshal(follow)
 	if err != nil {
 		return errors.Wrap(err, "failed to create message content")
 	}
@@ -87,7 +87,7 @@ func (h *RedeemInviteHandler) Handle(ctx context.Context, cmd RedeemInvite) erro
 
 	if err := h.transaction.Transact(func(adapters Adapters) error {
 		if err := adapters.Feed.UpdateFeed(myRef.MainFeed(), func(feed *feeds.Feed) (*feeds.Feed, error) {
-			if _, err := feed.CreateMessage(content, time.Now(), h.local); err != nil {
+			if _, err := feed.CreateMessage(followContent, time.Now(), h.local); err != nil {
 				return nil, errors.Wrap(err, "could not append a message")
 			}
 
@@ -105,7 +105,10 @@ func (h *RedeemInviteHandler) Handle(ctx context.Context, cmd RedeemInvite) erro
 }
 
 func (h *RedeemInviteHandler) redeemInvite(ctx context.Context, cmd RedeemInvite) error {
-	peer, err := h.dial(cmd)
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	peer, err := h.dial(ctx, cmd)
 	if err != nil {
 		return errors.Wrap(err, "could not dial the pub")
 	}
@@ -114,9 +117,6 @@ func (h *RedeemInviteHandler) redeemInvite(ctx context.Context, cmd RedeemInvite
 	if err != nil {
 		return errors.Wrap(err, "could not create a request")
 	}
-
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
 
 	rs, err := peer.Conn().PerformRequest(ctx, req)
 	if err != nil {
@@ -137,7 +137,7 @@ func (h *RedeemInviteHandler) redeemInvite(ctx context.Context, cmd RedeemInvite
 	return nil
 }
 
-func (h *RedeemInviteHandler) dial(cmd RedeemInvite) (transport.Peer, error) {
+func (h *RedeemInviteHandler) dial(ctx context.Context, cmd RedeemInvite) (transport.Peer, error) {
 	local, err := identity.NewPrivateFromSeed(cmd.Invite.SecretKeySeed())
 	if err != nil {
 		return transport.Peer{}, errors.Wrap(err, "could not create a private identity")
@@ -150,7 +150,7 @@ func (h *RedeemInviteHandler) dial(cmd RedeemInvite) (transport.Peer, error) {
 
 	initializer := transport.NewPeerInitializer(handshaker, h.requestHandler, h.logger)
 
-	peer, err := h.dialer.DialWithInitializer(initializer, cmd.Invite.Remote().Identity(), cmd.Invite.Address())
+	peer, err := h.dialer.DialWithInitializer(ctx, initializer, cmd.Invite.Remote().Identity(), cmd.Invite.Address())
 	if err != nil {
 		return transport.Peer{}, errors.Wrap(err, "failed to dial")
 	}

@@ -64,6 +64,8 @@ func (r *ResponseStreams) Open(ctx context.Context, req *Request) (*ResponseStre
 	return rs, nil
 }
 
+// HandleIncomingResponse processes an incoming response. Returning an error from this function shuts down the entire
+// connection.
 func (r *ResponseStreams) HandleIncomingResponse(msg *transport.Message) error {
 	if msg.Header.IsRequest() {
 		return errors.New("passed a request")

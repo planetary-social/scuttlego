@@ -11,17 +11,19 @@ type Application struct {
 }
 
 type Commands struct {
-	RedeemInvite             *commands.RedeemInviteHandler
-	Follow                   *commands.FollowHandler
+	RedeemInvite *commands.RedeemInviteHandler
+	Follow       *commands.FollowHandler
+	PublishRaw   *commands.PublishRawHandler
+
 	Connect                  *commands.ConnectHandler
+	EstablishNewConnections  *commands.EstablishNewConnectionsHandler
 	AcceptNewPeer            *commands.AcceptNewPeerHandler
 	ProcessNewLocalDiscovery *commands.ProcessNewLocalDiscoveryHandler
-	PublishRaw               *commands.PublishRawHandler
 }
 
 type Queries struct {
 	CreateHistoryStream *queries.CreateHistoryStreamHandler
 	ReceiveLog          *queries.ReceiveLogHandler
-	Stats               *queries.StatsHandler
+	Status              *queries.StatusHandler
 	PublishedMessages   *queries.PublishedMessagesHandler
 }

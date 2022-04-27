@@ -7,6 +7,7 @@
 package di
 
 import (
+	"context"
 	"path"
 	"time"
 
@@ -101,7 +102,8 @@ func BuildApplicationForTests() (TestApplication, error) {
 	receiveLogRepositoryMock := mocks.NewReceiveLogRepositoryMock()
 	receiveLogHandler := queries.NewReceiveLogHandler(receiveLogRepositoryMock)
 	messageRepositoryMock := mocks.NewMessageRepositoryMock()
-	statsHandler := queries.NewStatsHandler(messageRepositoryMock, feedRepositoryMock)
+	peerManagerMock := mocks.NewPeerManagerMock()
+	statusHandler := queries.NewStatusHandler(messageRepositoryMock, feedRepositoryMock, peerManagerMock)
 	private, err := identity.NewPrivate()
 	if err != nil {
 		return TestApplication{}, err
@@ -114,7 +116,7 @@ func BuildApplicationForTests() (TestApplication, error) {
 	appQueries := app.Queries{
 		CreateHistoryStream: createHistoryStreamHandler,
 		ReceiveLog:          receiveLogHandler,
-		Stats:               statsHandler,
+		Status:              statusHandler,
 		PublishedMessages:   publishedMessagesHandler,
 	}
 	testApplication := TestApplication{
@@ -122,6 +124,7 @@ func BuildApplicationForTests() (TestApplication, error) {
 		FeedRepository:    feedRepositoryMock,
 		MessagePubSub:     messagePubSubMock,
 		MessageRepository: messageRepositoryMock,
+		PeerManager:       peerManagerMock,
 	}
 	return testApplication, nil
 }
@@ -181,7 +184,9 @@ var (
 	_wireHopsValue2 = hops
 )
 
-func BuildService(private identity.Private, config Config) (Service, error) {
+// BuildService creates a new service which uses the provided context as a long-term context used as a base context for
+// e.g. established connections.
+func BuildService(contextContext context.Context, private identity.Private, config Config) (Service, error) {
 	networkKey := extractNetworkKeyFromConfig(config)
 	handshaker, err := boxstream.NewHandshaker(private, networkKey)
 	if err != nil {
@@ -208,6 +213,8 @@ func BuildService(private identity.Private, config Config) (Service, error) {
 	}
 	redeemInviteHandler := commands.NewRedeemInviteHandler(dialer, transactionProvider, networkKey, private, requestPubSub, marshaler, logger)
 	followHandler := commands.NewFollowHandler(transactionProvider, private, marshaler, logger)
+	publishRawHandler := commands.NewPublishRawHandler(transactionProvider, private, logger)
+	peerManagerConfig := extractPeerManagerConfigFromConfig(config)
 	messageHMAC := extractMessageHMACFromConfig(config)
 	txRepositoriesFactory := newTxRepositoriesFactory(public, logger, messageHMAC)
 	boltContactsRepository := bolt.NewBoltContactsRepository(db, txRepositoriesFactory)
@@ -220,18 +227,19 @@ func BuildService(private identity.Private, config Config) (Service, error) {
 	if err != nil {
 		return Service{}, err
 	}
-	peerManager := domain.NewPeerManager(gossipReplicator, logger)
-	connectHandler := commands.NewConnectHandler(dialer, peerManager, logger)
+	peerManager := domain.NewPeerManager(contextContext, peerManagerConfig, gossipReplicator, dialer, logger)
+	connectHandler := commands.NewConnectHandler(peerManager, logger)
+	establishNewConnectionsHandler := commands.NewEstablishNewConnectionsHandler(peerManager)
 	acceptNewPeerHandler := commands.NewAcceptNewPeerHandler(peerManager)
-	processNewLocalDiscoveryHandler := commands.NewProcessNewLocalDiscoveryHandler(logger)
-	publishRawHandler := commands.NewPublishRawHandler(transactionProvider, private, logger)
+	processNewLocalDiscoveryHandler := commands.NewProcessNewLocalDiscoveryHandler(peerManager)
 	appCommands := app.Commands{
 		RedeemInvite:             redeemInviteHandler,
 		Follow:                   followHandler,
+		PublishRaw:               publishRawHandler,
 		Connect:                  connectHandler,
+		EstablishNewConnections:  establishNewConnectionsHandler,
 		AcceptNewPeer:            acceptNewPeerHandler,
 		ProcessNewLocalDiscovery: processNewLocalDiscoveryHandler,
-		PublishRaw:               publishRawHandler,
 	}
 	readFeedRepository := bolt.NewReadFeedRepository(db, txRepositoriesFactory)
 	messagePubSub := pubsub.NewMessagePubSub()
@@ -239,7 +247,7 @@ func BuildService(private identity.Private, config Config) (Service, error) {
 	readReceiveLogRepository := bolt.NewReadReceiveLogRepository(db, txRepositoriesFactory)
 	receiveLogHandler := queries.NewReceiveLogHandler(readReceiveLogRepository)
 	readMessageRepository := bolt.NewReadMessageRepository(db, txRepositoriesFactory)
-	statsHandler := queries.NewStatsHandler(readMessageRepository, readFeedRepository)
+	statusHandler := queries.NewStatusHandler(readMessageRepository, readFeedRepository, peerManager)
 	publishedMessagesHandler, err := queries.NewPublishedMessagesHandler(readFeedRepository, public)
 	if err != nil {
 		return Service{}, err
@@ -247,7 +255,7 @@ func BuildService(private identity.Private, config Config) (Service, error) {
 	appQueries := app.Queries{
 		CreateHistoryStream: createHistoryStreamHandler,
 		ReceiveLog:          receiveLogHandler,
-		Stats:               statsHandler,
+		Status:              statusHandler,
 		PublishedMessages:   publishedMessagesHandler,
 	}
 	application := app.Application{
@@ -258,6 +266,12 @@ func BuildService(private identity.Private, config Config) (Service, error) {
 	if err != nil {
 		return Service{}, err
 	}
+	discoverer, err := local.NewDiscoverer(public, logger)
+	if err != nil {
+		return Service{}, err
+	}
+	networkDiscoverer := network2.NewDiscoverer(discoverer, application, logger)
+	connectionEstablisher := network2.NewConnectionEstablisher(application, logger)
 	handlerCreateHistoryStream := rpc.NewHandlerCreateHistoryStream(createHistoryStreamHandler)
 	handlerBlobsGet := rpc.NewHandlerBlobsGet()
 	v2 := rpc.NewMuxHandlers(handlerCreateHistoryStream, handlerBlobsGet)
@@ -270,12 +284,7 @@ func BuildService(private identity.Private, config Config) (Service, error) {
 	if err != nil {
 		return Service{}, err
 	}
-	discoverer, err := local.NewDiscoverer(public, logger)
-	if err != nil {
-		return Service{}, err
-	}
-	networkDiscoverer := network2.NewDiscoverer(discoverer, application, logger)
-	service := NewService(application, listener, pubSub, advertiser, networkDiscoverer)
+	service := NewService(application, listener, networkDiscoverer, connectionEstablisher, pubSub, advertiser)
 	return service, nil
 }
 
@@ -287,7 +296,7 @@ var formatsSet = wire.NewSet(
 	newFormats, formats.NewScuttlebutt, transport.NewMarshaler, wire.Bind(new(formats.Marshaler), new(*transport.Marshaler)), transport.DefaultMappings, formats.NewRawMessageIdentifier, wire.Bind(new(commands.RawMessageIdentifier), new(*formats.RawMessageIdentifier)), wire.Bind(new(bolt.RawMessageIdentifier), new(*formats.RawMessageIdentifier)),
 )
 
-var portsSet = wire.NewSet(rpc.NewMux, rpc.NewMuxHandlers, rpc.NewHandlerBlobsGet, rpc.NewHandlerCreateHistoryStream, pubsub2.NewPubSub, local.NewDiscoverer, network2.NewDiscoverer)
+var portsSet = wire.NewSet(rpc.NewMux, rpc.NewMuxHandlers, rpc.NewHandlerBlobsGet, rpc.NewHandlerCreateHistoryStream, pubsub2.NewPubSub, local.NewDiscoverer, network2.NewDiscoverer, network2.NewConnectionEstablisher)
 
 var requestPubSubSet = wire.NewSet(pubsub.NewRequestPubSub, wire.Bind(new(rpc2.RequestHandler), new(*pubsub.RequestPubSub)))
 
@@ -313,6 +322,7 @@ type TestApplication struct {
 	FeedRepository    *mocks.FeedRepositoryMock
 	MessagePubSub     *mocks.MessagePubSubMock
 	MessageRepository *mocks.MessageRepositoryMock
+	PeerManager       *mocks.PeerManagerMock
 }
 
 func newAdvertiser(l identity.Public, config Config) (*local.Advertiser, error) {
@@ -365,4 +375,8 @@ func extractMessageHMACFromConfig(config Config) formats.MessageHMAC {
 
 func extractLoggerFromConfig(config Config) logging.Logger {
 	return config.Logger
+}
+
+func extractPeerManagerConfigFromConfig(config Config) domain.PeerManagerConfig {
+	return config.PeerManagerConfig
 }

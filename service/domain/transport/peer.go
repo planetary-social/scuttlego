@@ -9,16 +9,21 @@ import (
 	"github.com/planetary-social/go-ssb/service/domain/transport/rpc"
 )
 
+// Connection represents an RPC connection to a peer.
 type Connection interface {
 	PerformRequest(ctx context.Context, req *rpc.Request) (*rpc.ResponseStream, error)
 	Done() <-chan struct{}
 	Close() error
 }
 
-// Peer is here just for the purpose of storing an RPC connection together with the identity of the remote node. In
-// theory that identity could be placed inside the rpc.Connection struct however at the protocol level the concept
-// of a remote identity exists only during the handshake, the RPC connection itself doesn't really know about the
-// handshake or the identity. Those are properties of the underlying boxstream transport layer.
+// Peer exists just for the purpose of keeping track of a connection together
+// with the identity of the remote node.
+//
+// In theory that identity could be kept at the connection level and returned by
+// the Connection interface however at the protocol level the concept of a
+// remote identity exists only during the handshake. According to the protocol
+// the RPC connection itself doesn't really know about the handshake or the
+// identity. Those are properties of the underlying boxstream transport layer.
 type Peer struct {
 	remote identity.Public
 	conn   Connection

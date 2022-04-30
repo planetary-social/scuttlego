@@ -237,6 +237,8 @@ func BuildService(context.Context, identity.Private, Config) (Service, error) {
 		newListener,
 		privateIdentityToPublicIdentity,
 
+		commands.NewMessageBuffer,
+
 		portsSet,
 		applicationSet,
 		replicatorSet,

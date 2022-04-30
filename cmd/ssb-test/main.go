@@ -74,7 +74,8 @@ func init() {
 }
 
 func run() error {
-	go captureProfiles()
+	go captureCPUProfiles()
+	go captureHeapProfiles()
 
 	ctx := context.Background()
 
@@ -185,16 +186,25 @@ func loadOrGenerateIdentity(config di.Config) (identity.Private, error) {
 	return i, nil
 }
 
-func captureProfiles() {
+func captureCPUProfiles() {
 	for {
-		if err := captureProfile(); err != nil {
+		if err := captureCPUProfile(); err != nil {
 			fmt.Println("failed capturing profile", err)
 		}
 	}
 }
 
-func captureProfile() error {
-	f, err := os.Create(fmt.Sprintf("/tmp/cpu.profile-%s", time.Now()))
+func captureHeapProfiles() {
+	for {
+		if err := captureHeapProfile(); err != nil {
+			fmt.Println("failed capturing profile", err)
+		}
+		<-time.After(60 * time.Second)
+	}
+}
+
+func captureCPUProfile() error {
+	f, err := os.Create(fmt.Sprintf("/tmp/cpu.profile-%s", nowAsString()))
 	if err != nil {
 		return errors.Wrap(err, "could not create cpu profile")
 	}
@@ -207,4 +217,18 @@ func captureProfile() error {
 	<-time.After(60 * time.Second)
 	pprof.StopCPUProfile()
 	return nil
+}
+
+func captureHeapProfile() error {
+	f, err := os.Create(fmt.Sprintf("/tmp/heap.profile-%s", nowAsString()))
+	if err != nil {
+		return errors.Wrap(err, "could not create cpu profile")
+	}
+	defer f.Close()
+
+	return pprof.WriteHeapProfile(f)
+}
+
+func nowAsString() string {
+	return time.Now().Format(time.RFC3339)
 }

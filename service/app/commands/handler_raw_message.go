@@ -3,7 +3,6 @@ package commands
 import (
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/logging"
-	"github.com/planetary-social/go-ssb/service/domain/feeds"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
 )
 
@@ -12,16 +11,20 @@ type RawMessageIdentifier interface {
 }
 
 type RawMessageHandler struct {
-	transaction TransactionProvider
-	identifier  RawMessageIdentifier
-	logger      logging.Logger
+	identifier RawMessageIdentifier
+	buffer     *MessageBuffer
+	logger     logging.Logger
 }
 
-func NewRawMessageHandler(transaction TransactionProvider, identifier RawMessageIdentifier, logger logging.Logger) *RawMessageHandler {
+func NewRawMessageHandler(
+	identifier RawMessageIdentifier,
+	buffer *MessageBuffer,
+	logger logging.Logger,
+) *RawMessageHandler {
 	return &RawMessageHandler{
-		transaction: transaction,
-		identifier:  identifier,
-		logger:      logger.New("raw_message_handler"),
+		identifier: identifier,
+		buffer:     buffer,
+		logger:     logger.New("raw_message_handler"),
 	}
 }
 
@@ -31,37 +34,8 @@ func (h *RawMessageHandler) Handle(rawMsg message.RawMessage) error {
 		return errors.Wrap(err, "failed to identify the raw message")
 	}
 
-	h.logger.
-		WithField("sequence", msg.Sequence().Int()).
-		WithField("feed", msg.Feed().String()).
-		Trace("handling a new message")
-
-	if err := h.transaction.Transact(func(adapters Adapters) error {
-		return h.storeMessage(adapters, msg)
-	}); err != nil {
-		return errors.Wrap(err, "transaction failed")
-	}
-
-	return nil
-}
-
-func (h *RawMessageHandler) storeMessage(adapters Adapters, msg message.Message) error {
-	socialGraph, err := adapters.SocialGraph.GetSocialGraph()
-	if err != nil {
-		return errors.Wrap(err, "could not load the social graph")
-	}
-
-	if !socialGraph.HasContact(msg.Author()) {
-		return nil // do nothing as this contact is not in our social graph
-	}
-
-	if err := adapters.Feed.UpdateFeed(msg.Feed(), func(feed *feeds.Feed) (*feeds.Feed, error) {
-		if err := feed.AppendMessage(msg); err != nil {
-			return nil, errors.Wrap(err, "could not append a message")
-		}
-		return feed, nil
-	}); err != nil {
-		return errors.Wrap(err, "failed to update the feed")
+	if err := h.buffer.Handle(msg); err != nil {
+		return errors.Wrap(err, "failed to put the message in the buffer")
 	}
 
 	return nil

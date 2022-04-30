@@ -222,7 +222,8 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	scuttlebutt := formats.NewScuttlebutt(marshaler, messageHMAC)
 	v := newFormats(scuttlebutt)
 	rawMessageIdentifier := formats.NewRawMessageIdentifier(v)
-	rawMessageHandler := commands.NewRawMessageHandler(transactionProvider, rawMessageIdentifier, logger)
+	messageBuffer := commands.NewMessageBuffer(transactionProvider, logger)
+	rawMessageHandler := commands.NewRawMessageHandler(rawMessageIdentifier, messageBuffer, logger)
 	gossipReplicator, err := replication.NewGossipReplicator(manager, rawMessageHandler, logger)
 	if err != nil {
 		return Service{}, err
@@ -284,7 +285,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	if err != nil {
 		return Service{}, err
 	}
-	service := NewService(application, listener, networkDiscoverer, connectionEstablisher, pubSub, advertiser)
+	service := NewService(application, listener, networkDiscoverer, connectionEstablisher, pubSub, advertiser, messageBuffer)
 	return service, nil
 }
 

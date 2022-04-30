@@ -6,6 +6,7 @@ import (
 	"github.com/boreq/errors"
 	"github.com/hashicorp/go-multierror"
 	"github.com/planetary-social/go-ssb/service/app"
+	"github.com/planetary-social/go-ssb/service/app/commands"
 	"github.com/planetary-social/go-ssb/service/domain/network/local"
 	networkport "github.com/planetary-social/go-ssb/service/ports/network"
 	pubsubport "github.com/planetary-social/go-ssb/service/ports/pubsub"
@@ -19,6 +20,7 @@ type Service struct {
 	connectionEstablisher *networkport.ConnectionEstablisher
 	pubsub                *pubsubport.PubSub
 	advertiser            *local.Advertiser
+	buffer                *commands.MessageBuffer
 }
 
 func NewService(
@@ -28,6 +30,7 @@ func NewService(
 	connectionEstablisher *networkport.ConnectionEstablisher,
 	pubsub *pubsubport.PubSub,
 	advertiser *local.Advertiser,
+	buffer *commands.MessageBuffer,
 ) Service {
 	return Service{
 		App: app,
@@ -37,6 +40,7 @@ func NewService(
 		connectionEstablisher: connectionEstablisher,
 		pubsub:                pubsub,
 		advertiser:            advertiser,
+		buffer:                buffer,
 	}
 }
 
@@ -70,6 +74,11 @@ func (s Service) Run(ctx context.Context) error {
 	runners++
 	go func() {
 		errCh <- s.connectionEstablisher.Run(ctx)
+	}()
+
+	runners++
+	go func() {
+		errCh <- s.buffer.Run(ctx)
 	}()
 
 	var err error

@@ -286,6 +286,51 @@ func TestIncomingRequests(t *testing.T) {
 				},
 			},
 		},
+		{
+			Name: "manifest_has_invalid_name",
+			MessagesToReceive: []*transport.Message{
+				{
+					Header: transport.MustNewMessageHeader(
+						flagsNoTermination,
+						fixtures.SomeUint32(),
+						1,
+					),
+					Body: []byte(`{ "name": "manifest", "args": [], "type": "async" }`),
+				},
+				{
+					Header: transport.MustNewMessageHeader(
+						flagsNoTermination,
+						fixtures.SomeUint32(),
+						2,
+					),
+					Body: rpc.MustMarshalRequestBody(
+						rpc.MustNewRequest(
+							fixtures.SomeProcedureName(),
+							rpc.ProcedureTypeAsync,
+							[]byte("[]"),
+						),
+					),
+				},
+			},
+			ExpectedSentMessages: []*transport.Message{
+				{
+					Header: transport.MustNewMessageHeader(
+						flagsTermination,
+						38,
+						-1,
+					),
+					Body: []byte(`{"error":"received malformed request"}`),
+				},
+				{
+					Header: transport.MustNewMessageHeader(
+						flagsTermination,
+						4,
+						-2,
+					),
+					Body: []byte("true"),
+				},
+			},
+		},
 	}
 
 	for _, testCase := range testCases {

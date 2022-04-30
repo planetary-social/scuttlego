@@ -117,9 +117,10 @@ func (s *RequestStreams) openNewWriter(msg *transport.Message) error {
 	req, err := unmarshalRequest(msg)
 	if err != nil {
 		s.logger.WithError(err).Debug("ignoring malformed request")
-		sendCloseStream(s.raw, -msg.Header.RequestNumber(), nil)
-		return nil // todo do not commit this line
-		return errors.Wrap(err, "unmarshal request failed")
+		if sendCloseStreamErr := sendCloseStream(s.raw, -msg.Header.RequestNumber(), errors.New("received malformed request")); sendCloseStreamErr != nil {
+			s.logger.WithError(sendCloseStreamErr).Debug("error sending close stream message")
+		}
+		return nil
 	}
 
 	rw := newRequestStream(s.ctx, requestNumber, req.Type(), s.raw)

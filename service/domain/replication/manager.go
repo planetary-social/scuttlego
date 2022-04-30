@@ -40,25 +40,22 @@ func (m Manager) GetFeedsToReplicate(ctx context.Context) <-chan ReplicateFeedTa
 	return ch
 }
 
-const timeForReplicationLoop = 60 * time.Second
+const timeForReplicationLoop = 1 * time.Second
 
 func (m Manager) sendFeedsToReplicateLoop(ctx context.Context, ch chan ReplicateFeedTask) {
 	defer close(ch)
 
 	// todo make this event driven
+	// todo this doesn't take message buffer into account so there is some redundant work being done
 	for {
-		batchCtx, cancel := context.WithTimeout(ctx, timeForReplicationLoop)
-
-		if err := m.sendFeedsToReplicate(batchCtx, ch); err != nil {
+		if err := m.sendFeedsToReplicate(ctx, ch); err != nil {
 			m.logger.WithError(err).Error("could not send feeds to replicate")
 		}
 
 		select {
-		case <-batchCtx.Done():
-			cancel()
+		case <-time.After(timeForReplicationLoop):
 			continue
 		case <-ctx.Done():
-			cancel()
 			return
 		}
 	}
@@ -83,6 +80,7 @@ func (m Manager) sendFeedsToReplicate(ctx context.Context, ch chan ReplicateFeed
 		case <-ctx.Done():
 			return ctx.Err()
 		case ch <- task:
+			m.logger.WithField("feed", task.Id).Debug("sent task")
 			continue
 		}
 	}

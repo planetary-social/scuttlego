@@ -13,6 +13,8 @@ import (
 	"github.com/planetary-social/go-ssb/service/domain/transport/rpc"
 )
 
+const numWorkers = 10
+
 type ReplicateFeedTask struct {
 	Id    refs.Feed
 	State FeedState
@@ -48,16 +50,10 @@ func (r GossipReplicator) Replicate(ctx context.Context, peer transport.Peer) er
 
 	r.startWorkers(peer, feedsToReplicateCh)
 
-	//for feed := range feedsToReplicateCh {
-	//	r.replicateFeedTask(peer, feed)
-	//}
-
 	<-ctx.Done()
 
 	return nil
 }
-
-const numWorkers = 10
 
 func (r GossipReplicator) startWorkers(peer transport.Peer, ch <-chan ReplicateFeedTask) {
 	for i := 0; i < numWorkers; i++ {
@@ -71,13 +67,13 @@ func (r GossipReplicator) worker(peer transport.Peer, ch <-chan ReplicateFeedTas
 	}
 }
 
-func (r GossipReplicator) replicateFeedTask(peer transport.Peer, feed ReplicateFeedTask) {
+func (r GossipReplicator) replicateFeedTask(peer transport.Peer, task ReplicateFeedTask) {
 	logger := r.logger.
-		WithField("feed", feed.Id.String()).
-		WithField("state", feed.State).
+		WithField("feed", task.Id.String()).
+		WithField("state", task.State).
 		New("replication task")
 
-	n, err := r.replicateFeed(peer, feed)
+	n, err := r.replicateFeed(peer, task)
 	if err != nil && !errors.Is(err, rpc.ErrEndOrErr) {
 		logger.WithField("n", n).WithError(err).Debug("failed")
 		return
@@ -129,9 +125,8 @@ func (r GossipReplicator) newCreateHistoryStreamArguments(id refs.Feed, state Fe
 		seq = &sequence
 	}
 
-	//tr := true // todo wtf
 	fa := false
-	limit := 100
+	limit := 1000
 	return messages.NewCreateHistoryStreamArguments(id, seq, &limit, &fa, nil, &fa)
 }
 

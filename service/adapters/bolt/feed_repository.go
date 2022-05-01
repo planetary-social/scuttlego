@@ -10,7 +10,6 @@ import (
 	"github.com/planetary-social/go-ssb/service/domain/feeds/formats"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
 	"github.com/planetary-social/go-ssb/service/domain/refs"
-	"github.com/planetary-social/go-ssb/service/domain/replication"
 	"go.etcd.io/bbolt"
 )
 
@@ -58,6 +57,9 @@ func (b FeedRepository) UpdateFeed(ref refs.Feed, f func(feed *feeds.Feed) (*fee
 
 	return b.saveFeed(ref, feed)
 }
+
+var ErrFeedNotFound = errors.New("feed not found")
+
 func (b FeedRepository) GetFeed(ref refs.Feed) (*feeds.Feed, error) {
 	f, err := b.loadFeed(ref)
 	if err != nil {
@@ -65,7 +67,7 @@ func (b FeedRepository) GetFeed(ref refs.Feed) (*feeds.Feed, error) {
 	}
 
 	if f == nil {
-		return nil, replication.ErrFeedNotFound
+		return nil, ErrFeedNotFound
 	}
 
 	return f, nil

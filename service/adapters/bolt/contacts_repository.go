@@ -40,6 +40,7 @@ func (b BoltContactsRepository) GetContacts() ([]replication.Contact, error) {
 
 			result = append(result, replication.Contact{
 				Who:       f,
+				Hops:      contact.Hops,
 				FeedState: feedState,
 			})
 		}
@@ -55,7 +56,7 @@ func (b BoltContactsRepository) GetContacts() ([]replication.Contact, error) {
 func (b BoltContactsRepository) getFeedState(repository *FeedRepository, feed refs.Feed) (replication.FeedState, error) {
 	f, err := repository.GetFeed(feed)
 	if err != nil {
-		if errors.Is(err, replication.ErrFeedNotFound) {
+		if errors.Is(err, ErrFeedNotFound) {
 			return replication.NewEmptyFeedState(), nil
 		}
 		return replication.FeedState{}, errors.Wrap(err, "could not get a feed")

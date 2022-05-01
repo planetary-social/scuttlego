@@ -100,8 +100,6 @@ func (p PeerManager) Peers() []transport.Peer {
 // a connection to the same node was created manually or automatically by the manager then the old connection will be
 // replaced by the new connection and terminated.
 func (p PeerManager) Connect(remote identity.Public, address network.Address) error {
-	p.logger.WithField("remote", remote).WithField("address", address).Debug("connecting")
-
 	select {
 	case <-p.ctx.Done():
 		return errors.Wrap(p.ctx.Err(), "context is done so the connection would just terminate right away")
@@ -111,6 +109,8 @@ func (p PeerManager) Connect(remote identity.Public, address network.Address) er
 	if p.alreadyConnected(remote) { // early check
 		return nil
 	}
+
+	p.logger.WithField("remote", remote).WithField("address", address).Debug("dialing")
 
 	peer, err := p.dialer.Dial(p.ctx, remote, address)
 	if err != nil {

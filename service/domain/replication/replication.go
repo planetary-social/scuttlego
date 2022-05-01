@@ -7,24 +7,44 @@ import (
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/logging"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
+	"github.com/planetary-social/go-ssb/service/domain/identity"
 	"github.com/planetary-social/go-ssb/service/domain/messages"
 	"github.com/planetary-social/go-ssb/service/domain/refs"
 	"github.com/planetary-social/go-ssb/service/domain/transport"
 	"github.com/planetary-social/go-ssb/service/domain/transport/rpc"
 )
 
-const numWorkers = 10
+const (
+	numWorkers = 10
+	limit      = 1000
+)
+
+type TaskResult struct {
+	s string
+}
+
+var (
+	TaskResultDoesNotHaveMoreMessages = TaskResult{"does_not_have_more_messages"}
+	TaskResultHasMoreMessages         = TaskResult{"has_more_messages"}
+	TaskResultFailed                  = TaskResult{"failed"}
+	TaskResultDidNotStart             = TaskResult{"did_not_start"}
+)
+
+type TaskCompletedFn func(result TaskResult)
 
 type ReplicateFeedTask struct {
-	Id    refs.Feed
-	State FeedState
-	Ctx   context.Context
+	Id       refs.Feed
+	State    FeedState
+	Ctx      context.Context
+	Complete TaskCompletedFn
 }
 
 type ReplicationManager interface {
-	// GetFeedsToReplicate returns a channel on which replication tasks are received. The channel stays open as long
-	// as the passed context isn't cancelled. Cancelling the context cancels all child contexts in the received tasks.
-	GetFeedsToReplicate(ctx context.Context) <-chan ReplicateFeedTask
+	// GetFeedsToReplicate returns a channel on which replication tasks are
+	// received. The channel stays open as long as the passed context isn't
+	// cancelled. Cancelling the context cancels all child contexts in the
+	// received tasks.
+	GetFeedsToReplicate(ctx context.Context, remote identity.Public) <-chan ReplicateFeedTask
 }
 
 type RawMessageHandler interface {
@@ -46,10 +66,8 @@ func NewGossipReplicator(manager ReplicationManager, handler RawMessageHandler, 
 }
 
 func (r GossipReplicator) Replicate(ctx context.Context, peer transport.Peer) error {
-	feedsToReplicateCh := r.manager.GetFeedsToReplicate(ctx)
-
+	feedsToReplicateCh := r.manager.GetFeedsToReplicate(ctx, peer.Identity())
 	r.startWorkers(peer, feedsToReplicateCh)
-
 	<-ctx.Done()
 
 	return nil
@@ -75,11 +93,16 @@ func (r GossipReplicator) replicateFeedTask(peer transport.Peer, task ReplicateF
 
 	n, err := r.replicateFeed(peer, task)
 	if err != nil && !errors.Is(err, rpc.ErrEndOrErr) {
+		task.Complete(TaskResultFailed)
 		logger.WithField("n", n).WithError(err).Debug("failed")
 		return
 	}
 
-	logger.WithField("n", n).Debug("finished")
+	if n < limit {
+		task.Complete(TaskResultDoesNotHaveMoreMessages)
+	} else {
+		task.Complete(TaskResultHasMoreMessages)
+	}
 }
 
 func (r GossipReplicator) replicateFeed(peer transport.Peer, feed ReplicateFeedTask) (int, error) {
@@ -126,7 +149,7 @@ func (r GossipReplicator) newCreateHistoryStreamArguments(id refs.Feed, state Fe
 	}
 
 	fa := false
-	limit := 1000
+	limit := limit
 	return messages.NewCreateHistoryStreamArguments(id, seq, &limit, &fa, nil, &fa)
 }
 

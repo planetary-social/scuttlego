@@ -92,9 +92,9 @@ func (r GossipReplicator) replicateFeedTask(peer transport.Peer, task ReplicateF
 		New("replication task")
 
 	n, err := r.replicateFeed(peer, task)
+	logger.WithField("n", n).WithError(err).Debug("finished")
 	if err != nil && !errors.Is(err, rpc.ErrEndOrErr) {
 		task.Complete(TaskResultFailed)
-		logger.WithField("n", n).WithError(err).Debug("failed")
 		return
 	}
 

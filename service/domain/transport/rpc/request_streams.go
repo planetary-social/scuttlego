@@ -3,6 +3,7 @@ package rpc
 import (
 	"context"
 	"encoding/json"
+	"net"
 	"sync"
 
 	"github.com/boreq/errors"
@@ -118,7 +119,9 @@ func (s *RequestStreams) openNewWriter(msg *transport.Message) error {
 	if err != nil {
 		s.logger.WithError(err).Debug("ignoring malformed request")
 		if sendCloseStreamErr := sendCloseStream(s.raw, -msg.Header.RequestNumber(), errors.New("received malformed request")); sendCloseStreamErr != nil {
-			s.logger.WithError(sendCloseStreamErr).Debug("error sending close stream message")
+			if !errors.Is(sendCloseStreamErr, net.ErrClosed) {
+				s.logger.WithError(sendCloseStreamErr).Debug("error sending close stream message")
+			}
 		}
 		return nil
 	}

@@ -14,19 +14,40 @@ import (
 )
 
 const (
+	// If at some point there are no feeds to replicate then the manager will
+	// wait for this duration before reattempting to find a feed which could be
+	// replicated by the particular peer. This is done to avoid unnecessary
+	// busy-looping.
 	delayIfNoFeedsToReplicate = 1 * time.Second
 
+	// Specifies for how long the manager will avoid asking the peer for
+	// messages from a feed which is 1 or fewer hops away after the peer reports
+	// that it has no new messages for that feed.
 	backoffFriends = 30 * time.Second
-	backoff        = 5 * time.Minute
-	backoffFailed  = 10 * time.Minute
 
-	refreshContactsEvery    = 5 * time.Second
-	waitForTaskToBePickedUp = 1 * time.Second
+	// Specifies for how long the manager will avoid asking the peer for
+	// messages from a feed which is more than 1 hop away after the peer reports
+	// that it has no new messages for that feed.
+	backoff = 5 * time.Minute
+
+	// Specifies for how long the manager will avoid asking the peer for
+	// messages from a feed if a replication task fails eg. an invalid message
+	// is returned by the peer.
+	backoffFailed = 10 * time.Minute
+
+	// For how long the social graph will be cached before rebuilding it. Until
+	// this refresh happens newly discovered feeds are not taken into account.
+	refreshContactsEvery = 5 * time.Second
+
+	// For how long to wait for the task to be picked up by a peer's replicator
+	// before giving up and making that feed available to be replicated by other
+	// peers.
+	waitForTaskToBePickedUp = 100 * time.Millisecond
 )
 
 type Storage interface {
-	// GetContacts returns a list of contacts. Contacts must be sorted by hops,
-	// ascending.
+	// GetContacts returns a list of contacts. Contacts are sorted by hops,
+	// ascending. Contacts include the local feed.
 	GetContacts() ([]Contact, error)
 }
 
@@ -36,24 +57,35 @@ type Contact struct {
 	FeedState FeedState
 }
 
+// Manager distributes replication tasks to replicators. Replicators consume
+// those tasks to run replication processes on connected peers.
+//
+// For better fine-grained control of which feeds are being replicated the
+// replicators shouldn't utilize live replication.
+//
+// During replication feeds which have a lower number of hops to the local
+// identity are prioritized. Only one peer will be asked to replicate a
+// particular feed at any given time. Manager backs off if a peer doesn't have
+// any new messages for a feed before attempting to ask it for messages from
+// that feed again. Backoff time is increased for feeds which are further away.
 type Manager struct {
 	storage Storage
 	logger  logging.Logger
 
-	activeTasks activeTasksMap
-	peerState   peerMap
-	lock        sync.Mutex
+	activeTasks *activeTasksSet
+	peerState   peerMap    // todo clean up periodically
+	lock        sync.Mutex // locks activeTasks and peerState
 
-	contacts          []Contact
-	contactsTimestamp time.Time
-	contactsLock      sync.Mutex
+	contactsCache          []Contact
+	contactsCacheTimestamp time.Time
+	contactsCacheLock      sync.Mutex // locks contactsCache and contactsCacheTimestamp
 }
 
 func NewManager(logger logging.Logger, storage Storage) *Manager {
 	return &Manager{
 		storage:     storage,
 		logger:      logger.New("manager"),
-		activeTasks: make(activeTasksMap),
+		activeTasks: newActiveTasksSet(),
 		peerState:   make(peerMap),
 	}
 }
@@ -104,17 +136,17 @@ func (m *Manager) sendFeedToReplicate(ctx context.Context, ch chan ReplicateFeed
 				Id:    contact.Who,
 				State: contact.FeedState,
 				Ctx:   ctx,
-				Complete: func(result TaskResult) {
+				OnComplete: func(result TaskResult) {
 					m.finishReplication(remote, contact, result)
 				},
 			}
 
 			select {
 			case <-ctx.Done():
-				task.Complete(TaskResultDidNotStart)
+				task.OnComplete(TaskResultDidNotStart)
 				return ctx.Err()
 			case <-time.After(waitForTaskToBePickedUp):
-				task.Complete(TaskResultDidNotStart)
+				task.OnComplete(TaskResultDidNotStart)
 				return nil
 			case ch <- task:
 				return nil
@@ -137,9 +169,9 @@ func (m *Manager) finishReplication(remote identity.Public, contact Contact, res
 	m.logger.
 		WithField("result", result).
 		WithField("contact", contact.Who).
-		Debug("finished replication")
+		Trace("finished replication")
 
-	delete(m.activeTasks, contact.Who.String())
+	m.activeTasks.Delete(contact.Who)
 
 	if result != TaskResultDidNotStart {
 		_, ok := m.peerState[remote.String()]
@@ -167,13 +199,12 @@ func (m *Manager) startReplication(remote identity.Public, contact Contact) (boo
 		return false, nil
 	}
 
-	m.activeTasks[contact.Who.String()] = struct{}{}
+	m.activeTasks.Put(contact.Who)
 	return true, nil
 }
 
 func (m *Manager) shouldStartReplication(remote identity.Public, contact Contact) (bool, error) {
-	_, ok := m.activeTasks[contact.Who.String()]
-	if ok {
+	if m.activeTasks.Contains(contact.Who) {
 		return false, nil
 	}
 
@@ -204,20 +235,20 @@ func (m *Manager) shouldStartReplication(remote identity.Public, contact Contact
 }
 
 func (m *Manager) getContacts() ([]Contact, error) {
-	m.contactsLock.Lock()
-	defer m.contactsLock.Unlock()
+	m.contactsCacheLock.Lock()
+	defer m.contactsCacheLock.Unlock()
 
-	if time.Since(m.contactsTimestamp) > refreshContactsEvery {
+	if time.Since(m.contactsCacheTimestamp) > refreshContactsEvery {
 		contacts, err := m.storage.GetContacts()
 		if err != nil {
-			return nil, errors.Wrap(err, "could not get contacts")
+			return nil, errors.Wrap(err, "could not get fresh contacts")
 		}
 
-		m.contacts = contacts
-		m.contactsTimestamp = time.Now()
+		m.contactsCache = contacts
+		m.contactsCacheTimestamp = time.Now()
 	}
 
-	return m.contacts, nil
+	return m.contactsCache, nil
 }
 
 type peerMap map[string]peerState
@@ -229,4 +260,25 @@ type peerFeedState struct {
 	Result         TaskResult
 }
 
-type activeTasksMap map[string]struct{}
+type activeTasksSet struct {
+	m map[string]struct{}
+}
+
+func newActiveTasksSet() *activeTasksSet {
+	return &activeTasksSet{
+		m: make(map[string]struct{}),
+	}
+}
+
+func (s *activeTasksSet) Contains(feed refs.Feed) bool {
+	_, ok := s.m[feed.String()]
+	return ok
+}
+
+func (s *activeTasksSet) Put(feed refs.Feed) {
+	s.m[feed.String()] = struct{}{}
+}
+
+func (s *activeTasksSet) Delete(feed refs.Feed) {
+	delete(s.m, feed.String())
+}

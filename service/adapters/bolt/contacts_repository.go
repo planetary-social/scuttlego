@@ -61,5 +61,5 @@ func (b BoltContactsRepository) getFeedState(repository *FeedRepository, feed re
 		}
 		return replication.FeedState{}, errors.Wrap(err, "could not get a feed")
 	}
-	return replication.NewFeedState(f.Sequence()), nil
+	return replication.NewFeedState(f.Sequence())
 }

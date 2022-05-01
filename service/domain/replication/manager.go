@@ -20,7 +20,8 @@ const (
 	backoff        = 5 * time.Minute
 	backoffFailed  = 10 * time.Minute
 
-	refreshContactsEvery = 5 * time.Second
+	refreshContactsEvery    = 5 * time.Second
+	waitForTaskToBePickedUp = 1 * time.Second
 )
 
 type Storage interface {
@@ -112,6 +113,9 @@ func (m *Manager) sendFeedToReplicate(ctx context.Context, ch chan ReplicateFeed
 			case <-ctx.Done():
 				task.Complete(TaskResultDidNotStart)
 				return ctx.Err()
+			case <-time.After(waitForTaskToBePickedUp):
+				task.Complete(TaskResultDidNotStart)
+				return nil
 			case ch <- task:
 				return nil
 			}
@@ -127,25 +131,26 @@ func (m *Manager) sendFeedToReplicate(ctx context.Context, ch chan ReplicateFeed
 }
 
 func (m *Manager) finishReplication(remote identity.Public, contact Contact, result TaskResult) {
-	if result == TaskResultDidNotStart {
-		return
-	}
-
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	m.logger.WithField("result", result).WithField("contact", contact.Who).Debug("finished replication")
+	m.logger.
+		WithField("result", result).
+		WithField("contact", contact.Who).
+		Debug("finished replication")
 
 	delete(m.activeTasks, contact.Who.String())
 
-	_, ok := m.peerState[remote.String()]
-	if !ok {
-		m.peerState[remote.String()] = make(peerState)
-	}
+	if result != TaskResultDidNotStart {
+		_, ok := m.peerState[remote.String()]
+		if !ok {
+			m.peerState[remote.String()] = make(peerState)
+		}
 
-	m.peerState[remote.String()][contact.Who.String()] = peerFeedState{
-		LastReplicated: time.Now(),
-		Result:         result,
+		m.peerState[remote.String()][contact.Who.String()] = peerFeedState{
+			LastReplicated: time.Now(),
+			Result:         result,
+		}
 	}
 }
 

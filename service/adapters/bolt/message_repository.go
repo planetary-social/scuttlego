@@ -57,7 +57,10 @@ func (r MessageRepository) Get(id refs.Message) (message.Message, error) {
 		return message.Message{}, errors.New("message not found")
 	}
 
-	rawMsg := message.NewRawMessage(value)
+	rawMsg, err := message.NewRawMessage(value)
+	if err != nil {
+		return message.Message{}, errors.Wrap(err, "could not create a raw message")
+	}
 
 	msg, err := r.identifier.IdentifyRawMessage(rawMsg)
 	if err != nil {

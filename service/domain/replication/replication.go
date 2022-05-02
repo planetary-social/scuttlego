@@ -145,7 +145,10 @@ func (r GossipReplicator) replicateFeed(peer transport.Peer, feed ReplicateFeedT
 			return counter, errors.Wrap(err, "response stream error")
 		}
 
-		rawMsg := message.NewRawMessage(response.Value.Bytes())
+		rawMsg, err := message.NewRawMessage(response.Value.Bytes())
+		if err != nil {
+			return counter, errors.Wrap(err, "could not create a raw message")
+		}
 
 		if err := r.handler.Handle(rawMsg); err != nil {
 			return counter, errors.Wrap(err, "could not process the raw message")

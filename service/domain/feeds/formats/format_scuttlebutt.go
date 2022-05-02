@@ -112,7 +112,12 @@ func (s *Scuttlebutt) Sign(unsigned message.UnsignedMessage, private identity.Pr
 		return message.Message{}, errors.Wrap(err, "could not sign a message")
 	}
 
-	return s.Verify(message.NewRawMessage(raw))
+	rawMessage, err := message.NewRawMessage(raw)
+	if err != nil {
+		return message.Message{}, errors.Wrap(err, "could not create a raw message")
+	}
+
+	return s.Verify(rawMessage)
 }
 
 func (s *Scuttlebutt) convertHMAC() *[32]byte {

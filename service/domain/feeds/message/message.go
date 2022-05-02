@@ -8,31 +8,6 @@ import (
 	"github.com/planetary-social/go-ssb/service/domain/refs"
 )
 
-type RawMessage struct {
-	data []byte
-}
-
-func NewRawMessage(data []byte) RawMessage {
-	tmp := make([]byte, len(data))
-	copy(tmp, data)
-
-	// todo check if valid json?
-
-	return RawMessage{
-		data: tmp,
-	}
-}
-
-func (m RawMessage) Bytes() []byte {
-	tmp := make([]byte, len(m.data))
-	copy(tmp, m.data)
-	return tmp
-}
-
-func (m RawMessage) IsZero() bool {
-	return len(m.data) == 0
-}
-
 type RawMessageContent struct {
 	data []byte
 }

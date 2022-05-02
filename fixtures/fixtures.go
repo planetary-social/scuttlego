@@ -127,7 +127,7 @@ func SomeRawMessage() message.RawMessage {
 	"signature": "QYOR/zU9dxE1aKBaxc3C0DJ4gRyZtlMfPLt+CGJcY73sv5abKKKxr1SqhOvnm8TY784VHE8kZHCD8RdzFl1tBA==.sig.ed25519"
 }
 `
-	return message.NewRawMessage([]byte(msg))
+	return message.MustNewRawMessage([]byte(msg))
 }
 
 func SomeMessage(seq message.Sequence, feed refs.Feed) message.Message {

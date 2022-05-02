@@ -2,10 +2,14 @@ package message
 
 import "github.com/boreq/errors"
 
-var FirstSequence = Sequence{1}
+const firstSequence = 1
 
 type Sequence struct {
 	s int
+}
+
+func NewFirstSequence() Sequence {
+	return Sequence{firstSequence}
 }
 
 func NewSequence(s int) (Sequence, error) {
@@ -24,15 +28,11 @@ func MustNewSequence(s int) Sequence {
 }
 
 func (s Sequence) IsFirst() bool {
-	return s == FirstSequence
+	return s.s == firstSequence
 }
 
 func (s Sequence) ComesDirectlyBefore(o Sequence) bool {
 	return s.s == o.s-1
-}
-
-func (s Sequence) Int() int {
-	return s.s
 }
 
 func (s Sequence) ComesAfter(o Sequence) bool {
@@ -41,6 +41,10 @@ func (s Sequence) ComesAfter(o Sequence) bool {
 
 func (s Sequence) Next() Sequence {
 	return Sequence{s.s + 1}
+}
+
+func (s Sequence) Int() int {
+	return s.s
 }
 
 func (s Sequence) IsZero() bool {

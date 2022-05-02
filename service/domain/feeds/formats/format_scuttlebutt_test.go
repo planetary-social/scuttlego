@@ -23,7 +23,7 @@ func TestMarshaler(t *testing.T) {
 
 	unsignedMessage, err := message.NewUnsignedMessage(
 		nil,
-		message.FirstSequence,
+		message.NewFirstSequence(),
 		authorRef,
 		authorRef.MainFeed(),
 		time.Now(),
@@ -74,7 +74,7 @@ func TestMarshalerHMAC(t *testing.T) {
 
 	unsignedMessage, err := message.NewUnsignedMessage(
 		nil,
-		message.FirstSequence,
+		message.NewFirstSequence(),
 		authorRef,
 		authorRef.MainFeed(),
 		time.Now(),

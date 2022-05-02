@@ -113,7 +113,7 @@ func (f *Feed) createMessage(content message.RawMessageContent, timestamp time.T
 	} else {
 		return message.NewUnsignedMessage(
 			nil,
-			message.FirstSequence,
+			message.NewFirstSequence(),
 			authorRef,
 			authorRef.MainFeed(),
 			timestamp,

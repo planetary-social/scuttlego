@@ -27,7 +27,7 @@ func TestReadFeedRepository_Count(t *testing.T) {
 		require.NoError(t, err)
 
 		feedRef := fixtures.SomeRefFeed()
-		msg := fixtures.SomeMessage(message.FirstSequence, feedRef)
+		msg := fixtures.SomeMessage(message.NewFirstSequence(), feedRef)
 
 		return txadapters.FeedRepository.UpdateFeed(feedRef, func(feed *feeds.Feed) (*feeds.Feed, error) {
 			if err := feed.AppendMessage(msg); err != nil {

@@ -9,6 +9,8 @@ import (
 	"github.com/planetary-social/go-ssb/service/domain/network/local"
 )
 
+// Discoverer receives local UDP announcements from other Secure Scuttlebutt
+// clients and passes them to the ProcessNewLocalDiscovery command.
 type Discoverer struct {
 	discoverer *local.Discoverer
 	app        app.Application
@@ -23,21 +25,23 @@ func NewDiscoverer(discoverer *local.Discoverer, app app.Application, logger log
 	}
 }
 
+// Run receives local announcements and passes them to the command until the
+// context is closed.
 func (d Discoverer) Run(ctx context.Context) error {
 	for v := range d.discoverer.Run(ctx) {
-		if err := d.handleNewDiscovery(v); err != nil {
-			d.logger.WithError(err).Error("failed to handle a discovered peer")
-		}
+		go d.handleNewDiscovery(v)
 	}
 
 	return nil
 }
 
-func (d Discoverer) handleNewDiscovery(v local.IdentityWithAddress) error {
-	return d.app.Commands.ProcessNewLocalDiscovery.Handle(
+func (d Discoverer) handleNewDiscovery(v local.IdentityWithAddress) {
+	if err := d.app.Commands.ProcessNewLocalDiscovery.Handle(
 		commands.ProcessNewLocalDiscovery{
 			Remote:  v.Remote,
 			Address: v.Address,
 		},
-	)
+	); err != nil {
+		d.logger.WithError(err).Error("failed to handle a discovered peer")
+	}
 }

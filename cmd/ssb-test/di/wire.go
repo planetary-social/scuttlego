@@ -257,12 +257,13 @@ func newAdvertiser(l identity.Public, config Config) (*local.Advertiser, error) 
 }
 
 func newListener(
+	ctx context.Context,
 	initializer portsnetwork.ServerPeerInitializer,
 	app app.Application,
 	config Config,
 	logger logging.Logger,
 ) (*portsnetwork.Listener, error) {
-	return portsnetwork.NewListener(initializer, app, config.ListenAddress, logger)
+	return portsnetwork.NewListener(ctx, initializer, app, config.ListenAddress, logger)
 }
 
 func newAdaptersFactory(config Config, local identity.Public, logger logging.Logger) bolt.AdaptersFactory {

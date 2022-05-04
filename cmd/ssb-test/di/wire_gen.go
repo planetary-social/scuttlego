@@ -263,7 +263,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 		Commands: appCommands,
 		Queries:  appQueries,
 	}
-	listener, err := newListener(peerInitializer, application, config, logger)
+	listener, err := newListener(contextContext, peerInitializer, application, config, logger)
 	if err != nil {
 		return Service{}, err
 	}
@@ -331,12 +331,13 @@ func newAdvertiser(l identity.Public, config Config) (*local.Advertiser, error) 
 }
 
 func newListener(
+	ctx context.Context,
 	initializer network2.ServerPeerInitializer, app2 app.Application,
 
 	config Config,
 	logger logging.Logger,
 ) (*network2.Listener, error) {
-	return network2.NewListener(initializer, app2, config.ListenAddress, logger)
+	return network2.NewListener(ctx, initializer, app2, config.ListenAddress, logger)
 }
 
 func newAdaptersFactory(config Config, local2 identity.Public, logger logging.Logger) bolt.AdaptersFactory {

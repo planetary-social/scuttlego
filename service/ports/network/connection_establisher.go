@@ -8,6 +8,8 @@ import (
 	"github.com/planetary-social/go-ssb/service/app"
 )
 
+// ConnectionEstablisher periodically triggers the EstablishNewConnections
+// application command.
 type ConnectionEstablisher struct {
 	establishConnectionsEvery time.Duration
 	app                       app.Application
@@ -25,6 +27,7 @@ func NewConnectionEstablisher(
 	}
 }
 
+// Run periodically triggers the command until the context is closed.
 func (d ConnectionEstablisher) Run(ctx context.Context) error {
 	for {
 		if err := d.app.Commands.EstablishNewConnections.Handle(); err != nil {

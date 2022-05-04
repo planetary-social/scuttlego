@@ -12,6 +12,8 @@ import (
 	"github.com/planetary-social/go-ssb/service/domain/transport/rpc/mux"
 )
 
+// CreateHistoryStreamQueryHandler is here to make testing easier. See docs for
+// the CreateHistoryStream application query.
 type CreateHistoryStreamQueryHandler interface {
 	Handle(ctx context.Context, query queries.CreateHistoryStream) <-chan queries.MessageWithErr
 }

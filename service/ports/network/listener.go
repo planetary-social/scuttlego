@@ -1,3 +1,4 @@
+// Package network handles incoming network connections.
 package network
 
 import (
@@ -13,27 +14,39 @@ import (
 )
 
 type ServerPeerInitializer interface {
-	// InitializeServerPeer initializes incoming connections by performing a handshake and establishing an RPC
-	// connection using the provided ReadWriteCloser. Context is used as the RPC connection context.
+	// InitializeServerPeer initializes incoming connections by performing a
+	// handshake and establishing an RPC connection using the provided
+	// ReadWriteCloser. Context is used as the RPC connection context.
 	InitializeServerPeer(ctx context.Context, rwc io.ReadWriteCloser) (transport.Peer, error)
 }
 
+// Listener handles incoming TCP connections initiated by other peers,
+// initializes them and passes them to the AcceptNewPeer command.
 type Listener struct {
-	initializer ServerPeerInitializer
-	app         app.Application
-	address     string
-	logger      logging.Logger
+	initializer   ServerPeerInitializer
+	app           app.Application
+	address       string
+	logger        logging.Logger
+	connectionCtx context.Context
 }
 
-func NewListener(initializer ServerPeerInitializer, app app.Application, address string, logger logging.Logger) (*Listener, error) {
+// NewListener creates a new listener which listens on the provided address. The
+// address should be formatted in the way which can be handled by the net
+// package e.g. ":8008". The provided context is used to initiate the peer
+// connections.
+func NewListener(ctx context.Context, initializer ServerPeerInitializer, app app.Application, address string, logger logging.Logger) (*Listener, error) {
 	return &Listener{
-		initializer: initializer,
-		app:         app,
-		address:     address,
-		logger:      logger.New("listener"),
+		initializer:   initializer,
+		app:           app,
+		address:       address,
+		logger:        logger.New("listener"),
+		connectionCtx: ctx,
 	}, nil
 }
 
+// ListenAndServe starts listening and keeps accepting connections and
+// processing them until the context is closed. The context passed to this
+// function is not used to initiate RPC connections.
 func (l *Listener) ListenAndServe(ctx context.Context) error {
 	var lc net.ListenConfig
 	listener, err := lc.Listen(ctx, "tcp", l.address)
@@ -52,7 +65,7 @@ func (l *Listener) ListenAndServe(ctx context.Context) error {
 }
 
 func (l *Listener) handleNewConnection(conn net.Conn) {
-	p, err := l.initializer.InitializeServerPeer(context.TODO(), conn)
+	p, err := l.initializer.InitializeServerPeer(l.connectionCtx, conn)
 	if err != nil {
 		conn.Close()
 		l.logger.WithError(err).Debug("could not init a peer")

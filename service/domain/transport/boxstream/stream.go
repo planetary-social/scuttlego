@@ -10,11 +10,13 @@ import (
 	"go.cryptoscope.co/secretstream/boxstream"
 )
 
-const maxBoxStreamBodyLength = 4096
+const maxBoxStreamBodyLength = boxstream.MaxSegmentSize
 
 type Key [32]byte
 type Nonce [24]byte
 
+// HandshakeResult is created internally by the Handshaker and passed to
+// NewStream.
 type HandshakeResult struct {
 	Remote identity.Public
 
@@ -25,6 +27,7 @@ type HandshakeResult struct {
 	ReadNonce  Nonce
 }
 
+// Stream implements the box stream protocol.
 type Stream struct {
 	remote identity.Public
 	closer io.Closer
@@ -55,12 +58,15 @@ func NewStream(rw io.ReadWriteCloser, handshakeResult HandshakeResult) (*Stream,
 	return s, nil
 }
 
+// Remote returns the identity of the other side of the connection.
 func (s Stream) Remote() identity.Public {
 	return s.remote
 }
 
-// Write will always return 0 as the number of bytes written due to limitations of the underlying implementation.
-func (s Stream) Write(p []byte) (int, error) {
+// Write writes the box stream data to the underlying ReadWriteCloser. It will
+// always return 0 as the number of bytes written due to limitations of the
+// underlying implementation.
+func (s *Stream) Write(p []byte) (int, error) {
 	for i := 0; i < len(p); i += maxBoxStreamBodyLength {
 		chunkEnd := min(len(p), i+maxBoxStreamBodyLength)
 		if err := s.writeChunk(p[i:chunkEnd]); err != nil {
@@ -70,6 +76,8 @@ func (s Stream) Write(p []byte) (int, error) {
 	return 0, nil
 }
 
+// Read reads the data arriving in the box stream format from the underlying
+// ReadWriteCloser.
 func (s *Stream) Read(p []byte) (n int, err error) {
 	if s.readBuf.Len() > 0 {
 		return s.readBuf.Read(p)
@@ -92,6 +100,8 @@ func (s *Stream) Read(p []byte) (n int, err error) {
 	return s.readBuf.Read(p)
 }
 
+// Close writes the goodbye box stream message to the reader and then closes the
+// underlying ReadWriteCloser.
 func (s Stream) Close() error {
 	var err error
 	err = multierror.Append(err, s.boxer.WriteGoodbye())
@@ -99,16 +109,19 @@ func (s Stream) Close() error {
 	return err
 }
 
-// writeChunk accepts at most 4096 bytes.
+// writeChunk accepts at most maxBoxStreamBodyLength bytes.
 func (s *Stream) writeChunk(p []byte) (err error) {
 	if len(p) > maxBoxStreamBodyLength {
 		return errors.New("chunk too long")
 	}
 
+	// WriteMessage panics if more than boxstream.MaxSegmentSize bytes are
+	// passed to it.
 	return s.boxer.WriteMessage(p)
 }
 
-// readLoop is here to fix the fact that boxstream.Unboxer does not implement io.Reader.
+// readLoop is here to fix the fact that boxstream.Unboxer does not implement
+// io.Reader.
 func (s *Stream) readLoop(unboxer *boxstream.Unboxer) {
 	defer close(s.readBytesCh)
 	defer close(s.readErrCh)

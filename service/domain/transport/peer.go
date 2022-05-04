@@ -1,3 +1,5 @@
+// Package transport implements the protocol stack responsible for exchanging
+// data between Secure Scuttlebutt peers.
 package transport
 
 import (

@@ -8,19 +8,37 @@ import (
 	"go.cryptoscope.co/secretstream/secrethandshake"
 )
 
+// Handshaker performs the Secret Handshake using the provided ReadWriteCloser.
 type Handshaker struct {
 	local      identity.Private
 	networkKey NetworkKey
 }
 
+// NewHandshaker creates a new handshaker which uses the provided local private
+// identity when performing secret handshakes.
 func NewHandshaker(local identity.Private, networkKey NetworkKey) (Handshaker, error) {
+	if local.IsZero() {
+		return Handshaker{}, errors.New("zero value of private identity")
+	}
+
+	if networkKey.IsZero() {
+		return Handshaker{}, errors.New("zero value of network key")
+	}
+
 	return Handshaker{
 		local:      local,
 		networkKey: networkKey,
 	}, nil
 }
 
+// OpenClientStream opens a client stream using the provided identity of the
+// remote peer and the provided ReadWriteCloser. This should be used when
+// initiating a connection with a remote peer.
 func (h Handshaker) OpenClientStream(rw io.ReadWriteCloser, remote identity.Public) (*Stream, error) {
+	if remote.IsZero() {
+		return nil, errors.New("zero value of remote identity")
+	}
+
 	state, err := secrethandshake.NewClientState(h.networkKey.Bytes(), h.localKeypair(), remote.PublicKey())
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create client state")
@@ -34,6 +52,9 @@ func (h Handshaker) OpenClientStream(rw io.ReadWriteCloser, remote identity.Publ
 	return h.createStream(rw, state)
 }
 
+// OpenServerStream opens a server stream using the provided ReadWriteCloser.
+// This should be used when handling incoming connections which were initiated
+// by the other party.
 func (h Handshaker) OpenServerStream(rw io.ReadWriteCloser) (*Stream, error) {
 	state, err := secrethandshake.NewServerState(h.networkKey.Bytes(), h.localKeypair())
 	if err != nil {

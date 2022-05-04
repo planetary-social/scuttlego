@@ -76,11 +76,15 @@ func SomeTime() time.Time {
 }
 
 func SomePublicIdentity() identity.Public {
+	return SomePrivateIdentity().Public()
+}
+
+func SomePrivateIdentity() identity.Private {
 	v, err := identity.NewPrivate()
 	if err != nil {
 		panic(err)
 	}
-	return v.Public()
+	return v
 }
 
 func SomeContent() content.KnownMessageContent {

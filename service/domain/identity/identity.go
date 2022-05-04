@@ -76,3 +76,7 @@ func (p Private) Public() Public {
 func (p Private) PrivateKey() ed25519.PrivateKey {
 	return p.key
 }
+
+func (p Private) IsZero() bool {
+	return len(p.key) == 0
+}

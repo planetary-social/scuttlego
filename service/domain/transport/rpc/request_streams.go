@@ -238,6 +238,35 @@ func (rs *requestStream) handleNewMessage(msg *transport.Message) error {
 	return nil
 }
 
+func unmarshalRequest(msg *transport.Message) (*Request, error) {
+	var requestBody RequestBody
+	if err := json.Unmarshal(msg.Body, &requestBody); err != nil {
+		return nil, errors.Wrap(err, "could not unmarshal the request body")
+	}
+
+	procedureName, err := NewProcedureName(requestBody.Name)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not create a procedure name")
+	}
+
+	procedureType := decodeProcedureType(requestBody.Type)
+
+	req, err := NewRequest(
+		procedureName,
+		procedureType,
+		requestBody.Args,
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not create a request")
+	}
+
+	return req, err
+}
+
+// sendCloseStream closes the specified stream. Number is put directly into the
+// request number field of the sent message. If you are closing a stream that
+// you initiated then number will be a positive value, if you are closing a
+// stream that a peer initiated then number will be a negative value.
 func sendCloseStream(raw MessageSender, number int, errToSent error) error {
 	// todo do this correctly? are the flags correct?
 	flags, err := transport.NewMessageHeaderFlags(true, true, transport.MessageBodyTypeJSON)
@@ -247,7 +276,7 @@ func sendCloseStream(raw MessageSender, number int, errToSent error) error {
 
 	var content []byte
 	if errToSent == nil {
-		content = []byte("true") // todo why true is there any reason for this? do we have to send something specific? is this documented?
+		content = []byte("true") // todo why true, is there any reason for this? do we have to send something specific? is this documented?
 	} else {
 		var mErr error
 		content, mErr = json.Marshal(struct {
@@ -273,29 +302,4 @@ func sendCloseStream(raw MessageSender, number int, errToSent error) error {
 	}
 
 	return nil
-}
-
-func unmarshalRequest(msg *transport.Message) (*Request, error) {
-	var requestBody RequestBody
-	if err := json.Unmarshal(msg.Body, &requestBody); err != nil {
-		return nil, errors.Wrap(err, "could not unmarshal the request body")
-	}
-
-	procedureName, err := NewProcedureName(requestBody.Name)
-	if err != nil {
-		return nil, errors.Wrap(err, "could not create a procedure name")
-	}
-
-	procedureType := decodeProcedureType(requestBody.Type)
-
-	req, err := NewRequest(
-		procedureName,
-		procedureType,
-		requestBody.Args,
-	)
-	if err != nil {
-		return nil, errors.Wrap(err, "could not create a request")
-	}
-
-	return req, err
 }

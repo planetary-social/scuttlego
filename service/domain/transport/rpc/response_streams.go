@@ -33,48 +33,48 @@ func NewResponseStreams(raw MessageSender, logger logging.Logger) *ResponseStrea
 	}
 }
 
-func (r *ResponseStreams) Open(ctx context.Context, req *Request) (*ResponseStream, error) {
-	msg, err := r.marshalRequest(req)
+func (s *ResponseStreams) Open(ctx context.Context, req *Request) (*ResponseStream, error) {
+	msg, err := s.marshalRequest(req)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not marshal a request")
 	}
 
-	r.streamsLock.Lock()
-	defer r.streamsLock.Unlock()
+	s.streamsLock.Lock()
+	defer s.streamsLock.Unlock()
 
-	if r.closed {
+	if s.closed {
 		return nil, errors.New("response streams were closed")
 	}
 
 	requestNumber := msg.Header.RequestNumber()
 
-	if _, ok := r.streams[requestNumber]; ok {
+	if _, ok := s.streams[requestNumber]; ok {
 		return nil, errors.New("response stream with this number already exists")
 	}
 
 	rs := NewResponseStream(ctx, requestNumber)
-	r.streams[requestNumber] = rs
+	s.streams[requestNumber] = rs
 
-	go r.waitAndCloseResponseStream(rs)
+	go s.waitAndCloseResponseStream(rs)
 
-	if err := r.raw.Send(msg); err != nil {
+	if err := s.raw.Send(msg); err != nil {
 		return nil, errors.Wrap(err, "could not send a message")
 	}
 
 	return rs, nil
 }
 
-// HandleIncomingResponse processes an incoming response. Returning an error from this function shuts down the entire
-// connection.
-func (r *ResponseStreams) HandleIncomingResponse(msg *transport.Message) error {
+// HandleIncomingResponse processes an incoming response. Returning an error
+// from this function shuts down the entire connection.
+func (s *ResponseStreams) HandleIncomingResponse(msg *transport.Message) error {
 	if msg.Header.IsRequest() {
 		return errors.New("passed a request")
 	}
 
-	r.streamsLock.Lock()
-	defer r.streamsLock.Unlock()
+	s.streamsLock.Lock()
+	defer s.streamsLock.Unlock()
 
-	rs, ok := r.streams[-msg.Header.RequestNumber()]
+	rs, ok := s.streams[-msg.Header.RequestNumber()]
 	if !ok {
 		return nil
 	}
@@ -120,44 +120,13 @@ func (s *ResponseStreams) waitAndCloseResponseStream(rs *ResponseStream) {
 	defer s.streamsLock.Unlock()
 
 	go func() {
-		if err := s.sendCloseStream(rs.number); err != nil {
+		if err := sendCloseStream(s.raw, rs.number, nil); err != nil {
 			s.logger.WithError(err).Debug("failed to close the stream")
 		}
 	}()
 
 	delete(s.streams, rs.number)
 	close(rs.ch)
-}
-
-// todo deduplicate code
-func (s *ResponseStreams) sendCloseStream(number int) error {
-	// todo do this correctly? are the flags correct?
-	flags, err := transport.NewMessageHeaderFlags(true, true, transport.MessageBodyTypeJSON)
-	if err != nil {
-		return errors.Wrap(err, "could not create message header flags")
-	}
-
-	j := []byte("true")
-
-	header, err := transport.NewMessageHeader(
-		flags,
-		uint32(len(j)),
-		int32(number),
-	)
-	if err != nil {
-		return errors.Wrap(err, "could not create a message header")
-	}
-
-	msg, err := transport.NewMessage(header, j)
-	if err != nil {
-		return errors.Wrap(err, "could not create a message")
-	}
-
-	if err := s.raw.Send(&msg); err != nil {
-		return errors.Wrap(err, "could not send a message")
-	}
-
-	return nil
 }
 
 type ResponseStream struct {

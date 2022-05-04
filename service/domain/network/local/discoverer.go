@@ -54,6 +54,7 @@ func (d *Discoverer) Run(ctx context.Context) <-chan IdentityWithAddress {
 	}()
 
 	go func() {
+		defer close(ch)
 		for update := range ssbCh {
 			v, err := d.convert(update)
 			if err != nil {

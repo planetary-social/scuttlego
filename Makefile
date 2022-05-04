@@ -1,11 +1,14 @@
 .PHONY: ci
-ci: tools test lint check_generate check_fmt
+ci: tools test lint check_generate check_fmt check_tidy
 
 .PHONY: check_generate
 check_generate: generate fmt check_repository_unchanged
 
 .PHONY: check_fmt
 check_fmt: fmt check_repository_unchanged
+
+.PHONY: check_tidy
+check_tidy: tidy check_repository_unchanged
 
 .PHONY: check_repository_unchanged
 check_repository_unchanged: 
@@ -22,6 +25,10 @@ fmt:
 .PHONY: test
 test:
 	go test ./...
+
+.PHONY: tidy
+tidy:
+	go mod tidy
 
 .PHONY: lint
 lint:

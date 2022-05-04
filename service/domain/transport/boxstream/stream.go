@@ -110,7 +110,7 @@ func (s Stream) Close() error {
 }
 
 // writeChunk accepts at most maxBoxStreamBodyLength bytes.
-func (s *Stream) writeChunk(p []byte) (err error) {
+func (s *Stream) writeChunk(p []byte) error {
 	if len(p) > maxBoxStreamBodyLength {
 		return errors.New("chunk too long")
 	}

@@ -1,16 +1,18 @@
 package boxstream_test
 
 import (
+	"io"
+	"testing"
+	"time"
+
 	"github.com/hashicorp/go-multierror"
 	"github.com/planetary-social/go-ssb/fixtures"
 	"github.com/planetary-social/go-ssb/service/domain/transport/boxstream"
 	"github.com/stretchr/testify/require"
-	"io"
-	"testing"
-	"time"
 )
 
 func TestHandshaker(t *testing.T) {
+	t.Parallel()
 	networkKey := boxstream.NewDefaultNetworkKey()
 
 	peer1 := fixtures.SomePrivateIdentity()
@@ -32,13 +34,18 @@ func TestHandshaker(t *testing.T) {
 
 	errCh := make(chan error)
 
+	var stream1 *boxstream.Stream
+	var stream2 *boxstream.Stream
+
 	go func() {
-		_, err := handshaker1.OpenClientStream(conn1, peer2.Public())
+		s, err := handshaker1.OpenClientStream(conn1, peer2.Public())
+		stream1 = s
 		errCh <- err
 	}()
 
 	go func() {
-		_, err := handshaker2.OpenServerStream(conn2)
+		s, err := handshaker2.OpenServerStream(conn2)
+		stream2 = s
 		errCh <- err
 	}()
 
@@ -50,6 +57,10 @@ func TestHandshaker(t *testing.T) {
 			t.Fatal("timeout")
 		}
 	}
+
+	// test reading and writing to confirm that secrets are set correctly
+	testWriteRead(t, stream1, stream2, []byte("test"))
+	testWriteRead(t, stream2, stream1, []byte("test"))
 }
 
 type mockConnection struct {

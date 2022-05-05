@@ -8,6 +8,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.0
+	go.cryptoscope.co/netwrap v0.1.1
 	go.cryptoscope.co/secretstream v1.2.10
 	go.cryptoscope.co/ssb v0.2.2-0.20220218153308-74274366774e
 	go.etcd.io/bbolt v1.3.6
@@ -33,7 +34,6 @@ require (
 	go.cryptoscope.co/luigi v0.3.6-0.20200131144242-3256b54e72c8 // indirect
 	go.cryptoscope.co/margaret v0.4.3 // indirect
 	go.cryptoscope.co/muxrpc/v2 v2.0.10 // indirect
-	go.cryptoscope.co/netwrap v0.1.1 // indirect
 	go.cryptoscope.co/nocomment v0.0.0-20210520094614-fb744e81f810 // indirect
 	go.mindeco.de v1.12.0 // indirect
 	go.mindeco.de/ssb-multiserver v0.1.4-0.20210907140404-6f323e45e9f9 // indirect

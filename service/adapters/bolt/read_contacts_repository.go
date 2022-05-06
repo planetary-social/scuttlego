@@ -7,16 +7,16 @@ import (
 	"go.etcd.io/bbolt"
 )
 
-type BoltContactsRepository struct {
+type ReadContactsRepository struct {
 	db      *bbolt.DB
 	factory TxRepositoriesFactory
 }
 
-func NewBoltContactsRepository(db *bbolt.DB, factory TxRepositoriesFactory) *BoltContactsRepository {
-	return &BoltContactsRepository{db: db, factory: factory}
+func NewReadContactsRepository(db *bbolt.DB, factory TxRepositoriesFactory) *ReadContactsRepository {
+	return &ReadContactsRepository{db: db, factory: factory}
 }
 
-func (b BoltContactsRepository) GetContacts() ([]replication.Contact, error) {
+func (b ReadContactsRepository) GetContacts() ([]replication.Contact, error) {
 	var result []replication.Contact
 
 	if err := b.db.View(func(tx *bbolt.Tx) error {
@@ -53,7 +53,7 @@ func (b BoltContactsRepository) GetContacts() ([]replication.Contact, error) {
 	return result, nil
 }
 
-func (b BoltContactsRepository) getFeedState(repository *FeedRepository, feed refs.Feed) (replication.FeedState, error) {
+func (b ReadContactsRepository) getFeedState(repository *FeedRepository, feed refs.Feed) (replication.FeedState, error) {
 	f, err := repository.GetFeed(feed)
 	if err != nil {
 		if errors.Is(err, ErrFeedNotFound) {

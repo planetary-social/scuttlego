@@ -5,6 +5,7 @@ import (
 	"github.com/planetary-social/go-ssb/service/app"
 	"github.com/planetary-social/go-ssb/service/app/commands"
 	"github.com/planetary-social/go-ssb/service/app/queries"
+	"github.com/planetary-social/go-ssb/service/domain/replication"
 	portsrpc "github.com/planetary-social/go-ssb/service/ports/rpc"
 )
 
@@ -26,6 +27,8 @@ var commandsSet = wire.NewSet(
 	commands.NewProcessNewLocalDiscoveryHandler,
 	commands.NewPublishRawHandler,
 	commands.NewEstablishNewConnectionsHandler,
+	commands.NewRawMessageHandler,
+	wire.Bind(new(replication.RawMessageHandler), new(*commands.RawMessageHandler)),
 )
 
 var queriesSet = wire.NewSet(

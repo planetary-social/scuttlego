@@ -4,6 +4,7 @@ import (
 	"github.com/google/wire"
 	"github.com/planetary-social/go-ssb/logging"
 	"github.com/planetary-social/go-ssb/service/adapters/bolt"
+	"github.com/planetary-social/go-ssb/service/adapters/mocks"
 	"github.com/planetary-social/go-ssb/service/app/commands"
 	"github.com/planetary-social/go-ssb/service/app/queries"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/formats"
@@ -30,8 +31,8 @@ var boltAdaptersSet = wire.NewSet(
 	bolt.NewReadFeedRepository,
 	wire.Bind(new(queries.FeedRepository), new(*bolt.ReadFeedRepository)),
 
-	bolt.NewBoltContactsRepository,
-	wire.Bind(new(replication.Storage), new(*bolt.BoltContactsRepository)),
+	bolt.NewReadContactsRepository,
+	wire.Bind(new(replication.Storage), new(*bolt.ReadContactsRepository)),
 
 	bolt.NewReadReceiveLogRepository,
 	wire.Bind(new(queries.ReceiveLogRepository), new(*bolt.ReadReceiveLogRepository)),
@@ -40,6 +41,18 @@ var boltAdaptersSet = wire.NewSet(
 	wire.Bind(new(queries.MessageRepository), new(*bolt.ReadMessageRepository)),
 
 	newTxRepositoriesFactory,
+)
+
+//nolint:deadcode,varcheck
+var mockQueryAdaptersSet = wire.NewSet(
+	mocks.NewFeedRepositoryMock,
+	wire.Bind(new(queries.FeedRepository), new(*mocks.FeedRepositoryMock)),
+
+	mocks.NewReceiveLogRepositoryMock,
+	wire.Bind(new(queries.ReceiveLogRepository), new(*mocks.ReceiveLogRepositoryMock)),
+
+	mocks.NewMessageRepositoryMock,
+	wire.Bind(new(queries.MessageRepository), new(*mocks.MessageRepositoryMock)),
 )
 
 func newTxRepositoriesFactory(local identity.Public, logger logging.Logger, hmac formats.MessageHMAC) bolt.TxRepositoriesFactory {

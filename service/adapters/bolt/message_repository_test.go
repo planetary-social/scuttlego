@@ -76,7 +76,7 @@ func TestReadMessageRepository_Count(t *testing.T) {
 
 	msg := fixtures.SomeMessage(fixtures.SomeSequence(), fixtures.SomeRefFeed())
 
-	a, err := di.BuildAdaptersForTest(db)
+	a, err := di.BuildTestAdapters(db)
 	require.NoError(t, err)
 
 	count, err := a.MessageRepository.Count()

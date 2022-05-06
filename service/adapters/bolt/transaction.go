@@ -30,6 +30,7 @@ func (t TransactionProvider) Transact(f func(adapters commands.Adapters) error) 
 
 type TxRepositoriesFactory func(tx *bbolt.Tx) (TxRepositories, error)
 
+// TxRepositories are used by the read repositories.
 type TxRepositories struct {
 	Feed       *FeedRepository
 	Graph      *SocialGraphRepository

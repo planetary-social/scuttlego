@@ -15,7 +15,7 @@ import (
 func TestReadFeedRepository_Count(t *testing.T) {
 	db := fixtures.Bolt(t)
 
-	adapters, err := di.BuildAdaptersForTest(db)
+	adapters, err := di.BuildTestAdapters(db)
 	require.NoError(t, err)
 
 	count, err := adapters.FeedRepository.Count()
@@ -23,7 +23,7 @@ func TestReadFeedRepository_Count(t *testing.T) {
 	require.Equal(t, 0, count)
 
 	err = db.Update(func(tx *bbolt.Tx) error {
-		txadapters, err := di.BuildTxAdaptersForTest(tx)
+		txadapters, err := di.BuildTxTestAdapters(tx)
 		require.NoError(t, err)
 
 		feedRef := fixtures.SomeRefFeed()

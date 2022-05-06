@@ -22,7 +22,6 @@ import (
 	"github.com/planetary-social/go-ssb/service/app/commands"
 	"github.com/planetary-social/go-ssb/service/app/queries"
 	"github.com/planetary-social/go-ssb/service/domain"
-	"github.com/planetary-social/go-ssb/service/domain/feeds"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/content/transport"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/formats"
 	"github.com/planetary-social/go-ssb/service/domain/graph"
@@ -41,7 +40,7 @@ import (
 
 // Injectors from wire.go:
 
-func BuildTxAdaptersForTest(tx *bbolt.Tx) (TxTestAdapters, error) {
+func BuildTxTestAdapters(tx *bbolt.Tx) (TxTestAdapters, error) {
 	messageContentMappings := transport.DefaultMappings()
 	logger := fixtures.SomeLogger()
 	marshaler, err := transport.NewMarshaler(messageContentMappings, logger)
@@ -75,7 +74,7 @@ var (
 	_wireHopsValue = hops
 )
 
-func BuildAdaptersForTest(db *bbolt.DB) (TestAdapters, error) {
+func BuildTestAdapters(db *bbolt.DB) (TestAdapters, error) {
 	private, err := identity.NewPrivate()
 	if err != nil {
 		return TestAdapters{}, err
@@ -95,7 +94,7 @@ func BuildAdaptersForTest(db *bbolt.DB) (TestAdapters, error) {
 	return testAdapters, nil
 }
 
-func BuildApplicationForTests() (TestApplication, error) {
+func BuildTestQueries() (TestQueries, error) {
 	feedRepositoryMock := mocks.NewFeedRepositoryMock()
 	messagePubSubMock := mocks.NewMessagePubSubMock()
 	createHistoryStreamHandler := queries.NewCreateHistoryStreamHandler(feedRepositoryMock, messagePubSubMock)
@@ -106,12 +105,12 @@ func BuildApplicationForTests() (TestApplication, error) {
 	statusHandler := queries.NewStatusHandler(messageRepositoryMock, feedRepositoryMock, peerManagerMock)
 	private, err := identity.NewPrivate()
 	if err != nil {
-		return TestApplication{}, err
+		return TestQueries{}, err
 	}
 	public := privateIdentityToPublicIdentity(private)
 	publishedMessagesHandler, err := queries.NewPublishedMessagesHandler(feedRepositoryMock, public)
 	if err != nil {
-		return TestApplication{}, err
+		return TestQueries{}, err
 	}
 	appQueries := app.Queries{
 		CreateHistoryStream: createHistoryStreamHandler,
@@ -119,20 +118,21 @@ func BuildApplicationForTests() (TestApplication, error) {
 		Status:              statusHandler,
 		PublishedMessages:   publishedMessagesHandler,
 	}
-	testApplication := TestApplication{
+	testQueries := TestQueries{
 		Queries:           appQueries,
 		FeedRepository:    feedRepositoryMock,
 		MessagePubSub:     messagePubSubMock,
 		MessageRepository: messageRepositoryMock,
 		PeerManager:       peerManagerMock,
 	}
-	return testApplication, nil
+	return testQueries, nil
 }
 
-func BuildTransactableAdapters(tx *bbolt.Tx, public identity.Public, logger logging.Logger, config Config) (commands.Adapters, error) {
+func BuildTransactableAdapters(tx *bbolt.Tx, public identity.Public, config Config) (commands.Adapters, error) {
 	graphHops := _wireGraphHopsValue
 	socialGraphRepository := bolt.NewSocialGraphRepository(tx, public, graphHops)
 	messageContentMappings := transport.DefaultMappings()
+	logger := extractLoggerFromConfig(config)
 	marshaler, err := transport.NewMarshaler(messageContentMappings, logger)
 	if err != nil {
 		return commands.Adapters{}, err
@@ -204,7 +204,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 		return Service{}, err
 	}
 	public := privateIdentityToPublicIdentity(private)
-	adaptersFactory := newAdaptersFactory(config, public, logger)
+	adaptersFactory := newAdaptersFactory(config, public)
 	transactionProvider := bolt.NewTransactionProvider(db, adaptersFactory)
 	messageContentMappings := transport.DefaultMappings()
 	marshaler, err := transport.NewMarshaler(messageContentMappings, logger)
@@ -217,8 +217,8 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	peerManagerConfig := extractPeerManagerConfigFromConfig(config)
 	messageHMAC := extractMessageHMACFromConfig(config)
 	txRepositoriesFactory := newTxRepositoriesFactory(public, logger, messageHMAC)
-	boltContactsRepository := bolt.NewBoltContactsRepository(db, txRepositoriesFactory)
-	manager := replication.NewManager(logger, boltContactsRepository)
+	readContactsRepository := bolt.NewReadContactsRepository(db, txRepositoriesFactory)
+	manager := replication.NewManager(logger, readContactsRepository)
 	scuttlebutt := formats.NewScuttlebutt(marshaler, messageHMAC)
 	v := newFormats(scuttlebutt)
 	rawMessageIdentifier := formats.NewRawMessageIdentifier(v)
@@ -291,20 +291,6 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 
 // wire.go:
 
-var replicatorSet = wire.NewSet(replication.NewManager, wire.Bind(new(replication.ReplicationManager), new(*replication.Manager)), replication.NewGossipReplicator, wire.Bind(new(domain.Replicator), new(*replication.GossipReplicator)))
-
-var formatsSet = wire.NewSet(
-	newFormats, formats.NewScuttlebutt, transport.NewMarshaler, wire.Bind(new(formats.Marshaler), new(*transport.Marshaler)), transport.DefaultMappings, formats.NewRawMessageIdentifier, wire.Bind(new(commands.RawMessageIdentifier), new(*formats.RawMessageIdentifier)), wire.Bind(new(bolt.RawMessageIdentifier), new(*formats.RawMessageIdentifier)),
-)
-
-var portsSet = wire.NewSet(rpc.NewMux, rpc.NewMuxHandlers, rpc.NewHandlerBlobsGet, rpc.NewHandlerCreateHistoryStream, pubsub2.NewPubSub, local.NewDiscoverer, network2.NewDiscoverer, network2.NewConnectionEstablisher)
-
-var requestPubSubSet = wire.NewSet(pubsub.NewRequestPubSub, wire.Bind(new(rpc2.RequestHandler), new(*pubsub.RequestPubSub)))
-
-var messagePubSubSet = wire.NewSet(pubsub.NewMessagePubSub, wire.Bind(new(queries.MessageSubscriber), new(*pubsub.MessagePubSub)))
-
-var hops = graph.MustNewHops(3)
-
 type TxTestAdapters struct {
 	MessageRepository *bolt.MessageRepository
 	FeedRepository    *bolt.FeedRepository
@@ -317,7 +303,7 @@ type TestAdapters struct {
 	ReceiveLog        *bolt.ReadReceiveLogRepository
 }
 
-type TestApplication struct {
+type TestQueries struct {
 	Queries app.Queries
 
 	FeedRepository    *mocks.FeedRepositoryMock
@@ -326,23 +312,21 @@ type TestApplication struct {
 	PeerManager       *mocks.PeerManagerMock
 }
 
+var replicatorSet = wire.NewSet(replication.NewManager, wire.Bind(new(replication.ReplicationManager), new(*replication.Manager)), replication.NewGossipReplicator, wire.Bind(new(domain.Replicator), new(*replication.GossipReplicator)))
+
+var requestPubSubSet = wire.NewSet(pubsub.NewRequestPubSub, wire.Bind(new(rpc2.RequestHandler), new(*pubsub.RequestPubSub)))
+
+var messagePubSubSet = wire.NewSet(pubsub.NewMessagePubSub, wire.Bind(new(queries.MessageSubscriber), new(*pubsub.MessagePubSub)))
+
+var hops = graph.MustNewHops(3)
+
 func newAdvertiser(l identity.Public, config Config) (*local.Advertiser, error) {
 	return local.NewAdvertiser(l, config.ListenAddress)
 }
 
-func newListener(
-	ctx context.Context,
-	initializer network2.ServerPeerInitializer, app2 app.Application,
-
-	config Config,
-	logger logging.Logger,
-) (*network2.Listener, error) {
-	return network2.NewListener(ctx, initializer, app2, config.ListenAddress, logger)
-}
-
-func newAdaptersFactory(config Config, local2 identity.Public, logger logging.Logger) bolt.AdaptersFactory {
+func newAdaptersFactory(config Config, local2 identity.Public) bolt.AdaptersFactory {
 	return func(tx *bbolt.Tx) (commands.Adapters, error) {
-		return BuildTransactableAdapters(tx, local2, logger, config)
+		return BuildTransactableAdapters(tx, local2, config)
 	}
 }
 
@@ -357,28 +341,4 @@ func newBolt(config Config) (*bbolt.DB, error) {
 
 func privateIdentityToPublicIdentity(p identity.Private) identity.Public {
 	return p.Public()
-}
-
-func newFormats(
-	s *formats.Scuttlebutt,
-) []feeds.FeedFormat {
-	return []feeds.FeedFormat{
-		s,
-	}
-}
-
-func extractNetworkKeyFromConfig(config Config) boxstream.NetworkKey {
-	return config.NetworkKey
-}
-
-func extractMessageHMACFromConfig(config Config) formats.MessageHMAC {
-	return config.MessageHMAC
-}
-
-func extractLoggerFromConfig(config Config) logging.Logger {
-	return config.Logger
-}
-
-func extractPeerManagerConfigFromConfig(config Config) domain.PeerManagerConfig {
-	return config.PeerManagerConfig
 }

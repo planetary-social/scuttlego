@@ -26,10 +26,10 @@ func NewSocialGraph(local refs.Identity, hops Hops, storage Storage) (*SocialGra
 }
 
 func (g *SocialGraph) load(hops Hops, local refs.Identity, storage Storage) error {
-	return g.dfs(hops, 0, local, storage)
+	return g.depthFirstSearch(hops, 0, local, storage)
 }
 
-func (g *SocialGraph) dfs(hops Hops, depth int, node refs.Identity, s Storage) error {
+func (g *SocialGraph) depthFirstSearch(hops Hops, depth int, node refs.Identity, s Storage) error {
 	if depth > hops.Int() {
 		return nil
 	}
@@ -46,7 +46,7 @@ func (g *SocialGraph) dfs(hops Hops, depth int, node refs.Identity, s Storage) e
 			continue
 		}
 
-		if err := g.dfs(hops, depth+1, contact, s); err != nil {
+		if err := g.depthFirstSearch(hops, depth+1, contact, s); err != nil {
 			return errors.Wrap(err, "recursion failed")
 		}
 	}

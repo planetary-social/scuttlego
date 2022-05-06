@@ -14,7 +14,7 @@ func TestReceiveLog_Get_ReturnsNoMessagesWhenEmpty(t *testing.T) {
 	db := fixtures.Bolt(t)
 
 	err := db.Update(func(tx *bbolt.Tx) error {
-		txadapters, err := di.BuildTxAdaptersForTest(tx)
+		txadapters, err := di.BuildTxTestAdapters(tx)
 		require.NoError(t, err)
 
 		msgs, err := txadapters.ReceiveLog.Get(0, 10)
@@ -30,7 +30,7 @@ func TestReceiveLog_Get_ReturnsErrorForInvalidLimit(t *testing.T) {
 	db := fixtures.Bolt(t)
 
 	err := db.Update(func(tx *bbolt.Tx) error {
-		txadapters, err := di.BuildTxAdaptersForTest(tx)
+		txadapters, err := di.BuildTxTestAdapters(tx)
 		require.NoError(t, err)
 
 		_, err = txadapters.ReceiveLog.Get(0, 0)
@@ -45,7 +45,7 @@ func TestReceiveLog_Get_ReturnsErrorForInvalidLastSeq(t *testing.T) {
 	db := fixtures.Bolt(t)
 
 	err := db.Update(func(tx *bbolt.Tx) error {
-		txadapters, err := di.BuildTxAdaptersForTest(tx)
+		txadapters, err := di.BuildTxTestAdapters(tx)
 		require.NoError(t, err)
 
 		_, err = txadapters.ReceiveLog.Get(-1, 10)
@@ -62,7 +62,7 @@ func TestReceiveLog_Get_ReturnsMessages(t *testing.T) {
 	numMessages := 10
 
 	err := db.Update(func(tx *bbolt.Tx) error {
-		txadapters, err := di.BuildTxAdaptersForTest(tx)
+		txadapters, err := di.BuildTxTestAdapters(tx)
 		require.NoError(t, err)
 
 		for i := 0; i < numMessages; i++ {
@@ -83,7 +83,7 @@ func TestReceiveLog_Get_ReturnsMessages(t *testing.T) {
 
 	t.Run("seq_0", func(t *testing.T) {
 		err = db.Update(func(tx *bbolt.Tx) error {
-			txadapters, err := di.BuildTxAdaptersForTest(tx)
+			txadapters, err := di.BuildTxTestAdapters(tx)
 			require.NoError(t, err)
 
 			msgs, err := txadapters.ReceiveLog.Get(0, 10)
@@ -97,7 +97,7 @@ func TestReceiveLog_Get_ReturnsMessages(t *testing.T) {
 
 	t.Run("seq_5", func(t *testing.T) {
 		err = db.Update(func(tx *bbolt.Tx) error {
-			txadapters, err := di.BuildTxAdaptersForTest(tx)
+			txadapters, err := di.BuildTxTestAdapters(tx)
 			require.NoError(t, err)
 
 			msgs, err := txadapters.ReceiveLog.Get(5, 10)

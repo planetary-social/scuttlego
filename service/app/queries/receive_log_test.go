@@ -10,7 +10,7 @@ import (
 )
 
 func TestReceiveLog(t *testing.T) {
-	app, err := di.BuildApplicationForTests()
+	app, err := di.BuildTestQueries()
 	require.NoError(t, err)
 
 	testCases := []struct {

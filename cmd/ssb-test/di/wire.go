@@ -19,8 +19,6 @@ import (
 	"github.com/planetary-social/go-ssb/service/app/commands"
 	"github.com/planetary-social/go-ssb/service/app/queries"
 	"github.com/planetary-social/go-ssb/service/domain"
-	"github.com/planetary-social/go-ssb/service/domain/feeds"
-	"github.com/planetary-social/go-ssb/service/domain/feeds/content/transport"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/formats"
 	"github.com/planetary-social/go-ssb/service/domain/graph"
 	"github.com/planetary-social/go-ssb/service/domain/identity"
@@ -31,59 +29,8 @@ import (
 	"github.com/planetary-social/go-ssb/service/domain/transport/boxstream"
 	"github.com/planetary-social/go-ssb/service/domain/transport/rpc"
 	portsnetwork "github.com/planetary-social/go-ssb/service/ports/network"
-	portspubsub "github.com/planetary-social/go-ssb/service/ports/pubsub"
-	portsrpc "github.com/planetary-social/go-ssb/service/ports/rpc"
 	"go.etcd.io/bbolt"
 )
-
-var replicatorSet = wire.NewSet(
-	replication.NewManager,
-	wire.Bind(new(replication.ReplicationManager), new(*replication.Manager)),
-
-	replication.NewGossipReplicator,
-	wire.Bind(new(domain.Replicator), new(*replication.GossipReplicator)),
-)
-
-var formatsSet = wire.NewSet(
-	newFormats,
-
-	formats.NewScuttlebutt,
-
-	transport.NewMarshaler,
-	wire.Bind(new(formats.Marshaler), new(*transport.Marshaler)),
-
-	transport.DefaultMappings,
-
-	formats.NewRawMessageIdentifier,
-	wire.Bind(new(commands.RawMessageIdentifier), new(*formats.RawMessageIdentifier)),
-	wire.Bind(new(bolt.RawMessageIdentifier), new(*formats.RawMessageIdentifier)),
-)
-
-var portsSet = wire.NewSet(
-	portsrpc.NewMux,
-
-	portsrpc.NewMuxHandlers,
-	portsrpc.NewHandlerBlobsGet,
-	portsrpc.NewHandlerCreateHistoryStream,
-
-	portspubsub.NewPubSub,
-
-	local.NewDiscoverer,
-	portsnetwork.NewDiscoverer,
-	portsnetwork.NewConnectionEstablisher,
-)
-
-var requestPubSubSet = wire.NewSet(
-	pubsub.NewRequestPubSub,
-	wire.Bind(new(rpc.RequestHandler), new(*pubsub.RequestPubSub)),
-)
-
-var messagePubSubSet = wire.NewSet(
-	pubsub.NewMessagePubSub,
-	wire.Bind(new(queries.MessageSubscriber), new(*pubsub.MessagePubSub)),
-)
-
-var hops = graph.MustNewHops(3)
 
 type TxTestAdapters struct {
 	MessageRepository *bolt.MessageRepository
@@ -91,7 +38,7 @@ type TxTestAdapters struct {
 	ReceiveLog        *bolt.ReceiveLogRepository
 }
 
-func BuildTxAdaptersForTest(*bbolt.Tx) (TxTestAdapters, error) {
+func BuildTxTestAdapters(*bbolt.Tx) (TxTestAdapters, error) {
 	wire.Build(
 		wire.Struct(new(TxTestAdapters), "*"),
 
@@ -117,7 +64,7 @@ type TestAdapters struct {
 	ReceiveLog        *bolt.ReadReceiveLogRepository
 }
 
-func BuildAdaptersForTest(*bbolt.DB) (TestAdapters, error) {
+func BuildTestAdapters(*bbolt.DB) (TestAdapters, error) {
 	wire.Build(
 		wire.Struct(new(TestAdapters), "*"),
 
@@ -134,7 +81,7 @@ func BuildAdaptersForTest(*bbolt.DB) (TestAdapters, error) {
 	return TestAdapters{}, nil
 }
 
-type TestApplication struct {
+type TestQueries struct {
 	Queries app.Queries
 
 	FeedRepository    *mocks.FeedRepositoryMock
@@ -143,43 +90,33 @@ type TestApplication struct {
 	PeerManager       *mocks.PeerManagerMock
 }
 
-func BuildApplicationForTests() (TestApplication, error) {
+func BuildTestQueries() (TestQueries, error) {
 	wire.Build(
 		applicationSet,
+		mockQueryAdaptersSet,
 
 		mocks.NewMessagePubSubMock,
 		wire.Bind(new(queries.MessageSubscriber), new(*mocks.MessagePubSubMock)),
 
-		mocks.NewFeedRepositoryMock,
-		wire.Bind(new(queries.FeedRepository), new(*mocks.FeedRepositoryMock)),
-
-		mocks.NewReceiveLogRepositoryMock,
-		wire.Bind(new(queries.ReceiveLogRepository), new(*mocks.ReceiveLogRepositoryMock)),
-
-		mocks.NewMessageRepositoryMock,
-		wire.Bind(new(queries.MessageRepository), new(*mocks.MessageRepositoryMock)),
-
 		mocks.NewPeerManagerMock,
 		wire.Bind(new(queries.PeerManager), new(*mocks.PeerManagerMock)),
 
-		wire.Struct(new(TestApplication), "*"),
-
 		identity.NewPrivate,
 		privateIdentityToPublicIdentity,
+
+		wire.Struct(new(TestQueries), "*"),
 	)
 
-	return TestApplication{}, nil
-
+	return TestQueries{}, nil
 }
 
-func BuildTransactableAdapters(*bbolt.Tx, identity.Public, logging.Logger, Config) (commands.Adapters, error) {
+func BuildTransactableAdapters(*bbolt.Tx, identity.Public, Config) (commands.Adapters, error) {
 	wire.Build(
 		wire.Struct(new(commands.Adapters), "*"),
 
 		txBoltAdaptersSet,
 		formatsSet,
-
-		extractMessageHMACFromConfig,
+		extractFromConfigSet,
 
 		wire.Value(hops),
 	)
@@ -206,15 +143,9 @@ func BuildService(context.Context, identity.Private, Config) (Service, error) {
 	wire.Build(
 		NewService,
 
-		extractNetworkKeyFromConfig,
-		extractMessageHMACFromConfig,
-		extractLoggerFromConfig,
-		extractPeerManagerConfigFromConfig,
+		extractFromConfigSet,
 
 		boxstream.NewHandshaker,
-
-		commands.NewRawMessageHandler,
-		wire.Bind(new(replication.RawMessageHandler), new(*commands.RawMessageHandler)),
 
 		domaintransport.NewPeerInitializer,
 		wire.Bind(new(portsnetwork.ServerPeerInitializer), new(*domaintransport.PeerInitializer)),
@@ -234,7 +165,6 @@ func BuildService(context.Context, identity.Private, Config) (Service, error) {
 		newAdaptersFactory,
 
 		newAdvertiser,
-		newListener,
 		privateIdentityToPublicIdentity,
 
 		commands.NewMessageBuffer,
@@ -252,23 +182,33 @@ func BuildService(context.Context, identity.Private, Config) (Service, error) {
 	return Service{}, nil
 }
 
+var replicatorSet = wire.NewSet(
+	replication.NewManager,
+	wire.Bind(new(replication.ReplicationManager), new(*replication.Manager)),
+
+	replication.NewGossipReplicator,
+	wire.Bind(new(domain.Replicator), new(*replication.GossipReplicator)),
+)
+
+var requestPubSubSet = wire.NewSet(
+	pubsub.NewRequestPubSub,
+	wire.Bind(new(rpc.RequestHandler), new(*pubsub.RequestPubSub)),
+)
+
+var messagePubSubSet = wire.NewSet(
+	pubsub.NewMessagePubSub,
+	wire.Bind(new(queries.MessageSubscriber), new(*pubsub.MessagePubSub)),
+)
+
+var hops = graph.MustNewHops(3)
+
 func newAdvertiser(l identity.Public, config Config) (*local.Advertiser, error) {
 	return local.NewAdvertiser(l, config.ListenAddress)
 }
 
-func newListener(
-	ctx context.Context,
-	initializer portsnetwork.ServerPeerInitializer,
-	app app.Application,
-	config Config,
-	logger logging.Logger,
-) (*portsnetwork.Listener, error) {
-	return portsnetwork.NewListener(ctx, initializer, app, config.ListenAddress, logger)
-}
-
-func newAdaptersFactory(config Config, local identity.Public, logger logging.Logger) bolt.AdaptersFactory {
+func newAdaptersFactory(config Config, local identity.Public) bolt.AdaptersFactory {
 	return func(tx *bbolt.Tx) (commands.Adapters, error) {
-		return BuildTransactableAdapters(tx, local, logger, config)
+		return BuildTransactableAdapters(tx, local, config)
 	}
 }
 
@@ -283,28 +223,4 @@ func newBolt(config Config) (*bbolt.DB, error) {
 
 func privateIdentityToPublicIdentity(p identity.Private) identity.Public {
 	return p.Public()
-}
-
-func newFormats(
-	s *formats.Scuttlebutt,
-) []feeds.FeedFormat {
-	return []feeds.FeedFormat{
-		s,
-	}
-}
-
-func extractNetworkKeyFromConfig(config Config) boxstream.NetworkKey {
-	return config.NetworkKey
-}
-
-func extractMessageHMACFromConfig(config Config) formats.MessageHMAC {
-	return config.MessageHMAC
-}
-
-func extractLoggerFromConfig(config Config) logging.Logger {
-	return config.Logger
-}
-
-func extractPeerManagerConfigFromConfig(config Config) domain.PeerManagerConfig {
-	return config.PeerManagerConfig
 }

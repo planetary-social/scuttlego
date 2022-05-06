@@ -13,7 +13,7 @@ import (
 )
 
 func TestCreateHistoryStream_no_old_no_live(t *testing.T) {
-	a, err := di.BuildApplicationForTests()
+	a, err := di.BuildTestQueries()
 	require.NoError(t, err)
 
 	ctx := fixtures.TestContext(t)
@@ -32,19 +32,19 @@ func TestCreateHistoryStream_no_old_no_live(t *testing.T) {
 		t.Fatal("channel should be closed right away")
 	}
 
-	require.Empty(t, a.FeedRepository.Calls, "since old is not specified repository shouldn't have been called")
+	require.Empty(t, a.FeedRepository.GetMessagesCalls, "since old is not specified repository shouldn't have been called")
 	require.Zero(t, a.MessagePubSub.CallsCount, "since live is not specified pubsub shouldn't have been called")
 }
 
 func TestCreateHistoryStream_if_repository_returns_error_live_messages_are_not_returned(t *testing.T) {
-	a, err := di.BuildApplicationForTests()
+	a, err := di.BuildTestQueries()
 	require.NoError(t, err)
 
 	ctx := fixtures.TestContext(t)
 
 	feed := fixtures.SomeRefFeed()
 
-	a.FeedRepository.ReturnErr = errors.New("forced error")
+	a.FeedRepository.GetMessagesReturnErr = errors.New("forced error")
 
 	query := queries.CreateHistoryStream{
 		Id:    feed,
@@ -61,7 +61,7 @@ func TestCreateHistoryStream_if_repository_returns_error_live_messages_are_not_r
 		receivedValues = append(receivedValues, msgWithError)
 	}
 
-	require.NotEmpty(t, a.FeedRepository.Calls)
+	require.NotEmpty(t, a.FeedRepository.GetMessagesCalls)
 	require.Len(t, receivedValues, 1)
 	require.EqualError(t, receivedValues[0].Err, "could not send messages: could not retrieve messages: forced error")
 }
@@ -75,13 +75,13 @@ func TestCreateHistoryStream_repository_is_called_correctly(t *testing.T) {
 		Name          string
 		Seq           *message.Sequence
 		Limit         *int
-		ExpectedCalls []mocks.FeedRepositoryMockCall
+		ExpectedCalls []mocks.FeedRepositoryMockGetMessagesCall
 	}{
 		{
 			Name:  "nil",
 			Seq:   nil,
 			Limit: nil,
-			ExpectedCalls: []mocks.FeedRepositoryMockCall{
+			ExpectedCalls: []mocks.FeedRepositoryMockGetMessagesCall{
 				{
 					Id:    feed,
 					Seq:   nil,
@@ -93,7 +93,7 @@ func TestCreateHistoryStream_repository_is_called_correctly(t *testing.T) {
 			Name:  "values",
 			Seq:   &seq,
 			Limit: &limit,
-			ExpectedCalls: []mocks.FeedRepositoryMockCall{
+			ExpectedCalls: []mocks.FeedRepositoryMockGetMessagesCall{
 				{
 					Id:    feed,
 					Seq:   &seq,
@@ -105,7 +105,7 @@ func TestCreateHistoryStream_repository_is_called_correctly(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
-			a, err := di.BuildApplicationForTests()
+			a, err := di.BuildTestQueries()
 			require.NoError(t, err)
 
 			ctx := fixtures.TestContext(t)
@@ -116,7 +116,7 @@ func TestCreateHistoryStream_repository_is_called_correctly(t *testing.T) {
 				fixtures.SomeMessage(message.MustNewSequence(3), feed),
 			}
 
-			a.FeedRepository.ReturnValue = expectedMessages
+			a.FeedRepository.GetMessagesReturnValue = expectedMessages
 
 			query := queries.CreateHistoryStream{
 				Id:    feed,
@@ -134,14 +134,14 @@ func TestCreateHistoryStream_repository_is_called_correctly(t *testing.T) {
 				receivedMessages = append(receivedMessages, msgWithError.Message)
 			}
 
-			require.Equal(t, testCase.ExpectedCalls, a.FeedRepository.Calls)
+			require.Equal(t, testCase.ExpectedCalls, a.FeedRepository.GetMessagesCalls)
 			require.Equal(t, expectedMessages, receivedMessages)
 		})
 	}
 }
 
 func TestCreateHistoryStream(t *testing.T) {
-	a, err := di.BuildApplicationForTests()
+	a, err := di.BuildTestQueries()
 	require.NoError(t, err)
 
 	ctx := fixtures.TestContext(t)
@@ -365,7 +365,7 @@ func TestCreateHistoryStream(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
-			a.FeedRepository.ReturnValue = testCase.Repository
+			a.FeedRepository.GetMessagesReturnValue = testCase.Repository
 			a.MessagePubSub.NewMessagesToSend = testCase.PubSub
 
 			query := queries.CreateHistoryStream{

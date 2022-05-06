@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/boreq/errors"
-	"github.com/planetary-social/go-ssb/cmd/ssb-test/di"
+	"github.com/planetary-social/go-ssb/di"
 	"github.com/planetary-social/go-ssb/service/app/queries"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
 	"github.com/stretchr/testify/require"

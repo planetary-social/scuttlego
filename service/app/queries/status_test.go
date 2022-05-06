@@ -3,7 +3,7 @@ package queries_test
 import (
 	"testing"
 
-	"github.com/planetary-social/go-ssb/cmd/ssb-test/di"
+	"github.com/planetary-social/go-ssb/di"
 	"github.com/planetary-social/go-ssb/fixtures"
 	"github.com/planetary-social/go-ssb/service/app/queries"
 	"github.com/planetary-social/go-ssb/service/domain/transport"

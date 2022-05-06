@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/boreq/errors"
-	"github.com/planetary-social/go-ssb/cmd/ssb-test/di"
 	"github.com/planetary-social/go-ssb/cmd/ssb-test/storage"
+	"github.com/planetary-social/go-ssb/di"
 	"github.com/planetary-social/go-ssb/logging"
 	"github.com/planetary-social/go-ssb/service/domain"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/formats"

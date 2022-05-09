@@ -8,6 +8,7 @@ import (
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/logging"
+	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
 	"github.com/planetary-social/go-ssb/service/domain/graph"
 	"github.com/planetary-social/go-ssb/service/domain/identity"
 	"github.com/planetary-social/go-ssb/service/domain/refs"
@@ -42,13 +43,17 @@ const (
 	// For how long to wait for the task to be picked up by a peer's replicator
 	// before giving up and making that feed available to be replicated by other
 	// peers.
-	waitForTaskToBePickedUp = 100 * time.Millisecond
+	waitForTaskToBePickedUp = 10 * time.Millisecond
 )
 
 type Storage interface {
 	// GetContacts returns a list of contacts. Contacts are sorted by hops,
 	// ascending. Contacts include the local feed.
 	GetContacts() ([]Contact, error)
+}
+
+type MessageBuffer interface {
+	Sequence(feed refs.Feed) (message.Sequence, bool)
 }
 
 type Contact struct {
@@ -70,6 +75,7 @@ type Contact struct {
 // that feed again. Backoff time is increased for feeds which are further away.
 type Manager struct {
 	storage Storage
+	buffer  MessageBuffer
 	logger  logging.Logger
 
 	activeTasks *activeTasksSet
@@ -81,9 +87,10 @@ type Manager struct {
 	contactsCacheLock      sync.Mutex // locks contactsCache and contactsCacheTimestamp
 }
 
-func NewManager(logger logging.Logger, storage Storage) *Manager {
+func NewManager(logger logging.Logger, storage Storage, buffer MessageBuffer) *Manager {
 	return &Manager{
 		storage:     storage,
+		buffer:      buffer,
 		logger:      logger.New("manager"),
 		activeTasks: newActiveTasksSet(),
 		peerState:   make(peerMap),
@@ -101,11 +108,9 @@ func (m *Manager) GetFeedsToReplicate(ctx context.Context, remote identity.Publi
 func (m *Manager) sendFeedsToReplicateLoop(ctx context.Context, ch chan ReplicateFeedTask, remote identity.Public) {
 	defer close(ch)
 
-	// todo make this event driven
-	// todo this doesn't take message buffer into account so there is some redundant work being done
 	for {
 		if err := m.sendFeedToReplicate(ctx, ch, remote); err != nil {
-			m.logger.WithError(err).Error("could not send feeds to replicate")
+			m.logger.WithError(err).Error("send feed to replicate failed")
 		}
 
 		select {
@@ -131,10 +136,15 @@ func (m *Manager) sendFeedToReplicate(ctx context.Context, ch chan ReplicateFeed
 			return errors.Wrap(err, "failed to start replication")
 		}
 
+		state, err := m.bufferState(contact)
+		if err != nil {
+			return errors.Wrap(err, "error determining feed state")
+		}
+
 		if shouldSendTask {
 			task := ReplicateFeedTask{
 				Id:    contact.Who,
-				State: contact.FeedState,
+				State: state,
 				Ctx:   ctx,
 				OnComplete: func(result TaskResult) {
 					m.finishReplication(remote, contact, result)
@@ -159,6 +169,29 @@ func (m *Manager) sendFeedToReplicate(ctx context.Context, ch chan ReplicateFeed
 		return ctx.Err()
 	case <-time.After(delayIfNoFeedsToReplicate):
 		return nil
+	}
+}
+
+func (m *Manager) bufferState(contact Contact) (FeedState, error) {
+	bufferSequence, inBuffer := m.buffer.Sequence(contact.Who)
+	storageSequence, inStorage := contact.FeedState.Sequence()
+
+	if !inBuffer && !inStorage {
+		return NewEmptyFeedState(), nil
+	}
+
+	if inBuffer && !inStorage {
+		return NewFeedState(bufferSequence)
+	}
+
+	if !inBuffer && inStorage {
+		return NewFeedState(storageSequence)
+	}
+
+	if bufferSequence.ComesAfter(storageSequence) {
+		return NewFeedState(bufferSequence)
+	} else {
+		return NewFeedState(storageSequence)
 	}
 }
 

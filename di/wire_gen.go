@@ -218,11 +218,11 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	messageHMAC := extractMessageHMACFromConfig(config)
 	txRepositoriesFactory := newTxRepositoriesFactory(public, logger, messageHMAC)
 	readContactsRepository := bolt.NewReadContactsRepository(db, txRepositoriesFactory)
-	manager := replication.NewManager(logger, readContactsRepository)
+	messageBuffer := commands.NewMessageBuffer(transactionProvider, logger)
+	manager := replication.NewManager(logger, readContactsRepository, messageBuffer)
 	scuttlebutt := formats.NewScuttlebutt(marshaler, messageHMAC)
 	v := newFormats(scuttlebutt)
 	rawMessageIdentifier := formats.NewRawMessageIdentifier(v)
-	messageBuffer := commands.NewMessageBuffer(transactionProvider, logger)
 	rawMessageHandler := commands.NewRawMessageHandler(rawMessageIdentifier, messageBuffer, logger)
 	gossipReplicator, err := replication.NewGossipReplicator(manager, rawMessageHandler, logger)
 	if err != nil {

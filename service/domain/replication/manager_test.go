@@ -6,7 +6,9 @@ import (
 
 	"github.com/planetary-social/go-ssb/fixtures"
 	"github.com/planetary-social/go-ssb/logging"
+	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
 	"github.com/planetary-social/go-ssb/service/domain/graph"
+	"github.com/planetary-social/go-ssb/service/domain/refs"
 	"github.com/planetary-social/go-ssb/service/domain/replication"
 	"github.com/stretchr/testify/require"
 )
@@ -145,21 +147,113 @@ func TestManager_TheSamePeerWillNotBeAskedForAFeedAgainRightAwayIfAllMessagesThe
 	})
 }
 
+func TestManager_SequenceIsDeterminedBasedOnStorageStateAndMessageBufferState(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		Name              string
+		SequenceInStorage *message.Sequence
+		SequenceInBuffer  *message.Sequence
+		ExpectedSequence  *message.Sequence
+	}{
+		{
+			Name:              "all_empty",
+			SequenceInStorage: nil,
+			SequenceInBuffer:  nil,
+			ExpectedSequence:  nil,
+		},
+		{
+			Name:              "storage_empty",
+			SequenceInStorage: nil,
+			SequenceInBuffer:  sequencePointer(message.MustNewSequence(10)),
+			ExpectedSequence:  sequencePointer(message.MustNewSequence(10)),
+		},
+		{
+			Name:              "buffer_empty",
+			SequenceInStorage: sequencePointer(message.MustNewSequence(10)),
+			SequenceInBuffer:  nil,
+			ExpectedSequence:  sequencePointer(message.MustNewSequence(10)),
+		},
+		{
+			Name:              "buffer_larger",
+			SequenceInStorage: sequencePointer(message.MustNewSequence(10)),
+			SequenceInBuffer:  sequencePointer(message.MustNewSequence(20)),
+			ExpectedSequence:  sequencePointer(message.MustNewSequence(20)),
+		},
+		{
+			Name:              "storage_larger",
+			SequenceInStorage: sequencePointer(message.MustNewSequence(20)),
+			SequenceInBuffer:  sequencePointer(message.MustNewSequence(10)),
+			ExpectedSequence:  sequencePointer(message.MustNewSequence(20)),
+		},
+	}
+
+	for i := range testCases {
+		testCase := testCases[i]
+		t.Run(testCase.Name, func(t *testing.T) {
+			t.Parallel()
+
+			m := newTestManager()
+
+			contact := replication.Contact{
+				Who:       fixtures.SomeRefFeed(),
+				Hops:      graph.MustNewHops(0),
+				FeedState: replication.NewEmptyFeedState(),
+			}
+
+			if testCase.SequenceInStorage != nil {
+				contact.FeedState = replication.MustNewFeedState(*testCase.SequenceInStorage)
+
+			} else {
+				contact.FeedState = replication.NewEmptyFeedState()
+			}
+
+			m.Storage.Contacts = []replication.Contact{
+				contact,
+			}
+
+			if testCase.SequenceInBuffer != nil {
+				m.MessageBuffer.SetSequence(contact.Who, *testCase.SequenceInBuffer)
+			}
+
+			ctx := fixtures.TestContext(t)
+
+			select {
+			case task := <-m.Manager.GetFeedsToReplicate(ctx, fixtures.SomePublicIdentity()):
+				require.Equal(t, contact.Who, task.Id)
+				seq, ok := task.State.Sequence()
+				if testCase.ExpectedSequence == nil {
+					require.False(t, ok)
+				} else {
+					require.True(t, ok)
+					require.Equal(t, *testCase.ExpectedSequence, seq)
+				}
+				task.OnComplete(replication.TaskResultDoesNotHaveMoreMessages)
+			case <-time.After(1 * time.Second):
+				t.Fatal("peer should have been asked to replicate the feed")
+			}
+		})
+	}
+
+}
+
 type testManager struct {
-	Manager *replication.Manager
-	Storage *storageMock
+	Manager       *replication.Manager
+	Storage       *storageMock
+	MessageBuffer *messageBufferMock
 }
 
 func newTestManager() testManager {
 	logger := logging.NewDevNullLogger()
 	storage := newStorageMock()
-	manager := replication.NewManager(logger, storage)
+	buffer := newMessageBufferMock()
+	manager := replication.NewManager(logger, storage, buffer)
 
 	return testManager{
-		Manager: manager,
-		Storage: storage,
+		Manager:       manager,
+		Storage:       storage,
+		MessageBuffer: buffer,
 	}
-
 }
 
 type storageMock struct {
@@ -172,4 +266,27 @@ func newStorageMock() *storageMock {
 
 func (s storageMock) GetContacts() ([]replication.Contact, error) {
 	return s.Contacts, nil
+}
+
+type messageBufferMock struct {
+	sequences map[string]message.Sequence
+}
+
+func newMessageBufferMock() *messageBufferMock {
+	return &messageBufferMock{
+		sequences: make(map[string]message.Sequence),
+	}
+}
+
+func (m messageBufferMock) SetSequence(feed refs.Feed, sequence message.Sequence) {
+	m.sequences[feed.String()] = sequence
+}
+
+func (m messageBufferMock) Sequence(feed refs.Feed) (message.Sequence, bool) {
+	seq, ok := m.sequences[feed.String()]
+	return seq, ok
+}
+
+func sequencePointer(sequence message.Sequence) *message.Sequence {
+	return &sequence
 }

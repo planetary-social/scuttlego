@@ -2,7 +2,6 @@ package replication
 
 import (
 	"context"
-	"strconv"
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/logging"
@@ -104,14 +103,16 @@ func (r GossipReplicator) replicateFeedTask(peer transport.Peer, task ReplicateF
 		WithField("state", task.State).
 		New("replication task")
 
+	logger.Trace("starting")
+
 	n, err := r.replicateFeed(peer, task)
 	if err != nil && !errors.Is(err, rpc.ErrEndOrErr) {
-		logger.WithField("n", n).WithError(err).Debug("failed")
+		logger.WithField("received_messages", n).WithError(err).Debug("failed")
 		task.OnComplete(TaskResultFailed)
 		return
 	}
 
-	logger.WithField("n", n).Debug("finished")
+	logger.WithField("received_messages", n).Debug("finished")
 
 	if n < limit {
 		task.OnComplete(TaskResultDoesNotHaveMoreMessages)
@@ -169,47 +170,4 @@ func (r GossipReplicator) newCreateHistoryStreamArguments(id refs.Feed, state Fe
 	fa := false
 	limit := limit
 	return messages.NewCreateHistoryStreamArguments(id, seq, &limit, &fa, nil, &fa)
-}
-
-// FeedState wraps the sequence number so that both the state of feeds which
-// have some messages in them and empty feeds can be represented.
-type FeedState struct {
-	sequence *message.Sequence
-}
-
-// NewEmptyFeedState creates a new feed state which represents an empty feed.
-// This is equivalent to the zero value of this type but using this constructor
-// improves readability.
-func NewEmptyFeedState() FeedState {
-	return FeedState{}
-}
-
-// NewFeedState creates a new feed state which represents a feed for which at
-// least one message is known.
-func NewFeedState(sequence message.Sequence) (FeedState, error) {
-	if sequence.IsZero() {
-		return FeedState{}, errors.New("zero value of sequence")
-	}
-
-	return FeedState{
-		sequence: &sequence,
-	}, nil
-}
-
-// Sequence returns the sequence of the last message in the feed. If the feed is
-// empty then the sequence is not returned.
-func (s FeedState) Sequence() (message.Sequence, bool) {
-	if s.sequence != nil {
-		return *s.sequence, true
-	}
-	return message.Sequence{}, false
-}
-
-// String is useful for printing this value when logging or debugging. Do not
-// use it for other purposes.
-func (s FeedState) String() string {
-	if s.sequence != nil {
-		return strconv.Itoa(s.sequence.Int())
-	}
-	return "empty"
 }

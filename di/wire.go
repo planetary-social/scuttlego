@@ -168,6 +168,7 @@ func BuildService(context.Context, identity.Private, Config) (Service, error) {
 		privateIdentityToPublicIdentity,
 
 		commands.NewMessageBuffer,
+		wire.Bind(new(replication.MessageBuffer), new(*commands.MessageBuffer)),
 
 		portsSet,
 		applicationSet,

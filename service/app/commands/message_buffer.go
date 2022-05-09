@@ -10,19 +10,23 @@ import (
 	"github.com/planetary-social/go-ssb/logging"
 	"github.com/planetary-social/go-ssb/service/domain/feeds"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
+	"github.com/planetary-social/go-ssb/service/domain/refs"
 )
 
 const (
-	messageBufferMaxMessages  = 1000
-	messageBufferPersistEvery = 5 * time.Second
+	messageBufferPersistAtMessages = 1000
+	messageBufferPersistEvery      = 5 * time.Second
 )
 
 type MessageBuffer struct {
-	feeds          feedsMap
-	feedsLock      *sync.Mutex
-	forcePersistCh chan struct{}
-	transaction    TransactionProvider
-	logger         logging.Logger
+	feeds     feedsMap
+	feedsLock *sync.Mutex
+
+	forcePersistCh   chan struct{}
+	forcePersistOnce sync.Once
+
+	transaction TransactionProvider
+	logger      logging.Logger
 }
 
 func NewMessageBuffer(transaction TransactionProvider, logger logging.Logger) *MessageBuffer {
@@ -56,35 +60,42 @@ func (m *MessageBuffer) Handle(msg message.Message) error {
 	m.feedsLock.Lock()
 	defer m.feedsLock.Unlock()
 
-	m.logger.
-		WithField("sequence", msg.Sequence().Int()).
-		WithField("feed", msg.Feed().String()).
-		Trace("handling a new message")
-
 	m.feeds.AddMessage(msg)
-	m.maybeTriggerPersist()
+
+	if m.feeds.MessageCount() > messageBufferPersistAtMessages {
+		m.forcePersistOnce.Do(
+			func() {
+				close(m.forcePersistCh)
+			},
+		)
+	}
+
 	return nil
 }
 
-func (m *MessageBuffer) maybeTriggerPersist() {
-	if m.feeds.MessageCount() < messageBufferMaxMessages {
-		return
+func (m *MessageBuffer) Sequence(feed refs.Feed) (message.Sequence, bool) {
+	m.feedsLock.Lock()
+	defer m.feedsLock.Unlock()
+
+	msgs := m.feeds[feed.String()]
+	if len(msgs) == 0 {
+		return message.Sequence{}, false
 	}
 
-	go func() {
-		select {
-		case m.forcePersistCh <- struct{}{}:
-		case <-time.After(10 * time.Millisecond):
-		}
-	}()
+	return msgs[len(msgs)-1].Sequence(), true
 }
 
 func (m *MessageBuffer) persist() error {
 	m.feedsLock.Lock()
 	defer m.feedsLock.Unlock()
 
-	numberOfMessages := m.feeds.MessageCount()
+	defer func() {
+		m.feeds = make(feedsMap)
+		m.forcePersistCh = make(chan struct{})
+		m.forcePersistOnce = sync.Once{}
+	}()
 
+	numberOfMessages := m.feeds.MessageCount()
 	if numberOfMessages == 0 {
 		return nil
 	}
@@ -92,39 +103,31 @@ func (m *MessageBuffer) persist() error {
 	start := time.Now()
 
 	if err := m.transaction.Transact(func(adapters Adapters) error {
-		return m.persistAll(adapters)
+		return m.persistTransaction(adapters, m.feeds)
 	}); err != nil {
 		return errors.Wrap(err, "transaction failed")
 	}
 
 	m.logger.
-		WithField("messages", numberOfMessages).
+		WithField("count", numberOfMessages).
 		WithField("duration", time.Since(start)).
 		Debug("persisted messages")
 
 	return nil
 }
 
-func (m *MessageBuffer) persistAll(adapters Adapters) error {
-	defer func() {
-		m.feeds = make(feedsMap)
-	}()
-
+func (m *MessageBuffer) persistTransaction(adapters Adapters, feedsToPersist feedsMap) error {
 	socialGraph, err := adapters.SocialGraph.GetSocialGraph()
 	if err != nil {
 		return errors.Wrap(err, "could not load the social graph")
 	}
 
-	for _, msgs := range m.feeds {
+	for _, msgs := range feedsToPersist {
 		firstMessage := msgs[0]
 
 		if !socialGraph.HasContact(firstMessage.Author()) {
 			continue // do nothing as this contact is not in our social graph
 		}
-
-		sort.Slice(msgs, func(i, j int) bool {
-			return msgs[j].Sequence().ComesAfter(msgs[i].Sequence())
-		})
 
 		if err := adapters.Feed.UpdateFeed(firstMessage.Feed(), func(feed *feeds.Feed) (*feeds.Feed, error) {
 			for _, msg := range msgs {
@@ -146,6 +149,15 @@ type feedsMap map[string][]message.Message
 func (f feedsMap) AddMessage(msg message.Message) {
 	key := msg.Feed().String()
 	f[key] = append(f[key], msg)
+
+	if msgs := f[key]; len(msgs) > 1 {
+		last := len(msgs) - 1
+		if !msgs[last].Sequence().ComesAfter(msgs[last-1].Sequence()) {
+			sort.Slice(msgs, func(i, j int) bool {
+				return msgs[j].Sequence().ComesAfter(msgs[i].Sequence())
+			})
+		}
+	}
 }
 
 func (f feedsMap) MessageCount() int {

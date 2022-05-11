@@ -9,17 +9,17 @@ import (
 	"github.com/boreq/errors"
 )
 
-type Message struct {
-	s string
-	b []byte
-}
-
 const (
 	messagePrefix = "%"
 	messageSuffix = ".sha256"
 
 	messageHashLength = 32
 )
+
+type Message struct {
+	s string
+	b []byte
+}
 
 func NewMessage(s string) (Message, error) {
 	if !strings.HasPrefix(s, messagePrefix) {

@@ -7,6 +7,7 @@ import (
 	"github.com/planetary-social/go-ssb/logging"
 	"github.com/planetary-social/go-ssb/service/app"
 	"github.com/planetary-social/go-ssb/service/domain/network/local"
+	"github.com/planetary-social/go-ssb/service/domain/transport/rpc/mux"
 	portsnetwork "github.com/planetary-social/go-ssb/service/ports/network"
 	portspubsub "github.com/planetary-social/go-ssb/service/ports/pubsub"
 	portsrpc "github.com/planetary-social/go-ssb/service/ports/rpc"
@@ -14,7 +15,7 @@ import (
 
 //nolint:deadcode,varcheck
 var portsSet = wire.NewSet(
-	portsrpc.NewMux,
+	mux.NewMux,
 
 	portsrpc.NewMuxHandlers,
 	portsrpc.NewHandlerBlobsGet,

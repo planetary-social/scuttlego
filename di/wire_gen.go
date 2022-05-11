@@ -32,6 +32,7 @@ import (
 	transport2 "github.com/planetary-social/go-ssb/service/domain/transport"
 	"github.com/planetary-social/go-ssb/service/domain/transport/boxstream"
 	rpc2 "github.com/planetary-social/go-ssb/service/domain/transport/rpc"
+	"github.com/planetary-social/go-ssb/service/domain/transport/rpc/mux"
 	network2 "github.com/planetary-social/go-ssb/service/ports/network"
 	pubsub2 "github.com/planetary-social/go-ssb/service/ports/pubsub"
 	"github.com/planetary-social/go-ssb/service/ports/rpc"
@@ -276,11 +277,11 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	handlerCreateHistoryStream := rpc.NewHandlerCreateHistoryStream(createHistoryStreamHandler)
 	handlerBlobsGet := rpc.NewHandlerBlobsGet()
 	v2 := rpc.NewMuxHandlers(handlerCreateHistoryStream, handlerBlobsGet)
-	mux, err := rpc.NewMux(logger, v2)
+	muxMux, err := mux.NewMux(logger, v2)
 	if err != nil {
 		return Service{}, err
 	}
-	pubSub := pubsub2.NewPubSub(requestPubSub, mux)
+	pubSub := pubsub2.NewPubSub(requestPubSub, muxMux)
 	advertiser, err := newAdvertiser(public, config)
 	if err != nil {
 		return Service{}, err

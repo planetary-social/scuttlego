@@ -29,23 +29,19 @@ type Mux struct {
 	logger   logging.Logger
 }
 
-func NewMux(logger logging.Logger) *Mux {
-	return &Mux{
+func NewMux(logger logging.Logger, handlers []Handler) (*Mux, error) {
+	m := &Mux{
 		handlers: make(map[string]Handler),
 		logger:   logger.New("mux"),
 	}
-}
 
-func (m Mux) AddHandler(handler Handler) error {
-	key := m.procedureNameToKey(handler.Procedure().Name())
-
-	if _, ok := m.handlers[key]; ok {
-		return fmt.Errorf("handler for method '%s' was already added", key)
+	for _, handler := range handlers {
+		if err := m.addHandler(handler); err != nil {
+			return nil, errors.Wrap(err, "could not add a handler")
+		}
 	}
 
-	m.logger.WithField("key", key).Debug("registering handler")
-	m.handlers[key] = handler
-	return nil
+	return m, nil
 }
 
 func (m Mux) HandleRequest(ctx context.Context, rw rpc.ResponseWriter, req *rpc.Request) {
@@ -63,6 +59,18 @@ func (m Mux) HandleRequest(ctx context.Context, rw rpc.ResponseWriter, req *rpc.
 		}
 		return
 	}
+}
+
+func (m Mux) addHandler(handler Handler) error {
+	key := m.procedureNameToKey(handler.Procedure().Name())
+
+	if _, ok := m.handlers[key]; ok {
+		return fmt.Errorf("handler for method '%s' was already added", key)
+	}
+
+	m.logger.WithField("key", key).Debug("adding handler")
+	m.handlers[key] = handler
+	return nil
 }
 
 func (m Mux) getHandler(req *rpc.Request) (Handler, error) {

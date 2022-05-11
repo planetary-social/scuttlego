@@ -125,11 +125,14 @@ func (m *MessageBuffer) persistTransaction(adapters Adapters, feedsToPersist fee
 	for _, msgs := range feedsToPersist {
 		firstMessage := msgs[0]
 
-		if !socialGraph.HasContact(firstMessage.Author()) {
+		authorRef := firstMessage.Author()
+		feedRef := firstMessage.Feed()
+
+		if !socialGraph.HasContact(authorRef) {
 			continue // do nothing as this contact is not in our social graph
 		}
 
-		if err := adapters.Feed.UpdateFeed(firstMessage.Feed(), func(feed *feeds.Feed) (*feeds.Feed, error) {
+		if err := adapters.Feed.UpdateFeed(feedRef, func(feed *feeds.Feed) (*feeds.Feed, error) {
 			for _, msg := range msgs {
 				if err := feed.AppendMessage(msg); err != nil {
 					return nil, errors.Wrap(err, "could not append a message")
@@ -137,7 +140,7 @@ func (m *MessageBuffer) persistTransaction(adapters Adapters, feedsToPersist fee
 			}
 			return feed, nil
 		}); err != nil {
-			return errors.Wrap(err, "failed to update the feed")
+			return errors.Wrapf(err, "failed to update the feed '%s'", feedRef)
 		}
 	}
 

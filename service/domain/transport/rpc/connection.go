@@ -98,7 +98,7 @@ func (c *Connection) read() error {
 	}
 
 	if msg.Header.IsRequest() {
-		return c.requestStreams.HandleIncomingRequest(msg)
+		return c.requestStreams.HandleIncomingRequest(c.ctx, msg)
 	} else {
 		return c.responseStreams.HandleIncomingResponse(msg)
 	}

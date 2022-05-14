@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"math/rand"
 	"os"
 	"testing"
@@ -53,6 +54,14 @@ func SomeInt() int {
 
 func SomeUint32() uint32 {
 	return rand.Uint32()
+}
+
+func SomePositiveInt32() int32 {
+	return int32(rand.Intn(math.MaxInt32))
+}
+
+func SomeNegativeInt32() int32 {
+	return int32(-rand.Intn(-math.MinInt32))
 }
 
 func SomeRefMessage() refs.Message {

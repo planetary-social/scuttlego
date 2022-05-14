@@ -10,6 +10,12 @@ import (
 	"github.com/planetary-social/go-ssb/service/domain/transport/rpc/transport"
 )
 
+type MessageSender interface {
+	Send(msg *transport.Message) error
+}
+
+// ResponseStreams is used for handling streams initiated by us (for which
+// incoming messages have negative request numbers).
 type ResponseStreams struct {
 	closed      bool
 	streams     map[int]*ResponseStream
@@ -19,10 +25,6 @@ type ResponseStreams struct {
 
 	raw    MessageSender
 	logger logging.Logger
-}
-
-type MessageSender interface {
-	Send(msg *transport.Message) error
 }
 
 func NewResponseStreams(raw MessageSender, logger logging.Logger) *ResponseStreams {

@@ -126,14 +126,6 @@ type Procedure struct {
 	typ  ProcedureType
 }
 
-func (p Procedure) Name() ProcedureName {
-	return p.name
-}
-
-func (p Procedure) Typ() ProcedureType {
-	return p.typ
-}
-
 func NewProcedure(name ProcedureName, typ ProcedureType) (Procedure, error) {
 	if name.IsZero() {
 		return Procedure{}, errors.New("zero value of name")
@@ -155,4 +147,12 @@ func MustNewProcedure(name ProcedureName, typ ProcedureType) Procedure {
 		panic(err)
 	}
 	return v
+}
+
+func (p Procedure) Name() ProcedureName {
+	return p.name
+}
+
+func (p Procedure) Typ() ProcedureType {
+	return p.typ
 }

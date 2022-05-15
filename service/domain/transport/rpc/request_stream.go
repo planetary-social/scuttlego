@@ -8,7 +8,7 @@ import (
 	"github.com/planetary-social/go-ssb/service/domain/transport/rpc/transport"
 )
 
-type requestStream struct {
+type RequestStream struct {
 	requestNumber int
 	typ           ProcedureType
 
@@ -20,10 +20,18 @@ type requestStream struct {
 	raw    MessageSender
 }
 
-func newRequestStream(ctx context.Context, number int, typ ProcedureType, raw MessageSender) *requestStream {
+func NewRequestStream(ctx context.Context, number int, typ ProcedureType, raw MessageSender) (*RequestStream, error) {
+	if number <= 0 {
+		return nil, errors.New("number must be positive")
+	}
+
+	if typ.IsZero() {
+		return nil, errors.New("zero value of procedure type")
+	}
+
 	ctx, cancel := context.WithCancel(ctx)
 
-	rs := &requestStream{
+	rs := &RequestStream{
 		requestNumber: number,
 		typ:           typ,
 
@@ -32,10 +40,10 @@ func newRequestStream(ctx context.Context, number int, typ ProcedureType, raw Me
 		raw:    raw,
 	}
 
-	return rs
+	return rs, nil
 }
 
-func (rs *requestStream) WriteMessage(body []byte) error {
+func (rs *RequestStream) WriteMessage(body []byte) error {
 	select {
 	case <-rs.ctx.Done():
 		return rs.ctx.Err()
@@ -65,7 +73,7 @@ func (rs *requestStream) WriteMessage(body []byte) error {
 	return nil
 }
 
-func (rs *requestStream) CloseWithError(err error) error {
+func (rs *RequestStream) CloseWithError(err error) error {
 	rs.sentCloseStreamLock.Lock()
 	defer rs.sentCloseStreamLock.Unlock()
 
@@ -78,21 +86,21 @@ func (rs *requestStream) CloseWithError(err error) error {
 	return sendCloseStream(rs.raw, -rs.requestNumber, err)
 }
 
-func (rs *requestStream) Context() context.Context {
+func (rs *RequestStream) Context() context.Context {
 	return rs.ctx
 }
 
-func (rs *requestStream) RequestNumber() int {
+func (rs *RequestStream) RequestNumber() int {
 	return rs.requestNumber
 }
 
-func (rs *requestStream) TerminatedByRemote() {
+func (rs *RequestStream) TerminatedByRemote() {
 	rs.cancel()
 }
 
-func (rs *requestStream) HandleNewMessage(msg *transport.Message) error {
+func (rs *RequestStream) HandleNewMessage(msg *transport.Message) error {
 	if rs.typ != ProcedureTypeDuplex {
-		return errors.New("illegal duplicate request number")
+		return errors.New("only duplex streams can receive more than one message")
 	}
 
 	// todo pass msg to the handler

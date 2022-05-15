@@ -32,7 +32,7 @@ type RequestHandler interface {
 // RequestStreams is used for handling streams initiated by remote (for which
 // incoming messages have positive request numbers).
 type RequestStreams struct {
-	streams       map[int]*requestStream
+	streams       map[int]*RequestStream
 	closedStreams map[int]struct{}
 	streamsLock   sync.Mutex // guards streams and closedStreams
 
@@ -48,7 +48,7 @@ type RequestStreams struct {
 func NewRequestStreams(ctx context.Context, raw MessageSender, handler RequestHandler, logger logging.Logger) *RequestStreams {
 	rs := &RequestStreams{
 		raw:           raw,
-		streams:       make(map[int]*requestStream),
+		streams:       make(map[int]*RequestStream),
 		closedStreams: make(map[int]struct{}),
 		handler:       handler,
 		logger:        logger.New("response_streams"),
@@ -138,10 +138,14 @@ func (s *RequestStreams) openNewRequestStream(ctx context.Context, msg *transpor
 		return nil
 	}
 
-	rw := newRequestStream(ctx, requestNumber, req.Type(), s.raw)
-	s.streams[requestNumber] = rw
+	rs, err := NewRequestStream(ctx, requestNumber, req.Type(), s.raw)
+	if err != nil {
+		return errors.Wrap(err, "could not create a request stream")
+	}
 
-	go s.handler.HandleRequest(rw.Context(), rw, req)
+	s.streams[requestNumber] = rs
+
+	go s.handler.HandleRequest(rs.Context(), rs, req)
 
 	return nil
 }

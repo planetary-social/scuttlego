@@ -48,7 +48,7 @@ func SomeBool() bool {
 	return rand.Int()%2 == 0
 }
 
-func SomeInt() int {
+func SomeNonNegativeInt() int {
 	return rand.Int()
 }
 

@@ -42,6 +42,7 @@ func (r BlobRepository) bucketPath(blob refs.Blob, feed refs.Feed) []bucketName 
 	return []bucketName{
 		bucketName("blobs"),
 		bucketName(blob.String()),
+		bucketName("feeds"),
 		bucketName(feed.String()),
 	}
 }

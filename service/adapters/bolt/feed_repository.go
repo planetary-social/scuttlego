@@ -19,6 +19,7 @@ type FeedRepository struct {
 	receiveLog        *ReceiveLogRepository
 	messageRepository *MessageRepository
 	pubRepository     *PubRepository
+	blobRepository    *BlobRepository
 	formatScuttlebutt *formats.Scuttlebutt
 }
 
@@ -28,6 +29,7 @@ func NewFeedRepository(
 	receiveLog *ReceiveLogRepository,
 	messageRepository *MessageRepository,
 	pubRepository *PubRepository,
+	blobRepository *BlobRepository,
 	formatScuttlebutt *formats.Scuttlebutt,
 ) *FeedRepository {
 	return &FeedRepository{
@@ -36,6 +38,7 @@ func NewFeedRepository(
 		receiveLog:        receiveLog,
 		messageRepository: messageRepository,
 		pubRepository:     pubRepository,
+		blobRepository:    blobRepository,
 		formatScuttlebutt: formatScuttlebutt,
 	}
 }
@@ -168,7 +171,7 @@ func (b FeedRepository) loadFeed(ref refs.Feed) (*feeds.Feed, error) {
 }
 
 func (b FeedRepository) saveFeed(ref refs.Feed, feed *feeds.Feed) error {
-	msgs, contacts, pubs, _ := feed.PopForPersisting() // todo persist blobs
+	msgs, contacts, pubs, blobs := feed.PopForPersisting()
 
 	if len(msgs) != 0 {
 		bucket, err := b.createFeedBucket(ref)
@@ -192,6 +195,12 @@ func (b FeedRepository) saveFeed(ref refs.Feed, feed *feeds.Feed) error {
 	for _, pub := range pubs {
 		if err := b.pubRepository.Put(pub); err != nil {
 			return errors.Wrap(err, "pub repository put failed")
+		}
+	}
+
+	for _, blob := range blobs {
+		if err := b.blobRepository.Put(blob); err != nil {
+			return errors.Wrap(err, "blob repository put failed")
 		}
 	}
 

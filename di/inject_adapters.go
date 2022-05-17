@@ -24,6 +24,7 @@ var txBoltAdaptersSet = wire.NewSet(
 	bolt.NewReceiveLogRepository,
 	bolt.NewMessageRepository,
 	bolt.NewPubRepository,
+	bolt.NewBlobRepository,
 )
 
 //nolint:deadcode,varcheck

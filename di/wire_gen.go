@@ -62,7 +62,8 @@ func BuildTxTestAdapters(tx *bbolt.Tx) (TxTestAdapters, error) {
 	socialGraphRepository := bolt.NewSocialGraphRepository(tx, public, graphHops)
 	receiveLogRepository := bolt.NewReceiveLogRepository(tx, messageRepository)
 	pubRepository := bolt.NewPubRepository(tx)
-	feedRepository := bolt.NewFeedRepository(tx, socialGraphRepository, receiveLogRepository, messageRepository, pubRepository, scuttlebutt)
+	blobRepository := bolt.NewBlobRepository(tx)
+	feedRepository := bolt.NewFeedRepository(tx, socialGraphRepository, receiveLogRepository, messageRepository, pubRepository, blobRepository, scuttlebutt)
 	txTestAdapters := TxTestAdapters{
 		MessageRepository: messageRepository,
 		FeedRepository:    feedRepository,
@@ -145,7 +146,8 @@ func BuildTransactableAdapters(tx *bbolt.Tx, public identity.Public, config Conf
 	messageRepository := bolt.NewMessageRepository(tx, rawMessageIdentifier)
 	receiveLogRepository := bolt.NewReceiveLogRepository(tx, messageRepository)
 	pubRepository := bolt.NewPubRepository(tx)
-	feedRepository := bolt.NewFeedRepository(tx, socialGraphRepository, receiveLogRepository, messageRepository, pubRepository, scuttlebutt)
+	blobRepository := bolt.NewBlobRepository(tx)
+	feedRepository := bolt.NewFeedRepository(tx, socialGraphRepository, receiveLogRepository, messageRepository, pubRepository, blobRepository, scuttlebutt)
 	adapters := commands.Adapters{
 		Feed:        feedRepository,
 		SocialGraph: socialGraphRepository,
@@ -171,7 +173,8 @@ func BuildTxRepositories(tx *bbolt.Tx, public identity.Public, logger logging.Lo
 	messageRepository := bolt.NewMessageRepository(tx, rawMessageIdentifier)
 	receiveLogRepository := bolt.NewReceiveLogRepository(tx, messageRepository)
 	pubRepository := bolt.NewPubRepository(tx)
-	feedRepository := bolt.NewFeedRepository(tx, socialGraphRepository, receiveLogRepository, messageRepository, pubRepository, scuttlebutt)
+	blobRepository := bolt.NewBlobRepository(tx)
+	feedRepository := bolt.NewFeedRepository(tx, socialGraphRepository, receiveLogRepository, messageRepository, pubRepository, blobRepository, scuttlebutt)
 	txRepositories := bolt.TxRepositories{
 		Feed:       feedRepository,
 		Graph:      socialGraphRepository,

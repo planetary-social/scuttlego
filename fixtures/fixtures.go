@@ -79,6 +79,11 @@ func SomeRefFeed() refs.Feed {
 	return refs.MustNewFeed(fmt.Sprintf("@%s.ed25519", randomBase64(32)))
 }
 
+func SomeRefBlob() refs.Blob {
+	// todo improve this by using some kind of a better constructor
+	return refs.MustNewBlob(fmt.Sprintf("&%s.sha256", randomBase64(32)))
+}
+
 func SomeTime() time.Time {
 	// todo improve this by using some kind of a better constructor
 	return time.Unix(rand.Int63(), 0)

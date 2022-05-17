@@ -168,7 +168,7 @@ func (b FeedRepository) loadFeed(ref refs.Feed) (*feeds.Feed, error) {
 }
 
 func (b FeedRepository) saveFeed(ref refs.Feed, feed *feeds.Feed) error {
-	msgs, contacts, pubs := feed.PopForPersisting()
+	msgs, contacts, pubs, _ := feed.PopForPersisting() // todo persist blobs
 
 	if len(msgs) != 0 {
 		bucket, err := b.createFeedBucket(ref)

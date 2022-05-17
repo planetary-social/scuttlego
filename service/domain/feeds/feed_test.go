@@ -7,6 +7,7 @@ import (
 	"github.com/planetary-social/go-ssb/service/domain/feeds"
 	msgcontents "github.com/planetary-social/go-ssb/service/domain/feeds/content"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
+	"github.com/planetary-social/go-ssb/service/domain/refs"
 	"github.com/stretchr/testify/require"
 )
 
@@ -46,23 +47,27 @@ func TestAppend(t *testing.T) {
 	err = f.AppendMessage(msg2)
 	require.NoError(t, err)
 
-	msgs, contacts, pubs := f.PopForPersisting()
+	msgs, contacts, pubs, blobs := f.PopForPersisting()
 	require.Len(t, msgs, 2)
 	require.Len(t, contacts, 0)
 	require.Len(t, pubs, 0)
+	require.Len(t, blobs, 0)
 }
 
 func TestAppendMessageWithKnownContent(t *testing.T) {
 	msgId := fixtures.SomeRefMessage()
 	authorId := fixtures.SomeRefIdentity()
+	feedId := fixtures.SomeRefFeed()
 
 	someIdentity := fixtures.SomeRefIdentity()
+	someBlob := fixtures.SomeRefBlob()
 
 	testCases := []struct {
 		Name             string
 		Content          msgcontents.KnownMessageContent
 		ExpectedContacts []feeds.ContactToSave
 		ExpectedPubs     []feeds.PubToSave
+		ExpectedBlobs    []feeds.BlobsToSave
 	}{
 		{
 			Name: "contact",
@@ -99,6 +104,36 @@ func TestAppendMessageWithKnownContent(t *testing.T) {
 				),
 			},
 		},
+		{
+			Name: "about",
+			Content: msgcontents.MustNewAbout(
+				&someBlob,
+			),
+			ExpectedBlobs: []feeds.BlobsToSave{
+				feeds.NewBlobsToSave(
+					feedId,
+					msgId,
+					[]refs.Blob{
+						someBlob,
+					},
+				),
+			},
+		},
+		{
+			Name: "post",
+			Content: msgcontents.MustNewPost(
+				[]refs.Blob{someBlob},
+			),
+			ExpectedBlobs: []feeds.BlobsToSave{
+				feeds.NewBlobsToSave(
+					feedId,
+					msgId,
+					[]refs.Blob{
+						someBlob,
+					},
+				),
+			},
+		},
 	}
 
 	for _, testCase := range testCases {
@@ -108,7 +143,7 @@ func TestAppendMessageWithKnownContent(t *testing.T) {
 				nil,
 				message.MustNewSequence(1),
 				authorId,
-				fixtures.SomeRefFeed(),
+				feedId,
 				fixtures.SomeTime(),
 				testCase.Content,
 				fixtures.SomeRawMessage(),
@@ -119,10 +154,11 @@ func TestAppendMessageWithKnownContent(t *testing.T) {
 			err := f.AppendMessage(msg)
 			require.NoError(t, err)
 
-			msgs, contacts, pubs := f.PopForPersisting()
+			msgs, contacts, pubs, blobs := f.PopForPersisting()
 			require.Len(t, msgs, 1)
 			require.Equal(t, testCase.ExpectedContacts, contacts)
 			require.Equal(t, testCase.ExpectedPubs, pubs)
+			require.Equal(t, testCase.ExpectedBlobs, blobs)
 		})
 	}
 }

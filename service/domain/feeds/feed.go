@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/boreq/errors"
+	"github.com/planetary-social/go-ssb/service/domain/blobs"
 	msgcontents "github.com/planetary-social/go-ssb/service/domain/feeds/content"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
 	"github.com/planetary-social/go-ssb/service/domain/identity"
@@ -18,6 +19,7 @@ type Feed struct {
 	messagesToSave []message.Message
 	contactsToSave []ContactToSave
 	pubsToSave     []PubToSave
+	blobsToSave    []BlobsToSave
 }
 
 func NewFeed(format FeedFormat) *Feed {
@@ -126,32 +128,52 @@ func (f *Feed) Sequence() message.Sequence {
 	return f.lastMsg.Sequence() // todo can be nil
 }
 
-func (f *Feed) PopForPersisting() ([]message.Message, []ContactToSave, []PubToSave) {
+func (f *Feed) PopForPersisting() ([]message.Message, []ContactToSave, []PubToSave, []BlobsToSave) {
 	defer func() { f.messagesToSave = nil; f.contactsToSave = nil; f.pubsToSave = nil }()
-	return f.messagesToSave, f.contactsToSave, f.pubsToSave
+	return f.messagesToSave, f.contactsToSave, f.pubsToSave, f.blobsToSave
 }
 
 func (f *Feed) onNewMessage(msg message.Message) error {
-	contacts, pubs, err := f.processMessageContent(msg)
-	if err != nil {
-		return errors.New("failed to process message content")
-	}
+	contacts, pubs, blobs := f.processMessageContent(msg)
 
 	f.lastMsg = &msg
 	f.messagesToSave = append(f.messagesToSave, msg)
 	f.contactsToSave = append(f.contactsToSave, contacts...)
 	f.pubsToSave = append(f.pubsToSave, pubs...)
+	f.blobsToSave = append(f.blobsToSave, blobs...)
 	return nil
 }
 
 // todo ignore repeated calls to follow someone if the current state of the feed suggests that this is already done (indempotency)
-func (f *Feed) processMessageContent(msg message.Message) ([]ContactToSave, []PubToSave, error) {
+func (f *Feed) processMessageContent(msg message.Message) ([]ContactToSave, []PubToSave, []BlobsToSave) {
+	return f.getContactsToSave(msg), f.getPubsToSave(msg), f.getBlobsToSave(msg)
+}
+
+func (f *Feed) getContactsToSave(msg message.Message) []ContactToSave {
 	switch v := msg.Content().(type) {
 	case msgcontents.Contact:
-		return []ContactToSave{NewContactToSave(msg.Author(), v)}, nil, nil
-	case msgcontents.Pub:
-		return nil, []PubToSave{NewPubToSave(msg.Author(), msg.Id(), v)}, nil
+		return []ContactToSave{NewContactToSave(msg.Author(), v)}
 	default:
-		return nil, nil, nil
+		return nil
 	}
+}
+
+func (f *Feed) getPubsToSave(msg message.Message) []PubToSave {
+	switch v := msg.Content().(type) {
+	case msgcontents.Pub:
+		return []PubToSave{NewPubToSave(msg.Author(), msg.Id(), v)}
+	default:
+		return nil
+	}
+}
+
+func (f *Feed) getBlobsToSave(msg message.Message) []BlobsToSave {
+	blobReferencer, ok := msg.Content().(blobs.BlobReferencer)
+	if !ok {
+		return nil
+	}
+	if blobRefs := blobReferencer.Blobs(); len(blobRefs) > 0 {
+		return []BlobsToSave{NewBlobsToSave(msg.Feed(), msg.Id(), blobRefs)}
+	}
+	return nil
 }

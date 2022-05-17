@@ -15,6 +15,8 @@ func DefaultMappings() MessageContentMappings {
 	return MessageContentMappings{
 		content.Contact{}.Type(): contactMapping,
 		content.Pub{}.Type():     pubMapping,
+		content.About{}.Type():   aboutMapping,
+		content.Post{}.Type():    postMapping,
 	}
 }
 

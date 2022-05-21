@@ -64,6 +64,6 @@ func (m Blob) IsZero() bool {
 	return len(m.b) == 0
 }
 
-func (m Blob) Equal(o Message) bool {
+func (m Blob) Equal(o Blob) bool {
 	return bytes.Equal(m.b, o.b)
 }

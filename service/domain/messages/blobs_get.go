@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/boreq/errors"
+	"github.com/planetary-social/go-ssb/service/domain/refs"
 	"github.com/planetary-social/go-ssb/service/domain/transport/rpc"
 )
 
@@ -13,7 +14,7 @@ var (
 )
 
 type BlobsGetArguments struct {
-	Id string // todo blob id
+	id refs.Blob
 }
 
 func NewBlobsGetArgumentsFromBytes(b []byte) (BlobsGetArguments, error) {
@@ -27,8 +28,24 @@ func NewBlobsGetArgumentsFromBytes(b []byte) (BlobsGetArguments, error) {
 		return BlobsGetArguments{}, errors.New("expected exactly one argument")
 	}
 
-	// todo validate argument by using a constructor
+	id, err := refs.NewBlob(args[0])
+	if err != nil {
+		return BlobsGetArguments{}, errors.Wrap(err, "could not create a blob ref")
+	}
+
+	return NewBlobsGetArguments(id)
+}
+
+func NewBlobsGetArguments(id refs.Blob) (BlobsGetArguments, error) {
+	if id.IsZero() {
+		return BlobsGetArguments{}, errors.New("zero value of blob id")
+	}
+
 	return BlobsGetArguments{
-		Id: args[0],
+		id: id,
 	}, nil
+}
+
+func (b BlobsGetArguments) Id() refs.Blob {
+	return b.id
 }

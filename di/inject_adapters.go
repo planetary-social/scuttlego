@@ -1,12 +1,16 @@
 package di
 
 import (
+	"path"
+
 	"github.com/google/wire"
 	"github.com/planetary-social/go-ssb/logging"
+	"github.com/planetary-social/go-ssb/service/adapters/blobs"
 	"github.com/planetary-social/go-ssb/service/adapters/bolt"
 	"github.com/planetary-social/go-ssb/service/adapters/mocks"
 	"github.com/planetary-social/go-ssb/service/app/commands"
 	"github.com/planetary-social/go-ssb/service/app/queries"
+	blobReplication "github.com/planetary-social/go-ssb/service/domain/blobs/replication"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/formats"
 	"github.com/planetary-social/go-ssb/service/domain/identity"
 	"github.com/planetary-social/go-ssb/service/domain/replication"
@@ -41,6 +45,9 @@ var boltAdaptersSet = wire.NewSet(
 	bolt.NewReadMessageRepository,
 	wire.Bind(new(queries.MessageRepository), new(*bolt.ReadMessageRepository)),
 
+	bolt.NewReadWantListRepository,
+	wire.Bind(new(blobReplication.WantListStorage), new(*bolt.ReadWantListRepository)),
+
 	newTxRepositoriesFactory,
 )
 
@@ -60,4 +67,14 @@ func newTxRepositoriesFactory(local identity.Public, logger logging.Logger, hmac
 	return func(tx *bbolt.Tx) (bolt.TxRepositories, error) {
 		return BuildTxRepositories(tx, local, logger, hmac)
 	}
+}
+
+//nolint:deadcode,varcheck
+var blobsAdaptersSet = wire.NewSet(
+	newFilesystemStorage,
+	wire.Bind(new(blobReplication.BlobStorage), new(*blobs.FilesystemStorage)),
+)
+
+func newFilesystemStorage(config Config) (*blobs.FilesystemStorage, error) {
+	return blobs.NewFilesystemStorage(path.Join(config.DataDirectory, "blobs"))
 }

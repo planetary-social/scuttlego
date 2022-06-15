@@ -13,8 +13,28 @@ var (
 	BlobsGetProcedure     = rpc.MustNewProcedure(BlobsGetProcedureName, rpc.ProcedureTypeSource)
 )
 
+func NewBlobsGet(arguments BlobsGetArguments) (*rpc.Request, error) {
+	j, err := arguments.MarshalJSON()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to marshal arguments")
+	}
+
+	return rpc.NewRequest(
+		BlobsGetProcedure.Name(),
+		BlobsGetProcedure.Typ(),
+		j,
+	)
+}
+
 type BlobsGetArguments struct {
 	id refs.Blob
+}
+
+func NewBlobsGetArguments(id refs.Blob) (BlobsGetArguments, error) {
+	if id.IsZero() {
+		return BlobsGetArguments{}, errors.New("zero value of id")
+	}
+	return BlobsGetArguments{id: id}, nil
 }
 
 func NewBlobsGetArgumentsFromBytes(b []byte) (BlobsGetArguments, error) {
@@ -36,16 +56,14 @@ func NewBlobsGetArgumentsFromBytes(b []byte) (BlobsGetArguments, error) {
 	return NewBlobsGetArguments(id)
 }
 
-func NewBlobsGetArguments(id refs.Blob) (BlobsGetArguments, error) {
-	if id.IsZero() {
-		return BlobsGetArguments{}, errors.New("zero value of blob id")
+func (a BlobsGetArguments) MarshalJSON() ([]byte, error) {
+	args := []string{
+		a.id.String(),
 	}
 
-	return BlobsGetArguments{
-		id: id,
-	}, nil
+	return json.Marshal(args)
 }
 
-func (b BlobsGetArguments) Id() refs.Blob {
-	return b.id
+func (a BlobsGetArguments) Id() refs.Blob {
+	return a.id
 }

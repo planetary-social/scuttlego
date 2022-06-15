@@ -29,6 +29,7 @@ var commandsSet = wire.NewSet(
 	commands.NewEstablishNewConnectionsHandler,
 	commands.NewRawMessageHandler,
 	wire.Bind(new(replication.RawMessageHandler), new(*commands.RawMessageHandler)),
+	commands.NewCreateWantsHandler,
 )
 
 var queriesSet = wire.NewSet(

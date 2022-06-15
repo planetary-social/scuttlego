@@ -22,6 +22,7 @@ import (
 	"github.com/planetary-social/go-ssb/service/app/commands"
 	"github.com/planetary-social/go-ssb/service/app/queries"
 	"github.com/planetary-social/go-ssb/service/domain"
+	replication2 "github.com/planetary-social/go-ssb/service/domain/blobs/replication"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/content/transport"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/formats"
 	"github.com/planetary-social/go-ssb/service/domain/graph"
@@ -31,11 +32,11 @@ import (
 	"github.com/planetary-social/go-ssb/service/domain/replication"
 	transport2 "github.com/planetary-social/go-ssb/service/domain/transport"
 	"github.com/planetary-social/go-ssb/service/domain/transport/boxstream"
-	rpc2 "github.com/planetary-social/go-ssb/service/domain/transport/rpc"
+	"github.com/planetary-social/go-ssb/service/domain/transport/rpc"
 	"github.com/planetary-social/go-ssb/service/domain/transport/rpc/mux"
 	network2 "github.com/planetary-social/go-ssb/service/ports/network"
 	pubsub2 "github.com/planetary-social/go-ssb/service/ports/pubsub"
-	"github.com/planetary-social/go-ssb/service/ports/rpc"
+	rpc2 "github.com/planetary-social/go-ssb/service/ports/rpc"
 	"go.etcd.io/bbolt"
 )
 
@@ -180,6 +181,7 @@ func BuildTxRepositories(tx *bbolt.Tx, public identity.Public, logger logging.Lo
 		Graph:      socialGraphRepository,
 		ReceiveLog: receiveLogRepository,
 		Message:    messageRepository,
+		Blob:       blobRepository,
 	}
 	return txRepositories, nil
 }
@@ -197,8 +199,9 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 		return Service{}, err
 	}
 	requestPubSub := pubsub.NewRequestPubSub()
+	connectionIdGenerator := rpc.NewConnectionIdGenerator()
 	logger := extractLoggerFromConfig(config)
-	peerInitializer := transport2.NewPeerInitializer(handshaker, requestPubSub, logger)
+	peerInitializer := transport2.NewPeerInitializer(handshaker, requestPubSub, connectionIdGenerator, logger)
 	dialer, err := network.NewDialer(peerInitializer, logger)
 	if err != nil {
 		return Service{}, err
@@ -215,7 +218,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	if err != nil {
 		return Service{}, err
 	}
-	redeemInviteHandler := commands.NewRedeemInviteHandler(dialer, transactionProvider, networkKey, private, requestPubSub, marshaler, logger)
+	redeemInviteHandler := commands.NewRedeemInviteHandler(dialer, transactionProvider, networkKey, private, requestPubSub, marshaler, connectionIdGenerator, logger)
 	followHandler := commands.NewFollowHandler(transactionProvider, private, marshaler, logger)
 	publishRawHandler := commands.NewPublishRawHandler(transactionProvider, private, logger)
 	peerManagerConfig := extractPeerManagerConfigFromConfig(config)
@@ -232,11 +235,20 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	if err != nil {
 		return Service{}, err
 	}
-	peerManager := domain.NewPeerManager(contextContext, peerManagerConfig, gossipReplicator, dialer, logger)
+	readWantListRepository := bolt.NewReadWantListRepository(db, txRepositoriesFactory)
+	filesystemStorage, err := newFilesystemStorage(config)
+	if err != nil {
+		return Service{}, err
+	}
+	blobsGetDownloader := replication2.NewBlobsGetDownloader(filesystemStorage, logger)
+	replicationManager := replication2.NewManager(readWantListRepository, blobsGetDownloader, logger)
+	replicator := replication2.NewReplicator(replicationManager)
+	peerManager := domain.NewPeerManager(contextContext, peerManagerConfig, gossipReplicator, replicator, dialer, logger)
 	connectHandler := commands.NewConnectHandler(peerManager, logger)
 	establishNewConnectionsHandler := commands.NewEstablishNewConnectionsHandler(peerManager)
 	acceptNewPeerHandler := commands.NewAcceptNewPeerHandler(peerManager)
 	processNewLocalDiscoveryHandler := commands.NewProcessNewLocalDiscoveryHandler(peerManager)
+	createWantsHandler := commands.NewCreateWantsHandler(replicationManager)
 	appCommands := app.Commands{
 		RedeemInvite:             redeemInviteHandler,
 		Follow:                   followHandler,
@@ -245,6 +257,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 		EstablishNewConnections:  establishNewConnectionsHandler,
 		AcceptNewPeer:            acceptNewPeerHandler,
 		ProcessNewLocalDiscovery: processNewLocalDiscoveryHandler,
+		CreateWants:              createWantsHandler,
 	}
 	readFeedRepository := bolt.NewReadFeedRepository(db, txRepositoriesFactory)
 	messagePubSub := pubsub.NewMessagePubSub()
@@ -277,9 +290,10 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	}
 	networkDiscoverer := network2.NewDiscoverer(discoverer, application, logger)
 	connectionEstablisher := network2.NewConnectionEstablisher(application, logger)
-	handlerCreateHistoryStream := rpc.NewHandlerCreateHistoryStream(createHistoryStreamHandler)
-	handlerBlobsGet := rpc.NewHandlerBlobsGet()
-	v2 := rpc.NewMuxHandlers(handlerCreateHistoryStream, handlerBlobsGet)
+	handlerCreateHistoryStream := rpc2.NewHandlerCreateHistoryStream(createHistoryStreamHandler)
+	handlerBlobsGet := rpc2.NewHandlerBlobsGet()
+	handlerBlobsCreateWants := rpc2.NewHandlerBlobsCreateWants(application)
+	v2 := rpc2.NewMuxHandlers(handlerCreateHistoryStream, handlerBlobsGet, handlerBlobsCreateWants)
 	muxMux, err := mux.NewMux(logger, v2)
 	if err != nil {
 		return Service{}, err
@@ -316,9 +330,11 @@ type TestQueries struct {
 	PeerManager       *mocks.PeerManagerMock
 }
 
-var replicatorSet = wire.NewSet(replication.NewManager, wire.Bind(new(replication.ReplicationManager), new(*replication.Manager)), replication.NewGossipReplicator, wire.Bind(new(domain.Replicator), new(*replication.GossipReplicator)))
+var replicatorSet = wire.NewSet(replication.NewManager, wire.Bind(new(replication.ReplicationManager), new(*replication.Manager)), replication.NewGossipReplicator, wire.Bind(new(domain.MessageReplicator), new(*replication.GossipReplicator)))
 
-var requestPubSubSet = wire.NewSet(pubsub.NewRequestPubSub, wire.Bind(new(rpc2.RequestHandler), new(*pubsub.RequestPubSub)))
+var blobReplicatorSet = wire.NewSet(replication2.NewManager, wire.Bind(new(replication2.ReplicationManager), new(*replication2.Manager)), wire.Bind(new(commands.BlobReplicationManager), new(*replication2.Manager)), replication2.NewReplicator, wire.Bind(new(domain.BlobReplicator), new(*replication2.Replicator)), replication2.NewBlobsGetDownloader, wire.Bind(new(replication2.Downloader), new(*replication2.BlobsGetDownloader)))
+
+var requestPubSubSet = wire.NewSet(pubsub.NewRequestPubSub, wire.Bind(new(rpc.RequestHandler), new(*pubsub.RequestPubSub)))
 
 var messagePubSubSet = wire.NewSet(pubsub.NewMessagePubSub, wire.Bind(new(queries.MessageSubscriber), new(*pubsub.MessagePubSub)))
 

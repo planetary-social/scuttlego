@@ -167,6 +167,10 @@ func SomeMessage(seq message.Sequence, feed refs.Feed) message.Message {
 	)
 }
 
+func SomeConnectionId() rpc.ConnectionId {
+	return rpc.NewConnectionId(SomeNonNegativeInt())
+}
+
 func randomBase64(bytes int) string {
 	r := make([]byte, bytes)
 	_, err := rand.Read(r)

@@ -29,13 +29,14 @@ type RedeemInvite struct {
 }
 
 type RedeemInviteHandler struct {
-	dialer         Dialer
-	transaction    TransactionProvider
-	networkKey     boxstream.NetworkKey
-	local          identity.Private
-	requestHandler rpc.RequestHandler
-	marshaler      formats.Marshaler
-	logger         logging.Logger
+	dialer                Dialer
+	transaction           TransactionProvider
+	networkKey            boxstream.NetworkKey
+	local                 identity.Private
+	requestHandler        rpc.RequestHandler
+	marshaler             formats.Marshaler
+	connectionIdGenerator *rpc.ConnectionIdGenerator
+	logger                logging.Logger
 }
 
 func NewRedeemInviteHandler(
@@ -45,16 +46,18 @@ func NewRedeemInviteHandler(
 	local identity.Private,
 	requestHandler rpc.RequestHandler,
 	marshaler formats.Marshaler,
+	connectionIdGenerator *rpc.ConnectionIdGenerator,
 	logger logging.Logger,
 ) *RedeemInviteHandler {
 	return &RedeemInviteHandler{
-		dialer:         dialer,
-		transaction:    transaction,
-		networkKey:     networkKey,
-		local:          local,
-		requestHandler: requestHandler,
-		marshaler:      marshaler,
-		logger:         logger.New("follow_handler"),
+		dialer:                dialer,
+		transaction:           transaction,
+		networkKey:            networkKey,
+		local:                 local,
+		requestHandler:        requestHandler,
+		marshaler:             marshaler,
+		connectionIdGenerator: connectionIdGenerator,
+		logger:                logger.New("follow_handler"),
 	}
 }
 
@@ -148,7 +151,7 @@ func (h *RedeemInviteHandler) dial(ctx context.Context, cmd RedeemInvite) (trans
 		return transport.Peer{}, errors.Wrap(err, "could not create a handshaker")
 	}
 
-	initializer := transport.NewPeerInitializer(handshaker, h.requestHandler, h.logger)
+	initializer := transport.NewPeerInitializer(handshaker, h.requestHandler, h.connectionIdGenerator, h.logger)
 
 	peer, err := h.dialer.DialWithInitializer(ctx, initializer, cmd.Invite.Remote().Identity(), cmd.Invite.Address())
 	if err != nil {

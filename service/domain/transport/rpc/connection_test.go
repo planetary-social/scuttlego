@@ -344,7 +344,7 @@ func TestIncomingRequests(t *testing.T) {
 				require.NoError(t, err)
 			})
 
-			conn, err := rpc.NewConnection(ctx, raw, handler, logger)
+			conn, err := rpc.NewConnection(ctx, fixtures.SomeConnectionId(), raw, handler, logger)
 			require.NoError(t, err)
 			defer conn.Close()
 
@@ -446,7 +446,7 @@ func TestPrematureTerminationByRemote(t *testing.T) {
 				requestHandlerTerminatedCorrectly = true
 			})
 
-			conn, err := rpc.NewConnection(ctx, raw, handler, logger)
+			conn, err := rpc.NewConnection(ctx, fixtures.SomeConnectionId(), raw, handler, logger)
 			require.NoError(t, err)
 			defer conn.Close()
 

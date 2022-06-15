@@ -14,7 +14,7 @@ import (
 // Connection represents an RPC connection to a peer.
 type Connection interface {
 	PerformRequest(ctx context.Context, req *rpc.Request) (*rpc.ResponseStream, error)
-	Done() <-chan struct{}
+	Context() context.Context
 	Close() error
 }
 

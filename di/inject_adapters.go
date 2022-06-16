@@ -75,6 +75,6 @@ var blobsAdaptersSet = wire.NewSet(
 	wire.Bind(new(blobReplication.BlobStorage), new(*blobs.FilesystemStorage)),
 )
 
-func newFilesystemStorage(config Config) (*blobs.FilesystemStorage, error) {
-	return blobs.NewFilesystemStorage(path.Join(config.DataDirectory, "blobs"))
+func newFilesystemStorage(logger logging.Logger, config Config) (*blobs.FilesystemStorage, error) {
+	return blobs.NewFilesystemStorage(path.Join(config.DataDirectory, "blobs"), logger)
 }

@@ -4,43 +4,56 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path"
-	"strings"
+	"path/filepath"
+	"time"
 
 	"github.com/boreq/errors"
+	"github.com/planetary-social/go-ssb/logging"
 	"github.com/planetary-social/go-ssb/service/domain/blobs"
 	"github.com/planetary-social/go-ssb/service/domain/refs"
 )
 
+const onlyForMe = 0700
+
+const partialFileSuffix = ".part"
+
+const filenameSeparator = "-"
+
 type FilesystemStorage struct {
-	path string
+	path   string
+	logger logging.Logger
 }
 
-func NewFilesystemStorage(path string) (*FilesystemStorage, error) {
-	s := &FilesystemStorage{path: path}
+func NewFilesystemStorage(path string, logger logging.Logger) (*FilesystemStorage, error) {
+	s := &FilesystemStorage{
+		path:   path,
+		logger: logger,
+	}
 
 	if err := s.createStorage(); err != nil {
 		return nil, errors.Wrap(err, "failed to create the storage directory")
 	}
 
-	if err := s.createFinished(); err != nil {
-		return nil, errors.Wrap(err, "failed to create the finished directory")
+	if err := s.createTemporary(); err != nil {
+		return nil, errors.Wrap(err, "failed to create the temporary directory")
 	}
 
-	if err := s.recreateTemporary(); err != nil {
-		return nil, errors.Wrap(err, "failed to recreate the temporary directory")
+	if err := s.removeTemporaryFiles(); err != nil {
+		return nil, errors.Wrap(err, "failed to remove old temporary files")
 	}
 
 	return s, nil
 }
 
-const partSuffix = ".part"
-
-func (f FilesystemStorage) Save(id refs.Blob, r io.Reader) error {
+func (f FilesystemStorage) Store(id refs.Blob, r io.Reader) error {
 	hexRef := hex.EncodeToString(id.Bytes())
 
-	tmpFile, err := os.CreateTemp(f.dirTemporary(), fmt.Sprintf("%s-*%s", hexRef, partSuffix))
+	pattern := fmt.Sprintf("%s%s%d%s*%s", hexRef, filenameSeparator, time.Now().Unix(), filenameSeparator, partialFileSuffix)
+
+	tmpFile, err := os.CreateTemp(f.dirTemporary(), pattern)
 	if err != nil {
 		return errors.Wrap(err, "could not create a temporary file")
 	}
@@ -53,59 +66,51 @@ func (f FilesystemStorage) Save(id refs.Blob, r io.Reader) error {
 		return errors.Wrap(err, "failed to copy contents to a temporary file")
 	}
 
+	if err := verifier.Verify(); err != nil {
+		return errors.Wrap(err, "failed to verify the file")
+	}
+
 	if err := tmpFile.Close(); err != nil {
 		return errors.Wrap(err, "failed to close the temporary file")
 	}
 
-	oldPath := tmpFile.Name()
-	_, oldFilename := path.Split(tmpFile.Name())
-	newPath := f.pathFinished(strings.TrimSuffix(oldFilename, partSuffix))
+	oldName := tmpFile.Name()
+	newName := f.pathStorage(hexRef)
 
-	if err := os.Rename(oldPath, newPath); err != nil {
-		return errors.Wrap(err, "failed to move the temporary file")
+	if err := os.Rename(oldName, newName); err != nil {
+		return errors.Wrap(err, "failed to rename the file")
 	}
 
 	return nil
 }
-
-const onlyForMe = 0700
 
 func (f FilesystemStorage) createStorage() error {
 	return os.MkdirAll(f.dirStorage(), onlyForMe)
 }
 
-func (f FilesystemStorage) createFinished() error {
-	return os.MkdirAll(f.dirFinished(), onlyForMe)
-}
-
-func (f FilesystemStorage) recreateTemporary() error {
-	if err := os.RemoveAll(f.dirTemporary()); err != nil {
-		return errors.Wrap(err, "failed to remove the temporary directory")
-	}
-
-	if err := os.MkdirAll(f.dirTemporary(), onlyForMe); err != nil {
-		return errors.Wrap(err, "failed to create the temporary directory")
-	}
-
-	return nil
+func (f FilesystemStorage) createTemporary() error {
+	return os.MkdirAll(f.dirTemporary(), onlyForMe)
 }
 
 func (f FilesystemStorage) dirTemporary() string {
 	return path.Join(f.path, "temporary")
 }
 
-func (f FilesystemStorage) pathTemporary(name string) string {
-	return path.Join(f.dirTemporary(), name)
-}
-
-func (f FilesystemStorage) dirFinished() string {
-	return path.Join(f.path, "finished")
-}
-
-func (f FilesystemStorage) pathFinished(name string) string {
-	return path.Join(f.dirFinished(), name)
-}
-
 func (f FilesystemStorage) dirStorage() string {
 	return path.Join(f.path, "storage")
+}
+
+func (f FilesystemStorage) pathStorage(name string) string {
+	return path.Join(f.dirStorage(), name)
+}
+
+func (f FilesystemStorage) removeTemporaryFiles() error {
+	return filepath.WalkDir(f.dirTemporary(), func(path string, d fs.DirEntry, err error) error {
+		if !d.IsDir() {
+			if err := os.Remove(path); err != nil {
+				return errors.Wrap(err, "could not remove one of the old temporary files")
+			}
+		}
+		return nil
+	})
 }

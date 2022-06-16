@@ -15,7 +15,7 @@ import (
 )
 
 type BlobStorage interface {
-	Save(id refs.Blob, r io.Reader) error
+	Store(id refs.Blob, r io.Reader) error
 }
 
 type BlobsGetDownloader struct {
@@ -87,7 +87,7 @@ func (d *BlobsGetDownloader) download(ctx context.Context, peer transport.Peer, 
 }
 
 func (d *BlobsGetDownloader) save(id refs.Blob, r io.ReadCloser) {
-	err := d.storage.Save(id, r)
+	err := d.storage.Store(id, r)
 	if err != nil {
 		d.logger.WithError(err).Error("failed to save a blob")
 	}

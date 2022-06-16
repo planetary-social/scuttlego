@@ -236,7 +236,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 		return Service{}, err
 	}
 	readWantListRepository := bolt.NewReadWantListRepository(db, txRepositoriesFactory)
-	filesystemStorage, err := newFilesystemStorage(config)
+	filesystemStorage, err := newFilesystemStorage(logger, config)
 	if err != nil {
 		return Service{}, err
 	}

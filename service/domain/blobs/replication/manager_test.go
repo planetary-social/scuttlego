@@ -2,6 +2,10 @@ package replication_test
 
 import (
 	"context"
+	"sync"
+	"testing"
+	"time"
+
 	"github.com/planetary-social/go-ssb/fixtures"
 	"github.com/planetary-social/go-ssb/logging"
 	"github.com/planetary-social/go-ssb/service/domain/blobs"
@@ -11,9 +15,6 @@ import (
 	"github.com/planetary-social/go-ssb/service/domain/transport"
 	"github.com/planetary-social/go-ssb/service/domain/transport/rpc"
 	"github.com/stretchr/testify/require"
-	"sync"
-	"testing"
-	"time"
 )
 
 func TestManagerSendsLocalWants(t *testing.T) {

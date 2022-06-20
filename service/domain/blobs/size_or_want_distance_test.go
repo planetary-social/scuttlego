@@ -11,7 +11,7 @@ import (
 func TestSizeOrWantDistance(t *testing.T) {
 	testCases := []struct {
 		Name                 string
-		Value                int
+		Value                int64
 		ExpectedSize         *blobs.Size
 		ExpectedWantDistance *blobs.WantDistance
 		ExpectedError        error

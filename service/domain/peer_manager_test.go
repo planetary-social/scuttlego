@@ -262,10 +262,11 @@ func buildTestPeerManagerWithConfig(t *testing.T, config domain.PeerManagerConfi
 	ctx := fixtures.TestContext(t)
 	logger := logging.NewDevNullLogger()
 
-	replicator := newReplicatorMock()
+	msgReplicator := newMessageReplicatorMock()
+	blobReplicator := newBlobReplicatorMock()
 	dialer := newDialerMock()
 
-	manager := domain.NewPeerManager(ctx, config, replicator, dialer, logger)
+	manager := domain.NewPeerManager(ctx, config, msgReplicator, blobReplicator, dialer, logger)
 
 	return testPeerManager{
 		Manager: manager,
@@ -277,14 +278,26 @@ func buildTestPeerManager(t *testing.T) testPeerManager {
 	return buildTestPeerManagerWithConfig(t, domain.PeerManagerConfig{})
 }
 
-type replicatorMock struct {
+type messageReplicatorMock struct {
 }
 
-func newReplicatorMock() *replicatorMock {
-	return &replicatorMock{}
+func newMessageReplicatorMock() *messageReplicatorMock {
+	return &messageReplicatorMock{}
 }
 
-func (r replicatorMock) Replicate(ctx context.Context, peer transport.Peer) error {
+func (r messageReplicatorMock) Replicate(ctx context.Context, peer transport.Peer) error {
+	<-ctx.Done()
+	return ctx.Err()
+}
+
+type blobReplicatorMock struct {
+}
+
+func newBlobReplicatorMock() *blobReplicatorMock {
+	return &blobReplicatorMock{}
+}
+
+func (b blobReplicatorMock) Replicate(ctx context.Context, peer transport.Peer) error {
 	<-ctx.Done()
 	return ctx.Err()
 }
@@ -319,12 +332,15 @@ func (d *dialerMock) Dial(ctx context.Context, remote identity.Public, address n
 }
 
 type connectionMock struct {
-	closed chan struct{}
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 func newConnectionMock() *connectionMock {
+	ctx, cancel := context.WithCancel(context.Background())
 	return &connectionMock{
-		closed: make(chan struct{}),
+		ctx:    ctx,
+		cancel: cancel,
 	}
 }
 
@@ -332,18 +348,18 @@ func (c connectionMock) PerformRequest(ctx context.Context, req *rpc.Request) (*
 	return nil, errors.New("not implemented")
 }
 
-func (c *connectionMock) Done() <-chan struct{} {
-	return c.closed
+func (c connectionMock) Context() context.Context {
+	return c.ctx
 }
 
 func (c *connectionMock) Close() error {
-	close(c.closed)
+	c.cancel()
 	return nil
 }
 
 func (c *connectionMock) IsClosed() bool {
 	select {
-	case <-c.closed:
+	case <-c.ctx.Done():
 		return true
 	default:
 		return false

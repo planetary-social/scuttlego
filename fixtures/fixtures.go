@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/planetary-social/go-ssb/service/domain/blobs"
 	"io/ioutil"
 	"math"
 	"math/rand"
@@ -13,6 +12,7 @@ import (
 	"time"
 
 	"github.com/planetary-social/go-ssb/logging"
+	"github.com/planetary-social/go-ssb/service/domain/blobs"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/content"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
 	"github.com/planetary-social/go-ssb/service/domain/identity"

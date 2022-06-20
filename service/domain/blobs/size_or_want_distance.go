@@ -37,6 +37,10 @@ func NewSizeOrWantDistanceContainingWantDistance(distance WantDistance) (SizeOrW
 	return NewSizeOrWantDistance(-int64(distance.Int()))
 }
 
+func NewSizeOrWantDistanceContainingSize(size Size) (SizeOrWantDistance, error) {
+	return NewSizeOrWantDistance(size.InBytes())
+}
+
 func (s SizeOrWantDistance) Size() (Size, bool) {
 	if s.size != nil {
 		return *s.size, true

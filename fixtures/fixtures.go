@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"github.com/planetary-social/go-ssb/service/domain/blobs"
 	"io/ioutil"
 	"math"
 	"math/rand"
@@ -169,6 +170,14 @@ func SomeMessage(seq message.Sequence, feed refs.Feed) message.Message {
 
 func SomeConnectionId() rpc.ConnectionId {
 	return rpc.NewConnectionId(SomeNonNegativeInt())
+}
+
+func SomeWantDistance() blobs.WantDistance {
+	return blobs.MustNewWantDistance(SomeNonNegativeInt())
+}
+
+func SomeSize() blobs.Size {
+	return blobs.MustNewSize(int64(SomePositiveInt32()))
 }
 
 func randomBase64(bytes int) string {

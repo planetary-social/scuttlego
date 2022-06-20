@@ -80,13 +80,13 @@ func (d *BlobsGetDownloader) copyBlobContent(pipeWriter *io.PipeWriter, rs *rpc.
 				break // todo can be an error or a real end of stream; is our rpc interface wrong?
 			}
 			err = errors.Wrap(err, "received an error")
-			pipeWriter.CloseWithError(err)
+			pipeWriter.CloseWithError(err) // nolint:errcheck, always returns nil
 			return err
 		}
 
 		if _, err := pipeWriter.Write(chunk.Value.Bytes()); err != nil {
 			err = errors.Wrap(err, "could not write to the pipe")
-			pipeWriter.CloseWithError(err)
+			pipeWriter.CloseWithError(err) // nolint:errcheck, always returns nil
 			return err
 		}
 	}

@@ -74,6 +74,10 @@ and individual commits don't work by themselves it may be a good idea to squash
 your changes. [Effective Go][effective-go] and [Go Code Review
 Comments][code-review-comments] are good to read.
 
+### Feature branches
+
+When naming long-lived feature branches please follow the pattern `feature/...`. This enables CI for that branch.
+
 [hexagonal-architecture]: https://en.wikipedia.org/wiki/Hexagonal_architecture_(software)
 
 [commit-message]: https://cbea.ms/git-commit/

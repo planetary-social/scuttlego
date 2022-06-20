@@ -64,18 +64,30 @@ func (d *BlobsGetDownloader) download(ctx context.Context, peer transport.Peer, 
 
 	pipeReader, pipeWriter := io.Pipe()
 
-	go d.save(blob, pipeReader)
+	go d.storeBlob(blob, pipeReader)
 
+	if err := d.copyBlobContent(pipeWriter, rs); err != nil {
+		return errors.Wrap(err, "failed to read blob content")
+	}
+
+	return nil
+}
+
+func (d *BlobsGetDownloader) copyBlobContent(pipeWriter *io.PipeWriter, rs *rpc.ResponseStream) error {
 	for chunk := range rs.Channel() {
 		if err := chunk.Err; err != nil {
 			if errors.Is(err, rpc.ErrEndOrErr) {
 				break // todo can be an error or a real end of stream; is our rpc interface wrong?
 			}
-			return errors.Wrap(err, "received an error")
+			err = errors.Wrap(err, "received an error")
+			pipeWriter.CloseWithError(err)
+			return err
 		}
 
 		if _, err := pipeWriter.Write(chunk.Value.Bytes()); err != nil {
-			return errors.Wrap(err, "could not write to the pipe")
+			err = errors.Wrap(err, "could not write to the pipe")
+			pipeWriter.CloseWithError(err)
+			return err
 		}
 	}
 
@@ -86,7 +98,7 @@ func (d *BlobsGetDownloader) download(ctx context.Context, peer transport.Peer, 
 	return nil
 }
 
-func (d *BlobsGetDownloader) save(id refs.Blob, r io.ReadCloser) {
+func (d *BlobsGetDownloader) storeBlob(id refs.Blob, r io.ReadCloser) {
 	err := d.storage.Store(id, r)
 	if err != nil {
 		d.logger.WithError(err).Error("failed to save a blob")

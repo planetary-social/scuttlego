@@ -17,7 +17,7 @@ func (c ConnectionId) String() string {
 	return strconv.Itoa(c.id)
 }
 
-var connectionIdKey = "connection_id"
+const connectionIdKey = "connection_id"
 
 func PutConnectionIdInContext(ctx context.Context, id ConnectionId) context.Context {
 	return context.WithValue(ctx, connectionIdKey, id)

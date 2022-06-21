@@ -12,7 +12,7 @@ type Storage interface {
 }
 
 type SocialGraph struct {
-	graph map[string]Hops // ref.String() -> hops
+	graph map[string]Hops
 }
 
 func NewSocialGraph(local refs.Identity, hops Hops, storage Storage) (*SocialGraph, error) {

@@ -72,7 +72,7 @@ func NewGossipReplicator(manager ReplicationManager, handler RawMessageHandler, 
 	return &GossipReplicator{
 		manager: manager,
 		handler: handler,
-		logger:  logger,
+		logger:  logger.New("gossip_replicator"),
 	}, nil
 }
 
@@ -101,18 +101,18 @@ func (r GossipReplicator) replicateFeedTask(peer transport.Peer, task ReplicateF
 		WithField("peer", peer.Identity().String()).
 		WithField("feed", task.Id.String()).
 		WithField("state", task.State).
-		New("replication task")
+		New("task")
 
 	logger.Trace("starting")
 
 	n, err := r.replicateFeed(peer, task)
 	if err != nil && !errors.Is(err, rpc.ErrEndOrErr) {
-		logger.WithField("received_messages", n).WithError(err).Debug("failed")
+		logger.WithField("received_messages", n).WithError(err).Error("failed")
 		task.OnComplete(TaskResultFailed)
 		return
 	}
 
-	logger.WithField("received_messages", n).Debug("finished")
+	logger.WithField("received_messages", n).Trace("finished")
 
 	if n < limit {
 		task.OnComplete(TaskResultDoesNotHaveMoreMessages)

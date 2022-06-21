@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/planetary-social/go-ssb/logging"
+	"github.com/planetary-social/go-ssb/service/domain/blobs"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/content"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
 	"github.com/planetary-social/go-ssb/service/domain/identity"
@@ -167,6 +168,18 @@ func SomeMessage(seq message.Sequence, feed refs.Feed) message.Message {
 	)
 }
 
+func SomeConnectionId() rpc.ConnectionId {
+	return rpc.NewConnectionId(SomeNonNegativeInt())
+}
+
+func SomeWantDistance() blobs.WantDistance {
+	return blobs.MustNewWantDistance(SomeNonNegativeInt())
+}
+
+func SomeSize() blobs.Size {
+	return blobs.MustNewSize(int64(SomePositiveInt32()))
+}
+
 func randomBase64(bytes int) string {
 	r := make([]byte, bytes)
 	_, err := rand.Read(r)
@@ -176,8 +189,25 @@ func randomBase64(bytes int) string {
 	return base64.StdEncoding.EncodeToString(r)
 }
 
+func Directory(t *testing.T) string {
+	name, err := ioutil.TempDir("", "go-ssb-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cleanup := func() {
+		err := os.RemoveAll(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Cleanup(cleanup)
+
+	return name
+}
+
 func File(t *testing.T) string {
-	file, err := ioutil.TempFile("", "eggplant_test")
+	file, err := ioutil.TempFile("", "go-ssb-test")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -18,7 +18,11 @@ type Dialer interface {
 	Dial(ctx context.Context, remote identity.Public, address network.Address) (transport.Peer, error)
 }
 
-type Replicator interface {
+type MessageReplicator interface {
+	Replicate(ctx context.Context, peer transport.Peer) error
+}
+
+type BlobReplicator interface {
 	Replicate(ctx context.Context, peer transport.Peer) error
 }
 
@@ -40,9 +44,10 @@ type PeerManager struct {
 
 	config PeerManagerConfig
 
-	dialer     Dialer
-	replicator Replicator
-	logger     logging.Logger
+	dialer            Dialer
+	messageReplicator MessageReplicator
+	blobReplicator    BlobReplicator
+	logger            logging.Logger
 }
 
 // NewPeerManager creates a new peer manager. The provided context is used as the base context for RPC connections
@@ -50,18 +55,20 @@ type PeerManager struct {
 func NewPeerManager(
 	ctx context.Context,
 	config PeerManagerConfig,
-	replicator Replicator,
+	messageReplicator MessageReplicator,
+	blobReplicator BlobReplicator,
 	dialer Dialer,
 	logger logging.Logger,
 ) *PeerManager {
 	return &PeerManager{
-		ctx:        ctx,
-		peers:      make(peersMap),
-		peersLock:  &sync.Mutex{},
-		config:     config,
-		dialer:     dialer,
-		replicator: replicator,
-		logger:     logger.New("peer_manager"),
+		ctx:               ctx,
+		peers:             make(peersMap),
+		peersLock:         &sync.Mutex{},
+		config:            config,
+		dialer:            dialer,
+		messageReplicator: messageReplicator,
+		blobReplicator:    blobReplicator,
+		logger:            logger.New("peer_manager"),
 	}
 }
 
@@ -155,7 +162,7 @@ func (p PeerManager) trackPeer(peer transport.Peer) {
 }
 
 func (p PeerManager) removePeerIfConnectionCloses(peer transport.Peer) {
-	<-peer.Conn().Done()
+	<-peer.Conn().Context().Done()
 
 	p.peersLock.Lock()
 	defer p.peersLock.Unlock()
@@ -191,19 +198,24 @@ func (p PeerManager) processConnection(peer transport.Peer) {
 func (p PeerManager) handleConnection(peer transport.Peer) error {
 	ch := make(chan error)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		<-peer.Conn().Done()
-		cancel()
-	}()
+	ctx, cancel := context.WithCancel(peer.Conn().Context())
 
 	tasks := 0
 
 	tasks++
 	go func() {
 		defer cancel()
-		defer p.logger.Debug("replicate task terminating")
-		if err := p.replicator.Replicate(ctx, peer); err != nil {
+		defer p.logger.Debug("message replication task terminating")
+		if err := p.messageReplicator.Replicate(ctx, peer); err != nil {
+			ch <- err
+		}
+	}()
+
+	tasks++
+	go func() {
+		defer cancel()
+		defer p.logger.Debug("blob replication task terminating")
+		if err := p.blobReplicator.Replicate(ctx, peer); err != nil {
 			ch <- err
 		}
 	}()

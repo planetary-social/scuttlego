@@ -78,6 +78,8 @@ func (f *Feed) CreateMessage(content message.RawMessageContent, timestamp time.T
 		return refs.Message{}, errors.New("zero value of timestamp")
 	}
 
+	// todo check that private matches this feed's identity
+
 	unsigned, err := f.createMessage(content, timestamp, private.Public())
 	if err != nil {
 		return refs.Message{}, errors.Wrap(err, "failed to create a new unsigned message")

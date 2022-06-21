@@ -19,6 +19,7 @@ import (
 	"github.com/planetary-social/go-ssb/service/app/commands"
 	"github.com/planetary-social/go-ssb/service/app/queries"
 	"github.com/planetary-social/go-ssb/service/domain"
+	blobReplication "github.com/planetary-social/go-ssb/service/domain/blobs/replication"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/formats"
 	"github.com/planetary-social/go-ssb/service/domain/graph"
 	"github.com/planetary-social/go-ssb/service/domain/identity"
@@ -151,6 +152,8 @@ func BuildService(context.Context, identity.Private, Config) (Service, error) {
 		wire.Bind(new(portsnetwork.ServerPeerInitializer), new(*domaintransport.PeerInitializer)),
 		wire.Bind(new(network.ClientPeerInitializer), new(*domaintransport.PeerInitializer)),
 
+		rpc.NewConnectionIdGenerator,
+
 		network.NewDialer,
 		wire.Bind(new(commands.Dialer), new(*network.Dialer)),
 		wire.Bind(new(domain.Dialer), new(*network.Dialer)),
@@ -173,10 +176,12 @@ func BuildService(context.Context, identity.Private, Config) (Service, error) {
 		portsSet,
 		applicationSet,
 		replicatorSet,
+		blobReplicatorSet,
 		formatsSet,
 		requestPubSubSet,
 		messagePubSubSet,
 		boltAdaptersSet,
+		blobsAdaptersSet,
 
 		newBolt,
 	)
@@ -188,7 +193,19 @@ var replicatorSet = wire.NewSet(
 	wire.Bind(new(replication.ReplicationManager), new(*replication.Manager)),
 
 	replication.NewGossipReplicator,
-	wire.Bind(new(domain.Replicator), new(*replication.GossipReplicator)),
+	wire.Bind(new(domain.MessageReplicator), new(*replication.GossipReplicator)),
+)
+
+var blobReplicatorSet = wire.NewSet(
+	blobReplication.NewManager,
+	wire.Bind(new(blobReplication.ReplicationManager), new(*blobReplication.Manager)),
+	wire.Bind(new(commands.BlobReplicationManager), new(*blobReplication.Manager)),
+
+	blobReplication.NewReplicator,
+	wire.Bind(new(domain.BlobReplicator), new(*blobReplication.Replicator)),
+
+	blobReplication.NewBlobsGetDownloader,
+	wire.Bind(new(blobReplication.Downloader), new(*blobReplication.BlobsGetDownloader)),
 )
 
 var requestPubSubSet = wire.NewSet(

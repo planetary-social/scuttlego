@@ -33,10 +33,13 @@ type Connection struct {
 // request handler. Connection takes over managing RawConnection which must not be used further.
 func NewConnection(
 	ctx context.Context,
+	id ConnectionId,
 	raw RawConnection,
 	handler RequestHandler,
 	logger logging.Logger,
 ) (*Connection, error) {
+	ctx = PutConnectionIdInContext(ctx, id)
+
 	ctx, cancel := context.WithCancel(ctx)
 
 	conn := &Connection{
@@ -68,8 +71,8 @@ func (c *Connection) PerformRequest(ctx context.Context, req *Request) (*Respons
 	return stream, nil
 }
 
-func (c *Connection) Done() <-chan struct{} {
-	return c.ctx.Done()
+func (c *Connection) Context() context.Context {
+	return c.ctx
 }
 
 // Close always returns nil. In theory shutting down a Secure Scuttlebutt RPC connection can result in an error as

@@ -19,6 +19,8 @@ type Commands struct {
 	EstablishNewConnections  *commands.EstablishNewConnectionsHandler
 	AcceptNewPeer            *commands.AcceptNewPeerHandler
 	ProcessNewLocalDiscovery *commands.ProcessNewLocalDiscoveryHandler
+
+	CreateWants *commands.CreateWantsHandler
 }
 
 type Queries struct {

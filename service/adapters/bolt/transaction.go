@@ -36,4 +36,5 @@ type TxRepositories struct {
 	Graph      *SocialGraphRepository
 	ReceiveLog *ReceiveLogRepository
 	Message    *MessageRepository
+	Blob       *BlobRepository
 }

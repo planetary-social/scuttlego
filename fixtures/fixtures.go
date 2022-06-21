@@ -189,8 +189,25 @@ func randomBase64(bytes int) string {
 	return base64.StdEncoding.EncodeToString(r)
 }
 
+func Directory(t *testing.T) string {
+	name, err := ioutil.TempDir("", "go-ssb-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cleanup := func() {
+		err := os.RemoveAll(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Cleanup(cleanup)
+
+	return name
+}
+
 func File(t *testing.T) string {
-	file, err := ioutil.TempFile("", "eggplant_test")
+	file, err := ioutil.TempFile("", "go-ssb-test")
 	if err != nil {
 		t.Fatal(err)
 	}

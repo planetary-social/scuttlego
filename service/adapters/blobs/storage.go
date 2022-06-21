@@ -60,13 +60,13 @@ func (f FilesystemStorage) Store(id refs.Blob, r io.Reader) error {
 	defer os.Remove(tmpFile.Name())
 	defer tmpFile.Close()
 
-	verifier := blobs.NewVerifier(id)
+	h := blobs.NewHasher()
 
-	if _, err := io.Copy(io.MultiWriter(tmpFile, verifier), io.LimitReader(r, blobs.MaxBlobSize().InBytes())); err != nil {
+	if _, err := io.Copy(io.MultiWriter(tmpFile, h), io.LimitReader(r, blobs.MaxBlobSize().InBytes())); err != nil {
 		return errors.Wrap(err, "failed to copy contents to a temporary file")
 	}
 
-	if err := verifier.Verify(); err != nil {
+	if err := blobs.Verify(id, h); err != nil {
 		return errors.Wrap(err, "failed to verify the file")
 	}
 

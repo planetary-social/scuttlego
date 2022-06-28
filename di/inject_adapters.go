@@ -73,6 +73,7 @@ func newTxRepositoriesFactory(local identity.Public, logger logging.Logger, hmac
 var blobsAdaptersSet = wire.NewSet(
 	newFilesystemStorage,
 	wire.Bind(new(blobReplication.BlobStorage), new(*blobs.FilesystemStorage)),
+	wire.Bind(new(queries.BlobStorage), new(*blobs.FilesystemStorage)),
 )
 
 func newFilesystemStorage(logger logging.Logger, config Config) (*blobs.FilesystemStorage, error) {

@@ -75,13 +75,18 @@ func (f FilesystemStorage) Store(id refs.Blob, r io.Reader) error {
 	}
 
 	oldName := tmpFile.Name()
-	newName := f.pathStorage(hexRef)
+	newName := f.pathStorage(id)
 
 	if err := os.Rename(oldName, newName); err != nil {
 		return errors.Wrap(err, "failed to rename the file")
 	}
 
 	return nil
+}
+
+func (f FilesystemStorage) GetBlob(id refs.Blob) (io.ReadCloser, error) {
+	name := f.pathStorage(id)
+	return os.Open(name)
 }
 
 func (f FilesystemStorage) createStorage() error {
@@ -100,8 +105,9 @@ func (f FilesystemStorage) dirStorage() string {
 	return path.Join(f.path, "storage")
 }
 
-func (f FilesystemStorage) pathStorage(name string) string {
-	return path.Join(f.dirStorage(), name)
+func (f FilesystemStorage) pathStorage(id refs.Blob) string {
+	hexRef := hex.EncodeToString(id.Bytes())
+	return path.Join(f.dirStorage(), hexRef)
 }
 
 func (f FilesystemStorage) removeTemporaryFiles() error {

@@ -97,7 +97,9 @@ func NewMockResponseWriter() *MockResponseWriter {
 }
 
 func (m *MockResponseWriter) WriteMessage(body []byte) error {
-	m.WrittenMessages = append(m.WrittenMessages, body)
+	cpy := make([]byte, len(body))
+	copy(cpy, body)
+	m.WrittenMessages = append(m.WrittenMessages, cpy)
 	return nil
 }
 

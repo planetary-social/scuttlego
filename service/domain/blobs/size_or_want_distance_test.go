@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/boreq/errors"
+	"github.com/planetary-social/go-ssb/internal"
 	"github.com/planetary-social/go-ssb/service/domain/blobs"
 	"github.com/stretchr/testify/require"
 )
@@ -26,7 +27,7 @@ func TestSizeOrWantDistance(t *testing.T) {
 		{
 			Name:                 "positive_number_is_the_size",
 			Value:                1,
-			ExpectedSize:         sizePointer(blobs.MustNewSize(1)),
+			ExpectedSize:         internal.Ptr(blobs.MustNewSize(1)),
 			ExpectedWantDistance: nil,
 			ExpectedError:        nil,
 		},
@@ -34,7 +35,7 @@ func TestSizeOrWantDistance(t *testing.T) {
 			Name:                 "negative_number_is_the_want_distance",
 			Value:                -1,
 			ExpectedSize:         nil,
-			ExpectedWantDistance: wantDistancePointer(blobs.MustNewWantDistance(1)),
+			ExpectedWantDistance: internal.Ptr(blobs.MustNewWantDistance(1)),
 			ExpectedError:        nil,
 		},
 	}
@@ -63,12 +64,4 @@ func TestSizeOrWantDistance(t *testing.T) {
 			}
 		})
 	}
-}
-
-func sizePointer(size blobs.Size) *blobs.Size {
-	return &size
-}
-
-func wantDistancePointer(distance blobs.WantDistance) *blobs.WantDistance {
-	return &distance
 }

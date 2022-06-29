@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/planetary-social/go-ssb/fixtures"
+	"github.com/planetary-social/go-ssb/internal"
 	"github.com/planetary-social/go-ssb/service/app/queries"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
 	"github.com/planetary-social/go-ssb/service/domain/messages"
@@ -27,12 +28,12 @@ func TestCreateHistoryStream(t *testing.T) {
 		},
 		{
 			Name:         "true",
-			Keys:         boolPointer(true),
+			Keys:         internal.Ptr(true),
 			ContainsKeys: true,
 		},
 		{
 			Name:         "false",
-			Keys:         boolPointer(false),
+			Keys:         internal.Ptr(false),
 			ContainsKeys: false,
 		},
 	}
@@ -97,7 +98,9 @@ func NewMockResponseWriter() *MockResponseWriter {
 }
 
 func (m *MockResponseWriter) WriteMessage(body []byte) error {
-	m.WrittenMessages = append(m.WrittenMessages, body)
+	cpy := make([]byte, len(body))
+	copy(cpy, body)
+	m.WrittenMessages = append(m.WrittenMessages, cpy)
 	return nil
 }
 
@@ -125,8 +128,4 @@ func (m MockCreateHistoryStreamQueryHandler) Handle(ctx context.Context, query q
 	}()
 
 	return ch
-}
-
-func boolPointer(v bool) *bool {
-	return &v
 }

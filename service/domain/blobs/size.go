@@ -32,6 +32,10 @@ func (s Size) InBytes() int64 {
 	return s.sizeInBytes
 }
 
-func (s Size) Above(size Size) bool {
-	return s.sizeInBytes > size.sizeInBytes
+func (s Size) Above(other Size) bool {
+	return s.sizeInBytes > other.sizeInBytes
+}
+
+func (s Size) IsZero() bool {
+	return s == Size{}
 }

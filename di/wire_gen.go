@@ -115,11 +115,17 @@ func BuildTestQueries() (TestQueries, error) {
 	if err != nil {
 		return TestQueries{}, err
 	}
+	blobStorageMock := mocks.NewBlobStorageMock()
+	getBlobHandler, err := queries.NewGetBlobHandler(blobStorageMock)
+	if err != nil {
+		return TestQueries{}, err
+	}
 	appQueries := app.Queries{
 		CreateHistoryStream: createHistoryStreamHandler,
 		ReceiveLog:          receiveLogHandler,
 		Status:              statusHandler,
 		PublishedMessages:   publishedMessagesHandler,
+		GetBlob:             getBlobHandler,
 	}
 	testQueries := TestQueries{
 		Queries:           appQueries,
@@ -127,6 +133,7 @@ func BuildTestQueries() (TestQueries, error) {
 		MessagePubSub:     messagePubSubMock,
 		MessageRepository: messageRepositoryMock,
 		PeerManager:       peerManagerMock,
+		BlobStorage:       blobStorageMock,
 	}
 	return testQueries, nil
 }
@@ -270,11 +277,16 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	if err != nil {
 		return Service{}, err
 	}
+	getBlobHandler, err := queries.NewGetBlobHandler(filesystemStorage)
+	if err != nil {
+		return Service{}, err
+	}
 	appQueries := app.Queries{
 		CreateHistoryStream: createHistoryStreamHandler,
 		ReceiveLog:          receiveLogHandler,
 		Status:              statusHandler,
 		PublishedMessages:   publishedMessagesHandler,
+		GetBlob:             getBlobHandler,
 	}
 	application := app.Application{
 		Commands: appCommands,
@@ -291,7 +303,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	networkDiscoverer := network2.NewDiscoverer(discoverer, application, logger)
 	connectionEstablisher := network2.NewConnectionEstablisher(application, logger)
 	handlerCreateHistoryStream := rpc2.NewHandlerCreateHistoryStream(createHistoryStreamHandler)
-	handlerBlobsGet := rpc2.NewHandlerBlobsGet()
+	handlerBlobsGet := rpc2.NewHandlerBlobsGet(getBlobHandler)
 	handlerBlobsCreateWants := rpc2.NewHandlerBlobsCreateWants(application)
 	v2 := rpc2.NewMuxHandlers(handlerCreateHistoryStream, handlerBlobsGet, handlerBlobsCreateWants)
 	muxMux, err := mux.NewMux(logger, v2)
@@ -328,6 +340,7 @@ type TestQueries struct {
 	MessagePubSub     *mocks.MessagePubSubMock
 	MessageRepository *mocks.MessageRepositoryMock
 	PeerManager       *mocks.PeerManagerMock
+	BlobStorage       *mocks.BlobStorageMock
 }
 
 var replicatorSet = wire.NewSet(replication.NewManager, wire.Bind(new(replication.ReplicationManager), new(*replication.Manager)), replication.NewGossipReplicator, wire.Bind(new(domain.MessageReplicator), new(*replication.GossipReplicator)))

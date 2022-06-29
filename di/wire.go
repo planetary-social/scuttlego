@@ -89,6 +89,7 @@ type TestQueries struct {
 	MessagePubSub     *mocks.MessagePubSubMock
 	MessageRepository *mocks.MessageRepositoryMock
 	PeerManager       *mocks.PeerManagerMock
+	BlobStorage       *mocks.BlobStorageMock
 }
 
 func BuildTestQueries() (TestQueries, error) {
@@ -104,6 +105,9 @@ func BuildTestQueries() (TestQueries, error) {
 
 		identity.NewPrivate,
 		privateIdentityToPublicIdentity,
+
+		mocks.NewBlobStorageMock,
+		wire.Bind(new(queries.BlobStorage), new(*mocks.BlobStorageMock)),
 
 		wire.Struct(new(TestQueries), "*"),
 	)

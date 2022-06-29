@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/planetary-social/go-ssb/fixtures"
+	"github.com/planetary-social/go-ssb/internal"
 	"github.com/planetary-social/go-ssb/logging"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
 	"github.com/planetary-social/go-ssb/service/domain/graph"
@@ -165,26 +166,26 @@ func TestManager_SequenceIsDeterminedBasedOnStorageStateAndMessageBufferState(t 
 		{
 			Name:              "storage_empty",
 			SequenceInStorage: nil,
-			SequenceInBuffer:  sequencePointer(message.MustNewSequence(10)),
-			ExpectedSequence:  sequencePointer(message.MustNewSequence(10)),
+			SequenceInBuffer:  internal.Ptr(message.MustNewSequence(10)),
+			ExpectedSequence:  internal.Ptr(message.MustNewSequence(10)),
 		},
 		{
 			Name:              "buffer_empty",
-			SequenceInStorage: sequencePointer(message.MustNewSequence(10)),
+			SequenceInStorage: internal.Ptr(message.MustNewSequence(10)),
 			SequenceInBuffer:  nil,
-			ExpectedSequence:  sequencePointer(message.MustNewSequence(10)),
+			ExpectedSequence:  internal.Ptr(message.MustNewSequence(10)),
 		},
 		{
 			Name:              "buffer_larger",
-			SequenceInStorage: sequencePointer(message.MustNewSequence(10)),
-			SequenceInBuffer:  sequencePointer(message.MustNewSequence(20)),
-			ExpectedSequence:  sequencePointer(message.MustNewSequence(20)),
+			SequenceInStorage: internal.Ptr(message.MustNewSequence(10)),
+			SequenceInBuffer:  internal.Ptr(message.MustNewSequence(20)),
+			ExpectedSequence:  internal.Ptr(message.MustNewSequence(20)),
 		},
 		{
 			Name:              "storage_larger",
-			SequenceInStorage: sequencePointer(message.MustNewSequence(20)),
-			SequenceInBuffer:  sequencePointer(message.MustNewSequence(10)),
-			ExpectedSequence:  sequencePointer(message.MustNewSequence(20)),
+			SequenceInStorage: internal.Ptr(message.MustNewSequence(20)),
+			SequenceInBuffer:  internal.Ptr(message.MustNewSequence(10)),
+			ExpectedSequence:  internal.Ptr(message.MustNewSequence(20)),
 		},
 	}
 
@@ -285,8 +286,4 @@ func (m messageBufferMock) SetSequence(feed refs.Feed, sequence message.Sequence
 func (m messageBufferMock) Sequence(feed refs.Feed) (message.Sequence, bool) {
 	seq, ok := m.sequences[feed.String()]
 	return seq, ok
-}
-
-func sequencePointer(sequence message.Sequence) *message.Sequence {
-	return &sequence
 }

@@ -45,7 +45,7 @@ func (h HandlerBlobsGet) Handle(ctx context.Context, w mux.ResponseWriter, req *
 	}
 
 	query := queries.GetBlob{
-		Id: args.Id(),
+		Id: args.Hash(),
 	}
 
 	if size, ok := args.Size(); ok {

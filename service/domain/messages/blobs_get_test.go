@@ -74,14 +74,14 @@ func TestNewBlobsGetArgumentsFromBytesString(t *testing.T) {
 	args, err := messages.NewBlobsGetArgumentsFromBytes([]byte(`["&uaGieSQDJcHfUp6hjIcIq55GoZh4Ug7tNmgaohoxrpw=.sha256"]`))
 	require.NoError(t, err)
 
-	require.Equal(t, "&uaGieSQDJcHfUp6hjIcIq55GoZh4Ug7tNmgaohoxrpw=.sha256", args.Id().String())
+	require.Equal(t, "&uaGieSQDJcHfUp6hjIcIq55GoZh4Ug7tNmgaohoxrpw=.sha256", args.Hash().String())
 }
 
 func TestNewBlobsGetArgumentsFromBytesObject(t *testing.T) {
 	args, err := messages.NewBlobsGetArgumentsFromBytes([]byte(`[{"hash": "&uaGieSQDJcHfUp6hjIcIq55GoZh4Ug7tNmgaohoxrpw=.sha256", "size": 161699, "max": 200000}]`))
 	require.NoError(t, err)
 
-	require.Equal(t, "&uaGieSQDJcHfUp6hjIcIq55GoZh4Ug7tNmgaohoxrpw=.sha256", args.Id().String())
+	require.Equal(t, "&uaGieSQDJcHfUp6hjIcIq55GoZh4Ug7tNmgaohoxrpw=.sha256", args.Hash().String())
 
 	size, ok := args.Size()
 	require.True(t, ok)

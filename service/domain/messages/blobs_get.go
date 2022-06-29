@@ -29,13 +29,13 @@ func NewBlobsGet(arguments BlobsGetArguments) (*rpc.Request, error) {
 }
 
 type BlobsGetArguments struct {
-	id        refs.Blob
+	hash      refs.Blob
 	size, max *blobs.Size
 }
 
-func NewBlobsGetArguments(id refs.Blob, size, max *blobs.Size) (BlobsGetArguments, error) {
-	if id.IsZero() {
-		return BlobsGetArguments{}, errors.New("zero value of id")
+func NewBlobsGetArguments(hash refs.Blob, size, max *blobs.Size) (BlobsGetArguments, error) {
+	if hash.IsZero() {
+		return BlobsGetArguments{}, errors.New("zero value of hash")
 	}
 
 	if size != nil && size.IsZero() {
@@ -47,7 +47,7 @@ func NewBlobsGetArguments(id refs.Blob, size, max *blobs.Size) (BlobsGetArgument
 	}
 
 	return BlobsGetArguments{
-		id:   id,
+		hash: hash,
 		size: size,
 		max:  max,
 	}, nil
@@ -122,7 +122,7 @@ func newBlobsGetArgumentsFromBytesObject(b []byte) (BlobsGetArguments, error) {
 func (a BlobsGetArguments) MarshalJSON() ([]byte, error) {
 	if a.size == nil && a.max == nil {
 		args := []string{
-			a.id.String(),
+			a.hash.String(),
 		}
 
 		return json.Marshal(args)
@@ -130,7 +130,7 @@ func (a BlobsGetArguments) MarshalJSON() ([]byte, error) {
 
 	args := []blobsGetArgumentsTransport{
 		{
-			Hash: a.id.String(),
+			Hash: a.hash.String(),
 		},
 	}
 
@@ -147,8 +147,8 @@ func (a BlobsGetArguments) MarshalJSON() ([]byte, error) {
 	return json.Marshal(args)
 }
 
-func (a BlobsGetArguments) Id() refs.Blob {
-	return a.id
+func (a BlobsGetArguments) Hash() refs.Blob {
+	return a.hash
 }
 
 func (a BlobsGetArguments) Size() (blobs.Size, bool) {

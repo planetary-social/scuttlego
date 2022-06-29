@@ -46,7 +46,7 @@ func (d *BlobsGetDownloader) OnHasReceived(ctx context.Context, peer transport.P
 }
 
 func (d *BlobsGetDownloader) download(ctx context.Context, peer transport.Peer, blob refs.Blob) error {
-	arguments, err := messages.NewBlobsGetArguments(blob)
+	arguments, err := messages.NewBlobsGetArguments(blob, nil, nil)
 	if err != nil {
 		return errors.Wrap(err, "could not create a request")
 	}

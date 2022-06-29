@@ -28,4 +28,5 @@ type Queries struct {
 	ReceiveLog          *queries.ReceiveLogHandler
 	Status              *queries.StatusHandler
 	PublishedMessages   *queries.PublishedMessagesHandler
+	GetBlob             *queries.GetBlobHandler
 }

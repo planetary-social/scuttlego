@@ -41,4 +41,7 @@ var queriesSet = wire.NewSet(
 	queries.NewReceiveLogHandler,
 	queries.NewStatusHandler,
 	queries.NewPublishedMessagesHandler,
+
+	queries.NewGetBlobHandler,
+	wire.Bind(new(portsrpc.GetBlobQueryHandler), new(*queries.GetBlobHandler)),
 )

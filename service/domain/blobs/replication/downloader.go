@@ -14,15 +14,6 @@ import (
 	"github.com/planetary-social/go-ssb/service/domain/transport/rpc"
 )
 
-var ErrBlobNotFound = errors.New("blob not found")
-
-type BlobStorage interface {
-	Store(id refs.Blob, r io.Reader) error
-
-	// Size returns the size of the blob. If the blob is not found it returns ErrBlobNotFound.
-	Size(id refs.Blob) (blobs.Size, error)
-}
-
 type BlobsGetDownloader struct {
 	storage BlobStorage
 	logger  logging.Logger

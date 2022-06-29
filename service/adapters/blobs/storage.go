@@ -13,6 +13,7 @@ import (
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/logging"
 	"github.com/planetary-social/go-ssb/service/domain/blobs"
+	"github.com/planetary-social/go-ssb/service/domain/blobs/replication"
 	"github.com/planetary-social/go-ssb/service/domain/refs"
 )
 
@@ -93,6 +94,9 @@ func (f FilesystemStorage) Size(id refs.Blob) (blobs.Size, error) {
 	name := f.pathStorage(id)
 	fi, err := os.Stat(name)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return blobs.Size{}, replication.ErrBlobNotFound
+		}
 		return blobs.Size{}, errors.Wrap(err, "stat failed")
 	}
 	return blobs.NewSize(fi.Size())

@@ -2,6 +2,8 @@ package messages
 
 import (
 	"encoding/json"
+	"fmt"
+	"strings"
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/service/domain/blobs"
@@ -144,4 +146,16 @@ func (b BlobWithSizeOrWantDistance) Id() refs.Blob {
 
 func (b BlobWithSizeOrWantDistance) SizeOrWantDistance() blobs.SizeOrWantDistance {
 	return b.sizeOrWantDistance
+}
+
+func (b BlobWithSizeOrWantDistance) String() string {
+	var s []string
+	s = append(s, fmt.Sprintf("id=%s", b.id.String()))
+	if distance, ok := b.sizeOrWantDistance.WantDistance(); ok {
+		s = append(s, fmt.Sprintf("distance=%d", distance.Int()))
+	}
+	if size, ok := b.sizeOrWantDistance.Size(); ok {
+		s = append(s, fmt.Sprintf("size=%d", size.InBytes()))
+	}
+	return fmt.Sprintf("<%s>", strings.Join(s, " "))
 }

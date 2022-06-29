@@ -6,6 +6,7 @@ import (
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/di"
 	"github.com/planetary-social/go-ssb/fixtures"
+	"github.com/planetary-social/go-ssb/internal"
 	"github.com/planetary-social/go-ssb/service/adapters/mocks"
 	"github.com/planetary-social/go-ssb/service/app/queries"
 	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
@@ -226,7 +227,7 @@ func TestCreateHistoryStream(t *testing.T) {
 		},
 		{
 			Name:  "repository_should_enforce_sequence_by_itself",
-			Seq:   sequencePointer(2),
+			Seq:   internal.Ptr(message.MustNewSequence(2)),
 			Limit: nil,
 			Repository: []message.Message{
 				msg1,
@@ -242,7 +243,7 @@ func TestCreateHistoryStream(t *testing.T) {
 		},
 		{
 			Name:  "earlier_messages_from_pubsub_should_be_omitted_if_repository_returned_something",
-			Seq:   sequencePointer(1),
+			Seq:   internal.Ptr(message.MustNewSequence(1)),
 			Limit: nil,
 			Repository: []message.Message{
 				msg2,
@@ -259,7 +260,7 @@ func TestCreateHistoryStream(t *testing.T) {
 		},
 		{
 			Name:       "earlier_messages_from_pubsub_should_be_omitted_if_repository_returned_nothing",
-			Seq:        sequencePointer(1),
+			Seq:        internal.Ptr(message.MustNewSequence(1)),
 			Limit:      nil,
 			Repository: nil,
 			PubSub: []message.Message{
@@ -274,7 +275,7 @@ func TestCreateHistoryStream(t *testing.T) {
 		},
 		{
 			Name:  "repository_should_enforce_limit_by_itself",
-			Limit: intPointer(2),
+			Limit: internal.Ptr(2),
 			Repository: []message.Message{
 				msg1,
 				msg2,
@@ -289,7 +290,7 @@ func TestCreateHistoryStream(t *testing.T) {
 		},
 		{
 			Name:  "if_repository_exhausted_the_limit_then_live_should_do_nothing",
-			Limit: intPointer(2),
+			Limit: internal.Ptr(2),
 			Repository: []message.Message{
 				msg1,
 				msg2,
@@ -304,7 +305,7 @@ func TestCreateHistoryStream(t *testing.T) {
 		},
 		{
 			Name:  "repository_should_count_towards_the_limit",
-			Limit: intPointer(2),
+			Limit: internal.Ptr(2),
 			Repository: []message.Message{
 				msg1,
 			},
@@ -319,7 +320,7 @@ func TestCreateHistoryStream(t *testing.T) {
 		},
 		{
 			Name:       "live_should_keep_track_of_the_limit",
-			Limit:      intPointer(2),
+			Limit:      internal.Ptr(2),
 			Repository: nil,
 			PubSub: []message.Message{
 				msg1,
@@ -390,13 +391,4 @@ func TestCreateHistoryStream(t *testing.T) {
 			require.Equal(t, testCase.ExpectedMessages, receivedMessages)
 		})
 	}
-}
-
-func sequencePointer(s int) *message.Sequence {
-	seq := message.MustNewSequence(s)
-	return &seq
-}
-
-func intPointer(s int) *int {
-	return &s
 }

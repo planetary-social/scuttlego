@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 
 	"github.com/boreq/errors"
+	"github.com/hashicorp/go-multierror"
+	"github.com/planetary-social/go-ssb/service/domain/blobs"
 	"github.com/planetary-social/go-ssb/service/domain/refs"
 	"github.com/planetary-social/go-ssb/service/domain/transport/rpc"
 )
@@ -27,17 +29,49 @@ func NewBlobsGet(arguments BlobsGetArguments) (*rpc.Request, error) {
 }
 
 type BlobsGetArguments struct {
-	id refs.Blob
+	id        refs.Blob
+	size, max *blobs.Size
 }
 
-func NewBlobsGetArguments(id refs.Blob) (BlobsGetArguments, error) {
+func NewBlobsGetArguments(id refs.Blob, size, max *blobs.Size) (BlobsGetArguments, error) {
 	if id.IsZero() {
 		return BlobsGetArguments{}, errors.New("zero value of id")
 	}
-	return BlobsGetArguments{id: id}, nil
+
+	if size != nil && size.IsZero() {
+		return BlobsGetArguments{}, errors.New("size can't be zero")
+	}
+
+	if max != nil && max.IsZero() {
+		return BlobsGetArguments{}, errors.New("max can't be zero")
+	}
+
+	return BlobsGetArguments{
+		id:   id,
+		size: size,
+		max:  max,
+	}, nil
 }
 
 func NewBlobsGetArgumentsFromBytes(b []byte) (BlobsGetArguments, error) {
+	var err error
+
+	args, stringErr := newBlobsGetArgumentsFromBytesString(b)
+	err = multierror.Append(err, stringErr)
+	if stringErr == nil {
+		return args, nil
+	}
+
+	args, objectErr := newBlobsGetArgumentsFromBytesObject(b)
+	err = multierror.Append(err, objectErr)
+	if objectErr == nil {
+		return args, nil
+	}
+
+	return BlobsGetArguments{}, err
+}
+
+func newBlobsGetArgumentsFromBytesString(b []byte) (BlobsGetArguments, error) {
 	var args []string
 
 	if err := json.Unmarshal(b, &args); err != nil {
@@ -53,12 +87,61 @@ func NewBlobsGetArgumentsFromBytes(b []byte) (BlobsGetArguments, error) {
 		return BlobsGetArguments{}, errors.Wrap(err, "could not create a blob ref")
 	}
 
-	return NewBlobsGetArguments(id)
+	return NewBlobsGetArguments(id, nil, nil)
+}
+
+func newBlobsGetArgumentsFromBytesObject(b []byte) (BlobsGetArguments, error) {
+	var args []blobsGetArgumentsTransport
+
+	if err := json.Unmarshal(b, &args); err != nil {
+		return BlobsGetArguments{}, errors.Wrap(err, "json unmarshal failed")
+	}
+
+	if len(args) != 1 {
+		return BlobsGetArguments{}, errors.New("expected exactly one argument")
+	}
+
+	id, err := refs.NewBlob(args[0].Hash)
+	if err != nil {
+		return BlobsGetArguments{}, errors.Wrap(err, "could not create a blob ref")
+	}
+
+	size, err := sizeOrNil(args[0].Size)
+	if err != nil {
+		return BlobsGetArguments{}, errors.Wrap(err, "failed to parse size")
+	}
+
+	max, err := sizeOrNil(args[0].Max)
+	if err != nil {
+		return BlobsGetArguments{}, errors.Wrap(err, "failed to parse max")
+	}
+
+	return NewBlobsGetArguments(id, size, max)
 }
 
 func (a BlobsGetArguments) MarshalJSON() ([]byte, error) {
-	args := []string{
-		a.id.String(),
+	if a.size == nil && a.max == nil {
+		args := []string{
+			a.id.String(),
+		}
+
+		return json.Marshal(args)
+	}
+
+	args := []blobsGetArgumentsTransport{
+		{
+			Hash: a.id.String(),
+		},
+	}
+
+	if a.size != nil {
+		v := a.size.InBytes()
+		args[0].Size = &v
+	}
+
+	if a.max != nil {
+		v := a.max.InBytes()
+		args[0].Max = &v
 	}
 
 	return json.Marshal(args)
@@ -66,4 +149,37 @@ func (a BlobsGetArguments) MarshalJSON() ([]byte, error) {
 
 func (a BlobsGetArguments) Id() refs.Blob {
 	return a.id
+}
+
+func (a BlobsGetArguments) Size() (blobs.Size, bool) {
+	if a.size != nil {
+		return *a.size, true
+	}
+	return blobs.Size{}, false
+}
+
+func (a BlobsGetArguments) Max() (blobs.Size, bool) {
+	if a.max != nil {
+		return *a.max, true
+	}
+	return blobs.Size{}, false
+}
+
+type blobsGetArgumentsTransport struct {
+	Hash string `json:"hash"`
+	Size *int64 `json:"size,omitempty"`
+	Max  *int64 `json:"max,omitempty"`
+}
+
+func sizeOrNil(n *int64) (*blobs.Size, error) {
+	if n == nil {
+		return nil, nil
+	}
+
+	size, err := blobs.NewSize(*n)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not create a size")
+	}
+
+	return &size, nil
 }

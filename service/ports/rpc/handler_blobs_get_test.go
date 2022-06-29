@@ -9,6 +9,7 @@ import (
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/fixtures"
 	"github.com/planetary-social/go-ssb/service/app/queries"
+	"github.com/planetary-social/go-ssb/service/domain/blobs"
 	"github.com/planetary-social/go-ssb/service/domain/messages"
 	"github.com/planetary-social/go-ssb/service/domain/refs"
 	transportrpc "github.com/planetary-social/go-ssb/service/domain/transport/rpc"
@@ -16,13 +17,99 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestArgumentsArePassedToQuery(t *testing.T) {
+	hash := fixtures.SomeRefBlob()
+	data := fixtures.SomeBytes()
+
+	testCases := []struct {
+		Name string
+
+		Hash refs.Blob
+		Size *blobs.Size
+		Max  *blobs.Size
+
+		ExpectedQuery queries.GetBlob
+	}{
+		{
+			Name: "hash",
+
+			Hash: hash,
+			Size: nil,
+			Max:  nil,
+
+			ExpectedQuery: queries.GetBlob{
+				Id:   hash,
+				Size: nil,
+				Max:  nil,
+			},
+		},
+		{
+			Name: "hash_and_size",
+
+			Hash: hash,
+			Size: sizePtr(blobs.MustNewSize(int64(len(data)))),
+			Max:  nil,
+
+			ExpectedQuery: queries.GetBlob{
+				Id:   hash,
+				Size: sizePtr(blobs.MustNewSize(int64(len(data)))),
+				Max:  nil,
+			},
+		},
+		{
+			Name: "hash_and_max",
+
+			Hash: hash,
+			Size: nil,
+			Max:  sizePtr(blobs.MustNewSize(int64(len(data)))),
+
+			ExpectedQuery: queries.GetBlob{
+				Id:   hash,
+				Size: nil,
+				Max:  sizePtr(blobs.MustNewSize(int64(len(data)))),
+			},
+		},
+		{
+			Name: "hash_and_size_and_max",
+
+			Hash: hash,
+			Size: sizePtr(blobs.MustNewSize(int64(len(data)))),
+			Max:  sizePtr(blobs.MustNewSize(int64(len(data)))),
+
+			ExpectedQuery: queries.GetBlob{
+				Id:   hash,
+				Size: sizePtr(blobs.MustNewSize(int64(len(data)))),
+				Max:  sizePtr(blobs.MustNewSize(int64(len(data)))),
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			queryHandler := newGetBlobQueryHandlerMock()
+			queryHandler.MockBlob(hash, data)
+
+			h := rpc.NewHandlerBlobsGet(queryHandler)
+
+			ctx := fixtures.TestContext(t)
+			rw := NewMockResponseWriter()
+			req := createBlobsGetRequest(t, testCase.Hash, testCase.Size, testCase.Max)
+
+			err := h.Handle(ctx, rw, req)
+			require.NoError(t, err)
+
+			require.Equal(t, []queries.GetBlob{testCase.ExpectedQuery}, queryHandler.Calls)
+		})
+	}
+}
+
 func TestIfHandlerReturnsErrorNoMessagesAreSent(t *testing.T) {
 	queryHandler := newGetBlobQueryHandlerMock()
 	h := rpc.NewHandlerBlobsGet(queryHandler)
 
 	ctx := fixtures.TestContext(t)
 	rw := NewMockResponseWriter()
-	req := createBlobsGetRequest(t, fixtures.SomeRefBlob())
+	req := createBlobsGetRequest(t, fixtures.SomeRefBlob(), nil, nil)
 
 	err := h.Handle(ctx, rw, req)
 	require.Error(t, err)
@@ -39,7 +126,7 @@ func TestSmallBlobIsWrittenToResponseWriter(t *testing.T) {
 
 	ctx := fixtures.TestContext(t)
 	rw := NewMockResponseWriter()
-	req := createBlobsGetRequest(t, id)
+	req := createBlobsGetRequest(t, id, nil, nil)
 
 	err := h.Handle(ctx, rw, req)
 	require.NoError(t, err)
@@ -68,7 +155,7 @@ func TestLargeBlobIsWrittenToResponseWriter(t *testing.T) {
 
 	ctx := fixtures.TestContext(t)
 	rw := NewMockResponseWriter()
-	req := createBlobsGetRequest(t, id)
+	req := createBlobsGetRequest(t, id, nil, nil)
 
 	err := h.Handle(ctx, rw, req)
 	require.NoError(t, err)
@@ -82,6 +169,7 @@ func TestLargeBlobIsWrittenToResponseWriter(t *testing.T) {
 }
 
 type getBlobQueryHandlerMock struct {
+	Calls           []queries.GetBlob
 	blobs           map[string][]byte
 	openReadClosers map[*readCloserTrackingCloses]struct{}
 }
@@ -93,7 +181,9 @@ func newGetBlobQueryHandlerMock() *getBlobQueryHandlerMock {
 	}
 }
 
-func (h getBlobQueryHandlerMock) Handle(query queries.GetBlob) (io.ReadCloser, error) {
+func (h *getBlobQueryHandlerMock) Handle(query queries.GetBlob) (io.ReadCloser, error) {
+	h.Calls = append(h.Calls, query)
+
 	data, ok := h.blobs[query.Id.String()]
 	if !ok {
 		return nil, errors.New("blob not found")
@@ -111,10 +201,8 @@ func (h getBlobQueryHandlerMock) RequireThereAreNoOpenReadClosers(t *testing.T) 
 	require.Empty(t, h.openReadClosers)
 }
 
-func createBlobsGetRequest(t *testing.T, id refs.Blob) *transportrpc.Request {
-	args, err := messages.NewBlobsGetArguments(
-		id,
-	)
+func createBlobsGetRequest(t *testing.T, id refs.Blob, size, max *blobs.Size) *transportrpc.Request {
+	args, err := messages.NewBlobsGetArguments(id, size, max)
 	require.NoError(t, err)
 
 	argsBytes, err := args.MarshalJSON()
@@ -151,4 +239,8 @@ func (r *readCloserTrackingCloses) Read(p []byte) (n int, err error) {
 func (r *readCloserTrackingCloses) Close() error {
 	delete(r.m, r)
 	return nil
+}
+
+func sizePtr(s blobs.Size) *blobs.Size {
+	return &s
 }

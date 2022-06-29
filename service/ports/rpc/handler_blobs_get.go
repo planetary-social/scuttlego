@@ -48,6 +48,14 @@ func (h HandlerBlobsGet) Handle(ctx context.Context, w mux.ResponseWriter, req *
 		Id: args.Id(),
 	}
 
+	if size, ok := args.Size(); ok {
+		query.Size = &size
+	}
+
+	if max, ok := args.Max(); ok {
+		query.Max = &max
+	}
+
 	rc, err := h.handler.Handle(query)
 	if err != nil {
 		return errors.Wrap(err, "error executing the query")

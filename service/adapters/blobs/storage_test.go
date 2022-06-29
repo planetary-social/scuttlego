@@ -25,7 +25,7 @@ func TestStorage(t *testing.T) {
 	err = storage.Store(id, r)
 	require.NoError(t, err)
 
-	rc, err := storage.GetBlob(id)
+	rc, err := storage.Get(id)
 	require.NoError(t, err)
 	defer rc.Close()
 

@@ -84,9 +84,18 @@ func (f FilesystemStorage) Store(id refs.Blob, r io.Reader) error {
 	return nil
 }
 
-func (f FilesystemStorage) GetBlob(id refs.Blob) (io.ReadCloser, error) {
+func (f FilesystemStorage) Get(id refs.Blob) (io.ReadCloser, error) {
 	name := f.pathStorage(id)
 	return os.Open(name)
+}
+
+func (f FilesystemStorage) Size(id refs.Blob) (blobs.Size, error) {
+	name := f.pathStorage(id)
+	fi, err := os.Stat(name)
+	if err != nil {
+		return blobs.Size{}, errors.Wrap(err, "stat failed")
+	}
+	return blobs.NewSize(fi.Size())
 }
 
 func (f FilesystemStorage) createStorage() error {

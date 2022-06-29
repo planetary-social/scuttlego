@@ -6,6 +6,7 @@ import (
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/di"
 	"github.com/planetary-social/go-ssb/fixtures"
+	"github.com/planetary-social/go-ssb/internal"
 	"github.com/planetary-social/go-ssb/service/app/queries"
 	"github.com/planetary-social/go-ssb/service/domain/blobs"
 	"github.com/stretchr/testify/require"
@@ -33,7 +34,7 @@ func TestGetBlob(t *testing.T) {
 			Name: "id_and_correct_size",
 			Query: queries.GetBlob{
 				Id:   id,
-				Size: sizePtr(blobs.MustNewSize(int64(len(data)))),
+				Size: internal.Ptr(blobs.MustNewSize(int64(len(data)))),
 				Max:  nil,
 			},
 			ExpectedError: nil,
@@ -42,7 +43,7 @@ func TestGetBlob(t *testing.T) {
 			Name: "id_and_incorrect_size",
 			Query: queries.GetBlob{
 				Id:   id,
-				Size: sizePtr(blobs.MustNewSize(10)),
+				Size: internal.Ptr(blobs.MustNewSize(10)),
 				Max:  nil,
 			},
 			ExpectedError: errors.New("blob size doesn't match the provided size"),
@@ -52,7 +53,7 @@ func TestGetBlob(t *testing.T) {
 			Query: queries.GetBlob{
 				Id:   id,
 				Size: nil,
-				Max:  sizePtr(blobs.MustNewSize(int64(len(data)) + 1)),
+				Max:  internal.Ptr(blobs.MustNewSize(int64(len(data)) + 1)),
 			},
 			ExpectedError: nil,
 		},
@@ -61,7 +62,7 @@ func TestGetBlob(t *testing.T) {
 			Query: queries.GetBlob{
 				Id:   id,
 				Size: nil,
-				Max:  sizePtr(blobs.MustNewSize(int64(len(data)))),
+				Max:  internal.Ptr(blobs.MustNewSize(int64(len(data)))),
 			},
 			ExpectedError: nil,
 		},
@@ -70,7 +71,7 @@ func TestGetBlob(t *testing.T) {
 			Query: queries.GetBlob{
 				Id:   id,
 				Size: nil,
-				Max:  sizePtr(blobs.MustNewSize(int64(len(data)) - 1)),
+				Max:  internal.Ptr(blobs.MustNewSize(int64(len(data)) - 1)),
 			},
 			ExpectedError: errors.New("blob is larger than the provided max size"),
 		},
@@ -78,8 +79,8 @@ func TestGetBlob(t *testing.T) {
 			Name: "size_wins_over_max",
 			Query: queries.GetBlob{
 				Id:   id,
-				Size: sizePtr(blobs.MustNewSize(1)),
-				Max:  sizePtr(blobs.MustNewSize(1)),
+				Size: internal.Ptr(blobs.MustNewSize(1)),
+				Max:  internal.Ptr(blobs.MustNewSize(1)),
 			},
 			ExpectedError: errors.New("blob size doesn't match the provided size"),
 		},
@@ -102,8 +103,4 @@ func TestGetBlob(t *testing.T) {
 			}
 		})
 	}
-}
-
-func sizePtr(s blobs.Size) *blobs.Size {
-	return &s
 }

@@ -3,6 +3,7 @@ package messages_test
 import (
 	"testing"
 
+	"github.com/planetary-social/go-ssb/internal"
 	"github.com/planetary-social/go-ssb/service/domain/blobs"
 	"github.com/planetary-social/go-ssb/service/domain/messages"
 	"github.com/planetary-social/go-ssb/service/domain/refs"
@@ -32,7 +33,7 @@ func TestNewBlobsMarshal(t *testing.T) {
 			Name: "hash_and_size",
 
 			Hash: refs.MustNewBlob("&uaGieSQDJcHfUp6hjIcIq55GoZh4Ug7tNmgaohoxrpw=.sha256"),
-			Size: sizePtr(blobs.MustNewSize(123)),
+			Size: internal.Ptr(blobs.MustNewSize(123)),
 			Max:  nil,
 
 			ExpectedJSON: `[{"hash":"\u0026uaGieSQDJcHfUp6hjIcIq55GoZh4Ug7tNmgaohoxrpw=.sha256","size":123}]`,
@@ -42,7 +43,7 @@ func TestNewBlobsMarshal(t *testing.T) {
 
 			Hash: refs.MustNewBlob("&uaGieSQDJcHfUp6hjIcIq55GoZh4Ug7tNmgaohoxrpw=.sha256"),
 			Size: nil,
-			Max:  sizePtr(blobs.MustNewSize(123)),
+			Max:  internal.Ptr(blobs.MustNewSize(123)),
 
 			ExpectedJSON: `[{"hash":"\u0026uaGieSQDJcHfUp6hjIcIq55GoZh4Ug7tNmgaohoxrpw=.sha256","max":123}]`,
 		},
@@ -50,8 +51,8 @@ func TestNewBlobsMarshal(t *testing.T) {
 			Name: "hash_and_size_and_max",
 
 			Hash: refs.MustNewBlob("&uaGieSQDJcHfUp6hjIcIq55GoZh4Ug7tNmgaohoxrpw=.sha256"),
-			Size: sizePtr(blobs.MustNewSize(123)),
-			Max:  sizePtr(blobs.MustNewSize(456)),
+			Size: internal.Ptr(blobs.MustNewSize(123)),
+			Max:  internal.Ptr(blobs.MustNewSize(456)),
 
 			ExpectedJSON: `[{"hash":"\u0026uaGieSQDJcHfUp6hjIcIq55GoZh4Ug7tNmgaohoxrpw=.sha256","size":123,"max":456}]`,
 		},
@@ -78,20 +79,66 @@ func TestNewBlobsGetArgumentsFromBytesString(t *testing.T) {
 }
 
 func TestNewBlobsGetArgumentsFromBytesObject(t *testing.T) {
-	args, err := messages.NewBlobsGetArgumentsFromBytes([]byte(`[{"hash": "&uaGieSQDJcHfUp6hjIcIq55GoZh4Ug7tNmgaohoxrpw=.sha256", "size": 161699, "max": 200000}]`))
-	require.NoError(t, err)
+	testCases := []struct {
+		Name         string
+		Payload      string
+		ExpectedHash refs.Blob
+		ExpectedSize *blobs.Size
+		ExpectedMax  *blobs.Size
+	}{
+		{
+			Name:         "everything",
+			Payload:      `[{"hash": "&uaGieSQDJcHfUp6hjIcIq55GoZh4Ug7tNmgaohoxrpw=.sha256", "size": 161699, "max": 200000}]`,
+			ExpectedHash: refs.MustNewBlob("&uaGieSQDJcHfUp6hjIcIq55GoZh4Ug7tNmgaohoxrpw=.sha256"),
+			ExpectedSize: internal.Ptr(blobs.MustNewSize(161699)),
+			ExpectedMax:  internal.Ptr(blobs.MustNewSize(200000)),
+		},
+		{
+			Name:         "nil_size",
+			Payload:      `[{"hash": "&uaGieSQDJcHfUp6hjIcIq55GoZh4Ug7tNmgaohoxrpw=.sha256", "max": 200000}]`,
+			ExpectedHash: refs.MustNewBlob("&uaGieSQDJcHfUp6hjIcIq55GoZh4Ug7tNmgaohoxrpw=.sha256"),
+			ExpectedSize: nil,
+			ExpectedMax:  internal.Ptr(blobs.MustNewSize(200000)),
+		},
+		{
+			Name:         "nil_size_nil_max",
+			Payload:      `[{"hash": "&uaGieSQDJcHfUp6hjIcIq55GoZh4Ug7tNmgaohoxrpw=.sha256"}]`,
+			ExpectedHash: refs.MustNewBlob("&uaGieSQDJcHfUp6hjIcIq55GoZh4Ug7tNmgaohoxrpw=.sha256"),
+			ExpectedSize: nil,
+			ExpectedMax:  nil,
+		},
+		{
+			Name:         "nil_max",
+			Payload:      `[{"hash": "&uaGieSQDJcHfUp6hjIcIq55GoZh4Ug7tNmgaohoxrpw=.sha256", "size": 161699}]`,
+			ExpectedHash: refs.MustNewBlob("&uaGieSQDJcHfUp6hjIcIq55GoZh4Ug7tNmgaohoxrpw=.sha256"),
+			ExpectedSize: internal.Ptr(blobs.MustNewSize(161699)),
+			ExpectedMax:  nil,
+		},
+	}
 
-	require.Equal(t, "&uaGieSQDJcHfUp6hjIcIq55GoZh4Ug7tNmgaohoxrpw=.sha256", args.Hash().String())
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			args, err := messages.NewBlobsGetArgumentsFromBytes([]byte(testCase.Payload))
+			require.NoError(t, err)
 
-	size, ok := args.Size()
-	require.True(t, ok)
-	require.Equal(t, blobs.MustNewSize(161699), size)
+			require.Equal(t, testCase.ExpectedHash, args.Hash())
 
-	max, ok := args.Max()
-	require.True(t, ok)
-	require.Equal(t, blobs.MustNewSize(200000), max)
-}
+			size, ok := args.Size()
+			if testCase.ExpectedSize != nil {
+				require.True(t, ok)
+				require.Equal(t, *testCase.ExpectedSize, size)
+			} else {
+				require.False(t, ok)
+			}
 
-func sizePtr(s blobs.Size) *blobs.Size {
-	return &s
+			max, ok := args.Max()
+			if testCase.ExpectedMax != nil {
+				require.True(t, ok)
+				require.Equal(t, *testCase.ExpectedMax, max)
+			} else {
+				require.False(t, ok)
+			}
+		})
+	}
+
 }

@@ -8,6 +8,7 @@ import (
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/fixtures"
+	"github.com/planetary-social/go-ssb/internal"
 	"github.com/planetary-social/go-ssb/service/app/queries"
 	"github.com/planetary-social/go-ssb/service/domain/blobs"
 	"github.com/planetary-social/go-ssb/service/domain/messages"
@@ -47,12 +48,12 @@ func TestArgumentsArePassedToQuery(t *testing.T) {
 			Name: "hash_and_size",
 
 			Hash: hash,
-			Size: sizePtr(blobs.MustNewSize(int64(len(data)))),
+			Size: internal.Ptr(blobs.MustNewSize(int64(len(data)))),
 			Max:  nil,
 
 			ExpectedQuery: queries.GetBlob{
 				Id:   hash,
-				Size: sizePtr(blobs.MustNewSize(int64(len(data)))),
+				Size: internal.Ptr(blobs.MustNewSize(int64(len(data)))),
 				Max:  nil,
 			},
 		},
@@ -61,25 +62,25 @@ func TestArgumentsArePassedToQuery(t *testing.T) {
 
 			Hash: hash,
 			Size: nil,
-			Max:  sizePtr(blobs.MustNewSize(int64(len(data)))),
+			Max:  internal.Ptr(blobs.MustNewSize(int64(len(data)))),
 
 			ExpectedQuery: queries.GetBlob{
 				Id:   hash,
 				Size: nil,
-				Max:  sizePtr(blobs.MustNewSize(int64(len(data)))),
+				Max:  internal.Ptr(blobs.MustNewSize(int64(len(data)))),
 			},
 		},
 		{
 			Name: "hash_and_size_and_max",
 
 			Hash: hash,
-			Size: sizePtr(blobs.MustNewSize(int64(len(data)))),
-			Max:  sizePtr(blobs.MustNewSize(int64(len(data)))),
+			Size: internal.Ptr(blobs.MustNewSize(int64(len(data)))),
+			Max:  internal.Ptr(blobs.MustNewSize(int64(len(data)))),
 
 			ExpectedQuery: queries.GetBlob{
 				Id:   hash,
-				Size: sizePtr(blobs.MustNewSize(int64(len(data)))),
-				Max:  sizePtr(blobs.MustNewSize(int64(len(data)))),
+				Size: internal.Ptr(blobs.MustNewSize(int64(len(data)))),
+				Max:  internal.Ptr(blobs.MustNewSize(int64(len(data)))),
 			},
 		},
 	}
@@ -246,8 +247,4 @@ func (r *readCloserTrackingCloses) Read(p []byte) (n int, err error) {
 func (r *readCloserTrackingCloses) Close() error {
 	r.onClose(r)
 	return nil
-}
-
-func sizePtr(s blobs.Size) *blobs.Size {
-	return &s
 }

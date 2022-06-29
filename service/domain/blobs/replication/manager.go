@@ -2,6 +2,7 @@ package replication
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/boreq/errors"
@@ -22,16 +23,18 @@ type Downloader interface {
 }
 
 type Manager struct {
-	storage    WantListStorage
-	downloader Downloader
-	logger     logging.Logger
+	storage           WantListStorage
+	downloader        Downloader
+	connectionStreams *connectionStreams
+	logger            logging.Logger
 }
 
 func NewManager(storage WantListStorage, downloader Downloader, logger logging.Logger) *Manager {
 	return &Manager{
-		storage:    storage,
-		downloader: downloader,
-		logger:     logger.New("replication_manager"),
+		storage:           storage,
+		downloader:        downloader,
+		connectionStreams: newConnectionStreams(),
+		logger:            logger.New("replication_manager"),
 	}
 }
 
@@ -43,6 +46,7 @@ func (r *Manager) HandleIncomingCreateWantsRequest(ctx context.Context) (<-chan 
 	r.logger.WithField("connectionId", connectionId).Debug("incoming create wants")
 
 	ch := make(chan messages.BlobWithSizeOrWantDistance)
+	r.connectionStreams.AddIncoming(connectionId, newIncomingStream(ctx, ch))
 	go r.sendWantListPeriodically(ctx, ch)
 	return ch, nil
 }
@@ -116,4 +120,53 @@ func (r *Manager) sendWantListPeriodically(ctx context.Context, ch chan<- messag
 			continue
 		}
 	}
+}
+
+type connectionStreams struct {
+	m    map[rpc.ConnectionId]*streams
+	lock sync.Mutex
+}
+
+func newConnectionStreams() *connectionStreams {
+	return &connectionStreams{
+		m: make(map[rpc.ConnectionId]*streams),
+	}
+}
+
+func (cs *connectionStreams) AddIncoming(id rpc.ConnectionId, stream incomingStream) {
+	cs.lock.Lock()
+	defer cs.lock.Unlock()
+
+	streams, ok := cs.m[id]
+	if !ok {
+		streams = newStreams()
+		cs.m[id] = streams
+	}
+
+	streams.AddIncoming(stream)
+}
+
+type streams struct {
+	lock     sync.Mutex
+	incoming []incomingStream
+}
+
+func newStreams() *streams {
+	return &streams{}
+}
+
+func (s *streams) AddIncoming(stream incomingStream) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	s.incoming = append(s.incoming, stream)
+}
+
+type incomingStream struct {
+	ctx context.Context
+	ch  <-chan messages.BlobWithSizeOrWantDistance
+}
+
+func newIncomingStream(ctx context.Context, ch <-chan messages.BlobWithSizeOrWantDistance) incomingStream {
+	return incomingStream{ctx: ctx, ch: ch}
 }

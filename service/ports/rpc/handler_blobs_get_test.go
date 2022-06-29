@@ -188,7 +188,13 @@ func (h *getBlobQueryHandlerMock) Handle(query queries.GetBlob) (io.ReadCloser, 
 	if !ok {
 		return nil, errors.New("blob not found")
 	}
-	return newReadCloserTrackingCloses(bytes.NewBuffer(data), h.openReadClosers), nil
+	rc := newReadCloserTrackingCloses(bytes.NewBuffer(data), h.onReadCloserClose)
+	h.openReadClosers[rc] = struct{}{}
+	return rc, nil
+}
+
+func (h *getBlobQueryHandlerMock) onReadCloserClose(rc *readCloserTrackingCloses) {
+	delete(h.openReadClosers, rc)
 }
 
 func (h getBlobQueryHandlerMock) MockBlob(id refs.Blob, data []byte) {
@@ -218,17 +224,18 @@ func createBlobsGetRequest(t *testing.T, id refs.Blob, size, max *blobs.Size) *t
 	return req
 }
 
+type onCloseFn func(*readCloserTrackingCloses)
+
 type readCloserTrackingCloses struct {
-	reader io.Reader
-	m      map[*readCloserTrackingCloses]struct{}
+	reader  io.Reader
+	onClose onCloseFn
 }
 
-func newReadCloserTrackingCloses(reader io.Reader, m map[*readCloserTrackingCloses]struct{}) *readCloserTrackingCloses {
+func newReadCloserTrackingCloses(reader io.Reader, onClose onCloseFn) *readCloserTrackingCloses {
 	rc := &readCloserTrackingCloses{
-		reader: reader,
-		m:      m,
+		reader:  reader,
+		onClose: onClose,
 	}
-	m[rc] = struct{}{}
 	return rc
 }
 
@@ -237,7 +244,7 @@ func (r *readCloserTrackingCloses) Read(p []byte) (n int, err error) {
 }
 
 func (r *readCloserTrackingCloses) Close() error {
-	delete(r.m, r)
+	r.onClose(r)
 	return nil
 }
 

@@ -20,8 +20,11 @@ type BlobSizeRepository interface {
 }
 
 type WantsProcess struct {
-	lock     sync.Mutex
-	incoming []incomingStream
+	incomingLock sync.Mutex
+	incoming     []incomingStream
+
+	remoteWantsLock sync.Mutex
+	remoteWants     map[string]struct{}
 
 	wantListStorage WantListStorage
 	blobStorage     BlobSizeRepository
@@ -36,6 +39,8 @@ func NewWantsProcess(
 	logger logging.Logger,
 ) *WantsProcess {
 	return &WantsProcess{
+		remoteWants: make(map[string]struct{}),
+
 		wantListStorage: wantListStorage,
 		blobStorage:     blobStorage,
 		downloader:      downloader,
@@ -46,8 +51,8 @@ func NewWantsProcess(
 func (p *WantsProcess) AddIncoming(ctx context.Context, ch chan<- messages.BlobWithSizeOrWantDistance) {
 	p.logger.Debug("adding incoming")
 
-	p.lock.Lock()
-	defer p.lock.Unlock()
+	p.incomingLock.Lock()
+	defer p.incomingLock.Unlock()
 
 	stream := newIncomingStream(ctx, ch)
 	p.incoming = append(p.incoming, stream)
@@ -62,6 +67,10 @@ func (p *WantsProcess) AddOutgoing(ctx context.Context, ch <-chan messages.BlobW
 func (p *WantsProcess) incomingLoop(stream incomingStream) {
 	defer close(stream.ch)
 	// todo cleanup?
+
+	if err := p.respondToPreviousWants(); err != nil {
+		p.logger.WithError(err).Error("failed to respond to previous wants")
+	}
 
 	for {
 		wl, err := p.wantListStorage.GetWantList()
@@ -123,6 +132,33 @@ func (p *WantsProcess) outgoingLoop(ctx context.Context, ch <-chan messages.Blob
 }
 
 func (p *WantsProcess) onReceiveWant(id refs.Blob) error {
+	p.addRemoteWants(id)
+	if err := p.respondToWant(id); err != nil {
+		return errors.Wrap(err, "could not respond to want")
+	}
+	return nil
+}
+
+func (p *WantsProcess) addRemoteWants(id refs.Blob) {
+	p.remoteWantsLock.Lock()
+	defer p.remoteWantsLock.Unlock()
+	p.remoteWants[id.String()] = struct{}{}
+}
+
+func (p *WantsProcess) respondToPreviousWants() error {
+	p.remoteWantsLock.Lock()
+	defer p.remoteWantsLock.Unlock()
+
+	for refString := range p.remoteWants {
+		if err := p.respondToWant(refs.MustNewBlob(refString)); err != nil {
+			return errors.Wrap(err, "failed to respond to a want")
+		}
+	}
+
+	return nil
+}
+
+func (p *WantsProcess) respondToWant(id refs.Blob) error {
 	size, err := p.blobStorage.Size(id)
 	if err != nil {
 		if errors.Is(err, ErrBlobNotFound) {
@@ -137,13 +173,13 @@ func (p *WantsProcess) onReceiveWant(id refs.Blob) error {
 		return errors.Wrap(err, "could not create a has")
 	}
 
-	p.sendToAll(has)
+	p.sendToAllIncomingStreams(has)
 	return nil
 }
 
-func (p *WantsProcess) sendToAll(wantOrHas messages.BlobWithSizeOrWantDistance) {
-	p.lock.Lock()
-	defer p.lock.Unlock()
+func (p *WantsProcess) sendToAllIncomingStreams(wantOrHas messages.BlobWithSizeOrWantDistance) {
+	p.incomingLock.Lock()
+	defer p.incomingLock.Unlock()
 
 	p.logger.
 		WithField("v", wantOrHas).
@@ -151,7 +187,11 @@ func (p *WantsProcess) sendToAll(wantOrHas messages.BlobWithSizeOrWantDistance) 
 		Debug("sending want or has")
 
 	for _, incoming := range p.incoming {
-		incoming.ch <- wantOrHas // todo what if this is slow
+		select {
+		case incoming.ch <- wantOrHas: // todo what if this is slow
+		case <-incoming.ctx.Done():
+			continue
+		}
 	}
 }
 

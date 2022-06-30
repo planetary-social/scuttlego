@@ -47,6 +47,34 @@ func TestRepliesToWantsWithHas(t *testing.T) {
 	}
 }
 
+func TestRepliesToWantsWithHasIfIncomingChannelConnectedLater(t *testing.T) {
+	p := newTestWantsProcess()
+
+	ctx := fixtures.TestContext(t)
+	outgoingCh := make(chan messages.BlobWithSizeOrWantDistance)
+	peer := transport.NewPeer(fixtures.SomePublicIdentity(), nil)
+	p.WantsProcess.AddOutgoing(ctx, outgoingCh, peer)
+
+	blobId := fixtures.SomeRefBlob()
+	p.BlobStorage.MockBlob(blobId, fixtures.SomeBytes())
+
+	select {
+	case outgoingCh <- messages.MustNewBlobWithWantDistance(blobId, blobs.NewWantDistanceLocal()):
+	case <-ctx.Done():
+		panic("context done")
+	}
+
+	incomingCh := make(chan messages.BlobWithSizeOrWantDistance)
+	p.WantsProcess.AddIncoming(ctx, incomingCh)
+
+	select {
+	case sent := <-incomingCh:
+		require.Equal(t, blobId, sent.Id())
+	case <-time.After(1 * time.Second):
+		t.Fatal("timeout")
+	}
+}
+
 func TestPassesHasToDownloader(t *testing.T) {
 	p := newTestWantsProcess()
 

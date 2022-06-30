@@ -7,24 +7,31 @@ import (
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/logging"
+	"github.com/planetary-social/go-ssb/service/domain/blobs"
 	"github.com/planetary-social/go-ssb/service/domain/messages"
 	"github.com/planetary-social/go-ssb/service/domain/refs"
 	"github.com/planetary-social/go-ssb/service/domain/transport"
 )
 
+type BlobSizeRepository interface {
+	// Size returns the size of the blob. If the blob is not found it returns
+	// ErrBlobNotFound.
+	Size(id refs.Blob) (blobs.Size, error)
+}
+
 type WantsProcess struct {
 	lock     sync.Mutex
-	incoming []IncomingStream
+	incoming []incomingStream
 
 	wantListStorage WantListStorage
-	blobStorage     BlobStorage
+	blobStorage     BlobSizeRepository
 	downloader      Downloader
 	logger          logging.Logger
 }
 
 func NewWantsProcess(
 	wantListStorage WantListStorage,
-	blobStorage BlobStorage,
+	blobStorage BlobSizeRepository,
 	downloader Downloader,
 	logger logging.Logger,
 ) *WantsProcess {
@@ -36,12 +43,13 @@ func NewWantsProcess(
 	}
 }
 
-func (p *WantsProcess) AddIncoming(stream IncomingStream) {
+func (p *WantsProcess) AddIncoming(ctx context.Context, ch chan<- messages.BlobWithSizeOrWantDistance) {
 	p.logger.Debug("adding incoming")
 
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
+	stream := newIncomingStream(ctx, ch)
 	p.incoming = append(p.incoming, stream)
 	go p.incomingLoop(stream)
 }
@@ -51,7 +59,7 @@ func (p *WantsProcess) AddOutgoing(ctx context.Context, ch <-chan messages.BlobW
 	go p.outgoingLoop(ctx, ch, peer)
 }
 
-func (p *WantsProcess) incomingLoop(stream IncomingStream) {
+func (p *WantsProcess) incomingLoop(stream incomingStream) {
 	defer close(stream.ch)
 	// todo cleanup?
 
@@ -94,6 +102,7 @@ func (p *WantsProcess) outgoingLoop(ctx context.Context, ch <-chan messages.Blob
 
 		if size, ok := hasOrWant.SizeOrWantDistance().Size(); ok {
 			logger.WithField("size", size.InBytes()).Debug("received has")
+
 			go p.downloader.OnHasReceived(ctx, peer, hasOrWant.Id(), size)
 			continue
 		}
@@ -104,7 +113,6 @@ func (p *WantsProcess) outgoingLoop(ctx context.Context, ch <-chan messages.Blob
 			if err := p.onReceiveWant(hasOrWant.Id()); err != nil {
 				logger.WithError(err).Error("error processing a want")
 			}
-
 			continue
 		}
 
@@ -147,13 +155,13 @@ func (p *WantsProcess) sendToAll(wantOrHas messages.BlobWithSizeOrWantDistance) 
 	}
 }
 
-type IncomingStream struct {
+type incomingStream struct {
 	ctx context.Context
 	ch  chan<- messages.BlobWithSizeOrWantDistance
 }
 
-func NewIncomingStream(ctx context.Context, ch chan<- messages.BlobWithSizeOrWantDistance) IncomingStream {
-	return IncomingStream{
+func newIncomingStream(ctx context.Context, ch chan<- messages.BlobWithSizeOrWantDistance) incomingStream {
+	return incomingStream{
 		ctx: ctx,
 		ch:  ch,
 	}

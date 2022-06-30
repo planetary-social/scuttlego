@@ -131,6 +131,14 @@ func NewBlobWithWantDistance(id refs.Blob, wantDistance blobs.WantDistance) (Blo
 	return NewBlobWithSizeOrWantDistance(id, v)
 }
 
+func MustNewBlobWithWantDistance(id refs.Blob, wantDistance blobs.WantDistance) BlobWithSizeOrWantDistance {
+	v, err := NewBlobWithWantDistance(id, wantDistance)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
 func NewBlobWithSize(id refs.Blob, size blobs.Size) (BlobWithSizeOrWantDistance, error) {
 	v, err := blobs.NewSizeOrWantDistanceContainingSize(size)
 	if err != nil {
@@ -138,6 +146,14 @@ func NewBlobWithSize(id refs.Blob, size blobs.Size) (BlobWithSizeOrWantDistance,
 	}
 
 	return NewBlobWithSizeOrWantDistance(id, v)
+}
+
+func MustNewBlobWithSize(id refs.Blob, size blobs.Size) BlobWithSizeOrWantDistance {
+	v, err := NewBlobWithSize(id, size)
+	if err != nil {
+		panic(err)
+	}
+	return v
 }
 
 func (b BlobWithSizeOrWantDistance) Id() refs.Blob {

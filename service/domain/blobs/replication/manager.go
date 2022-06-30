@@ -13,7 +13,7 @@ import (
 
 type Manager struct {
 	wantListStorage WantListStorage
-	blobStorage     BlobStorage
+	blobStorage     BlobSizeRepository
 	downloader      Downloader
 	logger          logging.Logger
 
@@ -23,7 +23,7 @@ type Manager struct {
 
 func NewManager(
 	wantListStorage WantListStorage,
-	blobStorage BlobStorage,
+	blobStorage BlobSizeRepository,
 	downloader Downloader,
 	logger logging.Logger,
 ) *Manager {
@@ -46,7 +46,7 @@ func (m *Manager) HandleIncomingCreateWantsRequest(ctx context.Context) (<-chan 
 	defer m.lock.Unlock()
 
 	ch := make(chan messages.BlobWithSizeOrWantDistance)
-	m.getOrCreateProcess(connectionId).AddIncoming(NewIncomingStream(ctx, ch))
+	m.getOrCreateProcess(connectionId).AddIncoming(ctx, ch)
 	return ch, nil
 }
 

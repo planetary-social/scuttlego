@@ -22,7 +22,9 @@ var ErrBlobNotFound = errors.New("blob not found")
 
 type BlobStorage interface {
 	Store(id refs.Blob, r io.Reader) error
+}
 
+type BlobSizeRepository interface {
 	// Size returns the size of the blob. If the blob is not found it returns
 	// ErrBlobNotFound.
 	Size(id refs.Blob) (blobs.Size, error)

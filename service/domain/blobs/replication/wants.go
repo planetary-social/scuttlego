@@ -7,17 +7,10 @@ import (
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/logging"
-	"github.com/planetary-social/go-ssb/service/domain/blobs"
 	"github.com/planetary-social/go-ssb/service/domain/messages"
 	"github.com/planetary-social/go-ssb/service/domain/refs"
 	"github.com/planetary-social/go-ssb/service/domain/transport"
 )
-
-type BlobSizeRepository interface {
-	// Size returns the size of the blob. If the blob is not found it returns
-	// ErrBlobNotFound.
-	Size(id refs.Blob) (blobs.Size, error)
-}
 
 type WantsProcess struct {
 	incomingLock sync.Mutex

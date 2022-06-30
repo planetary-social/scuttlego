@@ -35,7 +35,7 @@ func TestRepliesToWantsWithHas(t *testing.T) {
 		case outgoingCh <- messages.MustNewBlobWithWantDistance(blobId, blobs.NewWantDistanceLocal()):
 			return
 		case <-ctx.Done():
-			t.Fatal("context done")
+			panic("context done")
 		}
 	}()
 

@@ -28,7 +28,7 @@ func TestStorage(t *testing.T) {
 
 	size, err := storage.Size(id)
 	require.NoError(t, err)
-	require.Equal(t, len(data), size.InBytes())
+	require.EqualValues(t, len(data), size.InBytes())
 
 	rc, err := storage.Get(id)
 	require.NoError(t, err)

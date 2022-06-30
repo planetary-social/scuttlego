@@ -4,20 +4,23 @@ import (
 	"context"
 
 	"github.com/boreq/errors"
-	"github.com/planetary-social/go-ssb/service/app"
 	"github.com/planetary-social/go-ssb/service/app/commands"
 	"github.com/planetary-social/go-ssb/service/domain/messages"
 	"github.com/planetary-social/go-ssb/service/domain/transport/rpc"
 	"github.com/planetary-social/go-ssb/service/domain/transport/rpc/mux"
 )
 
-type HandlerBlobsCreateWants struct {
-	app app.Application
+type CreateWantsCommandHandler interface {
+	Handle(ctx context.Context, cmd commands.CreateWants) (<-chan messages.BlobWithSizeOrWantDistance, error)
 }
 
-func NewHandlerBlobsCreateWants(app app.Application) *HandlerBlobsCreateWants {
+type HandlerBlobsCreateWants struct {
+	handler CreateWantsCommandHandler
+}
+
+func NewHandlerBlobsCreateWants(handler CreateWantsCommandHandler) *HandlerBlobsCreateWants {
 	return &HandlerBlobsCreateWants{
-		app: app,
+		handler: handler,
 	}
 }
 
@@ -31,7 +34,7 @@ func (h HandlerBlobsCreateWants) Handle(ctx context.Context, w mux.ResponseWrite
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	ch, err := h.app.Commands.CreateWants.Handle(ctx, cmd)
+	ch, err := h.handler.Handle(ctx, cmd)
 	if err != nil {
 		return errors.Wrap(err, "could not execute the create wants command")
 	}

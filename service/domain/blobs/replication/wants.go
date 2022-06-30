@@ -56,7 +56,16 @@ func (p *WantsProcess) AddIncoming(ctx context.Context, ch chan<- messages.BlobW
 
 	stream := newIncomingStream(ctx, ch)
 	p.incoming = append(p.incoming, stream)
-	go p.incomingLoop(stream)
+
+	go func() {
+		defer close(ch)
+		defer func() {
+			if err := p.cleanupIncomingStream(stream); err != nil {
+				p.logger.WithError(err).Error("could not clean up a stream")
+			}
+		}()
+		p.incomingLoop(stream.ctx, stream.ch)
+	}()
 }
 
 func (p *WantsProcess) AddOutgoing(ctx context.Context, ch <-chan messages.BlobWithSizeOrWantDistance, peer transport.Peer) {
@@ -64,10 +73,7 @@ func (p *WantsProcess) AddOutgoing(ctx context.Context, ch <-chan messages.BlobW
 	go p.outgoingLoop(ctx, ch, peer)
 }
 
-func (p *WantsProcess) incomingLoop(stream incomingStream) {
-	defer close(stream.ch)
-	// todo cleanup?
-
+func (p *WantsProcess) incomingLoop(ctx context.Context, ch chan<- messages.BlobWithSizeOrWantDistance) {
 	if err := p.respondToPreviousWants(); err != nil {
 		p.logger.WithError(err).Error("failed to respond to previous wants")
 	}
@@ -89,20 +95,33 @@ func (p *WantsProcess) incomingLoop(stream incomingStream) {
 			p.logger.WithField("blob", v.Id()).Debug("sending wants")
 
 			select {
-			case stream.ch <- v:
+			case ch <- v:
 				continue
-			case <-stream.ctx.Done():
+			case <-ctx.Done():
 				return
 			}
 		}
 
 		select {
-		case <-stream.ctx.Done():
-			return
 		case <-time.After(10 * time.Second): // todo change
 			continue
+		case <-ctx.Done():
+			return
 		}
 	}
+}
+
+func (p *WantsProcess) cleanupIncomingStream(stream incomingStream) error {
+	p.incomingLock.Lock()
+	defer p.incomingLock.Unlock()
+
+	for i := range p.incoming {
+		if p.incoming[i] == stream {
+			p.incoming = append(p.incoming[:i], p.incoming[i+1:]...)
+			return nil
+		}
+	}
+	return errors.New("incoming stream not found")
 }
 
 func (p *WantsProcess) outgoingLoop(ctx context.Context, ch <-chan messages.BlobWithSizeOrWantDistance, peer transport.Peer) {
@@ -127,8 +146,6 @@ func (p *WantsProcess) outgoingLoop(ctx context.Context, ch <-chan messages.Blob
 
 		panic("logic error")
 	}
-
-	// todo channel closed, cleanup?
 }
 
 func (p *WantsProcess) onReceiveWant(id refs.Blob) error {

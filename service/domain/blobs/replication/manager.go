@@ -17,6 +17,7 @@ type Manager struct {
 	downloader      Downloader
 	logger          logging.Logger
 
+	// todo cleanup processes
 	processes map[rpc.ConnectionId]*WantsProcess
 	lock      sync.Mutex // guards processes
 }

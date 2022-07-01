@@ -8,6 +8,7 @@ import (
 
 	"github.com/planetary-social/go-ssb/fixtures"
 	"github.com/planetary-social/go-ssb/logging"
+	"github.com/planetary-social/go-ssb/service/adapters/mocks"
 	"github.com/planetary-social/go-ssb/service/domain/blobs"
 	"github.com/planetary-social/go-ssb/service/domain/blobs/replication"
 	"github.com/planetary-social/go-ssb/service/domain/messages"
@@ -90,11 +91,13 @@ type testManager struct {
 
 func newTestManager(t *testing.T) testManager {
 	wantListStorage := newWantListStorageMock()
+	blobStorage := mocks.NewBlobStorageMock()
 	downloader := newDownloaderMock()
 	logger := logging.NewDevNullLogger()
 
 	manager := replication.NewManager(
 		wantListStorage,
+		blobStorage,
 		downloader,
 		logger,
 	)

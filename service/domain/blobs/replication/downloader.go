@@ -14,10 +14,6 @@ import (
 	"github.com/planetary-social/go-ssb/service/domain/transport/rpc"
 )
 
-type BlobStorage interface {
-	Store(id refs.Blob, r io.Reader) error
-}
-
 type BlobsGetDownloader struct {
 	storage BlobStorage
 	logger  logging.Logger

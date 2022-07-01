@@ -2,6 +2,8 @@ package messages
 
 import (
 	"encoding/json"
+	"fmt"
+	"strings"
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/service/domain/blobs"
@@ -129,6 +131,14 @@ func NewBlobWithWantDistance(id refs.Blob, wantDistance blobs.WantDistance) (Blo
 	return NewBlobWithSizeOrWantDistance(id, v)
 }
 
+func MustNewBlobWithWantDistance(id refs.Blob, wantDistance blobs.WantDistance) BlobWithSizeOrWantDistance {
+	v, err := NewBlobWithWantDistance(id, wantDistance)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
 func NewBlobWithSize(id refs.Blob, size blobs.Size) (BlobWithSizeOrWantDistance, error) {
 	v, err := blobs.NewSizeOrWantDistanceContainingSize(size)
 	if err != nil {
@@ -138,10 +148,30 @@ func NewBlobWithSize(id refs.Blob, size blobs.Size) (BlobWithSizeOrWantDistance,
 	return NewBlobWithSizeOrWantDistance(id, v)
 }
 
+func MustNewBlobWithSize(id refs.Blob, size blobs.Size) BlobWithSizeOrWantDistance {
+	v, err := NewBlobWithSize(id, size)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
 func (b BlobWithSizeOrWantDistance) Id() refs.Blob {
 	return b.id
 }
 
 func (b BlobWithSizeOrWantDistance) SizeOrWantDistance() blobs.SizeOrWantDistance {
 	return b.sizeOrWantDistance
+}
+
+func (b BlobWithSizeOrWantDistance) String() string {
+	var s []string
+	s = append(s, fmt.Sprintf("id=%s", b.id.String()))
+	if distance, ok := b.sizeOrWantDistance.WantDistance(); ok {
+		s = append(s, fmt.Sprintf("distance=%d", distance.Int()))
+	}
+	if size, ok := b.sizeOrWantDistance.Size(); ok {
+		s = append(s, fmt.Sprintf("size=%d", size.InBytes()))
+	}
+	return fmt.Sprintf("<%s>", strings.Join(s, " "))
 }

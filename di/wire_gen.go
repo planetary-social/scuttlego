@@ -248,7 +248,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 		return Service{}, err
 	}
 	blobsGetDownloader := replication2.NewBlobsGetDownloader(filesystemStorage, logger)
-	replicationManager := replication2.NewManager(readWantListRepository, blobsGetDownloader, logger)
+	replicationManager := replication2.NewManager(readWantListRepository, filesystemStorage, blobsGetDownloader, logger)
 	replicator := replication2.NewReplicator(replicationManager)
 	peerManager := domain.NewPeerManager(contextContext, peerManagerConfig, gossipReplicator, replicator, dialer, logger)
 	connectHandler := commands.NewConnectHandler(peerManager, logger)

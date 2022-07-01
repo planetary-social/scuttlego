@@ -76,14 +76,7 @@ func createHistoryStreamRequest(t *testing.T, keys *bool) *transportrpc.Request 
 	)
 	require.NoError(t, err)
 
-	argsBytes, err := args.MarshalJSON()
-	require.NoError(t, err)
-
-	req, err := transportrpc.NewRequest(
-		fixtures.SomeProcedureName(),
-		fixtures.SomeProcedureType(),
-		argsBytes,
-	)
+	req, err := messages.NewCreateHistoryStream(args)
 	require.NoError(t, err)
 
 	return req

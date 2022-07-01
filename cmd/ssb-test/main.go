@@ -19,8 +19,6 @@ import (
 	"github.com/planetary-social/go-ssb/service/domain/feeds/formats"
 	"github.com/planetary-social/go-ssb/service/domain/identity"
 	"github.com/planetary-social/go-ssb/service/domain/invites"
-	"github.com/planetary-social/go-ssb/service/domain/network"
-	"github.com/planetary-social/go-ssb/service/domain/refs"
 	"github.com/planetary-social/go-ssb/service/domain/transport/boxstream"
 	"github.com/sirupsen/logrus"
 )
@@ -33,27 +31,27 @@ func main() {
 }
 
 var (
-	myPatchwork        = refs.MustNewIdentity("@qFtLJ6P5Eh9vKxnj7Rsh8SkE6B6Z36DVLP7ZOKNeQ/Y=.ed25519")
-	myPatchworkConnect = commands.Connect{
-		Remote:  myPatchwork.Identity(),
-		Address: network.NewAddress("127.0.0.1:8008"),
-	}
+//myPatchwork        = refs.MustNewIdentity("@qFtLJ6P5Eh9vKxnj7Rsh8SkE6B6Z36DVLP7ZOKNeQ/Y=.ed25519")
+//myPatchworkConnect = commands.Connect{
+//	Remote:  myPatchwork.Identity(),
+//	Address: network.NewAddress("127.0.0.1:8008"),
+//}
 
-	//localGoSSB        = refs.MustNewIdentity("@ln1Bdt8lEy4/F/szWlFVAIAIdCBKmzH2MNEVad8BWus=.ed25519")
-	//localGoSSBConnect = commands.Connect{
-	//	Remote:  localGoSSB.Identity(),
-	//	Address: network.NewAddress("127.0.0.1:8008"),
-	//}
+//localGoSSB        = refs.MustNewIdentity("@ln1Bdt8lEy4/F/szWlFVAIAIdCBKmzH2MNEVad8BWus=.ed25519")
+//localGoSSBConnect = commands.Connect{
+//	Remote:  localGoSSB.Identity(),
+//	Address: network.NewAddress("127.0.0.1:8008"),
+//}
 
-	mainnetPub = invites.MustNewInviteFromString("one.planetary.pub:8008:@CIlwTOK+m6v1hT2zUVOCJvvZq7KE/65ErN6yA2yrURY=.ed25519~KVvak/aZeQJQUrn1imLIvwU+EVTkCzGW8TJWTmK8lOk=")
+//mainnetPub = invites.MustNewInviteFromString("one.planetary.pub:8008:@CIlwTOK+m6v1hT2zUVOCJvvZq7KE/65ErN6yA2yrURY=.ed25519~KVvak/aZeQJQUrn1imLIvwU+EVTkCzGW8TJWTmK8lOk=")
 
-	//soapdog = refs.MustNewIdentity("@qv10rF4IsmxRZb7g5ekJ33EakYBpdrmV/vtP1ij5BS4=.ed25519")
+//soapdog = refs.MustNewIdentity("@qv10rF4IsmxRZb7g5ekJ33EakYBpdrmV/vtP1ij5BS4=.ed25519")
 
-	//pub         = refs.MustNewIdentity("@CIlwTOK+m6v1hT2zUVOCJvvZq7KE/65ErN6yA2yrURY=.ed25519")
-	//hubConnect = commands2.Connect{
-	//	Remote:  pub.Identity(),
-	//	Address: network2.NewAddress("one.planetary.pub:8008"),
-	//}
+//pub         = refs.MustNewIdentity("@CIlwTOK+m6v1hT2zUVOCJvvZq7KE/65ErN6yA2yrURY=.ed25519")
+//hubConnect = commands2.Connect{
+//	Remote:  pub.Identity(),
+//	Address: network2.NewAddress("one.planetary.pub:8008"),
+//}
 )
 
 var (

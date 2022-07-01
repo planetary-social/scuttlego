@@ -212,14 +212,7 @@ func createBlobsGetRequest(t *testing.T, id refs.Blob, size, max *blobs.Size) *t
 	args, err := messages.NewBlobsGetArguments(id, size, max)
 	require.NoError(t, err)
 
-	argsBytes, err := args.MarshalJSON()
-	require.NoError(t, err)
-
-	req, err := transportrpc.NewRequest(
-		fixtures.SomeProcedureName(),
-		fixtures.SomeProcedureType(),
-		argsBytes,
-	)
+	req, err := messages.NewBlobsGet(args)
 	require.NoError(t, err)
 
 	return req

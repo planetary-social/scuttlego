@@ -304,7 +304,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	connectionEstablisher := network2.NewConnectionEstablisher(application, logger)
 	handlerCreateHistoryStream := rpc2.NewHandlerCreateHistoryStream(createHistoryStreamHandler)
 	handlerBlobsGet := rpc2.NewHandlerBlobsGet(getBlobHandler)
-	handlerBlobsCreateWants := rpc2.NewHandlerBlobsCreateWants(application)
+	handlerBlobsCreateWants := rpc2.NewHandlerBlobsCreateWants(createWantsHandler)
 	v2 := rpc2.NewMuxHandlers(handlerCreateHistoryStream, handlerBlobsGet, handlerBlobsCreateWants)
 	muxMux, err := mux.NewMux(logger, v2)
 	if err != nil {

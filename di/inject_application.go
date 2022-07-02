@@ -27,9 +27,12 @@ var commandsSet = wire.NewSet(
 	commands.NewProcessNewLocalDiscoveryHandler,
 	commands.NewPublishRawHandler,
 	commands.NewEstablishNewConnectionsHandler,
+
 	commands.NewRawMessageHandler,
 	wire.Bind(new(replication.RawMessageHandler), new(*commands.RawMessageHandler)),
+
 	commands.NewCreateWantsHandler,
+	wire.Bind(new(portsrpc.CreateWantsCommandHandler), new(*commands.CreateWantsHandler)),
 )
 
 var queriesSet = wire.NewSet(

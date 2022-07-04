@@ -16,6 +16,7 @@ type BlobStorage interface {
 
 type WantListRepository interface {
 	WantListContains(id refs.Blob) (bool, error)
+	DeleteFromWantList(id refs.Blob) error
 }
 
 type Downloader interface {
@@ -71,11 +72,19 @@ func (d *HasHandler) onHasReceived(ctx context.Context, peer transport.Peer, blo
 	}
 
 	if blobIsInStorage {
+		if err := d.wantList.DeleteFromWantList(blob); err != nil {
+			return errors.Wrap(err, "failed to remove existing blob from want list")
+		}
+
 		return nil
 	}
 
 	if err := d.downloader.Download(ctx, peer, blob); err != nil {
 		return errors.Wrap(err, "download failed")
+	}
+
+	if err := d.wantList.DeleteFromWantList(blob); err != nil {
+		return errors.Wrap(err, "error deleting from want list")
 	}
 
 	return nil

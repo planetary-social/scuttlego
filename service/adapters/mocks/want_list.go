@@ -20,3 +20,16 @@ func (w WantListRepositoryMock) WantListContains(id refs.Blob) (bool, error) {
 func (w WantListRepositoryMock) AddBlob(id refs.Blob) {
 	w.wantList[id.String()] = struct{}{}
 }
+
+func (w WantListRepositoryMock) List() []refs.Blob {
+	var result []refs.Blob
+	for key := range w.wantList {
+		result = append(result, refs.MustNewBlob(key))
+	}
+	return result
+}
+
+func (w WantListRepositoryMock) DeleteFromWantList(id refs.Blob) error {
+	delete(w.wantList, id.String())
+	return nil
+}

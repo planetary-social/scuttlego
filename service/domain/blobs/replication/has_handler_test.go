@@ -17,6 +17,8 @@ import (
 )
 
 func TestHasHandlerTriggersDownloader(t *testing.T) {
+	t.Parallel()
+
 	smallSize := blobs.MustNewSize(10)
 	largeSize := blobs.MustNewSize(blobs.MaxBlobSize().InBytes() + 10)
 
@@ -94,13 +96,37 @@ func TestHasHandlerTriggersDownloader(t *testing.T) {
 						)
 					},
 					1*time.Second, 10*time.Millisecond)
+
+				require.Eventually(t,
+					func() bool {
+						return len(h.WantList.List()) == 0
+					},
+					1*time.Second, 10*time.Millisecond)
 			} else {
 				<-time.After(1 * time.Second)
 				require.Empty(t, h.Downloader.DownloadCalls)
 			}
 		})
 	}
+}
 
+func TestHasHandlerRemovesElementFromWantListIfItIsAlreadyInStorage(t *testing.T) {
+	t.Parallel()
+
+	h := newTestHasHandler()
+
+	ctx := fixtures.TestContext(t)
+	peer := transport.NewPeer(fixtures.SomePublicIdentity(), nil)
+	blob := fixtures.SomeRefBlob()
+
+	h.WantList.AddBlob(blob)
+	h.Storage.MockBlob(blob, fixtures.SomeBytes())
+
+	h.HasHandler.OnHasReceived(ctx, peer, blob, blobs.MustNewSize(10))
+
+	<-time.After(1 * time.Second)
+	require.Empty(t, h.Downloader.DownloadCalls)
+	require.Empty(t, h.WantList.List())
 }
 
 type testHasHandler struct {

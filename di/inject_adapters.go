@@ -28,6 +28,7 @@ var txBoltAdaptersSet = wire.NewSet(
 
 	bolt.NewWantListRepository,
 	wire.Bind(new(commands.WantListRepository), new(*bolt.WantListRepository)),
+	wire.Bind(new(blobReplication.WantListRepository), new(*bolt.WantListRepository)),
 
 	bolt.NewReceiveLogRepository,
 	bolt.NewMessageRepository,

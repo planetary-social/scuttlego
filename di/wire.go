@@ -219,6 +219,9 @@ var blobReplicatorSet = wire.NewSet(
 
 	blobReplication.NewBlobsGetDownloader,
 	wire.Bind(new(blobReplication.Downloader), new(*blobReplication.BlobsGetDownloader)),
+
+	blobReplication.NewHasHandler,
+	wire.Bind(new(blobReplication.HasBlobHandler), new(*blobReplication.HasHandler)),
 )
 
 var requestPubSubSet = wire.NewSet(

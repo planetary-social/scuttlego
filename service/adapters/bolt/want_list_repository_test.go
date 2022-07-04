@@ -102,3 +102,39 @@ func TestWantListRepositoryShorterUntilDoesNotOverwriteShorterUntil(t *testing.T
 	})
 	require.NoError(t, err)
 }
+
+func TestWantListContainsAndDelete(t *testing.T) {
+	db := fixtures.Bolt(t)
+
+	err := db.Update(func(tx *bbolt.Tx) error {
+		txadapters, err := di.BuildTxTestAdapters(tx)
+		require.NoError(t, err)
+
+		until := time.Now()
+		now := until.Add(-fixtures.SomeDuration())
+		txadapters.CurrentTimeProvider.CurrentTime = now
+
+		id := fixtures.SomeRefBlob()
+
+		ok, err := txadapters.WantList.WantListContains(id)
+		require.NoError(t, err)
+		require.False(t, ok)
+
+		err = txadapters.WantList.AddToWantList(id, until)
+		require.NoError(t, err)
+
+		ok, err = txadapters.WantList.WantListContains(id)
+		require.NoError(t, err)
+		require.True(t, ok)
+
+		err = txadapters.WantList.DeleteFromWantList(id)
+		require.NoError(t, err)
+
+		ok, err = txadapters.WantList.WantListContains(id)
+		require.NoError(t, err)
+		require.False(t, ok)
+
+		return nil
+	})
+	require.NoError(t, err)
+}

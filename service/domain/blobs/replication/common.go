@@ -2,7 +2,6 @@ package replication
 
 import (
 	"context"
-	"io"
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/service/domain/blobs"
@@ -10,22 +9,18 @@ import (
 	"github.com/planetary-social/go-ssb/service/domain/transport"
 )
 
-type WantListStorage interface {
-	GetWantList() (blobs.WantList, error)
-}
-
-type Downloader interface {
-	OnHasReceived(ctx context.Context, peer transport.Peer, blob refs.Blob, size blobs.Size)
-}
-
 var ErrBlobNotFound = errors.New("blob not found")
-
-type BlobStorage interface {
-	Store(id refs.Blob, r io.Reader) error
-}
 
 type BlobSizeRepository interface {
 	// Size returns the size of the blob. If the blob is not found it returns
 	// ErrBlobNotFound.
 	Size(id refs.Blob) (blobs.Size, error)
+}
+
+type WantListStorage interface {
+	GetWantList() (blobs.WantList, error)
+}
+
+type HasBlobHandler interface {
+	OnHasReceived(ctx context.Context, peer transport.Peer, blob refs.Blob, size blobs.Size)
 }

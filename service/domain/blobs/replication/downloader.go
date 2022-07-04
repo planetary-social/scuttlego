@@ -4,44 +4,39 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/go-ssb/logging"
-	"github.com/planetary-social/go-ssb/service/domain/blobs"
 	"github.com/planetary-social/go-ssb/service/domain/messages"
 	"github.com/planetary-social/go-ssb/service/domain/refs"
 	"github.com/planetary-social/go-ssb/service/domain/transport"
 	"github.com/planetary-social/go-ssb/service/domain/transport/rpc"
 )
 
+type BlobStorer interface {
+	Store(id refs.Blob, r io.Reader) error
+}
+
 type BlobsGetDownloader struct {
-	storage BlobStorage
-	logger  logging.Logger
+	storer BlobStorer
+	logger logging.Logger
 }
 
-func NewBlobsGetDownloader(storage BlobStorage, logger logging.Logger) *BlobsGetDownloader {
+func NewBlobsGetDownloader(
+	storer BlobStorer,
+	logger logging.Logger,
+) *BlobsGetDownloader {
 	return &BlobsGetDownloader{
-		storage: storage,
-		logger:  logger.New("downloader"),
+		storer: storer,
+		logger: logger.New("downloader"),
 	}
 }
 
-func (d *BlobsGetDownloader) OnHasReceived(ctx context.Context, peer transport.Peer, blob refs.Blob, size blobs.Size) {
-	d.logger.WithField("blob", blob.String()).Debug("has")
+func (d *BlobsGetDownloader) Download(ctx context.Context, peer transport.Peer, blob refs.Blob) error {
+	ctx, cancel := context.WithTimeout(ctx, 1*time.Minute)
+	defer cancel()
 
-	if size.Above(blobs.MaxBlobSize()) {
-		d.logger.WithField("size", size).Debug("blob too large")
-		return
-	}
-
-	// todo pre check if we want this blob
-
-	if err := d.download(ctx, peer, blob); err != nil {
-		d.logger.WithError(err).Error("failed to download a blob")
-	}
-}
-
-func (d *BlobsGetDownloader) download(ctx context.Context, peer transport.Peer, blob refs.Blob) error {
 	arguments, err := messages.NewBlobsGetArguments(blob, nil, nil)
 	if err != nil {
 		return errors.Wrap(err, "could not create a request")
@@ -95,7 +90,7 @@ func (d *BlobsGetDownloader) copyBlobContent(pipeWriter *io.PipeWriter, rs *rpc.
 }
 
 func (d *BlobsGetDownloader) storeBlob(id refs.Blob, r io.ReadCloser) {
-	err := d.storage.Store(id, r)
+	err := d.storer.Store(id, r)
 	if err != nil {
 		d.logger.WithError(err).Error("failed to save a blob")
 	}

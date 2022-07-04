@@ -37,6 +37,9 @@ type TxTestAdapters struct {
 	MessageRepository *bolt.MessageRepository
 	FeedRepository    *bolt.FeedRepository
 	ReceiveLog        *bolt.ReceiveLogRepository
+	WantList          *bolt.WantListRepository
+
+	CurrentTimeProvider *mocks.CurrentTimeProviderMock
 }
 
 func BuildTxTestAdapters(*bbolt.Tx) (TxTestAdapters, error) {
@@ -54,6 +57,9 @@ func BuildTxTestAdapters(*bbolt.Tx) (TxTestAdapters, error) {
 
 		formatsSet,
 		wire.Value(hops),
+
+		mocks.NewCurrentTimeProviderMock,
+		wire.Bind(new(commands.CurrentTimeProvider), new(*mocks.CurrentTimeProviderMock)),
 	)
 
 	return TxTestAdapters{}, nil
@@ -122,6 +128,7 @@ func BuildTransactableAdapters(*bbolt.Tx, identity.Public, Config) (commands.Ada
 		txBoltAdaptersSet,
 		formatsSet,
 		extractFromConfigSet,
+		adaptersSet,
 
 		wire.Value(hops),
 	)
@@ -135,6 +142,7 @@ func BuildTxRepositories(*bbolt.Tx, identity.Public, logging.Logger, formats.Mes
 
 		txBoltAdaptersSet,
 		formatsSet,
+		adaptersSet,
 
 		wire.Value(hops),
 	)
@@ -186,6 +194,7 @@ func BuildService(context.Context, identity.Private, Config) (Service, error) {
 		messagePubSubSet,
 		boltAdaptersSet,
 		blobsAdaptersSet,
+		adaptersSet,
 
 		newBolt,
 	)

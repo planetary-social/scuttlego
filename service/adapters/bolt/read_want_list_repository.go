@@ -24,7 +24,7 @@ func (b ReadWantListRepository) GetWantList() (blobs.WantList, error) {
 			return errors.Wrap(err, "could not call the factory")
 		}
 
-		list, err := r.Blob.List()
+		list, err := r.WantList.List()
 		if err != nil {
 			return errors.Wrap(err, "could not get blobs")
 		}

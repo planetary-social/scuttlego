@@ -15,6 +15,7 @@ import (
 	"github.com/google/wire"
 	"github.com/planetary-social/go-ssb/fixtures"
 	"github.com/planetary-social/go-ssb/logging"
+	"github.com/planetary-social/go-ssb/service/adapters"
 	"github.com/planetary-social/go-ssb/service/adapters/bolt"
 	"github.com/planetary-social/go-ssb/service/adapters/mocks"
 	"github.com/planetary-social/go-ssb/service/adapters/pubsub"
@@ -65,10 +66,14 @@ func BuildTxTestAdapters(tx *bbolt.Tx) (TxTestAdapters, error) {
 	pubRepository := bolt.NewPubRepository(tx)
 	blobRepository := bolt.NewBlobRepository(tx)
 	feedRepository := bolt.NewFeedRepository(tx, socialGraphRepository, receiveLogRepository, messageRepository, pubRepository, blobRepository, scuttlebutt)
+	currentTimeProviderMock := mocks.NewCurrentTimeProviderMock()
+	wantListRepository := bolt.NewWantListRepository(tx, currentTimeProviderMock)
 	txTestAdapters := TxTestAdapters{
-		MessageRepository: messageRepository,
-		FeedRepository:    feedRepository,
-		ReceiveLog:        receiveLogRepository,
+		MessageRepository:   messageRepository,
+		FeedRepository:      feedRepository,
+		ReceiveLog:          receiveLogRepository,
+		WantList:            wantListRepository,
+		CurrentTimeProvider: currentTimeProviderMock,
 	}
 	return txTestAdapters, nil
 }
@@ -156,11 +161,14 @@ func BuildTransactableAdapters(tx *bbolt.Tx, public identity.Public, config Conf
 	pubRepository := bolt.NewPubRepository(tx)
 	blobRepository := bolt.NewBlobRepository(tx)
 	feedRepository := bolt.NewFeedRepository(tx, socialGraphRepository, receiveLogRepository, messageRepository, pubRepository, blobRepository, scuttlebutt)
-	adapters := commands.Adapters{
+	currentTimeProvider := adapters.NewCurrentTimeProvider()
+	wantListRepository := bolt.NewWantListRepository(tx, currentTimeProvider)
+	commandsAdapters := commands.Adapters{
 		Feed:        feedRepository,
 		SocialGraph: socialGraphRepository,
+		WantList:    wantListRepository,
 	}
-	return adapters, nil
+	return commandsAdapters, nil
 }
 
 var (
@@ -183,12 +191,15 @@ func BuildTxRepositories(tx *bbolt.Tx, public identity.Public, logger logging.Lo
 	pubRepository := bolt.NewPubRepository(tx)
 	blobRepository := bolt.NewBlobRepository(tx)
 	feedRepository := bolt.NewFeedRepository(tx, socialGraphRepository, receiveLogRepository, messageRepository, pubRepository, blobRepository, scuttlebutt)
+	currentTimeProvider := adapters.NewCurrentTimeProvider()
+	wantListRepository := bolt.NewWantListRepository(tx, currentTimeProvider)
 	txRepositories := bolt.TxRepositories{
 		Feed:       feedRepository,
 		Graph:      socialGraphRepository,
 		ReceiveLog: receiveLogRepository,
 		Message:    messageRepository,
 		Blob:       blobRepository,
+		WantList:   wantListRepository,
 	}
 	return txRepositories, nil
 }
@@ -256,6 +267,8 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	acceptNewPeerHandler := commands.NewAcceptNewPeerHandler(peerManager)
 	processNewLocalDiscoveryHandler := commands.NewProcessNewLocalDiscoveryHandler(peerManager)
 	createWantsHandler := commands.NewCreateWantsHandler(replicationManager)
+	currentTimeProvider := adapters.NewCurrentTimeProvider()
+	downloadBlobHandler := commands.NewDownloadBlobHandler(transactionProvider, currentTimeProvider)
 	appCommands := app.Commands{
 		RedeemInvite:             redeemInviteHandler,
 		Follow:                   followHandler,
@@ -265,6 +278,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 		AcceptNewPeer:            acceptNewPeerHandler,
 		ProcessNewLocalDiscovery: processNewLocalDiscoveryHandler,
 		CreateWants:              createWantsHandler,
+		DownloadBlobHandler:      downloadBlobHandler,
 	}
 	readFeedRepository := bolt.NewReadFeedRepository(db, txRepositoriesFactory)
 	messagePubSub := pubsub.NewMessagePubSub()
@@ -325,6 +339,9 @@ type TxTestAdapters struct {
 	MessageRepository *bolt.MessageRepository
 	FeedRepository    *bolt.FeedRepository
 	ReceiveLog        *bolt.ReceiveLogRepository
+	WantList          *bolt.WantListRepository
+
+	CurrentTimeProvider *mocks.CurrentTimeProviderMock
 }
 
 type TestAdapters struct {

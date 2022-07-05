@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/planetary-social/go-ssb/service/domain/transport/boxstream"
+	"github.com/planetary-social/scuttlego/service/domain/transport/boxstream"
 	"github.com/stretchr/testify/require"
 )
 

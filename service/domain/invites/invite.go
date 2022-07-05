@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"github.com/boreq/errors"
-	"github.com/planetary-social/go-ssb/service/domain/network"
-	"github.com/planetary-social/go-ssb/service/domain/refs"
+	"github.com/planetary-social/scuttlego/service/domain/network"
+	"github.com/planetary-social/scuttlego/service/domain/refs"
 )
 
 type Invite struct {

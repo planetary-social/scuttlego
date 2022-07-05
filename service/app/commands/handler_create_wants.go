@@ -3,7 +3,7 @@ package commands
 import (
 	"context"
 
-	"github.com/planetary-social/go-ssb/service/domain/messages"
+	"github.com/planetary-social/scuttlego/service/domain/messages"
 )
 
 type BlobReplicationManager interface {

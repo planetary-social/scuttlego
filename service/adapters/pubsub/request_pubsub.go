@@ -3,7 +3,7 @@ package pubsub
 import (
 	"context"
 
-	"github.com/planetary-social/go-ssb/service/domain/transport/rpc"
+	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 )
 
 type Request struct {

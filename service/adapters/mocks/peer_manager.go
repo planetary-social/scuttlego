@@ -1,7 +1,7 @@
 package mocks
 
 import (
-	"github.com/planetary-social/go-ssb/service/domain/transport"
+	"github.com/planetary-social/scuttlego/service/domain/transport"
 )
 
 type PeerManagerMock struct {

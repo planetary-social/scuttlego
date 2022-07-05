@@ -1,7 +1,7 @@
 package feeds
 
 import (
-	"github.com/planetary-social/go-ssb/service/domain/refs"
+	"github.com/planetary-social/scuttlego/service/domain/refs"
 )
 
 type BlobsToSave struct {

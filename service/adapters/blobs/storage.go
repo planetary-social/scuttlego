@@ -11,10 +11,10 @@ import (
 	"time"
 
 	"github.com/boreq/errors"
-	"github.com/planetary-social/go-ssb/logging"
-	"github.com/planetary-social/go-ssb/service/domain/blobs"
-	"github.com/planetary-social/go-ssb/service/domain/blobs/replication"
-	"github.com/planetary-social/go-ssb/service/domain/refs"
+	"github.com/planetary-social/scuttlego/logging"
+	"github.com/planetary-social/scuttlego/service/domain/blobs"
+	"github.com/planetary-social/scuttlego/service/domain/blobs/replication"
+	"github.com/planetary-social/scuttlego/service/domain/refs"
 )
 
 const onlyForMe = 0700

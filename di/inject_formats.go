@@ -2,11 +2,11 @@ package di
 
 import (
 	"github.com/google/wire"
-	"github.com/planetary-social/go-ssb/service/adapters/bolt"
-	"github.com/planetary-social/go-ssb/service/app/commands"
-	"github.com/planetary-social/go-ssb/service/domain/feeds"
-	"github.com/planetary-social/go-ssb/service/domain/feeds/content/transport"
-	"github.com/planetary-social/go-ssb/service/domain/feeds/formats"
+	"github.com/planetary-social/scuttlego/service/adapters/bolt"
+	"github.com/planetary-social/scuttlego/service/app/commands"
+	"github.com/planetary-social/scuttlego/service/domain/feeds"
+	"github.com/planetary-social/scuttlego/service/domain/feeds/content/transport"
+	"github.com/planetary-social/scuttlego/service/domain/feeds/formats"
 )
 
 //nolint:deadcode,varcheck

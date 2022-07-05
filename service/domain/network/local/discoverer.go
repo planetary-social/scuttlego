@@ -5,10 +5,10 @@ import (
 	"net"
 
 	"github.com/boreq/errors"
-	"github.com/planetary-social/go-ssb/logging"
-	"github.com/planetary-social/go-ssb/service/domain/identity"
-	"github.com/planetary-social/go-ssb/service/domain/network"
-	"github.com/planetary-social/go-ssb/service/domain/refs"
+	"github.com/planetary-social/scuttlego/logging"
+	"github.com/planetary-social/scuttlego/service/domain/identity"
+	"github.com/planetary-social/scuttlego/service/domain/network"
+	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"go.cryptoscope.co/netwrap"
 	ssbnetwork "go.cryptoscope.co/ssb/network"
 )

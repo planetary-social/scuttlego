@@ -7,14 +7,14 @@ import (
 	"testing"
 
 	"github.com/boreq/errors"
-	"github.com/planetary-social/go-ssb/fixtures"
-	"github.com/planetary-social/go-ssb/internal"
-	"github.com/planetary-social/go-ssb/service/app/queries"
-	"github.com/planetary-social/go-ssb/service/domain/blobs"
-	"github.com/planetary-social/go-ssb/service/domain/messages"
-	"github.com/planetary-social/go-ssb/service/domain/refs"
-	transportrpc "github.com/planetary-social/go-ssb/service/domain/transport/rpc"
-	"github.com/planetary-social/go-ssb/service/ports/rpc"
+	"github.com/planetary-social/scuttlego/fixtures"
+	"github.com/planetary-social/scuttlego/internal"
+	"github.com/planetary-social/scuttlego/service/app/queries"
+	"github.com/planetary-social/scuttlego/service/domain/blobs"
+	"github.com/planetary-social/scuttlego/service/domain/messages"
+	"github.com/planetary-social/scuttlego/service/domain/refs"
+	transportrpc "github.com/planetary-social/scuttlego/service/domain/transport/rpc"
+	"github.com/planetary-social/scuttlego/service/ports/rpc"
 	"github.com/stretchr/testify/require"
 )
 

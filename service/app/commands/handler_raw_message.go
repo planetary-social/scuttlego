@@ -2,8 +2,8 @@ package commands
 
 import (
 	"github.com/boreq/errors"
-	"github.com/planetary-social/go-ssb/logging"
-	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
+	"github.com/planetary-social/scuttlego/logging"
+	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 )
 
 type RawMessageIdentifier interface {

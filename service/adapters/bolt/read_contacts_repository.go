@@ -2,8 +2,8 @@ package bolt
 
 import (
 	"github.com/boreq/errors"
-	"github.com/planetary-social/go-ssb/service/domain/refs"
-	"github.com/planetary-social/go-ssb/service/domain/replication"
+	"github.com/planetary-social/scuttlego/service/domain/refs"
+	"github.com/planetary-social/scuttlego/service/domain/replication"
 	"go.etcd.io/bbolt"
 )
 

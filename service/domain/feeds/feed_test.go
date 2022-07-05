@@ -3,11 +3,11 @@ package feeds_test
 import (
 	"testing"
 
-	"github.com/planetary-social/go-ssb/fixtures"
-	"github.com/planetary-social/go-ssb/service/domain/feeds"
-	msgcontents "github.com/planetary-social/go-ssb/service/domain/feeds/content"
-	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
-	"github.com/planetary-social/go-ssb/service/domain/refs"
+	"github.com/planetary-social/scuttlego/fixtures"
+	"github.com/planetary-social/scuttlego/service/domain/feeds"
+	msgcontents "github.com/planetary-social/scuttlego/service/domain/feeds/content"
+	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
+	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/stretchr/testify/require"
 )
 

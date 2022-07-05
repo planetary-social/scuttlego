@@ -5,9 +5,9 @@ import (
 
 	"github.com/boreq/errors"
 	"github.com/hashicorp/go-multierror"
-	"github.com/planetary-social/go-ssb/service/domain/feeds"
-	"github.com/planetary-social/go-ssb/service/domain/feeds/content"
-	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
+	"github.com/planetary-social/scuttlego/service/domain/feeds"
+	"github.com/planetary-social/scuttlego/service/domain/feeds/content"
+	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 )
 
 type Marshaler interface {

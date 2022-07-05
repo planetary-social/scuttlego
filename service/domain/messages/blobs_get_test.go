@@ -3,10 +3,10 @@ package messages_test
 import (
 	"testing"
 
-	"github.com/planetary-social/go-ssb/internal"
-	"github.com/planetary-social/go-ssb/service/domain/blobs"
-	"github.com/planetary-social/go-ssb/service/domain/messages"
-	"github.com/planetary-social/go-ssb/service/domain/refs"
+	"github.com/planetary-social/scuttlego/internal"
+	"github.com/planetary-social/scuttlego/service/domain/blobs"
+	"github.com/planetary-social/scuttlego/service/domain/messages"
+	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/stretchr/testify/require"
 )
 

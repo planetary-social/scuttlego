@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/boreq/errors"
-	"github.com/planetary-social/go-ssb/logging"
-	"github.com/planetary-social/go-ssb/service/domain/transport/rpc/transport"
+	"github.com/planetary-social/scuttlego/logging"
+	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/transport"
 )
 
 type ResponseWriter interface {

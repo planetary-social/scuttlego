@@ -3,7 +3,7 @@ package commands
 import (
 	"time"
 
-	"github.com/planetary-social/go-ssb/service/domain/refs"
+	"github.com/planetary-social/scuttlego/service/domain/refs"
 )
 
 const temporaryWantListDuration = 1 * time.Hour

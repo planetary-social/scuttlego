@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/planetary-social/go-ssb/di"
-	"github.com/planetary-social/go-ssb/fixtures"
+	"github.com/planetary-social/scuttlego/di"
+	"github.com/planetary-social/scuttlego/fixtures"
 	"github.com/stretchr/testify/require"
 	"go.etcd.io/bbolt"
 )

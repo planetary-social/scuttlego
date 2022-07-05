@@ -2,7 +2,7 @@ package bolt
 
 import (
 	"github.com/boreq/errors"
-	"github.com/planetary-social/go-ssb/service/app/commands"
+	"github.com/planetary-social/scuttlego/service/app/commands"
 	"go.etcd.io/bbolt"
 )
 

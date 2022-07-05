@@ -5,11 +5,11 @@ import (
 
 	"github.com/boreq/errors"
 	"github.com/hashicorp/go-multierror"
-	"github.com/planetary-social/go-ssb/service/app"
-	"github.com/planetary-social/go-ssb/service/app/commands"
-	"github.com/planetary-social/go-ssb/service/domain/network/local"
-	networkport "github.com/planetary-social/go-ssb/service/ports/network"
-	pubsubport "github.com/planetary-social/go-ssb/service/ports/pubsub"
+	"github.com/planetary-social/scuttlego/service/app"
+	"github.com/planetary-social/scuttlego/service/app/commands"
+	"github.com/planetary-social/scuttlego/service/domain/network/local"
+	networkport "github.com/planetary-social/scuttlego/service/ports/network"
+	pubsubport "github.com/planetary-social/scuttlego/service/ports/pubsub"
 )
 
 type Service struct {

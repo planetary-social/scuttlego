@@ -3,9 +3,9 @@ package transport_test
 import (
 	"testing"
 
-	msgcontents "github.com/planetary-social/go-ssb/service/domain/feeds/content"
-	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
-	"github.com/planetary-social/go-ssb/service/domain/refs"
+	msgcontents "github.com/planetary-social/scuttlego/service/domain/feeds/content"
+	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
+	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/stretchr/testify/require"
 )
 

@@ -2,11 +2,11 @@ package di
 
 import (
 	"github.com/google/wire"
-	"github.com/planetary-social/go-ssb/service/app"
-	"github.com/planetary-social/go-ssb/service/app/commands"
-	"github.com/planetary-social/go-ssb/service/app/queries"
-	"github.com/planetary-social/go-ssb/service/domain/replication"
-	portsrpc "github.com/planetary-social/go-ssb/service/ports/rpc"
+	"github.com/planetary-social/scuttlego/service/app"
+	"github.com/planetary-social/scuttlego/service/app/commands"
+	"github.com/planetary-social/scuttlego/service/app/queries"
+	"github.com/planetary-social/scuttlego/service/domain/replication"
+	portsrpc "github.com/planetary-social/scuttlego/service/ports/rpc"
 )
 
 //nolint:deadcode,varcheck

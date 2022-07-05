@@ -1,4 +1,4 @@
-module github.com/planetary-social/go-ssb
+module github.com/planetary-social/scuttlego
 
 go 1.18
 

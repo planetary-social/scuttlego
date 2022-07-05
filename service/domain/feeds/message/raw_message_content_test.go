@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
+	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/stretchr/testify/require"
 )
 

@@ -1,4 +1,4 @@
-# go-ssb [![CI](https://github.com/planetary-social/go-ssb/actions/workflows/ci.yml/badge.svg)](https://github.com/planetary-social/go-ssb/actions/workflows/ci.yml) [![Go Reference](https://pkg.go.dev/badge/github.com/planetary-social/go-ssb.svg)](https://pkg.go.dev/github.com/planetary-social/go-ssb)
+# scuttlego [![CI](https://github.com/planetary-social/scuttlego/actions/workflows/ci.yml/badge.svg)](https://github.com/planetary-social/scuttlego/actions/workflows/ci.yml) [![Go Reference](https://pkg.go.dev/badge/github.com/planetary-social/scuttlego.svg)](https://pkg.go.dev/github.com/planetary-social/scuttlego)
 
 A Go implementation of the [Secure Scuttlebutt][ssb] protocol. This
 implementation was designed to be used by the [Planetary][planetary] client and
@@ -71,4 +71,4 @@ hood. The elements which were reused are:
 
 [planetary]: https://www.planetary.social/
 
-[issue-tracker]: https://github.com/planetary-social/go-ssb/issues
+[issue-tracker]: https://github.com/planetary-social/scuttlego/issues

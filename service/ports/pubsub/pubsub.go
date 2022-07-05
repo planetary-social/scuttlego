@@ -4,8 +4,8 @@ package pubsub
 import (
 	"context"
 
-	"github.com/planetary-social/go-ssb/service/adapters/pubsub"
-	"github.com/planetary-social/go-ssb/service/domain/transport/rpc/mux"
+	"github.com/planetary-social/scuttlego/service/adapters/pubsub"
+	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/mux"
 )
 
 // PubSub receives internal events containing arriving RPC requests and passes

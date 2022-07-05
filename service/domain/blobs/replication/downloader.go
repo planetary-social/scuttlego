@@ -7,11 +7,11 @@ import (
 	"time"
 
 	"github.com/boreq/errors"
-	"github.com/planetary-social/go-ssb/logging"
-	"github.com/planetary-social/go-ssb/service/domain/messages"
-	"github.com/planetary-social/go-ssb/service/domain/refs"
-	"github.com/planetary-social/go-ssb/service/domain/transport"
-	"github.com/planetary-social/go-ssb/service/domain/transport/rpc"
+	"github.com/planetary-social/scuttlego/logging"
+	"github.com/planetary-social/scuttlego/service/domain/messages"
+	"github.com/planetary-social/scuttlego/service/domain/refs"
+	"github.com/planetary-social/scuttlego/service/domain/transport"
+	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 )
 
 type BlobStorer interface {

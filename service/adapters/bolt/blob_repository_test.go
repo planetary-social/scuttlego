@@ -3,10 +3,10 @@ package bolt_test
 import (
 	"testing"
 
-	"github.com/planetary-social/go-ssb/fixtures"
-	"github.com/planetary-social/go-ssb/service/adapters/bolt"
-	"github.com/planetary-social/go-ssb/service/domain/feeds"
-	"github.com/planetary-social/go-ssb/service/domain/refs"
+	"github.com/planetary-social/scuttlego/fixtures"
+	"github.com/planetary-social/scuttlego/service/adapters/bolt"
+	"github.com/planetary-social/scuttlego/service/domain/feeds"
+	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/stretchr/testify/require"
 	"go.etcd.io/bbolt"
 )

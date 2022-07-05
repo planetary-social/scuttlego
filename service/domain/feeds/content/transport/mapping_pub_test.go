@@ -3,11 +3,11 @@ package transport_test
 import (
 	"testing"
 
-	"github.com/planetary-social/go-ssb/fixtures"
-	msgcontents "github.com/planetary-social/go-ssb/service/domain/feeds/content"
-	"github.com/planetary-social/go-ssb/service/domain/feeds/content/transport"
-	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
-	"github.com/planetary-social/go-ssb/service/domain/refs"
+	"github.com/planetary-social/scuttlego/fixtures"
+	msgcontents "github.com/planetary-social/scuttlego/service/domain/feeds/content"
+	"github.com/planetary-social/scuttlego/service/domain/feeds/content/transport"
+	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
+	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/stretchr/testify/require"
 )
 

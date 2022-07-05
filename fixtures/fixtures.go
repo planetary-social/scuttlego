@@ -11,14 +11,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/planetary-social/go-ssb/logging"
-	"github.com/planetary-social/go-ssb/service/domain/blobs"
-	"github.com/planetary-social/go-ssb/service/domain/feeds/content"
-	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
-	"github.com/planetary-social/go-ssb/service/domain/identity"
-	"github.com/planetary-social/go-ssb/service/domain/refs"
-	"github.com/planetary-social/go-ssb/service/domain/transport/rpc"
-	"github.com/planetary-social/go-ssb/service/domain/transport/rpc/transport"
+	"github.com/planetary-social/scuttlego/logging"
+	"github.com/planetary-social/scuttlego/service/domain/blobs"
+	"github.com/planetary-social/scuttlego/service/domain/feeds/content"
+	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
+	"github.com/planetary-social/scuttlego/service/domain/identity"
+	"github.com/planetary-social/scuttlego/service/domain/refs"
+	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
+	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/transport"
 	"github.com/sirupsen/logrus"
 	"go.etcd.io/bbolt"
 )
@@ -194,7 +194,7 @@ func randomBase64(bytes int) string {
 }
 
 func Directory(t *testing.T) string {
-	name, err := ioutil.TempDir("", "go-ssb-test")
+	name, err := ioutil.TempDir("", "scuttlego-test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -211,7 +211,7 @@ func Directory(t *testing.T) string {
 }
 
 func File(t *testing.T) string {
-	file, err := ioutil.TempFile("", "go-ssb-test")
+	file, err := ioutil.TempFile("", "scuttlego-test")
 	if err != nil {
 		t.Fatal(err)
 	}

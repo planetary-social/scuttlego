@@ -8,13 +8,13 @@ import (
 	"time"
 
 	"github.com/boreq/errors"
-	"github.com/planetary-social/go-ssb/fixtures"
-	"github.com/planetary-social/go-ssb/logging"
-	"github.com/planetary-social/go-ssb/service/domain"
-	"github.com/planetary-social/go-ssb/service/domain/identity"
-	"github.com/planetary-social/go-ssb/service/domain/network"
-	"github.com/planetary-social/go-ssb/service/domain/transport"
-	"github.com/planetary-social/go-ssb/service/domain/transport/rpc"
+	"github.com/planetary-social/scuttlego/fixtures"
+	"github.com/planetary-social/scuttlego/logging"
+	"github.com/planetary-social/scuttlego/service/domain"
+	"github.com/planetary-social/scuttlego/service/domain/identity"
+	"github.com/planetary-social/scuttlego/service/domain/network"
+	"github.com/planetary-social/scuttlego/service/domain/transport"
+	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 	"github.com/stretchr/testify/require"
 )
 

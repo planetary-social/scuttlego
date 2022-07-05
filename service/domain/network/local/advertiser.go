@@ -6,8 +6,8 @@ import (
 	"strconv"
 
 	"github.com/boreq/errors"
-	"github.com/planetary-social/go-ssb/service/domain/identity"
-	"github.com/planetary-social/go-ssb/service/domain/refs"
+	"github.com/planetary-social/scuttlego/service/domain/identity"
+	"github.com/planetary-social/scuttlego/service/domain/refs"
 	ssbnetwork "go.cryptoscope.co/ssb/network"
 	ssbrefs "go.mindeco.de/ssb-refs"
 	"golang.org/x/crypto/ed25519"

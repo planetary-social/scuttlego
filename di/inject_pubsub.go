@@ -2,10 +2,10 @@ package di
 
 import (
 	"github.com/google/wire"
-	"github.com/planetary-social/go-ssb/service/adapters/pubsub"
-	"github.com/planetary-social/go-ssb/service/app/queries"
-	blobReplication "github.com/planetary-social/go-ssb/service/domain/blobs/replication"
-	"github.com/planetary-social/go-ssb/service/domain/transport/rpc"
+	"github.com/planetary-social/scuttlego/service/adapters/pubsub"
+	"github.com/planetary-social/scuttlego/service/app/queries"
+	blobReplication "github.com/planetary-social/scuttlego/service/domain/blobs/replication"
+	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 )
 
 //nolint:deadcode,varcheck

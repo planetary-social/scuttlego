@@ -20,7 +20,8 @@ type Commands struct {
 	AcceptNewPeer            *commands.AcceptNewPeerHandler
 	ProcessNewLocalDiscovery *commands.ProcessNewLocalDiscoveryHandler
 
-	CreateWants *commands.CreateWantsHandler
+	CreateWants         *commands.CreateWantsHandler
+	DownloadBlobHandler *commands.DownloadBlobHandler
 }
 
 type Queries struct {

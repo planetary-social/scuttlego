@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/wire"
 	"github.com/planetary-social/go-ssb/logging"
+	"github.com/planetary-social/go-ssb/service/adapters"
 	"github.com/planetary-social/go-ssb/service/adapters/blobs"
 	"github.com/planetary-social/go-ssb/service/adapters/bolt"
 	"github.com/planetary-social/go-ssb/service/adapters/mocks"
@@ -24,6 +25,10 @@ var txBoltAdaptersSet = wire.NewSet(
 
 	bolt.NewSocialGraphRepository,
 	wire.Bind(new(commands.SocialGraphRepository), new(*bolt.SocialGraphRepository)),
+
+	bolt.NewWantListRepository,
+	wire.Bind(new(commands.WantListRepository), new(*bolt.WantListRepository)),
+	wire.Bind(new(blobReplication.WantListRepository), new(*bolt.WantListRepository)),
 
 	bolt.NewReceiveLogRepository,
 	bolt.NewMessageRepository,
@@ -45,8 +50,9 @@ var boltAdaptersSet = wire.NewSet(
 	bolt.NewReadMessageRepository,
 	wire.Bind(new(queries.MessageRepository), new(*bolt.ReadMessageRepository)),
 
-	bolt.NewReadWantListRepository,
-	wire.Bind(new(blobReplication.WantListStorage), new(*bolt.ReadWantListRepository)),
+	bolt.NewNoTxWantListRepository,
+	wire.Bind(new(blobReplication.WantListStorage), new(*bolt.NoTxWantListRepository)),
+	wire.Bind(new(blobReplication.WantListRepository), new(*bolt.NoTxWantListRepository)),
 
 	newTxRepositoriesFactory,
 )
@@ -73,6 +79,7 @@ func newTxRepositoriesFactory(local identity.Public, logger logging.Logger, hmac
 var blobsAdaptersSet = wire.NewSet(
 	newFilesystemStorage,
 	wire.Bind(new(blobReplication.BlobStorage), new(*blobs.FilesystemStorage)),
+	wire.Bind(new(blobReplication.BlobStorer), new(*blobs.FilesystemStorage)),
 	wire.Bind(new(queries.BlobStorage), new(*blobs.FilesystemStorage)),
 	wire.Bind(new(blobReplication.BlobSizeRepository), new(*blobs.FilesystemStorage)),
 )
@@ -80,3 +87,9 @@ var blobsAdaptersSet = wire.NewSet(
 func newFilesystemStorage(logger logging.Logger, config Config) (*blobs.FilesystemStorage, error) {
 	return blobs.NewFilesystemStorage(path.Join(config.DataDirectory, "blobs"), logger)
 }
+
+//nolint:deadcode,varcheck
+var adaptersSet = wire.NewSet(
+	adapters.NewCurrentTimeProvider,
+	wire.Bind(new(commands.CurrentTimeProvider), new(*adapters.CurrentTimeProvider)),
+)

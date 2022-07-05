@@ -14,7 +14,7 @@ import (
 type Manager struct {
 	wantListStorage WantListStorage
 	blobStorage     BlobSizeRepository
-	downloader      Downloader
+	hasHandler      HasBlobHandler
 	logger          logging.Logger
 
 	// todo cleanup processes
@@ -25,13 +25,13 @@ type Manager struct {
 func NewManager(
 	wantListStorage WantListStorage,
 	blobStorage BlobSizeRepository,
-	downloader Downloader,
+	hasHandler HasBlobHandler,
 	logger logging.Logger,
 ) *Manager {
 	return &Manager{
 		wantListStorage: wantListStorage,
 		blobStorage:     blobStorage,
-		downloader:      downloader,
+		hasHandler:      hasHandler,
 		processes:       make(map[rpc.ConnectionId]*WantsProcess),
 		logger:          logger.New("replication_manager"),
 	}
@@ -70,7 +70,7 @@ func (m *Manager) getOrCreateProcess(id rpc.ConnectionId) *WantsProcess {
 		v = NewWantsProcess(
 			m.wantListStorage,
 			m.blobStorage,
-			m.downloader,
+			m.hasHandler,
 			m.logger.WithField("connection_id", id),
 		)
 		m.processes[id] = v

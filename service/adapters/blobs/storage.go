@@ -102,6 +102,17 @@ func (f FilesystemStorage) Size(id refs.Blob) (blobs.Size, error) {
 	return blobs.NewSize(fi.Size())
 }
 
+func (f FilesystemStorage) Has(id refs.Blob) (bool, error) {
+	_, err := f.Size(id)
+	if err != nil {
+		if errors.Is(err, replication.ErrBlobNotFound) {
+			return false, nil
+		}
+		return false, errors.Wrap(err, "failed to check blob size")
+	}
+	return true, nil
+}
+
 func (f FilesystemStorage) createStorage() error {
 	return os.MkdirAll(f.dirStorage(), onlyForMe)
 }

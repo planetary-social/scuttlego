@@ -37,4 +37,5 @@ type TxRepositories struct {
 	ReceiveLog *ReceiveLogRepository
 	Message    *MessageRepository
 	Blob       *BlobRepository
+	WantList   *WantListRepository
 }

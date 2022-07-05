@@ -19,7 +19,7 @@ func NewNoTxWantListRepository(db *bbolt.DB, factory TxRepositoriesFactory) *NoT
 func (b NoTxWantListRepository) GetWantList() (blobs.WantList, error) {
 	var result []blobs.WantedBlob
 
-	if err := b.db.View(func(tx *bbolt.Tx) error {
+	if err := b.db.Batch(func(tx *bbolt.Tx) error {
 		r, err := b.factory(tx)
 		if err != nil {
 			return errors.Wrap(err, "could not call the factory")

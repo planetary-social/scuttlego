@@ -75,7 +75,7 @@ func TestWantListRepositoryLongerUntilOverwritesShorterUntil(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestWantListRepositoryShorterUntilDoesNotOverwriteShorterUntil(t *testing.T) {
+func TestWantListRepositoryShorterUntilDoesNotOverwriteLongerUntil(t *testing.T) {
 	db := fixtures.Bolt(t)
 
 	err := db.Update(func(tx *bbolt.Tx) error {

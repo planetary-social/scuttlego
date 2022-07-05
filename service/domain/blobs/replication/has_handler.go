@@ -82,13 +82,13 @@ func (d *HasHandler) onHasReceived(ctx context.Context, peer transport.Peer, blo
 		if err := d.downloader.Download(ctx, peer, blob); err != nil {
 			return errors.Wrap(err, "download failed")
 		}
+
+		d.publisher.Publish(blob, declaredSize) // todo use actual size
 	}
 
 	if err := d.wantList.DeleteFromWantList(blob); err != nil {
 		return errors.Wrap(err, "error deleting from want list")
 	}
-
-	d.publisher.Publish(blob, declaredSize) // todo use actual size
 
 	return nil
 }

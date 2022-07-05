@@ -121,6 +121,7 @@ func TestHasHandlerTriggersDownloader(t *testing.T) {
 			} else {
 				<-time.After(1 * time.Second)
 				require.Empty(t, h.Downloader.DownloadCalls)
+				require.Empty(t, h.Publisher.Published())
 			}
 		})
 	}

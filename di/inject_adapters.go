@@ -50,8 +50,9 @@ var boltAdaptersSet = wire.NewSet(
 	bolt.NewReadMessageRepository,
 	wire.Bind(new(queries.MessageRepository), new(*bolt.ReadMessageRepository)),
 
-	bolt.NewReadWantListRepository,
-	wire.Bind(new(blobReplication.WantListStorage), new(*bolt.ReadWantListRepository)),
+	bolt.NewNoTxWantListRepository,
+	wire.Bind(new(blobReplication.WantListStorage), new(*bolt.NoTxWantListRepository)),
+	wire.Bind(new(blobReplication.WantListRepository), new(*bolt.NoTxWantListRepository)),
 
 	newTxRepositoriesFactory,
 )
@@ -78,6 +79,7 @@ func newTxRepositoriesFactory(local identity.Public, logger logging.Logger, hmac
 var blobsAdaptersSet = wire.NewSet(
 	newFilesystemStorage,
 	wire.Bind(new(blobReplication.BlobStorage), new(*blobs.FilesystemStorage)),
+	wire.Bind(new(blobReplication.BlobStorer), new(*blobs.FilesystemStorage)),
 	wire.Bind(new(queries.BlobStorage), new(*blobs.FilesystemStorage)),
 	wire.Bind(new(blobReplication.BlobSizeRepository), new(*blobs.FilesystemStorage)),
 )

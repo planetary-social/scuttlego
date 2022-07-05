@@ -114,6 +114,9 @@ func BuildTestQueries() (TestQueries, error) {
 		mocks.NewBlobStorageMock,
 		wire.Bind(new(queries.BlobStorage), new(*mocks.BlobStorageMock)),
 
+		mocks.NewBlobDownloadedPubSubMock,
+		wire.Bind(new(queries.BlobDownloadedSubscriber), new(*mocks.BlobDownloadedPubSubMock)),
+
 		wire.Struct(new(TestQueries), "*"),
 	)
 

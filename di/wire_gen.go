@@ -125,12 +125,15 @@ func BuildTestQueries() (TestQueries, error) {
 	if err != nil {
 		return TestQueries{}, err
 	}
+	blobDownloadedPubSubMock := mocks.NewBlobDownloadedPubSubMock()
+	blobDownloadedEventsHandler := queries.NewBlobDownloadedEventsHandler(blobDownloadedPubSubMock)
 	appQueries := app.Queries{
-		CreateHistoryStream: createHistoryStreamHandler,
-		ReceiveLog:          receiveLogHandler,
-		Status:              statusHandler,
-		PublishedMessages:   publishedMessagesHandler,
-		GetBlob:             getBlobHandler,
+		CreateHistoryStream:  createHistoryStreamHandler,
+		ReceiveLog:           receiveLogHandler,
+		Status:               statusHandler,
+		PublishedMessages:    publishedMessagesHandler,
+		GetBlob:              getBlobHandler,
+		BlobDownloadedEvents: blobDownloadedEventsHandler,
 	}
 	testQueries := TestQueries{
 		Queries:           appQueries,
@@ -297,12 +300,14 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	if err != nil {
 		return Service{}, err
 	}
+	blobDownloadedEventsHandler := queries.NewBlobDownloadedEventsHandler(blobDownloadedPubSub)
 	appQueries := app.Queries{
-		CreateHistoryStream: createHistoryStreamHandler,
-		ReceiveLog:          receiveLogHandler,
-		Status:              statusHandler,
-		PublishedMessages:   publishedMessagesHandler,
-		GetBlob:             getBlobHandler,
+		CreateHistoryStream:  createHistoryStreamHandler,
+		ReceiveLog:           receiveLogHandler,
+		Status:               statusHandler,
+		PublishedMessages:    publishedMessagesHandler,
+		GetBlob:              getBlobHandler,
+		BlobDownloadedEvents: blobDownloadedEventsHandler,
 	}
 	application := app.Application{
 		Commands: appCommands,

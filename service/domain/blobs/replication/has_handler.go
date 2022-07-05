@@ -71,16 +71,10 @@ func (d *HasHandler) onHasReceived(ctx context.Context, peer transport.Peer, blo
 		return errors.Wrap(err, "failed to check the storage")
 	}
 
-	if blobIsInStorage {
-		if err := d.wantList.DeleteFromWantList(blob); err != nil {
-			return errors.Wrap(err, "failed to remove existing blob from want list")
+	if !blobIsInStorage {
+		if err := d.downloader.Download(ctx, peer, blob); err != nil {
+			return errors.Wrap(err, "download failed")
 		}
-
-		return nil
-	}
-
-	if err := d.downloader.Download(ctx, peer, blob); err != nil {
-		return errors.Wrap(err, "download failed")
 	}
 
 	if err := d.wantList.DeleteFromWantList(blob); err != nil {

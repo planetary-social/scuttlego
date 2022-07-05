@@ -20,6 +20,20 @@ func NewBlobStorageMock() *BlobStorageMock {
 	}
 }
 
+func (b BlobStorageMock) Store(id refs.Blob, r io.Reader) error {
+	d, err := ioutil.ReadAll(r)
+	if err != nil {
+		return errors.Wrap(err, "failed to read all")
+	}
+	b.blobs[id.String()] = d
+	return nil
+}
+
+func (b BlobStorageMock) Has(id refs.Blob) (bool, error) {
+	_, ok := b.blobs[id.String()]
+	return ok, nil
+}
+
 func (b BlobStorageMock) Get(id refs.Blob) (io.ReadCloser, error) {
 	data, ok := b.blobs[id.String()]
 	if !ok {

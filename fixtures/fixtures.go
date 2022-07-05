@@ -90,6 +90,10 @@ func SomeTime() time.Time {
 	return time.Unix(rand.Int63(), 0)
 }
 
+func SomeDuration() time.Duration {
+	return time.Duration(time.Duration(SomePositiveInt32()) * time.Second)
+}
+
 func SomePublicIdentity() identity.Public {
 	return SomePrivateIdentity().Public()
 }

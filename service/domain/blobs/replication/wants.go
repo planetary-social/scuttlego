@@ -21,14 +21,14 @@ type WantsProcess struct {
 
 	wantListStorage WantListStorage
 	blobStorage     BlobSizeRepository
-	downloader      Downloader
+	hasHandler      HasBlobHandler
 	logger          logging.Logger
 }
 
 func NewWantsProcess(
 	wantListStorage WantListStorage,
 	blobStorage BlobSizeRepository,
-	downloader Downloader,
+	hasHandler HasBlobHandler,
 	logger logging.Logger,
 ) *WantsProcess {
 	return &WantsProcess{
@@ -36,7 +36,7 @@ func NewWantsProcess(
 
 		wantListStorage: wantListStorage,
 		blobStorage:     blobStorage,
-		downloader:      downloader,
+		hasHandler:      hasHandler,
 		logger:          logger.New("wants_process"),
 	}
 }
@@ -124,7 +124,7 @@ func (p *WantsProcess) outgoingLoop(ctx context.Context, ch <-chan messages.Blob
 		if size, ok := hasOrWant.SizeOrWantDistance().Size(); ok {
 			logger.WithField("size", size.InBytes()).Debug("received has")
 
-			go p.downloader.OnHasReceived(ctx, peer, hasOrWant.Id(), size)
+			go p.hasHandler.OnHasReceived(ctx, peer, hasOrWant.Id(), size)
 			continue
 		}
 

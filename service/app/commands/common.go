@@ -1,6 +1,8 @@
 package commands
 
 import (
+	"time"
+
 	"github.com/planetary-social/go-ssb/service/domain/feeds"
 	"github.com/planetary-social/go-ssb/service/domain/graph"
 	"github.com/planetary-social/go-ssb/service/domain/identity"
@@ -34,6 +36,7 @@ type TransactionProvider interface {
 type Adapters struct {
 	Feed        FeedRepository
 	SocialGraph SocialGraphRepository
+	WantList    WantListRepository
 }
 
 type FeedRepository interface {
@@ -43,4 +46,15 @@ type FeedRepository interface {
 
 type SocialGraphRepository interface {
 	GetSocialGraph() (*graph.SocialGraph, error)
+}
+
+type WantListRepository interface {
+	// AddToWantList puts the blob in the want list. If the blob can't be
+	// retrieved before the specified point of time it will be removed from the
+	// want list.
+	AddToWantList(id refs.Blob, until time.Time) error
+}
+
+type CurrentTimeProvider interface {
+	Get() time.Time
 }

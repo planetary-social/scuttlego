@@ -70,7 +70,7 @@ func TestManagerTriggersDownloaderAfterReceivingHas(t *testing.T) {
 
 	require.Eventually(t,
 		func() bool {
-			return len(m.Downloader.OnHasReceivedCalls()) == 1
+			return len(m.HasHandler.OnHasReceivedCalls()) == 1
 		},
 		1*time.Second,
 		10*time.Millisecond,
@@ -86,26 +86,26 @@ type testManager struct {
 	Manager *replication.Manager
 
 	WantListStorage *wantListStorageMock
-	Downloader      *downloaderMock
+	HasHandler      *hasHandlerMock
 }
 
 func newTestManager(t *testing.T) testManager {
 	wantListStorage := newWantListStorageMock()
 	blobStorage := mocks.NewBlobStorageMock()
-	downloader := newDownloaderMock()
+	hasHandler := newHasHandlerMock()
 	logger := logging.NewDevNullLogger()
 
 	manager := replication.NewManager(
 		wantListStorage,
 		blobStorage,
-		downloader,
+		hasHandler,
 		logger,
 	)
 
 	return testManager{
 		Manager:         manager,
 		WantListStorage: wantListStorage,
-		Downloader:      downloader,
+		HasHandler:      hasHandler,
 	}
 }
 
@@ -121,16 +121,16 @@ func (w wantListStorageMock) GetWantList() (blobs.WantList, error) {
 	return blobs.NewWantList(w.WantList)
 }
 
-type downloaderMock struct {
+type hasHandlerMock struct {
 	onHasReceivedCalls []onHasReceivedCall
 	lock               sync.Mutex
 }
 
-func newDownloaderMock() *downloaderMock {
-	return &downloaderMock{}
+func newHasHandlerMock() *hasHandlerMock {
+	return &hasHandlerMock{}
 }
 
-func (d *downloaderMock) OnHasReceived(ctx context.Context, peer transport.Peer, blob refs.Blob, size blobs.Size) {
+func (d *hasHandlerMock) OnHasReceived(ctx context.Context, peer transport.Peer, blob refs.Blob, size blobs.Size) {
 	d.lock.Lock()
 	defer d.lock.Unlock()
 
@@ -141,7 +141,7 @@ func (d *downloaderMock) OnHasReceived(ctx context.Context, peer transport.Peer,
 	})
 }
 
-func (d *downloaderMock) OnHasReceivedCalls() []onHasReceivedCall {
+func (d *hasHandlerMock) OnHasReceivedCalls() []onHasReceivedCall {
 	d.lock.Lock()
 	defer d.lock.Unlock()
 

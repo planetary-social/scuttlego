@@ -104,7 +104,7 @@ func TestPassesHasToDownloader(t *testing.T) {
 						Size: blobSize,
 					},
 				},
-				p.Downloader.OnHasReceivedCalls(),
+				p.HasHandler.OnHasReceivedCalls(),
 			)
 		},
 		1*time.Second,
@@ -115,25 +115,25 @@ func TestPassesHasToDownloader(t *testing.T) {
 type TestWantsProcess struct {
 	WantsProcess *replication.WantsProcess
 	BlobStorage  *mocks.BlobStorageMock
-	Downloader   *downloaderMock
+	HasHandler   *hasHandlerMock
 }
 
 func newTestWantsProcess() TestWantsProcess {
 	wantListStorage := newWantListStorageMock()
-	downloader := newDownloaderMock()
+	hasHandler := newHasHandlerMock()
 	blobStorage := mocks.NewBlobStorageMock()
 	logger := logging.NewDevNullLogger()
 
 	process := replication.NewWantsProcess(
 		wantListStorage,
 		blobStorage,
-		downloader,
+		hasHandler,
 		logger,
 	)
 
 	return TestWantsProcess{
 		WantsProcess: process,
 		BlobStorage:  blobStorage,
-		Downloader:   downloader,
+		HasHandler:   hasHandler,
 	}
 }

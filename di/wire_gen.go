@@ -125,12 +125,15 @@ func BuildTestQueries() (TestQueries, error) {
 	if err != nil {
 		return TestQueries{}, err
 	}
+	blobDownloadedPubSubMock := mocks.NewBlobDownloadedPubSubMock()
+	blobDownloadedEventsHandler := queries.NewBlobDownloadedEventsHandler(blobDownloadedPubSubMock)
 	appQueries := app.Queries{
-		CreateHistoryStream: createHistoryStreamHandler,
-		ReceiveLog:          receiveLogHandler,
-		Status:              statusHandler,
-		PublishedMessages:   publishedMessagesHandler,
-		GetBlob:             getBlobHandler,
+		CreateHistoryStream:  createHistoryStreamHandler,
+		ReceiveLog:           receiveLogHandler,
+		Status:               statusHandler,
+		PublishedMessages:    publishedMessagesHandler,
+		GetBlob:              getBlobHandler,
+		BlobDownloadedEvents: blobDownloadedEventsHandler,
 	}
 	testQueries := TestQueries{
 		Queries:           appQueries,
@@ -259,7 +262,8 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 		return Service{}, err
 	}
 	blobsGetDownloader := replication2.NewBlobsGetDownloader(filesystemStorage, logger)
-	hasHandler := replication2.NewHasHandler(filesystemStorage, noTxWantListRepository, blobsGetDownloader, logger)
+	blobDownloadedPubSub := pubsub.NewBlobDownloadedPubSub()
+	hasHandler := replication2.NewHasHandler(filesystemStorage, noTxWantListRepository, blobsGetDownloader, blobDownloadedPubSub, logger)
 	replicationManager := replication2.NewManager(noTxWantListRepository, filesystemStorage, hasHandler, logger)
 	replicator := replication2.NewReplicator(replicationManager)
 	peerManager := domain.NewPeerManager(contextContext, peerManagerConfig, gossipReplicator, replicator, dialer, logger)
@@ -296,12 +300,14 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	if err != nil {
 		return Service{}, err
 	}
+	blobDownloadedEventsHandler := queries.NewBlobDownloadedEventsHandler(blobDownloadedPubSub)
 	appQueries := app.Queries{
-		CreateHistoryStream: createHistoryStreamHandler,
-		ReceiveLog:          receiveLogHandler,
-		Status:              statusHandler,
-		PublishedMessages:   publishedMessagesHandler,
-		GetBlob:             getBlobHandler,
+		CreateHistoryStream:  createHistoryStreamHandler,
+		ReceiveLog:           receiveLogHandler,
+		Status:               statusHandler,
+		PublishedMessages:    publishedMessagesHandler,
+		GetBlob:              getBlobHandler,
+		BlobDownloadedEvents: blobDownloadedEventsHandler,
 	}
 	application := app.Application{
 		Commands: appCommands,
@@ -364,10 +370,6 @@ type TestQueries struct {
 var replicatorSet = wire.NewSet(replication.NewManager, wire.Bind(new(replication.ReplicationManager), new(*replication.Manager)), replication.NewGossipReplicator, wire.Bind(new(domain.MessageReplicator), new(*replication.GossipReplicator)))
 
 var blobReplicatorSet = wire.NewSet(replication2.NewManager, wire.Bind(new(replication2.ReplicationManager), new(*replication2.Manager)), wire.Bind(new(commands.BlobReplicationManager), new(*replication2.Manager)), replication2.NewReplicator, wire.Bind(new(domain.BlobReplicator), new(*replication2.Replicator)), replication2.NewBlobsGetDownloader, wire.Bind(new(replication2.Downloader), new(*replication2.BlobsGetDownloader)), replication2.NewHasHandler, wire.Bind(new(replication2.HasBlobHandler), new(*replication2.HasHandler)))
-
-var requestPubSubSet = wire.NewSet(pubsub.NewRequestPubSub, wire.Bind(new(rpc.RequestHandler), new(*pubsub.RequestPubSub)))
-
-var messagePubSubSet = wire.NewSet(pubsub.NewMessagePubSub, wire.Bind(new(queries.MessageSubscriber), new(*pubsub.MessagePubSub)))
 
 var hops = graph.MustNewHops(3)
 

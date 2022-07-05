@@ -23,10 +23,15 @@ type Downloader interface {
 	Download(ctx context.Context, peer transport.Peer, blob refs.Blob) error
 }
 
+type BlobDownloadedPublisher interface {
+	Publish(blob refs.Blob, size blobs.Size)
+}
+
 type HasHandler struct {
 	storage    BlobStorage
 	wantList   WantListRepository
 	downloader Downloader
+	publisher  BlobDownloadedPublisher
 	logger     logging.Logger
 }
 
@@ -34,12 +39,14 @@ func NewHasHandler(
 	storage BlobStorage,
 	wantList WantListRepository,
 	downloader Downloader,
+	publisher BlobDownloadedPublisher,
 	logger logging.Logger,
 ) *HasHandler {
 	return &HasHandler{
 		storage:    storage,
 		wantList:   wantList,
 		downloader: downloader,
+		publisher:  publisher,
 		logger:     logger.New("has_handler"),
 	}
 }
@@ -52,8 +59,8 @@ func (d *HasHandler) OnHasReceived(ctx context.Context, peer transport.Peer, blo
 	}
 }
 
-func (d *HasHandler) onHasReceived(ctx context.Context, peer transport.Peer, blob refs.Blob, size blobs.Size) error {
-	if size.Above(blobs.MaxBlobSize()) {
+func (d *HasHandler) onHasReceived(ctx context.Context, peer transport.Peer, blob refs.Blob, declaredSize blobs.Size) error {
+	if declaredSize.Above(blobs.MaxBlobSize()) {
 		return errors.New("blob too large")
 	}
 
@@ -75,6 +82,8 @@ func (d *HasHandler) onHasReceived(ctx context.Context, peer transport.Peer, blo
 		if err := d.downloader.Download(ctx, peer, blob); err != nil {
 			return errors.Wrap(err, "download failed")
 		}
+
+		d.publisher.Publish(blob, declaredSize) // todo use actual size
 	}
 
 	if err := d.wantList.DeleteFromWantList(blob); err != nil {

@@ -1,8 +1,8 @@
 package app
 
 import (
-	"github.com/planetary-social/go-ssb/service/app/commands"
-	"github.com/planetary-social/go-ssb/service/app/queries"
+	"github.com/planetary-social/scuttlego/service/app/commands"
+	"github.com/planetary-social/scuttlego/service/app/queries"
 )
 
 type Application struct {

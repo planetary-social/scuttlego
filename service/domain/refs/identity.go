@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/boreq/errors"
-	ssbidentity "github.com/planetary-social/go-ssb/service/domain/identity"
+	ssbidentity "github.com/planetary-social/scuttlego/service/domain/identity"
 )
 
 const (

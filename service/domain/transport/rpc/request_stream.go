@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/boreq/errors"
-	"github.com/planetary-social/go-ssb/service/domain/transport/rpc/transport"
+	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/transport"
 )
 
 type RequestStream struct {

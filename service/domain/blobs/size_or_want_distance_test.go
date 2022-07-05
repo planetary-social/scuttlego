@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/boreq/errors"
-	"github.com/planetary-social/go-ssb/internal"
-	"github.com/planetary-social/go-ssb/service/domain/blobs"
+	"github.com/planetary-social/scuttlego/internal"
+	"github.com/planetary-social/scuttlego/service/domain/blobs"
 	"github.com/stretchr/testify/require"
 )
 

@@ -3,8 +3,8 @@ package replication_test
 import (
 	"testing"
 
-	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
-	"github.com/planetary-social/go-ssb/service/domain/replication"
+	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
+	"github.com/planetary-social/scuttlego/service/domain/replication"
 	"github.com/stretchr/testify/require"
 )
 

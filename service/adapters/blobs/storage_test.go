@@ -5,12 +5,12 @@ import (
 	"io"
 	"testing"
 
-	"github.com/planetary-social/go-ssb/fixtures"
-	"github.com/planetary-social/go-ssb/logging"
-	"github.com/planetary-social/go-ssb/service/adapters/blobs"
-	blobsdomain "github.com/planetary-social/go-ssb/service/domain/blobs"
-	blobReplication "github.com/planetary-social/go-ssb/service/domain/blobs/replication"
-	"github.com/planetary-social/go-ssb/service/domain/refs"
+	"github.com/planetary-social/scuttlego/fixtures"
+	"github.com/planetary-social/scuttlego/logging"
+	"github.com/planetary-social/scuttlego/service/adapters/blobs"
+	blobsdomain "github.com/planetary-social/scuttlego/service/domain/blobs"
+	blobReplication "github.com/planetary-social/scuttlego/service/domain/blobs/replication"
+	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/stretchr/testify/require"
 )
 

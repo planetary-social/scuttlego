@@ -3,7 +3,7 @@ package mocks
 import (
 	"context"
 
-	"github.com/planetary-social/go-ssb/service/app/queries"
+	"github.com/planetary-social/scuttlego/service/app/queries"
 )
 
 type BlobDownloadedPubSubMock struct {

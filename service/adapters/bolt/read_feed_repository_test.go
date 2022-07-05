@@ -4,10 +4,10 @@ import (
 	"testing"
 
 	"github.com/boreq/errors"
-	"github.com/planetary-social/go-ssb/di"
-	"github.com/planetary-social/go-ssb/fixtures"
-	"github.com/planetary-social/go-ssb/service/domain/feeds"
-	"github.com/planetary-social/go-ssb/service/domain/feeds/message"
+	"github.com/planetary-social/scuttlego/di"
+	"github.com/planetary-social/scuttlego/fixtures"
+	"github.com/planetary-social/scuttlego/service/domain/feeds"
+	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/stretchr/testify/require"
 	"go.etcd.io/bbolt"
 )

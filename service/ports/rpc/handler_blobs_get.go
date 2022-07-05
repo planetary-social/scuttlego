@@ -6,10 +6,10 @@ import (
 	"io"
 
 	"github.com/boreq/errors"
-	"github.com/planetary-social/go-ssb/service/app/queries"
-	"github.com/planetary-social/go-ssb/service/domain/messages"
-	"github.com/planetary-social/go-ssb/service/domain/transport/rpc"
-	"github.com/planetary-social/go-ssb/service/domain/transport/rpc/mux"
+	"github.com/planetary-social/scuttlego/service/app/queries"
+	"github.com/planetary-social/scuttlego/service/domain/messages"
+	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
+	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/mux"
 )
 
 const (

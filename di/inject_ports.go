@@ -4,13 +4,13 @@ import (
 	"context"
 
 	"github.com/google/wire"
-	"github.com/planetary-social/go-ssb/logging"
-	"github.com/planetary-social/go-ssb/service/app"
-	"github.com/planetary-social/go-ssb/service/domain/network/local"
-	"github.com/planetary-social/go-ssb/service/domain/transport/rpc/mux"
-	portsnetwork "github.com/planetary-social/go-ssb/service/ports/network"
-	portspubsub "github.com/planetary-social/go-ssb/service/ports/pubsub"
-	portsrpc "github.com/planetary-social/go-ssb/service/ports/rpc"
+	"github.com/planetary-social/scuttlego/logging"
+	"github.com/planetary-social/scuttlego/service/app"
+	"github.com/planetary-social/scuttlego/service/domain/network/local"
+	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/mux"
+	portsnetwork "github.com/planetary-social/scuttlego/service/ports/network"
+	portspubsub "github.com/planetary-social/scuttlego/service/ports/pubsub"
+	portsrpc "github.com/planetary-social/scuttlego/service/ports/rpc"
 )
 
 //nolint:deadcode,varcheck

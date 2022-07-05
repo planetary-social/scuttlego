@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/boreq/errors"
-	"github.com/planetary-social/go-ssb/logging"
+	"github.com/planetary-social/scuttlego/logging"
 )
 
 type RawConnection struct {

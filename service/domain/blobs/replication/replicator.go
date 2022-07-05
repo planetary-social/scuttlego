@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/boreq/errors"
-	"github.com/planetary-social/go-ssb/service/domain/messages"
-	"github.com/planetary-social/go-ssb/service/domain/transport"
+	"github.com/planetary-social/scuttlego/service/domain/messages"
+	"github.com/planetary-social/scuttlego/service/domain/transport"
 )
 
 type ReplicationManager interface {

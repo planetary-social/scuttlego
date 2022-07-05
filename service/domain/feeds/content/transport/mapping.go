@@ -1,7 +1,7 @@
 package transport
 
 import (
-	"github.com/planetary-social/go-ssb/service/domain/feeds/content"
+	"github.com/planetary-social/scuttlego/service/domain/feeds/content"
 )
 
 type MessageContentMappings map[content.MessageContentType]MessageContentMapping

@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/planetary-social/go-ssb/logging"
-	"github.com/planetary-social/go-ssb/service/app"
+	"github.com/planetary-social/scuttlego/logging"
+	"github.com/planetary-social/scuttlego/service/app"
 )
 
 // ConnectionEstablisher periodically triggers the EstablishNewConnections

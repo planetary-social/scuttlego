@@ -1,6 +1,6 @@
 package mocks
 
-import "github.com/planetary-social/go-ssb/service/domain/refs"
+import "github.com/planetary-social/scuttlego/service/domain/refs"
 
 type WantListRepositoryMock struct {
 	wantList map[string]struct{}

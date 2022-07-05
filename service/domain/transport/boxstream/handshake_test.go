@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-multierror"
-	"github.com/planetary-social/go-ssb/fixtures"
-	"github.com/planetary-social/go-ssb/service/domain/transport/boxstream"
+	"github.com/planetary-social/scuttlego/fixtures"
+	"github.com/planetary-social/scuttlego/service/domain/transport/boxstream"
 	"github.com/stretchr/testify/require"
 )
 

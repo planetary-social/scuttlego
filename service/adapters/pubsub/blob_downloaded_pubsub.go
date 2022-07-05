@@ -3,9 +3,9 @@ package pubsub
 import (
 	"context"
 
-	"github.com/planetary-social/go-ssb/service/app/queries"
-	"github.com/planetary-social/go-ssb/service/domain/blobs"
-	"github.com/planetary-social/go-ssb/service/domain/refs"
+	"github.com/planetary-social/scuttlego/service/app/queries"
+	"github.com/planetary-social/scuttlego/service/domain/blobs"
+	"github.com/planetary-social/scuttlego/service/domain/refs"
 )
 
 type BlobDownloadedPubSub struct {

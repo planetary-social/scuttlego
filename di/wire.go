@@ -14,7 +14,6 @@ import (
 	"github.com/planetary-social/go-ssb/logging"
 	"github.com/planetary-social/go-ssb/service/adapters/bolt"
 	"github.com/planetary-social/go-ssb/service/adapters/mocks"
-	"github.com/planetary-social/go-ssb/service/adapters/pubsub"
 	"github.com/planetary-social/go-ssb/service/app"
 	"github.com/planetary-social/go-ssb/service/app/commands"
 	"github.com/planetary-social/go-ssb/service/app/queries"
@@ -190,8 +189,7 @@ func BuildService(context.Context, identity.Private, Config) (Service, error) {
 		replicatorSet,
 		blobReplicatorSet,
 		formatsSet,
-		requestPubSubSet,
-		messagePubSubSet,
+		pubSubSet,
 		boltAdaptersSet,
 		blobsAdaptersSet,
 		adaptersSet,
@@ -222,16 +220,6 @@ var blobReplicatorSet = wire.NewSet(
 
 	blobReplication.NewHasHandler,
 	wire.Bind(new(blobReplication.HasBlobHandler), new(*blobReplication.HasHandler)),
-)
-
-var requestPubSubSet = wire.NewSet(
-	pubsub.NewRequestPubSub,
-	wire.Bind(new(rpc.RequestHandler), new(*pubsub.RequestPubSub)),
-)
-
-var messagePubSubSet = wire.NewSet(
-	pubsub.NewMessagePubSub,
-	wire.Bind(new(queries.MessageSubscriber), new(*pubsub.MessagePubSub)),
 )
 
 var hops = graph.MustNewHops(3)

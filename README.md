@@ -18,12 +18,11 @@ change.**
 - Replicating messages using `createHistoryStream`
 - Replication scheduler (prioritise closer feeds, avoid replicating the same
   messages simultaneously from various peers etc.)
-- Replicating blobs
+- Replicating and creating blobs
 
 ### Planned in the near future
 
 - Connection manager (dynamic discovery of pubs from feeds)
-- Publishing blobs
 - Handling blob wants recevied from remote peers
 - Cleaning up old blobs and messages
 

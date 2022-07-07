@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestStorage(t *testing.T) {
+func TestStorageStore(t *testing.T) {
 	directory := fixtures.Directory(t)
 	logger := logging.NewDevNullLogger()
 
@@ -51,18 +51,42 @@ func TestSizeReturnsBlobNotFound(t *testing.T) {
 	require.ErrorIs(t, err, blobReplication.ErrBlobNotFound)
 }
 
+func TestStorageCreate(t *testing.T) {
+	directory := fixtures.Directory(t)
+	logger := logging.NewDevNullLogger()
+
+	storage, err := blobs.NewFilesystemStorage(directory, logger)
+	require.NoError(t, err)
+
+	bts := fixtures.SomeBytes()
+
+	id, err := storage.Create(bytes.NewReader(bts))
+	require.NoError(t, err)
+	require.NotEmpty(t, id.String())
+
+	size, err := storage.Size(id)
+	require.NoError(t, err)
+	require.EqualValues(t, len(bts), size.InBytes())
+
+	rc, err := storage.Get(id)
+	require.NoError(t, err)
+	defer rc.Close()
+
+	readData, err := io.ReadAll(rc)
+	require.NoError(t, err)
+
+	require.Equal(t, bts, readData)
+}
+
 func newFakeBlob(t *testing.T) (refs.Blob, io.Reader, []byte) {
-	buf := &bytes.Buffer{}
+	data := fixtures.SomeBytes()
 
 	h := blobsdomain.NewHasher()
-	w := io.MultiWriter(h, buf)
-
-	data := fixtures.SomeBytes()
-	_, err := w.Write(data)
+	_, err := h.Write(data)
 	require.NoError(t, err)
 
 	id, err := h.SumRef()
 	require.NoError(t, err)
 
-	return id, buf, data
+	return id, bytes.NewReader(data), data
 }

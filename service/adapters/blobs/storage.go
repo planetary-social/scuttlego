@@ -85,6 +85,41 @@ func (f FilesystemStorage) Store(id refs.Blob, r io.Reader) error {
 	return nil
 }
 
+func (f FilesystemStorage) Create(r io.Reader) (refs.Blob, error) {
+	pattern := fmt.Sprintf("%d%s*%s", time.Now().Unix(), filenameSeparator, partialFileSuffix)
+
+	tmpFile, err := os.CreateTemp(f.dirTemporary(), pattern)
+	if err != nil {
+		return refs.Blob{}, errors.Wrap(err, "could not create a temporary file")
+	}
+	defer os.Remove(tmpFile.Name())
+	defer tmpFile.Close()
+
+	h := blobs.NewHasher()
+
+	if _, err := io.Copy(io.MultiWriter(tmpFile, h), io.LimitReader(r, blobs.MaxBlobSize().InBytes())); err != nil {
+		return refs.Blob{}, errors.Wrap(err, "failed to copy contents to a temporary file")
+	}
+
+	id, err := h.SumRef()
+	if err != nil {
+		return refs.Blob{}, errors.Wrap(err, "failed to calculate ref")
+	}
+
+	if err := tmpFile.Close(); err != nil {
+		return refs.Blob{}, errors.Wrap(err, "failed to close the temporary file")
+	}
+
+	oldName := tmpFile.Name()
+	newName := f.pathStorage(id)
+
+	if err := os.Rename(oldName, newName); err != nil {
+		return refs.Blob{}, errors.Wrap(err, "failed to rename the file")
+	}
+
+	return id, nil
+}
+
 func (f FilesystemStorage) Get(id refs.Blob) (io.ReadCloser, error) {
 	name := f.pathStorage(id)
 	return os.Open(name)

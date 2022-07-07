@@ -82,6 +82,7 @@ var blobsAdaptersSet = wire.NewSet(
 	wire.Bind(new(blobReplication.BlobStorer), new(*blobs.FilesystemStorage)),
 	wire.Bind(new(queries.BlobStorage), new(*blobs.FilesystemStorage)),
 	wire.Bind(new(blobReplication.BlobSizeRepository), new(*blobs.FilesystemStorage)),
+	wire.Bind(new(commands.BlobCreator), new(*blobs.FilesystemStorage)),
 )
 
 func newFilesystemStorage(logger logging.Logger, config Config) (*blobs.FilesystemStorage, error) {

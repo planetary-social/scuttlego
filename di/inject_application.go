@@ -28,6 +28,7 @@ var commandsSet = wire.NewSet(
 	commands.NewPublishRawHandler,
 	commands.NewEstablishNewConnectionsHandler,
 	commands.NewDownloadBlobHandler,
+	commands.NewCreateBlobHandler,
 
 	commands.NewRawMessageHandler,
 	wire.Bind(new(replication.RawMessageHandler), new(*commands.RawMessageHandler)),

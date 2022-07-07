@@ -274,6 +274,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	createWantsHandler := commands.NewCreateWantsHandler(replicationManager)
 	currentTimeProvider := adapters.NewCurrentTimeProvider()
 	downloadBlobHandler := commands.NewDownloadBlobHandler(transactionProvider, currentTimeProvider)
+	createBlobHandler := commands.NewCreateBlobHandler(filesystemStorage)
 	appCommands := app.Commands{
 		RedeemInvite:             redeemInviteHandler,
 		Follow:                   followHandler,
@@ -284,6 +285,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 		ProcessNewLocalDiscovery: processNewLocalDiscoveryHandler,
 		CreateWants:              createWantsHandler,
 		DownloadBlobHandler:      downloadBlobHandler,
+		CreateBlob:               createBlobHandler,
 	}
 	readFeedRepository := bolt.NewReadFeedRepository(db, txRepositoriesFactory)
 	messagePubSub := pubsub.NewMessagePubSub()

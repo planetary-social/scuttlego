@@ -22,6 +22,7 @@ type Commands struct {
 
 	CreateWants  *commands.CreateWantsHandler
 	DownloadBlob *commands.DownloadBlobHandler
+	CreateBlob   *commands.CreateBlobHandler
 }
 
 type Queries struct {

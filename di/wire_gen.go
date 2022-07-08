@@ -283,7 +283,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 		AcceptNewPeer:            acceptNewPeerHandler,
 		ProcessNewLocalDiscovery: processNewLocalDiscoveryHandler,
 		CreateWants:              createWantsHandler,
-		DownloadBlobHandler:      downloadBlobHandler,
+		DownloadBlob:             downloadBlobHandler,
 	}
 	readFeedRepository := bolt.NewReadFeedRepository(db, txRepositoriesFactory)
 	messagePubSub := pubsub.NewMessagePubSub()

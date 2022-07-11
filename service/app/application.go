@@ -28,8 +28,8 @@ type Commands struct {
 type Queries struct {
 	CreateHistoryStream  *queries.CreateHistoryStreamHandler
 	ReceiveLog           *queries.ReceiveLogHandler
+	PublishedLog         *queries.PublishedLogHandler
 	Status               *queries.StatusHandler
-	PublishedMessages    *queries.PublishedMessagesHandler
 	GetBlob              *queries.GetBlobHandler
 	BlobDownloadedEvents *queries.BlobDownloadedEventsHandler
 }

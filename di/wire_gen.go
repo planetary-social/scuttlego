@@ -108,18 +108,18 @@ func BuildTestQueries() (TestQueries, error) {
 	createHistoryStreamHandler := queries.NewCreateHistoryStreamHandler(feedRepositoryMock, messagePubSubMock)
 	receiveLogRepositoryMock := mocks.NewReceiveLogRepositoryMock()
 	receiveLogHandler := queries.NewReceiveLogHandler(receiveLogRepositoryMock)
-	messageRepositoryMock := mocks.NewMessageRepositoryMock()
-	peerManagerMock := mocks.NewPeerManagerMock()
-	statusHandler := queries.NewStatusHandler(messageRepositoryMock, feedRepositoryMock, peerManagerMock)
 	private, err := identity.NewPrivate()
 	if err != nil {
 		return TestQueries{}, err
 	}
 	public := privateIdentityToPublicIdentity(private)
-	publishedMessagesHandler, err := queries.NewPublishedMessagesHandler(feedRepositoryMock, public)
+	publishedLogHandler, err := queries.NewPublishedLogHandler(feedRepositoryMock, receiveLogRepositoryMock, public)
 	if err != nil {
 		return TestQueries{}, err
 	}
+	messageRepositoryMock := mocks.NewMessageRepositoryMock()
+	peerManagerMock := mocks.NewPeerManagerMock()
+	statusHandler := queries.NewStatusHandler(messageRepositoryMock, feedRepositoryMock, peerManagerMock)
 	blobStorageMock := mocks.NewBlobStorageMock()
 	getBlobHandler, err := queries.NewGetBlobHandler(blobStorageMock)
 	if err != nil {
@@ -130,18 +130,20 @@ func BuildTestQueries() (TestQueries, error) {
 	appQueries := app.Queries{
 		CreateHistoryStream:  createHistoryStreamHandler,
 		ReceiveLog:           receiveLogHandler,
+		PublishedLog:         publishedLogHandler,
 		Status:               statusHandler,
-		PublishedMessages:    publishedMessagesHandler,
 		GetBlob:              getBlobHandler,
 		BlobDownloadedEvents: blobDownloadedEventsHandler,
 	}
 	testQueries := TestQueries{
-		Queries:           appQueries,
-		FeedRepository:    feedRepositoryMock,
-		MessagePubSub:     messagePubSubMock,
-		MessageRepository: messageRepositoryMock,
-		PeerManager:       peerManagerMock,
-		BlobStorage:       blobStorageMock,
+		Queries:              appQueries,
+		FeedRepository:       feedRepositoryMock,
+		MessagePubSub:        messagePubSubMock,
+		MessageRepository:    messageRepositoryMock,
+		PeerManager:          peerManagerMock,
+		BlobStorage:          blobStorageMock,
+		ReceiveLogRepository: receiveLogRepositoryMock,
+		LocalIdentity:        public,
 	}
 	return testQueries, nil
 }
@@ -292,12 +294,12 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	createHistoryStreamHandler := queries.NewCreateHistoryStreamHandler(readFeedRepository, messagePubSub)
 	readReceiveLogRepository := bolt.NewReadReceiveLogRepository(db, txRepositoriesFactory)
 	receiveLogHandler := queries.NewReceiveLogHandler(readReceiveLogRepository)
-	readMessageRepository := bolt.NewReadMessageRepository(db, txRepositoriesFactory)
-	statusHandler := queries.NewStatusHandler(readMessageRepository, readFeedRepository, peerManager)
-	publishedMessagesHandler, err := queries.NewPublishedMessagesHandler(readFeedRepository, public)
+	publishedLogHandler, err := queries.NewPublishedLogHandler(readFeedRepository, readReceiveLogRepository, public)
 	if err != nil {
 		return Service{}, err
 	}
+	readMessageRepository := bolt.NewReadMessageRepository(db, txRepositoriesFactory)
+	statusHandler := queries.NewStatusHandler(readMessageRepository, readFeedRepository, peerManager)
 	getBlobHandler, err := queries.NewGetBlobHandler(filesystemStorage)
 	if err != nil {
 		return Service{}, err
@@ -306,8 +308,8 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	appQueries := app.Queries{
 		CreateHistoryStream:  createHistoryStreamHandler,
 		ReceiveLog:           receiveLogHandler,
+		PublishedLog:         publishedLogHandler,
 		Status:               statusHandler,
-		PublishedMessages:    publishedMessagesHandler,
 		GetBlob:              getBlobHandler,
 		BlobDownloadedEvents: blobDownloadedEventsHandler,
 	}
@@ -362,11 +364,14 @@ type TestAdapters struct {
 type TestQueries struct {
 	Queries app.Queries
 
-	FeedRepository    *mocks.FeedRepositoryMock
-	MessagePubSub     *mocks.MessagePubSubMock
-	MessageRepository *mocks.MessageRepositoryMock
-	PeerManager       *mocks.PeerManagerMock
-	BlobStorage       *mocks.BlobStorageMock
+	FeedRepository       *mocks.FeedRepositoryMock
+	MessagePubSub        *mocks.MessagePubSubMock
+	MessageRepository    *mocks.MessageRepositoryMock
+	PeerManager          *mocks.PeerManagerMock
+	BlobStorage          *mocks.BlobStorageMock
+	ReceiveLogRepository *mocks.ReceiveLogRepositoryMock
+
+	LocalIdentity identity.Public
 }
 
 var replicatorSet = wire.NewSet(replication.NewManager, wire.Bind(new(replication.ReplicationManager), new(*replication.Manager)), replication.NewGossipReplicator, wire.Bind(new(domain.MessageReplicator), new(*replication.GossipReplicator)))

@@ -25,7 +25,7 @@ func TestPublishedLog_NilStartSeqIsNotUsedToDetermineMessageSequence(t *testing.
 	require.Empty(t, app.ReceiveLogRepository.GetMessageCalls)
 }
 
-func TestPublishedLog_NotNilStarSeqIsUsedToDetermineMessageSequence(t *testing.T) {
+func TestPublishedLog_NotNilStartSeqIsUsedToDetermineMessageSequence(t *testing.T) {
 	app, err := di.BuildTestQueries()
 	require.NoError(t, err)
 

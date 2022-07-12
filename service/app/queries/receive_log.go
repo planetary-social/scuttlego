@@ -14,7 +14,8 @@ type ReceiveLogRepository interface {
 	// nothing to do with the sequence field of Scuttlebutt messages.
 	List(startSeq ReceiveLogSequence, limit int) ([]LogMessage, error)
 
-	// GetMessage returns the message that the receive log points to or
+	// GetMessage returns the message that the provided receive log sequence
+	// points to.
 	GetMessage(seq ReceiveLogSequence) (message.Message, error)
 
 	// GetSequence returns the sequence assigned to a message in the receive

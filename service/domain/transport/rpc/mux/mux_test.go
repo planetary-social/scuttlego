@@ -28,7 +28,7 @@ func TestNewMux(t *testing.T) {
 		),
 	}
 
-	_, err := mux.NewMux(logger, handlers)
+	_, err := mux.NewMux(logger, handlers, nil)
 	require.NoError(t, err)
 }
 
@@ -52,8 +52,8 @@ func TestNewMux_ProcedureNamesMustBeUnique(t *testing.T) {
 		),
 	}
 
-	_, err := mux.NewMux(logger, handlers)
-	require.EqualError(t, err, "could not add a handler: handler for method 'someProcedure' was already added")
+	_, err := mux.NewMux(logger, handlers, nil)
+	require.EqualError(t, err, "could not add a handler: handler is not unique: handler for method 'someProcedure' was already added")
 }
 
 type mockHandler struct {

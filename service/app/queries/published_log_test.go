@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestPublishedLog_NilStarSeqIsNotUsedToDetermineMessageSequence(t *testing.T) {
+func TestPublishedLog_NilStartSeqIsNotUsedToDetermineMessageSequence(t *testing.T) {
 	app, err := di.BuildTestQueries()
 	require.NoError(t, err)
 
@@ -25,7 +25,7 @@ func TestPublishedLog_NilStarSeqIsNotUsedToDetermineMessageSequence(t *testing.T
 	require.Empty(t, app.ReceiveLogRepository.GetMessageCalls)
 }
 
-func TestPublishedLog_NotNilStarSeqIsUsedToDetermineMessageSequence(t *testing.T) {
+func TestPublishedLog_NotNilStartSeqIsUsedToDetermineMessageSequence(t *testing.T) {
 	app, err := di.BuildTestQueries()
 	require.NoError(t, err)
 

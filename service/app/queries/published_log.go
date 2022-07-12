@@ -48,7 +48,7 @@ func (h *PublishedLogHandler) Handle(query PublishedLog) ([]LogMessage, error) {
 		}
 
 		if !msg.Feed().Equal(h.feed) {
-			return nil, errors.New("start sequence doesn't point to a message from this feed") // todo test
+			return nil, errors.New("start sequence doesn't point to a message from this feed")
 		}
 
 		startSeq = internal.Ptr(msg.Sequence())

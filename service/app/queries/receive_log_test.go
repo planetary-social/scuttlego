@@ -45,5 +45,4 @@ func TestReceiveLog(t *testing.T) {
 			}
 		})
 	}
-
 }

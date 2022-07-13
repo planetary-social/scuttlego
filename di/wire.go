@@ -90,11 +90,14 @@ func BuildTestAdapters(*bbolt.DB) (TestAdapters, error) {
 type TestQueries struct {
 	Queries app.Queries
 
-	FeedRepository    *mocks.FeedRepositoryMock
-	MessagePubSub     *mocks.MessagePubSubMock
-	MessageRepository *mocks.MessageRepositoryMock
-	PeerManager       *mocks.PeerManagerMock
-	BlobStorage       *mocks.BlobStorageMock
+	FeedRepository       *mocks.FeedRepositoryMock
+	MessagePubSub        *mocks.MessagePubSubMock
+	MessageRepository    *mocks.MessageRepositoryMock
+	PeerManager          *mocks.PeerManagerMock
+	BlobStorage          *mocks.BlobStorageMock
+	ReceiveLogRepository *mocks.ReceiveLogRepositoryMock
+
+	LocalIdentity identity.Public
 }
 
 func BuildTestQueries() (TestQueries, error) {

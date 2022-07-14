@@ -270,7 +270,9 @@ func (h *CreateHistoryStreamHandler) onLiveMessage(msg message.Message) {
 	key := h.feedKey(msg.Feed())
 
 	for _, stream := range h.streams[key] {
-		stream.OnLiveMessage(msg)
+		if err := stream.OnLiveMessage(msg); err != nil {
+			// todo handle error (close and drop this stream most likely)
+		}
 	}
 }
 
@@ -378,7 +380,7 @@ func (s *HistoryStream) sendMessage(msg message.Message) error {
 	return nil
 }
 
-func (s HistoryStream) Feed() refs.Feed {
+func (s *HistoryStream) Feed() refs.Feed {
 	return s.feed
 }
 

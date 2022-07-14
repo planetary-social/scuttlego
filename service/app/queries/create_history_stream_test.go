@@ -469,7 +469,11 @@ func makeQueriesAndRunCreateHistoryStreamHandler(t *testing.T, ctx context.Conte
 	require.NoError(t, err)
 	go func() {
 		if err := a.Queries.CreateHistoryStream.Run(ctx); err != nil {
-			t.Log("run error", err)
+			select {
+			case <-ctx.Done():
+			default:
+				t.Log("run error", err)
+			}
 		}
 	}()
 	return a

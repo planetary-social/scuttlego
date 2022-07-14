@@ -9,6 +9,7 @@ package di
 import (
 	"context"
 	"path"
+	"testing"
 	"time"
 
 	"github.com/boreq/errors"
@@ -102,10 +103,12 @@ func BuildTestAdapters(db *bbolt.DB) (TestAdapters, error) {
 	return testAdapters, nil
 }
 
-func BuildTestQueries() (TestQueries, error) {
+func BuildTestQueries(t *testing.T) (TestQueries, error) {
 	feedRepositoryMock := mocks.NewFeedRepositoryMock()
-	messagePubSubMock := mocks.NewMessagePubSubMock()
-	createHistoryStreamHandler := queries.NewCreateHistoryStreamHandler(feedRepositoryMock, messagePubSubMock)
+	messagePubSub := pubsub.NewMessagePubSub()
+	messagePubSubMock := mocks.NewMessagePubSubMock(messagePubSub)
+	logger := fixtures.TestLogger(t)
+	createHistoryStreamHandler := queries.NewCreateHistoryStreamHandler(feedRepositoryMock, messagePubSubMock, logger)
 	receiveLogRepositoryMock := mocks.NewReceiveLogRepositoryMock()
 	receiveLogHandler := queries.NewReceiveLogHandler(receiveLogRepositoryMock)
 	private, err := identity.NewPrivate()
@@ -291,7 +294,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	}
 	readFeedRepository := bolt.NewReadFeedRepository(db, txRepositoriesFactory)
 	messagePubSub := pubsub.NewMessagePubSub()
-	createHistoryStreamHandler := queries.NewCreateHistoryStreamHandler(readFeedRepository, messagePubSub)
+	createHistoryStreamHandler := queries.NewCreateHistoryStreamHandler(readFeedRepository, messagePubSub, logger)
 	readReceiveLogRepository := bolt.NewReadReceiveLogRepository(db, txRepositoriesFactory)
 	receiveLogHandler := queries.NewReceiveLogHandler(readReceiveLogRepository)
 	publishedLogHandler, err := queries.NewPublishedLogHandler(readFeedRepository, readReceiveLogRepository, public)
@@ -327,11 +330,12 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	}
 	networkDiscoverer := network2.NewDiscoverer(discoverer, application, logger)
 	connectionEstablisher := network2.NewConnectionEstablisher(application, logger)
-	handlerCreateHistoryStream := rpc2.NewHandlerCreateHistoryStream(createHistoryStreamHandler)
 	handlerBlobsGet := rpc2.NewHandlerBlobsGet(getBlobHandler)
 	handlerBlobsCreateWants := rpc2.NewHandlerBlobsCreateWants(createWantsHandler)
-	v2 := rpc2.NewMuxHandlers(handlerCreateHistoryStream, handlerBlobsGet, handlerBlobsCreateWants)
-	muxMux, err := mux.NewMux(logger, v2)
+	v2 := rpc2.NewMuxHandlers(handlerBlobsGet, handlerBlobsCreateWants)
+	handlerCreateHistoryStream := rpc2.NewHandlerCreateHistoryStream(createHistoryStreamHandler, logger)
+	v3 := rpc2.NewMuxClosingHandlers(handlerCreateHistoryStream)
+	muxMux, err := mux.NewMux(logger, v2, v3)
 	if err != nil {
 		return Service{}, err
 	}
@@ -340,7 +344,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	if err != nil {
 		return Service{}, err
 	}
-	service := NewService(application, listener, networkDiscoverer, connectionEstablisher, pubSub, advertiser, messageBuffer)
+	service := NewService(application, listener, networkDiscoverer, connectionEstablisher, pubSub, advertiser, messageBuffer, createHistoryStreamHandler)
 	return service, nil
 }
 

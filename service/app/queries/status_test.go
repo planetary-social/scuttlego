@@ -11,7 +11,7 @@ import (
 )
 
 func TestStatus(t *testing.T) {
-	a, err := di.BuildTestQueries()
+	a, err := di.BuildTestQueries(t)
 	require.NoError(t, err)
 
 	expectedMessageCount := 123

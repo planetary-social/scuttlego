@@ -3,9 +3,9 @@ package mux
 import (
 	"context"
 	"fmt"
-	"github.com/hashicorp/go-multierror"
 
 	"github.com/boreq/errors"
+	"github.com/hashicorp/go-multierror"
 	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 )

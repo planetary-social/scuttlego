@@ -3,35 +3,24 @@ package mocks
 import (
 	"context"
 
+	"github.com/planetary-social/scuttlego/service/adapters/pubsub"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 )
 
 type MessagePubSubMock struct {
-	NewMessagesToSend []message.Message
-	CallsCount        int
+	CallsCount int
+	pubsub     *pubsub.MessagePubSub
 }
 
-func NewMessagePubSubMock() *MessagePubSubMock {
-	return &MessagePubSubMock{}
+func NewMessagePubSubMock(pubsub *pubsub.MessagePubSub) *MessagePubSubMock {
+	return &MessagePubSubMock{pubsub: pubsub}
 }
 
-// SubscribeToNewMessages closes the channel after the messages are sent as otherwise testing is annoying.
 func (m *MessagePubSubMock) SubscribeToNewMessages(ctx context.Context) <-chan message.Message {
 	m.CallsCount++
+	return m.pubsub.SubscribeToNewMessages(ctx)
+}
 
-	ch := make(chan message.Message)
-
-	go func() {
-		defer close(ch)
-
-		for _, msg := range m.NewMessagesToSend {
-			select {
-			case ch <- msg:
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
-
-	return ch
+func (m *MessagePubSubMock) PublishNewMessage(msg message.Message) {
+	m.pubsub.PublishNewMessage(msg)
 }

@@ -438,6 +438,148 @@ func TestCreateHistoryStream_MessagesAreNotRepeatedIfTheyWereAlreadySent(t *test
 	}
 }
 
+func TestCreateHistoryStream_IfLimitIsReachedBySendingLiveMessagesNoMoreMessagesAreSentAndStreamIsClosedWithNoError(t *testing.T) {
+	t.Parallel()
+
+	ctx := fixtures.TestContext(t)
+	a := makeQueriesAndRunCreateHistoryStreamHandler(t, ctx)
+
+	feed := fixtures.SomeRefFeed()
+	rw := newCreateHistoryStreamResponseWriterMock()
+
+	numMessages := 10
+	limit := 5
+	require.Less(t, limit, numMessages)
+
+	query := queries.CreateHistoryStream{
+		Id:             feed,
+		Seq:            nil,
+		Limit:          &limit,
+		Live:           true,
+		Old:            false,
+		ResponseWriter: rw,
+	}
+
+	a.Queries.CreateHistoryStream.Handle(ctx, query)
+
+	<-time.After(createHistoryStreamTestDelay)
+
+	go func() {
+		for i := 1; i <= numMessages; i++ {
+			msg := fixtures.SomeMessage(message.MustNewSequence(i), feed)
+			a.MessagePubSub.PublishNewMessage(msg) // todo context so that we can timeout?
+		}
+	}()
+
+	<-time.After(createHistoryStreamTestDelay)
+
+	require.Len(t, rw.WrittenMessages, limit)
+	require.Equal(t, []error{nil}, rw.WrittenErrors, "should have closed the stream")
+}
+
+func TestCreateHistoryStream_IfLimitIsReachedBySendingOldMessagesTheStreamIsClosedInsteadOfGoingIntoLiveMode(t *testing.T) {
+	t.Parallel()
+
+	ctx := fixtures.TestContext(t)
+	a := makeQueriesAndRunCreateHistoryStreamHandler(t, ctx)
+
+	feed := fixtures.SomeRefFeed()
+	rw := newCreateHistoryStreamResponseWriterMock()
+
+	limit := 2
+	expectedMessages := []message.Message{
+		fixtures.SomeMessage(message.MustNewSequence(1), feed),
+		fixtures.SomeMessage(message.MustNewSequence(2), feed),
+	}
+	require.Len(t, expectedMessages, limit)
+	a.FeedRepository.GetMessagesReturnValue = expectedMessages
+
+	query := queries.CreateHistoryStream{
+		Id:             feed,
+		Seq:            nil,
+		Limit:          &limit,
+		Live:           true,
+		Old:            true,
+		ResponseWriter: rw,
+	}
+
+	a.Queries.CreateHistoryStream.Handle(ctx, query)
+
+	<-time.After(createHistoryStreamTestDelay)
+
+	require.Len(t, rw.WrittenMessages, limit)
+	require.Equal(t, []error{nil}, rw.WrittenErrors, "should have closed the stream")
+}
+
+func TestCreateHistoryStream_ErrorInOnLiveMessageClosesTheStreamWithAnError(t *testing.T) {
+	t.Parallel()
+
+	ctx := fixtures.TestContext(t)
+	a := makeQueriesAndRunCreateHistoryStreamHandler(t, ctx)
+
+	feed := fixtures.SomeRefFeed()
+	rw := newCreateHistoryStreamResponseWriterMock()
+
+	query := queries.CreateHistoryStream{
+		Id:             feed,
+		Seq:            nil,
+		Limit:          nil,
+		Live:           true,
+		Old:            false,
+		ResponseWriter: rw,
+	}
+
+	a.Queries.CreateHistoryStream.Handle(ctx, query)
+
+	<-time.After(createHistoryStreamTestDelay)
+
+	rw.WriteMessageErrorToReturn = errors.New("forced error")
+	go func() {
+		for i := 1; i <= 10; i++ {
+			msg := fixtures.SomeMessage(message.MustNewSequence(i), feed)
+			a.MessagePubSub.PublishNewMessage(msg) // todo context so that we can timeout?
+		}
+	}()
+
+	<-time.After(createHistoryStreamTestDelay)
+
+	require.Empty(t, rw.WrittenMessages)
+	require.Len(t, rw.WrittenErrors, 1)
+	require.EqualError(t, rw.WrittenErrors[0], "failed to write message: forced error")
+}
+
+func TestCreateHistoryStream_StreamsWhichAreClosedAreClosedAndCleanedUp(t *testing.T) {
+	t.Parallel()
+
+	testCtx := fixtures.TestContext(t)
+	a := makeQueriesAndRunCreateHistoryStreamHandler(t, testCtx)
+
+	feed := fixtures.SomeRefFeed()
+	rw := newCreateHistoryStreamResponseWriterMock()
+
+	ctx, cancel := context.WithCancel(testCtx)
+
+	query := queries.CreateHistoryStream{
+		Id:             feed,
+		Seq:            nil,
+		Limit:          nil,
+		Live:           true,
+		Old:            false,
+		ResponseWriter: rw,
+	}
+
+	a.Queries.CreateHistoryStream.Handle(ctx, query)
+
+	<-time.After(createHistoryStreamTestDelay)
+
+	cancel()
+
+	<-time.After(createHistoryStreamTestDelay)
+
+	require.Empty(t, rw.WrittenMessages)
+	require.Equal(t, []error{nil}, rw.WrittenErrors)
+}
+
 func TestQueue_GetFromEmptyQueueShouldReturnNoValues(t *testing.T) {
 	q := queries.NewRequestQueue()
 	_, ok := q.Get()
@@ -482,6 +624,8 @@ func makeQueriesAndRunCreateHistoryStreamHandler(t *testing.T, ctx context.Conte
 type createHistoryStreamResponseWriterMock struct {
 	WrittenMessages []message.Message
 	WrittenErrors   []error
+
+	WriteMessageErrorToReturn error
 }
 
 func newCreateHistoryStreamResponseWriterMock() *createHistoryStreamResponseWriterMock {
@@ -489,6 +633,9 @@ func newCreateHistoryStreamResponseWriterMock() *createHistoryStreamResponseWrit
 }
 
 func (c *createHistoryStreamResponseWriterMock) WriteMessage(msg message.Message) error {
+	if c.WriteMessageErrorToReturn != nil {
+		return c.WriteMessageErrorToReturn
+	}
 	c.WrittenMessages = append(c.WrittenMessages, msg)
 	return nil
 }

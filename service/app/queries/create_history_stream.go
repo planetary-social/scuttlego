@@ -15,6 +15,7 @@ import (
 const (
 	numCreateHistoryStreamWorkers = 10
 	noNewRequestsToProcessDelay   = 100 * time.Millisecond
+	cleanupDelay                  = 100 * time.Millisecond
 )
 
 type FeedRepository interface {
@@ -112,6 +113,7 @@ func (h *CreateHistoryStreamHandler) startWorkers(ctx context.Context) {
 		go h.worker(ctx)
 	}
 	go h.liveWorker(ctx)
+	go h.cleanupWorker(ctx)
 }
 
 func (h *CreateHistoryStreamHandler) worker(ctx context.Context) {
@@ -136,9 +138,41 @@ func (h *CreateHistoryStreamHandler) worker(ctx context.Context) {
 }
 
 func (h *CreateHistoryStreamHandler) liveWorker(ctx context.Context) {
-	liveMsgs := h.subscriber.SubscribeToNewMessages(ctx)
-	for msg := range liveMsgs {
+	for msg := range h.subscriber.SubscribeToNewMessages(ctx) {
 		h.onLiveMessage(msg)
+	}
+}
+
+func (h *CreateHistoryStreamHandler) cleanupWorker(ctx context.Context) {
+	for {
+		h.cleanup()
+
+		select {
+		case <-time.After(cleanupDelay):
+			continue
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func (h *CreateHistoryStreamHandler) cleanup() {
+	h.streamsLock.Lock()
+	defer h.streamsLock.Unlock()
+
+	for key := range h.streams {
+		for i := range h.streams[key] {
+			if h.streams[key][i].IsClosed() {
+				if closeErr := h.streams[key][i].CloseWithError(nil); closeErr != nil {
+					h.logger.WithError(closeErr).Debug("closing failed")
+				}
+				h.streams[key] = append(h.streams[key][:i], h.streams[key][i+1:]...)
+			}
+		}
+
+		if len(h.streams[key]) == 0 {
+			delete(h.streams, key)
+		}
 	}
 }
 
@@ -159,17 +193,10 @@ func (h *CreateHistoryStreamHandler) processRequest(ctx context.Context, query C
 			if err := s.OnOldMessage(msg); err != nil {
 				return errors.Wrap(err, "error handling an old message")
 			}
-
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			default:
-				continue
-			}
 		}
 	}
 
-	if query.Live {
+	if query.Live && !s.ReachedLimit() {
 		if err := s.SwitchToLiveMode(); err != nil {
 			return errors.Wrap(err, "failed to switch to live mode")
 		}
@@ -196,9 +223,19 @@ func (h *CreateHistoryStreamHandler) onLiveMessage(msg message.Message) {
 
 	key := h.feedKey(msg.Feed())
 
-	for _, stream := range h.streams[key] {
+	for i := len(h.streams[key]) - 1; i >= 0; i-- {
+		stream := h.streams[key][i]
 		if err := stream.OnLiveMessage(msg); err != nil {
-			// todo handle error (close and drop this stream most likely)
+			if errors.Is(err, ErrLimitReached) {
+				if closeErr := stream.CloseWithError(nil); closeErr != nil {
+					h.logger.WithError(closeErr).Debug("closing failed")
+				}
+			} else {
+				if closeErr := stream.CloseWithError(err); closeErr != nil {
+					h.logger.WithError(closeErr).Debug("closing failed")
+				}
+			}
+			h.streams[key] = append(h.streams[key][:i], h.streams[key][i+1:]...)
 		}
 	}
 }
@@ -237,6 +274,12 @@ func NewHistoryStream(ctx context.Context, query CreateHistoryStream) *HistorySt
 }
 
 func (s *HistoryStream) OnOldMessage(msg message.Message) error {
+	select {
+	case <-s.ctx.Done():
+		return s.ctx.Err()
+	default:
+	}
+
 	if !s.old {
 		return errors.New("old is set to false")
 	}
@@ -245,6 +288,12 @@ func (s *HistoryStream) OnOldMessage(msg message.Message) error {
 }
 
 func (s *HistoryStream) SwitchToLiveMode() error {
+	select {
+	case <-s.ctx.Done():
+		return s.ctx.Err()
+	default:
+	}
+
 	if !s.live {
 		return errors.New("live is set to false")
 	}
@@ -269,6 +318,12 @@ func (s *HistoryStream) SwitchToLiveMode() error {
 var ErrLimitReached = errors.New("limit reached")
 
 func (s *HistoryStream) OnLiveMessage(msg message.Message) error {
+	select {
+	case <-s.ctx.Done():
+		return s.ctx.Err()
+	default:
+	}
+
 	if !s.live {
 		return errors.New("live is set to false")
 	}
@@ -296,6 +351,10 @@ func (s *HistoryStream) OnLiveMessage(msg message.Message) error {
 	return s.sendMessage(msg)
 }
 
+func (s *HistoryStream) CloseWithError(err error) error {
+	return s.rw.CloseWithError(err)
+}
+
 func (s *HistoryStream) sendMessage(msg message.Message) error {
 	if err := s.rw.WriteMessage(msg); err != nil {
 		return errors.Wrap(err, "failed to write message")
@@ -309,6 +368,19 @@ func (s *HistoryStream) sendMessage(msg message.Message) error {
 
 func (s *HistoryStream) Feed() refs.Feed {
 	return s.feed
+}
+
+func (s *HistoryStream) ReachedLimit() bool {
+	return s.limit != nil && s.sentMessages >= *s.limit
+}
+
+func (s *HistoryStream) IsClosed() bool {
+	select {
+	case <-s.ctx.Done():
+		return true
+	default:
+		return false
+	}
 }
 
 type RequestQueue struct {

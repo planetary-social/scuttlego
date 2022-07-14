@@ -213,14 +213,7 @@ func (h *CreateHistoryStreamHandler) liveWorker(ctx context.Context) {
 }
 
 func (h *CreateHistoryStreamHandler) processRequest(ctx context.Context, query CreateHistoryStream) error {
-	if !query.Live && !query.Old {
-		if closeErr := query.ResponseWriter.CloseWithError(nil); closeErr != nil {
-			h.logger.WithError(closeErr).Debug("closing failed")
-		}
-		return nil
-	}
-
-	s := NewHistoryStream(ctx, query.ResponseWriter, query.Id, query.Limit, query.Seq)
+	s := NewHistoryStream(ctx, query)
 
 	if query.Live {
 		h.registerStreamForLive(s)
@@ -244,6 +237,13 @@ func (h *CreateHistoryStreamHandler) processRequest(ctx context.Context, query C
 				continue
 			}
 		}
+	}
+
+	if !query.Live {
+		if closeErr := query.ResponseWriter.CloseWithError(nil); closeErr != nil {
+			h.logger.WithError(closeErr).Debug("closing failed")
+		}
+		return nil
 	}
 
 	if query.Live {
@@ -295,13 +295,15 @@ type HistoryStream struct {
 	lock                    sync.Mutex // secures queue, readyToSendLiveMessages
 }
 
-func NewHistoryStream(ctx context.Context, rw CreateHistoryStreamResponseWriter, feed refs.Feed, limit *int, initialSequence *message.Sequence) *HistoryStream {
+func NewHistoryStream(ctx context.Context, query CreateHistoryStream) *HistoryStream {
 	return &HistoryStream{
 		ctx:          ctx,
-		rw:           rw,
-		feed:         feed,
-		limit:        limit,
-		lastSequence: initialSequence,
+		rw:           query.ResponseWriter,
+		feed:         query.Id,
+		limit:        query.Limit,
+		old:          query.Old,
+		live:         query.Live,
+		lastSequence: query.Seq,
 	}
 }
 
@@ -310,14 +312,7 @@ func (s *HistoryStream) OnOldMessage(msg message.Message) error {
 		return errors.New("old is set to false")
 	}
 
-	if err := s.rw.WriteMessage(msg); err != nil {
-		return errors.Wrap(err, "failed to write message")
-	}
-
-	seq := msg.Sequence()
-	s.lastSequence = &seq
-	s.sentMessages++
-	return nil
+	return s.sendMessage(msg)
 }
 
 func (s *HistoryStream) SwitchToLiveMode() error {
@@ -354,42 +349,33 @@ func (s *HistoryStream) OnLiveMessage(msg message.Message) error {
 
 	if !s.readyToSendLiveMessages {
 		s.queue = append(s.queue, msg)
-	}
-
-	// switch to live
-
-	//
-	//	if query.Live {
-	//for {
-	if s.limit != nil && s.sentMessages >= *s.limit {
 		return nil
 	}
 
-	//msg, ok := <-liveMsgs
-	//if !ok {
-	//	return errors.New("live messages channel closed")
-	//}
+	if s.limit != nil && s.sentMessages >= *s.limit {
+		return ErrLimitReached
+	}
 
-	//if !msg.Feed().Equal(s.feed) {
-	//	return errors.New("message doesn't belong to this feed")
-	//}
+	if !msg.Feed().Equal(s.feed) {
+		return errors.New("message doesn't belong to this feed")
+	}
 
-	//if lastSequence != nil && !msg.Sequence().ComesAfter(*lastSequence) {
-	//	continue
-	//}
+	if s.lastSequence != nil && !msg.Sequence().ComesAfter(*s.lastSequence) {
+		return nil
+	}
 
-	//select {
-	//case ch <- MessageWithErr{Message: msg}:
-	//	seq := msg.Sequence()
-	//	lastSequence = &seq
-	//	sentMessages++
-	//case <-ctx.Done():
-	//	return ctx.Err()
-	//}
-	//}
-	//	}
+	return s.sendMessage(msg)
+}
 
-	panic("not implemented")
+func (s *HistoryStream) sendMessage(msg message.Message) error {
+	if err := s.rw.WriteMessage(msg); err != nil {
+		return errors.Wrap(err, "failed to write message")
+	}
+
+	seq := msg.Sequence()
+	s.lastSequence = &seq
+	s.sentMessages++
+	return nil
 }
 
 func (s HistoryStream) Feed() refs.Feed {

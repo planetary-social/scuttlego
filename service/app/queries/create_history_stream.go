@@ -169,16 +169,13 @@ func (h *CreateHistoryStreamHandler) processRequest(ctx context.Context, query C
 		}
 	}
 
-	if !query.Live {
-		if closeErr := query.ResponseWriter.CloseWithError(nil); closeErr != nil {
-			h.logger.WithError(closeErr).Debug("closing failed")
-		}
-		return nil
-	}
-
 	if query.Live {
 		if err := s.SwitchToLiveMode(); err != nil {
 			return errors.Wrap(err, "failed to switch to live mode")
+		}
+	} else {
+		if closeErr := query.ResponseWriter.CloseWithError(nil); closeErr != nil {
+			h.logger.WithError(closeErr).Debug("closing failed")
 		}
 	}
 

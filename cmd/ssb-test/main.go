@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"github.com/planetary-social/scuttlego/service/app/commands"
 	"os"
 	"path"
+	"runtime"
 	"runtime/pprof"
 	"strings"
 	"time"
@@ -14,7 +16,6 @@ import (
 	"github.com/planetary-social/scuttlego/cmd/ssb-test/storage"
 	"github.com/planetary-social/scuttlego/di"
 	"github.com/planetary-social/scuttlego/logging"
-	"github.com/planetary-social/scuttlego/service/app/commands"
 	"github.com/planetary-social/scuttlego/service/domain"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/formats"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
@@ -31,27 +32,27 @@ func main() {
 }
 
 var (
-//myPatchwork        = refs.MustNewIdentity("@qFtLJ6P5Eh9vKxnj7Rsh8SkE6B6Z36DVLP7ZOKNeQ/Y=.ed25519")
-//myPatchworkConnect = commands.Connect{
-//	Remote:  myPatchwork.Identity(),
-//	Address: network.NewAddress("127.0.0.1:8008"),
-//}
+	//myPatchwork        = refs.MustNewIdentity("@qFtLJ6P5Eh9vKxnj7Rsh8SkE6B6Z36DVLP7ZOKNeQ/Y=.ed25519")
+	//myPatchworkConnect = commands.Connect{
+	//	Remote:  myPatchwork.Identity(),
+	//	Address: network.NewAddress("127.0.0.1:8008"),
+	//}
 
-//localGoSSB        = refs.MustNewIdentity("@ln1Bdt8lEy4/F/szWlFVAIAIdCBKmzH2MNEVad8BWus=.ed25519")
-//localGoSSBConnect = commands.Connect{
-//	Remote:  localGoSSB.Identity(),
-//	Address: network.NewAddress("127.0.0.1:8008"),
-//}
+	//localGoSSB        = refs.MustNewIdentity("@ln1Bdt8lEy4/F/szWlFVAIAIdCBKmzH2MNEVad8BWus=.ed25519")
+	//localGoSSBConnect = commands.Connect{
+	//	Remote:  localGoSSB.Identity(),
+	//	Address: network.NewAddress("127.0.0.1:8008"),
+	//}
 
-//mainnetPub = invites.MustNewInviteFromString("one.planetary.pub:8008:@CIlwTOK+m6v1hT2zUVOCJvvZq7KE/65ErN6yA2yrURY=.ed25519~KVvak/aZeQJQUrn1imLIvwU+EVTkCzGW8TJWTmK8lOk=")
+	mainnetPub = invites.MustNewInviteFromString("one.planetary.pub:8008:@CIlwTOK+m6v1hT2zUVOCJvvZq7KE/65ErN6yA2yrURY=.ed25519~KVvak/aZeQJQUrn1imLIvwU+EVTkCzGW8TJWTmK8lOk=")
 
-//soapdog = refs.MustNewIdentity("@qv10rF4IsmxRZb7g5ekJ33EakYBpdrmV/vtP1ij5BS4=.ed25519")
+	//soapdog = refs.MustNewIdentity("@qv10rF4IsmxRZb7g5ekJ33EakYBpdrmV/vtP1ij5BS4=.ed25519")
 
-//pub         = refs.MustNewIdentity("@CIlwTOK+m6v1hT2zUVOCJvvZq7KE/65ErN6yA2yrURY=.ed25519")
-//hubConnect = commands2.Connect{
-//	Remote:  pub.Identity(),
-//	Address: network2.NewAddress("one.planetary.pub:8008"),
-//}
+	//pub         = refs.MustNewIdentity("@CIlwTOK+m6v1hT2zUVOCJvvZq7KE/65ErN6yA2yrURY=.ed25519")
+	//hubConnect = commands2.Connect{
+	//	Remote:  pub.Identity(),
+	//	Address: network2.NewAddress("one.planetary.pub:8008"),
+	//}
 )
 
 var (
@@ -88,22 +89,21 @@ func run() error {
 		DataDirectory: os.Args[1],
 		ListenAddress: ":8008",
 		Logger:        newLogger(),
-		NetworkKey:    testnetNetworkKey,
-		MessageHMAC:   testnetMessageHMAC,
-		//NetworkKey:
+		//NetworkKey:    testnetNetworkKey,
+		//MessageHMAC:   testnetMessageHMAC,
 		PeerManagerConfig: domain.PeerManagerConfig{
-			PreferredPubs: []domain.Pub{
-				{
-					Identity: testnetPub.Remote().Identity(),
-					Address:  testnetPub.Address(),
-				},
-			},
 			//PreferredPubs: []domain.Pub{
 			//	{
-			//		Identity: mainnetPub.Remote().Identity(),
-			//		Address:  mainnetPub.Address(),
+			//		Identity: testnetPub.Remote().Identity(),
+			//		Address:  testnetPub.Address(),
 			//	},
 			//},
+			PreferredPubs: []domain.Pub{
+				{
+					Identity: mainnetPub.Remote().Identity(),
+					Address:  mainnetPub.Address(),
+				},
+			},
 		},
 	}
 
@@ -123,13 +123,13 @@ func run() error {
 
 	//go func() {
 	//	<-time.After(5 * time.Second)
-	//	err := service.App.Commands.RedeemInvite.Handle(ctx, commands.RedeemInvite{Invite: pubInvite})
-	//	fmt.Println("redeemed", err)
+	//	err := service.App.Commands.Follow.Handle(commands.Follow{Target: testnetPub.Remote()})
+	//	fmt.Println("follow", err)
 	//}()
 
 	go func() {
 		<-time.After(5 * time.Second)
-		err := service.App.Commands.Follow.Handle(commands.Follow{Target: testnetPub.Remote()})
+		err := service.App.Commands.Follow.Handle(commands.Follow{Target: mainnetPub.Remote()})
 		fmt.Println("follow", err)
 	}()
 
@@ -157,6 +157,7 @@ func run() error {
 				WithField("feeds", result.NumberOfFeeds).
 				WithField("messages", result.NumberOfMessages).
 				WithField("peers", strings.Join(peers, ", ")).
+				WithField("goroutines", runtime.NumGoroutine()).
 				Debug("status")
 		}
 	}()

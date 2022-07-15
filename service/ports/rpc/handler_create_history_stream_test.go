@@ -11,6 +11,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/app/queries"
 	"github.com/planetary-social/scuttlego/service/domain/messages"
 	transportrpc "github.com/planetary-social/scuttlego/service/domain/transport/rpc"
+	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/mux/mocks"
 	"github.com/planetary-social/scuttlego/service/ports/rpc"
 	"github.com/stretchr/testify/require"
 )
@@ -42,7 +43,7 @@ func TestCreateHistoryStream(t *testing.T) {
 		t.Run(testCase.Name, func(t *testing.T) {
 			ctx := fixtures.TestContext(t)
 			queryHandler := NewMockCreateHistoryStreamQueryHandler()
-			rw := NewMockResponseWriter()
+			rw := mocks.NewMockResponseWriterCloser()
 			h := rpc.NewHandlerCreateHistoryStream(queryHandler, logging.NewDevNullLogger())
 
 			req := createHistoryStreamRequest(t, testCase.Keys)
@@ -78,27 +79,6 @@ func createHistoryStreamRequest(t *testing.T, keys *bool) *transportrpc.Request 
 	require.NoError(t, err)
 
 	return req
-}
-
-type MockResponseWriter struct {
-	WrittenMessages [][]byte
-	WrittenErrors   []error
-}
-
-func NewMockResponseWriter() *MockResponseWriter {
-	return &MockResponseWriter{}
-}
-
-func (m *MockResponseWriter) WriteMessage(body []byte) error {
-	cpy := make([]byte, len(body))
-	copy(cpy, body)
-	m.WrittenMessages = append(m.WrittenMessages, cpy)
-	return nil
-}
-
-func (m *MockResponseWriter) CloseWithError(err error) error {
-	m.WrittenErrors = append(m.WrittenErrors, err)
-	return nil
 }
 
 type MockCreateHistoryStreamQueryHandler struct {

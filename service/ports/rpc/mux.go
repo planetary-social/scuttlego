@@ -21,8 +21,8 @@ func NewMuxHandlers(
 // handlers implemented by this program.
 func NewMuxClosingHandlers(
 	createHistoryStream *HandlerCreateHistoryStream,
-) []mux.ClosingHandler {
-	return []mux.ClosingHandler{
+) []mux.SynchronousHandler {
+	return []mux.SynchronousHandler{
 		createHistoryStream,
 	}
 }

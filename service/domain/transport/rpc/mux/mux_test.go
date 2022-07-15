@@ -2,15 +2,20 @@ package mux_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/planetary-social/scuttlego/fixtures"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/mux"
+	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/mux/mocks"
 	"github.com/stretchr/testify/require"
 )
 
 func TestNewMux(t *testing.T) {
+	t.Parallel()
+
 	logger := fixtures.TestLogger(t)
 
 	handlers := []mux.Handler{
@@ -19,20 +24,41 @@ func TestNewMux(t *testing.T) {
 				fixtures.SomeProcedureName(),
 				rpc.ProcedureTypeAsync,
 			),
+			nil,
 		),
 		newMockHandler(
 			rpc.MustNewProcedure(
 				fixtures.SomeProcedureName(),
 				rpc.ProcedureTypeSource,
 			),
+			nil,
 		),
 	}
 
-	_, err := mux.NewMux(logger, handlers, nil)
+	synchronousHandlers := []mux.SynchronousHandler{
+		newMockSynchronousHandler(
+			rpc.MustNewProcedure(
+				fixtures.SomeProcedureName(),
+				rpc.ProcedureTypeAsync,
+			),
+			nil,
+		),
+		newMockSynchronousHandler(
+			rpc.MustNewProcedure(
+				fixtures.SomeProcedureName(),
+				rpc.ProcedureTypeSource,
+			),
+			nil,
+		),
+	}
+
+	_, err := mux.NewMux(logger, handlers, synchronousHandlers)
 	require.NoError(t, err)
 }
 
-func TestNewMux_ProcedureNamesMustBeUnique(t *testing.T) {
+func TestNewMux_ProcedureNamesMustBeUniqueForHandlers(t *testing.T) {
+	t.Parallel()
+
 	logger := fixtures.TestLogger(t)
 
 	name := rpc.MustNewProcedureName([]string{"someProcedure"})
@@ -43,12 +69,14 @@ func TestNewMux_ProcedureNamesMustBeUnique(t *testing.T) {
 				name,
 				rpc.ProcedureTypeAsync,
 			),
+			nil,
 		),
 		newMockHandler(
 			rpc.MustNewProcedure(
 				name,
 				rpc.ProcedureTypeSource,
 			),
+			nil,
 		),
 	}
 
@@ -56,12 +84,157 @@ func TestNewMux_ProcedureNamesMustBeUnique(t *testing.T) {
 	require.EqualError(t, err, "could not add a handler: handler is not unique: handler for method 'someProcedure' was already added")
 }
 
-type mockHandler struct {
-	procedure rpc.Procedure
+func TestNewMux_ProcedureNamesMustBeUniqueForSynchronousHandlers(t *testing.T) {
+	t.Parallel()
+
+	logger := fixtures.TestLogger(t)
+
+	name := rpc.MustNewProcedureName([]string{"someProcedure"})
+
+	synchronousHandlers := []mux.SynchronousHandler{
+		newMockSynchronousHandler(
+			rpc.MustNewProcedure(
+				name,
+				rpc.ProcedureTypeAsync,
+			),
+			nil,
+		),
+		newMockSynchronousHandler(
+			rpc.MustNewProcedure(
+				name,
+				rpc.ProcedureTypeSource,
+			),
+			nil,
+		),
+	}
+
+	_, err := mux.NewMux(logger, nil, synchronousHandlers)
+	require.EqualError(t, err, "could not add a synchronous handler: handler is not unique: synchronous handler for method 'someProcedure' was already added")
 }
 
-func newMockHandler(procedure rpc.Procedure) *mockHandler {
-	return &mockHandler{procedure: procedure}
+func TestNewMux_ProcedureNamesMustBeUniqueForSynchronousHandlersAndHandlers(t *testing.T) {
+	t.Parallel()
+
+	logger := fixtures.TestLogger(t)
+
+	name := rpc.MustNewProcedureName([]string{"someProcedure"})
+
+	handlers := []mux.Handler{
+		newMockHandler(
+			rpc.MustNewProcedure(
+				name,
+				rpc.ProcedureTypeAsync,
+			),
+			nil,
+		),
+	}
+
+	synchronousHandlers := []mux.SynchronousHandler{
+		newMockSynchronousHandler(
+			rpc.MustNewProcedure(
+				name,
+				rpc.ProcedureTypeSource,
+			),
+			nil,
+		),
+	}
+
+	_, err := mux.NewMux(logger, handlers, synchronousHandlers)
+	require.EqualError(t, err, "could not add a synchronous handler: handler is not unique: handler for method 'someProcedure' was already added")
+}
+
+func TestNewMux_HandlerDoesNotBlock(t *testing.T) {
+	t.Parallel()
+
+	logger := fixtures.TestLogger(t)
+
+	procedure := rpc.MustNewProcedure(
+		rpc.MustNewProcedureName([]string{"someProcedure"}),
+		rpc.ProcedureTypeAsync,
+	)
+
+	delay := 1 * time.Second
+
+	handlers := []mux.Handler{
+		newMockHandler(
+			procedure,
+			func(ctx context.Context, rw mux.ResponseWriter, req *rpc.Request) error {
+				rw.WriteMessage(fixtures.SomeBytes())
+				<-time.After(delay)
+				return nil
+			},
+		),
+	}
+
+	m, err := mux.NewMux(logger, handlers, nil)
+	require.NoError(t, err)
+
+	ctx := fixtures.TestContext(t)
+	rw := mocks.NewMockResponseWriterCloser()
+	req := rpc.MustNewRequest(procedure.Name(), procedure.Typ(), nil)
+
+	start := time.Now()
+	m.HandleRequest(ctx, rw, req)
+	require.Eventually(
+		t,
+		func() bool {
+			return len(rw.WrittenMessages) > 0
+		},
+		1*time.Second, 10*time.Millisecond,
+	)
+	require.Less(t, time.Since(start), delay)
+}
+
+func TestNewMux_SynchronousHandlerBlocks(t *testing.T) {
+	t.Parallel()
+
+	logger := fixtures.TestLogger(t)
+
+	procedure := rpc.MustNewProcedure(
+		rpc.MustNewProcedureName([]string{"someProcedure"}),
+		rpc.ProcedureTypeAsync,
+	)
+
+	delay := 1 * time.Second
+
+	synchronousHandlers := []mux.SynchronousHandler{
+		newMockSynchronousHandler(
+			procedure,
+			func(ctx context.Context, rw mux.ResponseWriterCloser, req *rpc.Request) {
+				rw.WriteMessage(fixtures.SomeBytes())
+				<-time.After(delay)
+			},
+		),
+	}
+
+	m, err := mux.NewMux(logger, nil, synchronousHandlers)
+	require.NoError(t, err)
+
+	ctx := fixtures.TestContext(t)
+	rw := mocks.NewMockResponseWriterCloser()
+	req := rpc.MustNewRequest(procedure.Name(), procedure.Typ(), nil)
+
+	start := time.Now()
+	m.HandleRequest(ctx, rw, req)
+	require.Eventually(
+		t,
+		func() bool {
+			return len(rw.WrittenMessages) > 0
+		},
+		1*time.Second, 10*time.Millisecond,
+	)
+	require.Greater(t, time.Since(start), delay)
+}
+
+type handlerFn func(ctx context.Context, rw mux.ResponseWriter, req *rpc.Request) error
+
+type mockHandler struct {
+	procedure rpc.Procedure
+	handlerFn handlerFn
+}
+
+func newMockHandler(procedure rpc.Procedure, handlerFn handlerFn) *mockHandler {
+	return &mockHandler{procedure: procedure, handlerFn: handlerFn}
 }
 
 func (m mockHandler) Procedure() rpc.Procedure {
@@ -69,5 +242,33 @@ func (m mockHandler) Procedure() rpc.Procedure {
 }
 
 func (m mockHandler) Handle(ctx context.Context, rw mux.ResponseWriter, req *rpc.Request) error {
+	if m.handlerFn != nil {
+		return m.handlerFn(ctx, rw, req)
+	}
 	return nil
+}
+
+type synchronousHandlerFn func(ctx context.Context, rw mux.ResponseWriterCloser, req *rpc.Request)
+
+type mockSynchronousHandler struct {
+	procedure            rpc.Procedure
+	synchronousHandlerFn synchronousHandlerFn
+}
+
+func newMockSynchronousHandler(procedure rpc.Procedure, synchronousHandlerFn synchronousHandlerFn) *mockSynchronousHandler {
+	return &mockSynchronousHandler{procedure: procedure, synchronousHandlerFn: synchronousHandlerFn}
+}
+
+func (m mockSynchronousHandler) Procedure() rpc.Procedure {
+	return m.procedure
+}
+
+func (m mockSynchronousHandler) Handle(ctx context.Context, rw mux.ResponseWriterCloser, req *rpc.Request) {
+	if m.synchronousHandlerFn != nil {
+		m.synchronousHandlerFn(ctx, rw, req)
+		return
+	}
+	if err := rw.CloseWithError(nil); err != nil {
+		fmt.Println(err)
+	}
 }

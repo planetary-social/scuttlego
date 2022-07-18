@@ -79,7 +79,13 @@ func (f *Feed) CreateMessage(content message.RawMessageContent, timestamp time.T
 		return refs.Message{}, errors.New("zero value of timestamp")
 	}
 
-	// todo check that private matches this feed's identity
+	if private.IsZero() {
+		return refs.Message{}, errors.New("zero value of private identity")
+	}
+
+	if f.lastMsg != nil && !f.lastMsg.Author().Identity().Equal(private.Public()) {
+		return refs.Message{}, errors.New("private identity doesn't match this feed's public identity")
+	}
 
 	unsigned, err := f.createMessage(content, timestamp, private.Public())
 	if err != nil {
@@ -91,7 +97,10 @@ func (f *Feed) CreateMessage(content message.RawMessageContent, timestamp time.T
 		return refs.Message{}, errors.Wrap(err, "failed to sign the new message")
 	}
 
-	f.onNewMessage(msg)
+	if err := f.AppendMessage(msg); err != nil {
+		return refs.Message{}, errors.Wrap(err, "failed to append the new message")
+	}
+
 	return msg.Id(), nil
 }
 

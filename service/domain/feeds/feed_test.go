@@ -2,35 +2,26 @@ package feeds_test
 
 import (
 	"testing"
+	"time"
 
+	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/fixtures"
+	"github.com/planetary-social/scuttlego/internal"
 	"github.com/planetary-social/scuttlego/service/domain/feeds"
 	msgcontents "github.com/planetary-social/scuttlego/service/domain/feeds/content"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
+	"github.com/planetary-social/scuttlego/service/domain/identity"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/stretchr/testify/require"
 )
 
-func TestAppend(t *testing.T) {
+func TestFeed_AppendMessage_FirstMessageMustBeARootMessage(t *testing.T) {
 	feed := fixtures.SomeRefFeed()
 	author := fixtures.SomeRefIdentity()
 
-	msg1 := message.MustNewMessage(
+	msg := message.MustNewMessage(
 		fixtures.SomeRefMessage(),
-		nil,
-		message.MustNewSequence(1),
-		author,
-		feed,
-		fixtures.SomeTime(),
-		fixtures.SomeContent(),
-		fixtures.SomeRawMessage(),
-	)
-
-	prevId := msg1.Id()
-
-	msg2 := message.MustNewMessage(
-		fixtures.SomeRefMessage(),
-		&prevId,
+		internal.Ptr(fixtures.SomeRefMessage()),
 		message.MustNewSequence(2),
 		author,
 		feed,
@@ -41,20 +32,145 @@ func TestAppend(t *testing.T) {
 
 	f := feeds.NewFeed(nil)
 
-	err := f.AppendMessage(msg1)
-	require.NoError(t, err)
-
-	err = f.AppendMessage(msg2)
-	require.NoError(t, err)
+	err := f.AppendMessage(msg)
+	require.EqualError(t, err, "first message in the feed must be a root message")
 
 	msgs, contacts, pubs, blobs := f.PopForPersisting()
-	require.Len(t, msgs, 2)
-	require.Len(t, contacts, 0)
-	require.Len(t, pubs, 0)
-	require.Len(t, blobs, 0)
+	require.Empty(t, msgs)
+	require.Empty(t, contacts)
+	require.Empty(t, pubs)
+	require.Empty(t, blobs)
 }
 
-func TestAppendMessageWithKnownContent(t *testing.T) {
+func TestFeed_AppendMessage_SubsequentMessagesAreValidated(t *testing.T) {
+	firstMessage := message.MustNewMessage(
+		fixtures.SomeRefMessage(),
+		nil,
+		message.MustNewSequence(1),
+		fixtures.SomeRefIdentity(),
+		fixtures.SomeRefFeed(),
+		fixtures.SomeTime(),
+		fixtures.SomeContent(),
+		fixtures.SomeRawMessage(),
+	)
+
+	testCases := []struct {
+		Name          string
+		Message       message.Message
+		ExpectedError error
+		ShouldBeAdded bool
+	}{
+		{
+			Name: "valid",
+			Message: message.MustNewMessage(
+				fixtures.SomeRefMessage(),
+				internal.Ptr(firstMessage.Id()),
+				message.MustNewSequence(2),
+				firstMessage.Author(),
+				firstMessage.Feed(),
+				fixtures.SomeTime(),
+				fixtures.SomeContent(),
+				fixtures.SomeRawMessage(),
+			),
+			ExpectedError: nil,
+			ShouldBeAdded: true,
+		},
+		{
+			Name:          "idempotency",
+			Message:       firstMessage,
+			ExpectedError: nil,
+			ShouldBeAdded: false,
+		},
+		{
+			Name: "invalid_author",
+			Message: message.MustNewMessage(
+				fixtures.SomeRefMessage(),
+				internal.Ptr(firstMessage.Id()),
+				message.MustNewSequence(2),
+				fixtures.SomeRefIdentity(),
+				firstMessage.Feed(),
+				fixtures.SomeTime(),
+				fixtures.SomeContent(),
+				fixtures.SomeRawMessage(),
+			),
+			ExpectedError: errors.New("invalid author"),
+			ShouldBeAdded: false,
+		},
+		{
+			Name: "invalid_feed",
+			Message: message.MustNewMessage(
+				fixtures.SomeRefMessage(),
+				internal.Ptr(firstMessage.Id()),
+				message.MustNewSequence(2),
+				firstMessage.Author(),
+				fixtures.SomeRefFeed(),
+				fixtures.SomeTime(),
+				fixtures.SomeContent(),
+				fixtures.SomeRawMessage(),
+			),
+			ExpectedError: errors.New("invalid feed"),
+			ShouldBeAdded: false,
+		},
+		{
+			Name: "message_sequence_is_not_right_after_previous_message",
+			Message: message.MustNewMessage(
+				fixtures.SomeRefMessage(),
+				internal.Ptr(firstMessage.Id()),
+				message.MustNewSequence(3),
+				firstMessage.Author(),
+				firstMessage.Feed(),
+				fixtures.SomeTime(),
+				fixtures.SomeContent(),
+				fixtures.SomeRawMessage(),
+			),
+			ExpectedError: errors.New("this is not the next message in this feed"),
+			ShouldBeAdded: false,
+		},
+		{
+			Name: "previous_message_is_different",
+			Message: message.MustNewMessage(
+				fixtures.SomeRefMessage(),
+				internal.Ptr(fixtures.SomeRefMessage()),
+				message.MustNewSequence(2),
+				firstMessage.Author(),
+				firstMessage.Feed(),
+				fixtures.SomeTime(),
+				fixtures.SomeContent(),
+				fixtures.SomeRawMessage(),
+			),
+			ExpectedError: errors.New("this is not the next message in this feed"),
+			ShouldBeAdded: false,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			f := feeds.NewFeed(nil)
+
+			err := f.AppendMessage(firstMessage)
+			require.NoError(t, err)
+
+			err = f.AppendMessage(testCase.Message)
+			if testCase.ExpectedError != nil {
+				require.EqualError(t, err, testCase.ExpectedError.Error())
+			} else {
+				require.NoError(t, err)
+			}
+
+			msgs, contacts, pubs, blobs := f.PopForPersisting()
+			if testCase.ShouldBeAdded {
+				require.Len(t, msgs, 2)
+			} else {
+				require.Len(t, msgs, 1)
+			}
+			require.Empty(t, contacts)
+			require.Empty(t, pubs)
+			require.Empty(t, blobs)
+		})
+	}
+}
+
+func TestFeed_MessagesWithKnownContentAreCorrectlyRecognized(t *testing.T) {
 	msgId := fixtures.SomeRefMessage()
 	authorId := fixtures.SomeRefIdentity()
 	feedId := fixtures.SomeRefFeed()
@@ -149,16 +265,131 @@ func TestAppendMessageWithKnownContent(t *testing.T) {
 				fixtures.SomeRawMessage(),
 			)
 
-			f := feeds.NewFeed(nil)
+			t.Run("append", func(t *testing.T) {
+				f := feeds.NewFeed(nil)
 
-			err := f.AppendMessage(msg)
-			require.NoError(t, err)
+				err := f.AppendMessage(msg)
+				require.NoError(t, err)
 
-			msgs, contacts, pubs, blobs := f.PopForPersisting()
-			require.Len(t, msgs, 1)
-			require.Equal(t, testCase.ExpectedContacts, contacts)
-			require.Equal(t, testCase.ExpectedPubs, pubs)
-			require.Equal(t, testCase.ExpectedBlobs, blobs)
+				msgs, contacts, pubs, blobs := f.PopForPersisting()
+				require.Len(t, msgs, 1)
+				require.Equal(t, testCase.ExpectedContacts, contacts)
+				require.Equal(t, testCase.ExpectedPubs, pubs)
+				require.Equal(t, testCase.ExpectedBlobs, blobs)
+			})
+
+			t.Run("create", func(t *testing.T) {
+				format := newFormatMock()
+				format.SignResult = msg
+
+				f := feeds.NewFeed(format)
+
+				_, err := f.CreateMessage(fixtures.SomeRawMessageContent(), fixtures.SomeTime(), fixtures.SomePrivateIdentity())
+				require.NoError(t, err)
+
+				msgs, contacts, pubs, blobs := f.PopForPersisting()
+				require.Len(t, msgs, 1)
+				require.Equal(t, testCase.ExpectedContacts, contacts)
+				require.Equal(t, testCase.ExpectedPubs, pubs)
+				require.Equal(t, testCase.ExpectedBlobs, blobs)
+			})
 		})
+	}
+}
+
+func TestFeed_CreateMessage(t *testing.T) {
+	testCases := []struct {
+		Name string
+
+		Content   message.RawMessageContent
+		Timestamp time.Time
+		Private   identity.Private
+
+		ExpectedError error
+	}{
+		{
+			Name:          "valid",
+			Content:       fixtures.SomeRawMessageContent(),
+			Timestamp:     fixtures.SomeTime(),
+			Private:       fixtures.SomePrivateIdentity(),
+			ExpectedError: nil,
+		},
+		{
+			Name:          "zero_value_of_raw_message_content",
+			Content:       message.RawMessageContent{},
+			Timestamp:     fixtures.SomeTime(),
+			Private:       fixtures.SomePrivateIdentity(),
+			ExpectedError: errors.New("zero value of raw message content"),
+		},
+		{
+			Name:          "zero_value_of_time",
+			Content:       fixtures.SomeRawMessageContent(),
+			Timestamp:     time.Time{},
+			Private:       fixtures.SomePrivateIdentity(),
+			ExpectedError: errors.New("zero value of timestamp"),
+		},
+		{
+			Name:          "zero_value_of_private_identity",
+			Content:       fixtures.SomeRawMessageContent(),
+			Timestamp:     fixtures.SomeTime(),
+			Private:       identity.Private{},
+			ExpectedError: errors.New("zero value of private identity"),
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			format := newFormatMock()
+			f := feeds.NewFeed(format)
+
+			_, err := f.CreateMessage(testCase.Content, testCase.Timestamp, testCase.Private)
+			if testCase.ExpectedError != nil {
+				require.EqualError(t, err, testCase.ExpectedError.Error())
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestFeed_CreateMessage_PassingIdentityWhichDoesNotMatchPreviousIdentityIsInvalid(t *testing.T) {
+	format := newFormatMock()
+	f := feeds.NewFeed(format)
+
+	firstMessage := message.MustNewMessage(
+		fixtures.SomeRefMessage(),
+		nil,
+		message.MustNewSequence(1),
+		fixtures.SomeRefIdentity(),
+		fixtures.SomeRefFeed(),
+		fixtures.SomeTime(),
+		fixtures.SomeContent(),
+		fixtures.SomeRawMessage(),
+	)
+
+	err := f.AppendMessage(firstMessage)
+	require.NoError(t, err)
+
+	_, err = f.CreateMessage(fixtures.SomeRawMessageContent(), fixtures.SomeTime(), fixtures.SomePrivateIdentity())
+	require.EqualError(t, err, "private identity doesn't match this feed's public identity")
+}
+
+type formatMock struct {
+	SignResult message.Message
+}
+
+func newFormatMock() *formatMock {
+	return &formatMock{}
+}
+
+func (f formatMock) Verify(raw message.RawMessage) (message.Message, error) {
+	return message.Message{}, errors.New("not implemented")
+}
+
+func (f formatMock) Sign(unsigned message.UnsignedMessage, private identity.Private) (message.Message, error) {
+	if f.SignResult.IsZero() {
+		return fixtures.SomeMessage(unsigned.Sequence(), unsigned.Feed()), nil
+	} else {
+		return f.SignResult, nil
 	}
 }

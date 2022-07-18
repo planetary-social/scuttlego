@@ -36,6 +36,10 @@ func (p Public) String() string {
 	return base64.StdEncoding.EncodeToString(p.key)
 }
 
+func (p Public) Equal(o Public) bool {
+	return p.key.Equal(o.key)
+}
+
 type Private struct {
 	key ed25519.PrivateKey
 }

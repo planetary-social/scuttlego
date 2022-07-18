@@ -65,8 +65,8 @@ type CreateHistoryStream struct {
 	Old bool
 
 	// ResponseWriter is used to send messages to the peer. Firstly WriteMessage
-	// will be called zero or more times. Then exactly CloseWithError will be
-	// called exactly once.
+	// will be called zero or more times. Then CloseWithError will be called
+	// exactly once.
 	ResponseWriter CreateHistoryStreamResponseWriter
 }
 

@@ -66,7 +66,8 @@ func (f *Feed) AppendMessage(msg message.Message) error {
 		}
 	}
 
-	return f.onNewMessage(msg)
+	f.onNewMessage(msg)
+	return nil
 }
 
 func (f *Feed) CreateMessage(content message.RawMessageContent, timestamp time.Time, private identity.Private) (refs.Message, error) {
@@ -90,11 +91,7 @@ func (f *Feed) CreateMessage(content message.RawMessageContent, timestamp time.T
 		return refs.Message{}, errors.Wrap(err, "failed to sign the new message")
 	}
 
-	err = f.onNewMessage(msg)
-	if err != nil {
-		return refs.Message{}, errors.Wrap(err, "failed to sign the new message")
-	}
-
+	f.onNewMessage(msg)
 	return msg.Id(), nil
 }
 
@@ -135,7 +132,7 @@ func (f *Feed) PopForPersisting() ([]message.Message, []ContactToSave, []PubToSa
 	return f.messagesToSave, f.contactsToSave, f.pubsToSave, f.blobsToSave
 }
 
-func (f *Feed) onNewMessage(msg message.Message) error {
+func (f *Feed) onNewMessage(msg message.Message) {
 	contacts, pubs, blobs := f.processMessageContent(msg)
 
 	f.lastMsg = &msg
@@ -143,7 +140,6 @@ func (f *Feed) onNewMessage(msg message.Message) error {
 	f.contactsToSave = append(f.contactsToSave, contacts...)
 	f.pubsToSave = append(f.pubsToSave, pubs...)
 	f.blobsToSave = append(f.blobsToSave, blobs...)
-	return nil
 }
 
 // todo ignore repeated calls to follow someone if the current state of the feed suggests that this is already done (indempotency)

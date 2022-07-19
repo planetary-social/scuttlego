@@ -1,22 +1,26 @@
 package bolt_test
 
-// todo build tags for integration tests
-
 import (
 	"testing"
+
+	"github.com/planetary-social/scuttlego/di"
+	"github.com/planetary-social/scuttlego/fixtures"
+	"github.com/planetary-social/scuttlego/service/adapters/bolt"
+	"github.com/stretchr/testify/require"
+	"go.etcd.io/bbolt"
 )
 
-func TestGetFeed_returns_appropriate_error_when_empty(t *testing.T) {
-	//db := fixtures.Bolt(t)
-	//
-	//err := db.Update(func(tx *bbolt.Tx) error {
-	//	adapters, err := di.BuildAdaptersForTest(tx)
-	//	require.NoError(t, err)
-	//
-	//	_, err = adapters.Feed.GetFeed(fixtures.SomeRefFeed())
-	//	require.ErrorIs(t, err, replication.ErrFeedNotFound)
-	//
-	//	return nil
-	//})
-	//require.NoError(t, err)
+func TestFeedRepository_GetFeed_ReturnsAppropriateErrorWhenEmpty(t *testing.T) {
+	db := fixtures.Bolt(t)
+
+	err := db.Update(func(tx *bbolt.Tx) error {
+		adapters, err := di.BuildTxTestAdapters(tx)
+		require.NoError(t, err)
+
+		_, err = adapters.FeedRepository.GetFeed(fixtures.SomeRefFeed())
+		require.ErrorIs(t, err, bolt.ErrFeedNotFound)
+
+		return nil
+	})
+	require.NoError(t, err)
 }

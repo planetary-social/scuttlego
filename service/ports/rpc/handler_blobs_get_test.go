@@ -14,6 +14,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/messages"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	transportrpc "github.com/planetary-social/scuttlego/service/domain/transport/rpc"
+	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/mux/mocks"
 	"github.com/planetary-social/scuttlego/service/ports/rpc"
 	"github.com/stretchr/testify/require"
 )
@@ -93,7 +94,7 @@ func TestArgumentsArePassedToQuery(t *testing.T) {
 			h := rpc.NewHandlerBlobsGet(queryHandler)
 
 			ctx := fixtures.TestContext(t)
-			rw := NewMockResponseWriter()
+			rw := mocks.NewMockResponseWriterCloser()
 			req := createBlobsGetRequest(t, testCase.Hash, testCase.Size, testCase.Max)
 
 			err := h.Handle(ctx, rw, req)
@@ -109,7 +110,7 @@ func TestIfHandlerReturnsErrorNoMessagesAreSent(t *testing.T) {
 	h := rpc.NewHandlerBlobsGet(queryHandler)
 
 	ctx := fixtures.TestContext(t)
-	rw := NewMockResponseWriter()
+	rw := mocks.NewMockResponseWriterCloser()
 	req := createBlobsGetRequest(t, fixtures.SomeRefBlob(), nil, nil)
 
 	err := h.Handle(ctx, rw, req)
@@ -126,7 +127,7 @@ func TestSmallBlobIsWrittenToResponseWriter(t *testing.T) {
 	queryHandler.MockBlob(id, []byte("test"))
 
 	ctx := fixtures.TestContext(t)
-	rw := NewMockResponseWriter()
+	rw := mocks.NewMockResponseWriterCloser()
 	req := createBlobsGetRequest(t, id, nil, nil)
 
 	err := h.Handle(ctx, rw, req)
@@ -155,7 +156,7 @@ func TestLargeBlobIsWrittenToResponseWriter(t *testing.T) {
 	queryHandler.MockBlob(id, payload)
 
 	ctx := fixtures.TestContext(t)
-	rw := NewMockResponseWriter()
+	rw := mocks.NewMockResponseWriterCloser()
 	req := createBlobsGetRequest(t, id, nil, nil)
 
 	err := h.Handle(ctx, rw, req)

@@ -13,7 +13,7 @@ import (
 )
 
 func TestPublishedLog_NilStartSeqIsNotUsedToDetermineMessageSequence(t *testing.T) {
-	app, err := di.BuildTestQueries()
+	app, err := di.BuildTestQueries(t)
 	require.NoError(t, err)
 
 	localFeed := refs.MustNewIdentityFromPublic(app.LocalIdentity).MainFeed()
@@ -40,7 +40,7 @@ func TestPublishedLog_NilStartSeqIsNotUsedToDetermineMessageSequence(t *testing.
 }
 
 func TestPublishedLog_NotNilStartSeqIsUsedToDetermineMessageSequence(t *testing.T) {
-	app, err := di.BuildTestQueries()
+	app, err := di.BuildTestQueries(t)
 	require.NoError(t, err)
 
 	localFeed := refs.MustNewIdentityFromPublic(app.LocalIdentity).MainFeed()
@@ -73,7 +73,7 @@ func TestPublishedLog_NotNilStartSeqIsUsedToDetermineMessageSequence(t *testing.
 }
 
 func TestPublishedLog_StartSequenceMustPointToMessageFromMainLocalFeed(t *testing.T) {
-	app, err := di.BuildTestQueries()
+	app, err := di.BuildTestQueries(t)
 	require.NoError(t, err)
 
 	seq := fixtures.SomeReceiveLogSequence()

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/boreq/errors"
+	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/app/queries"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/messages"
@@ -15,70 +16,83 @@ import (
 // CreateHistoryStreamQueryHandler is here to make testing easier. See docs for
 // the CreateHistoryStream application query.
 type CreateHistoryStreamQueryHandler interface {
-	Handle(ctx context.Context, query queries.CreateHistoryStream) <-chan queries.MessageWithErr
+	Handle(ctx context.Context, query queries.CreateHistoryStream)
 }
 
 type HandlerCreateHistoryStream struct {
-	q CreateHistoryStreamQueryHandler
+	q      CreateHistoryStreamQueryHandler
+	logger logging.Logger
 }
 
-func NewHandlerCreateHistoryStream(q CreateHistoryStreamQueryHandler) *HandlerCreateHistoryStream {
+func NewHandlerCreateHistoryStream(
+	q CreateHistoryStreamQueryHandler,
+	logger logging.Logger,
+) *HandlerCreateHistoryStream {
 	return &HandlerCreateHistoryStream{
-		q: q,
+		q:      q,
+		logger: logger.New("create_history_stream"),
 	}
 }
 
-func (h HandlerCreateHistoryStream) Procedure() rpc.Procedure {
+func (h *HandlerCreateHistoryStream) Procedure() rpc.Procedure {
 	return messages.CreateHistoryStreamProcedure
 }
 
-func (h HandlerCreateHistoryStream) Handle(ctx context.Context, rw mux.ResponseWriter, req *rpc.Request) error {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
+func (h *HandlerCreateHistoryStream) Handle(ctx context.Context, rw mux.ResponseWriterCloser, req *rpc.Request) {
 	args, err := messages.NewCreateHistoryStreamArgumentsFromBytes(req.Arguments())
 	if err != nil {
-		return errors.Wrap(err, "invalid arguments")
+		if closeErr := rw.CloseWithError(err); closeErr != nil {
+			h.logger.WithError(closeErr).Debug("could not close the stream")
+		}
+		return
 	}
 
 	query := queries.CreateHistoryStream{
-		Id:    args.Id(),
-		Seq:   args.Sequence(),
-		Limit: args.Limit(),
-		Live:  args.Live(),
-		Old:   args.Old(),
+		Id:             args.Id(),
+		Seq:            args.Sequence(),
+		Limit:          args.Limit(),
+		Live:           args.Live(),
+		Old:            args.Old(),
+		ResponseWriter: NewCreateHistoryStreamResponseWriter(args, rw),
 	}
 
-	msgCh := h.q.Handle(ctx, query)
-
-	for msgWithError := range msgCh {
-		if msgWithError.Err != nil {
-			return errors.Wrap(err, "query returned an error")
-		}
-
-		if err := h.sendMessage(args, msgWithError.Message, rw); err != nil {
-			return errors.Wrap(err, "could not send a message")
-		}
-	}
-
-	return nil
+	h.q.Handle(ctx, query)
 }
 
-func (h HandlerCreateHistoryStream) sendMessage(args messages.CreateHistoryStreamArguments, msg message.Message, rw mux.ResponseWriter) error {
-	b, err := h.createResponse(args, msg)
+type CreateHistoryStreamResponseWriter struct {
+	args messages.CreateHistoryStreamArguments
+	rw   rpc.ResponseWriter
+}
+
+func NewCreateHistoryStreamResponseWriter(
+	args messages.CreateHistoryStreamArguments,
+	rw rpc.ResponseWriter,
+) *CreateHistoryStreamResponseWriter {
+	return &CreateHistoryStreamResponseWriter{
+		args: args,
+		rw:   rw,
+	}
+}
+
+func (rw CreateHistoryStreamResponseWriter) WriteMessage(msg message.Message) error {
+	b, err := rw.createResponse(msg)
 	if err != nil {
 		return errors.Wrap(err, "could not create a response")
 	}
 
-	if err := rw.WriteMessage(b); err != nil {
+	if err := rw.rw.WriteMessage(b); err != nil {
 		return errors.Wrap(err, "could not write the message")
 	}
 
 	return nil
 }
 
-func (h HandlerCreateHistoryStream) createResponse(args messages.CreateHistoryStreamArguments, msg message.Message) ([]byte, error) {
-	if args.Keys() {
+func (rw CreateHistoryStreamResponseWriter) CloseWithError(err error) error {
+	return rw.rw.CloseWithError(err)
+}
+
+func (rw CreateHistoryStreamResponseWriter) createResponse(msg message.Message) ([]byte, error) {
+	if rw.args.Keys() {
 		// todo what is the timestamp used for? do we actually need to remember when we stored something?
 		return messages.NewCreateHistoryStreamResponse(msg.Id(), msg.Raw(), time.Now()).MarshalJSON()
 	}

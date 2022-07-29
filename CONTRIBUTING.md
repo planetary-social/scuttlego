@@ -62,6 +62,13 @@ Easily format your code with the following command:
 
     $ make fmt
 
+## Naming tests
+
+When naming tests which tests a specific behaviour it is recommended to follow a
+pattern `TestNameOfType_ExpectedBehaviour`. Example:
+`TestCreateHistoryStream_IfOldAndLiveAreNotSetNothingIsWrittenAndStreamIsClosed`
+.
+
 ## Opening a pull request
 
 Pull requests are verified using CI, see the previous section to find out how to
@@ -76,7 +83,9 @@ Comments][code-review-comments] are good to read.
 
 ### Feature branches
 
-When naming long-lived feature branches please follow the pattern `feature/...`. This enables CI for that branch.
+When naming long-lived feature branches please follow the pattern `feature/...`.
+This enables CI for that branch.
+
 
 [hexagonal-architecture]: https://en.wikipedia.org/wiki/Hexagonal_architecture_(software)
 

@@ -158,6 +158,10 @@ func SomeRawMessage() message.RawMessage {
 	return message.MustNewRawMessage([]byte(msg))
 }
 
+func SomeRawMessageContent() message.RawMessageContent {
+	return message.MustNewRawMessageContent(SomeBytes())
+}
+
 func SomeMessage(seq message.Sequence, feed refs.Feed) message.Message {
 	var previous *refs.Message
 	if !seq.IsFirst() {

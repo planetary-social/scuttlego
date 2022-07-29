@@ -11,6 +11,8 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/transport"
 )
 
+const requestStreamsCleanupDelay = 500 * time.Millisecond
+
 type ResponseWriter interface {
 	// WriteMessage sends a message over the underlying stream.
 	WriteMessage(body []byte) error
@@ -154,7 +156,7 @@ func (s *RequestStreams) cleanupLoop(ctx context.Context) {
 		s.cleanup()
 
 		select {
-		case <-time.After(10 * time.Millisecond):
+		case <-time.After(requestStreamsCleanupDelay):
 			continue
 		case <-ctx.Done():
 			return

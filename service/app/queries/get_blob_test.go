@@ -88,7 +88,7 @@ func TestGetBlob(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
-			q, err := di.BuildTestQueries()
+			q, err := di.BuildTestQueries(t)
 			require.NoError(t, err)
 
 			q.BlobStorage.MockBlob(id, data)

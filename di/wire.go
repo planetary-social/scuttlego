@@ -6,6 +6,7 @@ package di
 import (
 	"context"
 	"path"
+	"testing"
 	"time"
 
 	"github.com/boreq/errors"
@@ -14,6 +15,7 @@ import (
 	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/adapters/bolt"
 	"github.com/planetary-social/scuttlego/service/adapters/mocks"
+	"github.com/planetary-social/scuttlego/service/adapters/pubsub"
 	"github.com/planetary-social/scuttlego/service/app"
 	"github.com/planetary-social/scuttlego/service/app/commands"
 	"github.com/planetary-social/scuttlego/service/app/queries"
@@ -100,11 +102,12 @@ type TestQueries struct {
 	LocalIdentity identity.Public
 }
 
-func BuildTestQueries() (TestQueries, error) {
+func BuildTestQueries(*testing.T) (TestQueries, error) {
 	wire.Build(
 		applicationSet,
 		mockQueryAdaptersSet,
 
+		pubsub.NewMessagePubSub,
 		mocks.NewMessagePubSubMock,
 		wire.Bind(new(queries.MessageSubscriber), new(*mocks.MessagePubSubMock)),
 
@@ -121,6 +124,8 @@ func BuildTestQueries() (TestQueries, error) {
 		wire.Bind(new(queries.BlobDownloadedSubscriber), new(*mocks.BlobDownloadedPubSubMock)),
 
 		wire.Struct(new(TestQueries), "*"),
+
+		fixtures.TestLogger,
 	)
 
 	return TestQueries{}, nil

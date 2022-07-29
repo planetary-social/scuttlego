@@ -11,6 +11,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/messages"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	transportrpc "github.com/planetary-social/scuttlego/service/domain/transport/rpc"
+	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/mux/mocks"
 	"github.com/planetary-social/scuttlego/service/ports/rpc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -32,7 +33,7 @@ func TestCreateWantsHandlerSendsValuesReturnedByCreateWantsCommand(t *testing.T)
 	h := rpc.NewHandlerBlobsCreateWants(commandHandler)
 
 	ctx := fixtures.TestContext(t)
-	rw := NewMockResponseWriter()
+	rw := mocks.NewMockResponseWriterCloser()
 	req := createWantsRequest(t)
 
 	err := h.Handle(ctx, rw, req)

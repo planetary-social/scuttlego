@@ -7,6 +7,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/planetary-social/scuttlego/service/app"
 	"github.com/planetary-social/scuttlego/service/app/commands"
+	"github.com/planetary-social/scuttlego/service/app/queries"
 	"github.com/planetary-social/scuttlego/service/domain/network/local"
 	networkport "github.com/planetary-social/scuttlego/service/ports/network"
 	pubsubport "github.com/planetary-social/scuttlego/service/ports/pubsub"
@@ -15,12 +16,13 @@ import (
 type Service struct {
 	App app.Application
 
-	listener              *networkport.Listener
-	discoverer            *networkport.Discoverer
-	connectionEstablisher *networkport.ConnectionEstablisher
-	pubsub                *pubsubport.PubSub
-	advertiser            *local.Advertiser
-	buffer                *commands.MessageBuffer
+	listener                   *networkport.Listener
+	discoverer                 *networkport.Discoverer
+	connectionEstablisher      *networkport.ConnectionEstablisher
+	pubsub                     *pubsubport.PubSub
+	advertiser                 *local.Advertiser
+	messageBuffer              *commands.MessageBuffer
+	createHistoryStreamHandler *queries.CreateHistoryStreamHandler
 }
 
 func NewService(
@@ -30,17 +32,19 @@ func NewService(
 	connectionEstablisher *networkport.ConnectionEstablisher,
 	pubsub *pubsubport.PubSub,
 	advertiser *local.Advertiser,
-	buffer *commands.MessageBuffer,
+	messageBuffer *commands.MessageBuffer,
+	createHistoryStreamHandler *queries.CreateHistoryStreamHandler,
 ) Service {
 	return Service{
 		App: app,
 
-		listener:              listener,
-		discoverer:            discoverer,
-		connectionEstablisher: connectionEstablisher,
-		pubsub:                pubsub,
-		advertiser:            advertiser,
-		buffer:                buffer,
+		listener:                   listener,
+		discoverer:                 discoverer,
+		connectionEstablisher:      connectionEstablisher,
+		pubsub:                     pubsub,
+		advertiser:                 advertiser,
+		messageBuffer:              messageBuffer,
+		createHistoryStreamHandler: createHistoryStreamHandler,
 	}
 }
 
@@ -78,7 +82,12 @@ func (s Service) Run(ctx context.Context) error {
 
 	runners++
 	go func() {
-		errCh <- s.buffer.Run(ctx)
+		errCh <- s.messageBuffer.Run(ctx)
+	}()
+
+	runners++
+	go func() {
+		errCh <- s.createHistoryStreamHandler.Run(ctx)
 	}()
 
 	var err error

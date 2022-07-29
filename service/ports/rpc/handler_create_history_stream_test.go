@@ -7,10 +7,11 @@ import (
 
 	"github.com/planetary-social/scuttlego/fixtures"
 	"github.com/planetary-social/scuttlego/internal"
+	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/app/queries"
-	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/messages"
 	transportrpc "github.com/planetary-social/scuttlego/service/domain/transport/rpc"
+	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/mux/mocks"
 	"github.com/planetary-social/scuttlego/service/ports/rpc"
 	"github.com/stretchr/testify/require"
 )
@@ -42,20 +43,18 @@ func TestCreateHistoryStream(t *testing.T) {
 		t.Run(testCase.Name, func(t *testing.T) {
 			ctx := fixtures.TestContext(t)
 			queryHandler := NewMockCreateHistoryStreamQueryHandler()
-			rw := NewMockResponseWriter()
-			h := rpc.NewHandlerCreateHistoryStream(queryHandler)
-
-			queryHandler.MessagesToSend = []message.Message{
-				fixtures.SomeMessage(fixtures.SomeSequence(), fixtures.SomeRefFeed()),
-				fixtures.SomeMessage(fixtures.SomeSequence(), fixtures.SomeRefFeed()),
-			}
+			rw := mocks.NewMockResponseWriterCloser()
+			h := rpc.NewHandlerCreateHistoryStream(queryHandler, logging.NewDevNullLogger())
 
 			req := createHistoryStreamRequest(t, testCase.Keys)
 
-			err := h.Handle(ctx, rw, req)
-			require.NoError(t, err)
+			h.Handle(ctx, rw, req)
+			require.Len(t, queryHandler.Calls, 1)
 
-			require.Len(t, rw.WrittenMessages, 2)
+			msg := fixtures.SomeMessage(fixtures.SomeSequence(), fixtures.SomeRefFeed())
+			err := queryHandler.Calls[0].ResponseWriter.WriteMessage(msg)
+			require.NoError(t, err)
+			require.Len(t, rw.WrittenMessages, 1)
 			for _, body := range rw.WrittenMessages {
 				keyJSON := []byte(`"key":`)
 				require.Equal(t, testCase.ContainsKeys, bytes.Contains(body, keyJSON))
@@ -82,43 +81,14 @@ func createHistoryStreamRequest(t *testing.T, keys *bool) *transportrpc.Request 
 	return req
 }
 
-type MockResponseWriter struct {
-	WrittenMessages [][]byte
-}
-
-func NewMockResponseWriter() *MockResponseWriter {
-	return &MockResponseWriter{}
-}
-
-func (m *MockResponseWriter) WriteMessage(body []byte) error {
-	cpy := make([]byte, len(body))
-	copy(cpy, body)
-	m.WrittenMessages = append(m.WrittenMessages, cpy)
-	return nil
-}
-
 type MockCreateHistoryStreamQueryHandler struct {
-	MessagesToSend []message.Message
+	Calls []queries.CreateHistoryStream
 }
 
 func NewMockCreateHistoryStreamQueryHandler() *MockCreateHistoryStreamQueryHandler {
 	return &MockCreateHistoryStreamQueryHandler{}
 }
 
-func (m MockCreateHistoryStreamQueryHandler) Handle(ctx context.Context, query queries.CreateHistoryStream) <-chan queries.MessageWithErr {
-	ch := make(chan queries.MessageWithErr)
-
-	go func() {
-		defer close(ch)
-
-		for _, msg := range m.MessagesToSend {
-			select {
-			case ch <- queries.MessageWithErr{Message: msg}:
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
-
-	return ch
+func (m *MockCreateHistoryStreamQueryHandler) Handle(ctx context.Context, query queries.CreateHistoryStream) {
+	m.Calls = append(m.Calls, query)
 }

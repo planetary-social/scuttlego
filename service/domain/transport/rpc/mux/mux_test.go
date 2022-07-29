@@ -225,7 +225,7 @@ func TestNewMux_SynchronousHandlerBlocks(t *testing.T) {
 		func() bool {
 			return len(rw.WrittenMessages) > 0
 		},
-		1*time.Second, 10*time.Millisecond,
+		delay, 10*time.Millisecond,
 	)
 	require.Greater(t, time.Since(start), delay)
 }

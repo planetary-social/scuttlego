@@ -182,7 +182,7 @@ func TestNewMux_HandlerDoesNotBlock(t *testing.T) {
 		func() bool {
 			return len(rw.WrittenMessages) > 0
 		},
-		1*time.Second, 10*time.Millisecond,
+		delay, 10*time.Millisecond,
 	)
 	require.Less(t, time.Since(start), delay)
 }

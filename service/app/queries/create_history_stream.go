@@ -74,10 +74,8 @@ type CreateHistoryStreamHandler struct {
 	repository FeedRepository
 	subscriber MessageSubscriber
 
-	queue *RequestQueue
-
-	streams     map[string][]*HistoryStream
-	streamsLock sync.Mutex
+	queue       *RequestQueue
+	liveStreams *LiveHistoryStreams
 
 	logger logging.Logger
 }
@@ -87,14 +85,13 @@ func NewCreateHistoryStreamHandler(
 	subscriber MessageSubscriber,
 	logger logging.Logger,
 ) *CreateHistoryStreamHandler {
+	logger = logger.New("create_history_stream_handler")
 	return &CreateHistoryStreamHandler{
-		repository: repository,
-		subscriber: subscriber,
-
-		queue:   NewRequestQueue(),
-		streams: make(map[string][]*HistoryStream),
-
-		logger: logger.New("create_history_stream_handler"),
+		repository:  repository,
+		subscriber:  subscriber,
+		queue:       NewRequestQueue(),
+		liveStreams: NewLiveHistoryStreams(logger),
+		logger:      logger,
 	}
 }
 
@@ -139,13 +136,13 @@ func (h *CreateHistoryStreamHandler) worker(ctx context.Context) {
 
 func (h *CreateHistoryStreamHandler) liveWorker(ctx context.Context) {
 	for msg := range h.subscriber.SubscribeToNewMessages(ctx) {
-		h.onLiveMessage(msg)
+		h.liveStreams.HandleLiveMessage(msg)
 	}
 }
 
 func (h *CreateHistoryStreamHandler) cleanupWorker(ctx context.Context) {
 	for {
-		h.cleanup()
+		h.liveStreams.CleanupClosedStreams()
 
 		select {
 		case <-time.After(cleanupDelay):
@@ -156,31 +153,11 @@ func (h *CreateHistoryStreamHandler) cleanupWorker(ctx context.Context) {
 	}
 }
 
-func (h *CreateHistoryStreamHandler) cleanup() {
-	h.streamsLock.Lock()
-	defer h.streamsLock.Unlock()
-
-	for key := range h.streams {
-		for i := range h.streams[key] {
-			if h.streams[key][i].IsClosed() {
-				if closeErr := h.streams[key][i].CloseWithError(nil); closeErr != nil {
-					h.logger.WithError(closeErr).Debug("closing failed")
-				}
-				h.streams[key] = append(h.streams[key][:i], h.streams[key][i+1:]...)
-			}
-		}
-
-		if len(h.streams[key]) == 0 {
-			delete(h.streams, key)
-		}
-	}
-}
-
 func (h *CreateHistoryStreamHandler) processRequest(ctx context.Context, query CreateHistoryStream) error {
 	s := NewHistoryStream(ctx, query)
 
 	if query.Live {
-		h.registerStreamForLive(s)
+		h.liveStreams.Add(s)
 	}
 
 	if query.Old {
@@ -209,15 +186,28 @@ func (h *CreateHistoryStreamHandler) processRequest(ctx context.Context, query C
 	return nil
 }
 
-func (h *CreateHistoryStreamHandler) registerStreamForLive(s *HistoryStream) {
+type LiveHistoryStreams struct {
+	streams     map[string][]*HistoryStream
+	streamsLock sync.Mutex
+	logger      logging.Logger
+}
+
+func NewLiveHistoryStreams(logger logging.Logger) *LiveHistoryStreams {
+	return &LiveHistoryStreams{
+		streams: make(map[string][]*HistoryStream),
+		logger:  logger.New("history_streams"),
+	}
+}
+
+func (h *LiveHistoryStreams) Add(s *HistoryStream) {
 	h.streamsLock.Lock()
 	defer h.streamsLock.Unlock()
 
-	key := s.Feed().String()
+	key := h.feedKey(s.Feed())
 	h.streams[key] = append(h.streams[key], s)
 }
 
-func (h *CreateHistoryStreamHandler) onLiveMessage(msg message.Message) {
+func (h *LiveHistoryStreams) HandleLiveMessage(msg message.Message) {
 	h.streamsLock.Lock()
 	defer h.streamsLock.Unlock()
 
@@ -240,7 +230,38 @@ func (h *CreateHistoryStreamHandler) onLiveMessage(msg message.Message) {
 	}
 }
 
-func (h *CreateHistoryStreamHandler) feedKey(feed refs.Feed) string {
+func (h *LiveHistoryStreams) CleanupClosedStreams() {
+	h.streamsLock.Lock()
+	defer h.streamsLock.Unlock()
+
+	for key := range h.streams {
+		for i := range h.streams[key] {
+			if h.streams[key][i].IsClosed() {
+				if closeErr := h.streams[key][i].CloseWithError(nil); closeErr != nil {
+					h.logger.WithError(closeErr).Debug("closing failed")
+				}
+				h.streams[key] = append(h.streams[key][:i], h.streams[key][i+1:]...)
+			}
+		}
+
+		if len(h.streams[key]) == 0 {
+			delete(h.streams, key)
+		}
+	}
+}
+
+func (h *LiveHistoryStreams) Len() int {
+	h.streamsLock.Lock()
+	defer h.streamsLock.Unlock()
+
+	var result int
+	for _, v := range h.streams {
+		result += len(v)
+	}
+	return result
+}
+
+func (h *LiveHistoryStreams) feedKey(feed refs.Feed) string {
 	return feed.String()
 }
 

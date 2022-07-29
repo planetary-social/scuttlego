@@ -9,13 +9,26 @@ import (
 	"github.com/planetary-social/scuttlego/di"
 	"github.com/planetary-social/scuttlego/fixtures"
 	"github.com/planetary-social/scuttlego/internal"
+	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/adapters/mocks"
 	"github.com/planetary-social/scuttlego/service/app/queries"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 const createHistoryStreamTestDelay = 1 * time.Second
+
+func TestCreateHistoryStream_SubscribesToNewMessagesToProcessThem(t *testing.T) {
+	t.Parallel()
+
+	ctx := fixtures.TestContext(t)
+	a := makeQueriesAndRunCreateHistoryStreamHandler(t, ctx)
+
+	require.Eventually(t, func() bool {
+		return a.MessagePubSub.CallsCount == 1
+	}, createHistoryStreamTestDelay, 10*time.Millisecond)
+}
 
 func TestCreateHistoryStream_IfOldAndLiveAreNotSetNothingIsWrittenAndStreamIsClosed(t *testing.T) {
 	t.Parallel()
@@ -36,15 +49,15 @@ func TestCreateHistoryStream_IfOldAndLiveAreNotSetNothingIsWrittenAndStreamIsClo
 
 	a.Queries.CreateHistoryStream.Handle(ctx, query)
 
-	<-time.After(createHistoryStreamTestDelay)
+	require.Eventually(t, func() bool {
+		return assert.ObjectsAreEqual([]error{nil}, rw.WrittenErrors)
+	}, createHistoryStreamTestDelay, 10*time.Millisecond)
 
-	require.Equal(t, 1, a.MessagePubSub.CallsCount, "live should have been subscribed to in the background")
 	require.Empty(t, a.FeedRepository.GetMessagesCalls, "since old is not specified repository shouldn't have been called")
 	require.Empty(t, rw.WrittenMessages)
-	require.Equal(t, []error{nil}, rw.WrittenErrors)
 }
 
-func TestCreateHistoryStream_IfOldIsSetNothingIsWrittenAndStreamIsClosed(t *testing.T) {
+func TestCreateHistoryStream_IfOldIsSetAndThereAreNoOldMessagesNothingIsWrittenAndStreamIsClosed(t *testing.T) {
 	t.Parallel()
 
 	ctx := fixtures.TestContext(t)
@@ -63,12 +76,12 @@ func TestCreateHistoryStream_IfOldIsSetNothingIsWrittenAndStreamIsClosed(t *test
 
 	a.Queries.CreateHistoryStream.Handle(ctx, query)
 
-	<-time.After(createHistoryStreamTestDelay)
+	require.Eventually(t, func() bool {
+		return assert.ObjectsAreEqual([]error{nil}, rw.WrittenErrors)
+	}, createHistoryStreamTestDelay, 10*time.Millisecond)
 
-	require.Equal(t, 1, a.MessagePubSub.CallsCount, "live should have been subscribed to in the background")
 	require.NotEmpty(t, a.FeedRepository.GetMessagesCalls)
 	require.Empty(t, rw.WrittenMessages)
-	require.Equal(t, []error{nil}, rw.WrittenErrors)
 }
 
 func TestCreateHistoryStream_IfRepositoryReturnsAnErrorStreamIsClosed(t *testing.T) {
@@ -96,13 +109,22 @@ func TestCreateHistoryStream_IfRepositoryReturnsAnErrorStreamIsClosed(t *testing
 	// it is basically impossible to correctly check if live messages will be
 	// returned as it is impossible to check if something never happens
 
-	<-time.After(createHistoryStreamTestDelay)
+	require.Eventually(t, func() bool {
+		if l := len(rw.WrittenErrors); l != 1 {
+			t.Logf("length of written errors: %d", l)
+			return false
+		}
 
-	require.Equal(t, 1, a.MessagePubSub.CallsCount, "live should have been subscribed to in the background")
+		if err := rw.WrittenErrors[0]; err.Error() != "could not retrieve messages: forced error" {
+			t.Logf("incorrect error: %s", err.Error())
+			return false
+		}
+
+		return true
+	}, createHistoryStreamTestDelay, 10*time.Millisecond)
+
 	require.NotEmpty(t, a.FeedRepository.GetMessagesCalls)
 	require.Empty(t, rw.WrittenMessages)
-	require.Len(t, rw.WrittenErrors, 1)
-	require.EqualError(t, rw.WrittenErrors[0], "could not retrieve messages: forced error")
 }
 
 func TestCreateHistoryStream_ArgumentsAreCorrectlyPassedToRepository(t *testing.T) {
@@ -172,14 +194,49 @@ func TestCreateHistoryStream_ArgumentsAreCorrectlyPassedToRepository(t *testing.
 
 			a.Queries.CreateHistoryStream.Handle(ctx, query)
 
-			<-time.After(createHistoryStreamTestDelay)
-
-			require.Equal(t, testCase.ExpectedCalls, a.FeedRepository.GetMessagesCalls)
-			require.Equal(t, expectedMessages, rw.WrittenMessages)
-			require.Len(t, rw.WrittenErrors, 1, "")
-			require.Equal(t, []error{nil}, rw.WrittenErrors, "stream should have been closed after sending old messages as live is not set")
+			require.Eventually(t, func() bool {
+				return assert.ObjectsAreEqual(testCase.ExpectedCalls, a.FeedRepository.GetMessagesCalls)
+			}, createHistoryStreamTestDelay, 10*time.Millisecond)
 		})
 	}
+}
+
+func TestCreateHistoryStream_OldMessagesReturnedByRepositoryAreCorrectlySentAndStreamIsClosed(t *testing.T) {
+	t.Parallel()
+
+	ctx := fixtures.TestContext(t)
+	a := makeQueriesAndRunCreateHistoryStreamHandler(t, ctx)
+
+	feed := fixtures.SomeRefFeed()
+
+	expectedMessages := []message.Message{
+		fixtures.SomeMessage(message.MustNewSequence(1), feed),
+		fixtures.SomeMessage(message.MustNewSequence(2), feed),
+		fixtures.SomeMessage(message.MustNewSequence(3), feed),
+	}
+
+	a.FeedRepository.GetMessagesReturnValue = expectedMessages
+
+	rw := newCreateHistoryStreamResponseWriterMock()
+
+	query := queries.CreateHistoryStream{
+		Id:             feed,
+		Seq:            internal.Ptr(fixtures.SomeSequence()),
+		Limit:          internal.Ptr(int(fixtures.SomePositiveInt32())),
+		Live:           false,
+		Old:            true,
+		ResponseWriter: rw,
+	}
+
+	a.Queries.CreateHistoryStream.Handle(ctx, query)
+
+	require.Eventually(t, func() bool {
+		return assert.ObjectsAreEqual([]error{nil}, rw.WrittenErrors)
+	}, createHistoryStreamTestDelay, 10*time.Millisecond)
+
+	require.Eventually(t, func() bool {
+		return assert.ObjectsAreEqual(expectedMessages, rw.WrittenMessages)
+	}, createHistoryStreamTestDelay, 10*time.Millisecond)
 }
 
 func TestCreateHistoryStream_MessagesAreNotRepeatedIfTheyWereAlreadySent(t *testing.T) {
@@ -548,17 +605,11 @@ func TestCreateHistoryStream_ErrorInOnLiveMessageClosesTheStreamWithAnError(t *t
 	require.EqualError(t, rw.WrittenErrors[0], "failed to write message: forced error")
 }
 
-func TestCreateHistoryStream_StreamsWhichAreClosedAreClosedAndCleanedUp(t *testing.T) {
-	t.Parallel()
-
+func TestLiveHistoryStreams_StreamsWhichAreClosedAreClosedAndCleanedUp(t *testing.T) {
 	testCtx := fixtures.TestContext(t)
-	a := makeQueriesAndRunCreateHistoryStreamHandler(t, testCtx)
 
 	feed := fixtures.SomeRefFeed()
 	rw := newCreateHistoryStreamResponseWriterMock()
-
-	ctx, cancel := context.WithCancel(testCtx)
-
 	query := queries.CreateHistoryStream{
 		Id:             feed,
 		Seq:            nil,
@@ -568,16 +619,21 @@ func TestCreateHistoryStream_StreamsWhichAreClosedAreClosedAndCleanedUp(t *testi
 		ResponseWriter: rw,
 	}
 
-	a.Queries.CreateHistoryStream.Handle(ctx, query)
+	ctx, cancel := context.WithCancel(testCtx)
+	stream := queries.NewHistoryStream(ctx, query)
 
-	<-time.After(createHistoryStreamTestDelay)
+	streams := queries.NewLiveHistoryStreams(logging.NewDevNullLogger())
+	streams.Add(stream)
+
+	require.Equal(t, 1, streams.Len())
 
 	cancel()
 
-	<-time.After(createHistoryStreamTestDelay)
+	streams.CleanupClosedStreams()
 
 	require.Empty(t, rw.WrittenMessages)
 	require.Equal(t, []error{nil}, rw.WrittenErrors)
+	require.Equal(t, 0, streams.Len())
 }
 
 func TestQueue_GetFromEmptyQueueShouldReturnNoValues(t *testing.T) {

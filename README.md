@@ -25,14 +25,14 @@ change.**
 - Connection manager (dynamic discovery of pubs from feeds)
 - Handling blob wants recevied from remote peers
 - Cleaning up old blobs and messages
+- Rooms
+- Replicating messages using EBTs
 
 ### Planned
 
 - Private messages
 - Private groups
-- Rooms
 - Support for other feed formats
-- Replicating messages using EBTs
 - Metafeeds
 
 ## Community

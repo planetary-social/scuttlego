@@ -35,6 +35,12 @@ change.**
 - Support for other feed formats
 - Metafeeds
 
+## Community
+
+If you want to talk about scuttlego feel free to post on Secure Scuttlebutt using the `#scuttlego` channel.
+
+Also check out Matrix channels such as `#golang-ssb-general:autonomic.zone` and `#planetary:matrix.org`.
+
 ## Protocol
 
 To get an overview of the technical aspects of the Secure Scuttlebutt protocol

@@ -8,7 +8,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/transport/boxstream"
 )
 
-//nolint:deadcode,varcheck
+//nolint:unused
 var extractFromConfigSet = wire.NewSet(
 	extractNetworkKeyFromConfig,
 	extractMessageHMACFromConfig,

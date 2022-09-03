@@ -7,7 +7,6 @@ import (
 )
 
 type BlobDownloadedPubSubMock struct {
-	CallsCount int
 }
 
 func NewBlobDownloadedPubSubMock() *BlobDownloadedPubSubMock {
@@ -15,7 +14,6 @@ func NewBlobDownloadedPubSubMock() *BlobDownloadedPubSubMock {
 }
 
 func (b BlobDownloadedPubSubMock) Subscribe(ctx context.Context) <-chan queries.BlobDownloaded {
-	b.CallsCount++
 	ch := make(chan queries.BlobDownloaded)
 	close(ch)
 	return ch

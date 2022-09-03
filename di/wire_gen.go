@@ -253,11 +253,8 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	readContactsRepository := bolt.NewReadContactsRepository(db, txRepositoriesFactory)
 	messageBuffer := commands.NewMessageBuffer(transactionProvider, logger)
 	manager := replication.NewManager(logger, readContactsRepository, messageBuffer)
-	scuttlebutt := formats.NewScuttlebutt(marshaler, messageHMAC)
-	v := newFormats(scuttlebutt)
-	rawMessageIdentifier := formats.NewRawMessageIdentifier(v)
-	rawMessageHandler := commands.NewRawMessageHandler(rawMessageIdentifier, messageBuffer, logger)
-	gossipReplicator, err := replication.NewGossipReplicator(manager, rawMessageHandler, logger)
+	rawMessagePubSub := pubsub.NewRawMessagePubSub()
+	gossipReplicator, err := replication.NewGossipReplicator(manager, rawMessagePubSub, logger)
 	if err != nil {
 		return Service{}, err
 	}
@@ -280,6 +277,10 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	currentTimeProvider := adapters.NewCurrentTimeProvider()
 	downloadBlobHandler := commands.NewDownloadBlobHandler(transactionProvider, currentTimeProvider)
 	createBlobHandler := commands.NewCreateBlobHandler(filesystemStorage)
+	scuttlebutt := formats.NewScuttlebutt(marshaler, messageHMAC)
+	v := newFormats(scuttlebutt)
+	rawMessageIdentifier := formats.NewRawMessageIdentifier(v)
+	rawMessageHandler := commands.NewRawMessageHandler(rawMessageIdentifier, messageBuffer, logger)
 	appCommands := app.Commands{
 		RedeemInvite:             redeemInviteHandler,
 		Follow:                   followHandler,
@@ -291,6 +292,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 		CreateWants:              createWantsHandler,
 		DownloadBlob:             downloadBlobHandler,
 		CreateBlob:               createBlobHandler,
+		RawMessage:               rawMessageHandler,
 	}
 	readFeedRepository := bolt.NewReadFeedRepository(db, txRepositoriesFactory)
 	messagePubSub := pubsub.NewMessagePubSub()

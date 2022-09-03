@@ -5,7 +5,6 @@ import (
 	"github.com/planetary-social/scuttlego/service/app"
 	"github.com/planetary-social/scuttlego/service/app/commands"
 	"github.com/planetary-social/scuttlego/service/app/queries"
-	"github.com/planetary-social/scuttlego/service/domain/replication"
 	portsrpc "github.com/planetary-social/scuttlego/service/ports/rpc"
 )
 
@@ -29,9 +28,7 @@ var commandsSet = wire.NewSet(
 	commands.NewEstablishNewConnectionsHandler,
 	commands.NewDownloadBlobHandler,
 	commands.NewCreateBlobHandler,
-
 	commands.NewRawMessageHandler,
-	wire.Bind(new(replication.RawMessageHandler), new(*commands.RawMessageHandler)),
 
 	commands.NewCreateWantsHandler,
 	wire.Bind(new(portsrpc.CreateWantsCommandHandler), new(*commands.CreateWantsHandler)),

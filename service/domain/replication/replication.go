@@ -59,7 +59,7 @@ type ReplicationManager interface {
 }
 
 type RawMessageHandler interface {
-	Handle(msg message.RawMessage) error
+	HandleRawMessage(msg message.RawMessage) error
 }
 
 type GossipReplicator struct {
@@ -151,7 +151,7 @@ func (r GossipReplicator) replicateFeed(peer transport.Peer, feed ReplicateFeedT
 			return counter, errors.Wrap(err, "could not create a raw message")
 		}
 
-		if err := r.handler.Handle(rawMsg); err != nil {
+		if err := r.handler.HandleRawMessage(rawMsg); err != nil {
 			return counter, errors.Wrap(err, "could not process the raw message")
 		}
 

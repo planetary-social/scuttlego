@@ -32,7 +32,7 @@ func NewRequestSubscriber(pubsub *pubsub.RequestPubSub, mux *mux.Mux) *RequestSu
 	}
 }
 
-// Run keeps receiving RPC request from the pubsub and passing them to the RPC
+// Run keeps receiving RPC requests from the pubsub and passing them to the RPC
 // mux until the context is closed.
 func (p *RequestSubscriber) Run(ctx context.Context) error {
 	requests := p.pubsub.SubscribeToRequests(ctx)

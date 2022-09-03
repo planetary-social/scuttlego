@@ -8,7 +8,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/mux"
 )
 
-// PubSub receives internal events containing arriving RPC requests and passes
+// RequestSubscriber receives internal events containing arriving RPC requests and passes
 // them to the RPC mux.
 //
 // This is done because while it makes perfect sense for the RPC mux to be a
@@ -20,13 +20,13 @@ import (
 // fact that the RPC mux is a port make sense then we need a mechanism such as
 // pub sub to bridge the two parts of the program together as the application
 // layer can't directly drive ports.
-type PubSub struct {
+type RequestSubscriber struct {
 	pubsub *pubsub.RequestPubSub
 	mux    *mux.Mux
 }
 
-func NewPubSub(pubsub *pubsub.RequestPubSub, mux *mux.Mux) *PubSub {
-	return &PubSub{
+func NewRequestSubscriber(pubsub *pubsub.RequestPubSub, mux *mux.Mux) *RequestSubscriber {
+	return &RequestSubscriber{
 		pubsub: pubsub,
 		mux:    mux,
 	}
@@ -34,7 +34,7 @@ func NewPubSub(pubsub *pubsub.RequestPubSub, mux *mux.Mux) *PubSub {
 
 // Run keeps receiving RPC request from the pubsub and passing them to the RPC
 // mux until the context is closed.
-func (p *PubSub) Run(ctx context.Context) error {
+func (p *RequestSubscriber) Run(ctx context.Context) error {
 	requests := p.pubsub.SubscribeToRequests(ctx)
 
 	for request := range requests {

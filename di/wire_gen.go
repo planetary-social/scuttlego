@@ -339,12 +339,12 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	if err != nil {
 		return Service{}, err
 	}
-	pubSub := pubsub2.NewPubSub(requestPubSub, muxMux)
+	requestSubscriber := pubsub2.NewRequestSubscriber(requestPubSub, muxMux)
 	advertiser, err := newAdvertiser(public, config)
 	if err != nil {
 		return Service{}, err
 	}
-	service := NewService(application, listener, networkDiscoverer, connectionEstablisher, pubSub, advertiser, messageBuffer, createHistoryStreamHandler)
+	service := NewService(application, listener, networkDiscoverer, connectionEstablisher, requestSubscriber, advertiser, messageBuffer, createHistoryStreamHandler)
 	return service, nil
 }
 

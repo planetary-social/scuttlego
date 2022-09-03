@@ -24,7 +24,7 @@ var portsSet = wire.NewSet(
 	portsrpc.NewMuxClosingHandlers,
 	portsrpc.NewHandlerCreateHistoryStream,
 
-	portspubsub.NewPubSub,
+	portspubsub.NewRequestSubscriber,
 
 	local.NewDiscoverer,
 	portsnetwork.NewDiscoverer,

@@ -8,7 +8,7 @@ import (
 	portsrpc "github.com/planetary-social/scuttlego/service/ports/rpc"
 )
 
-//nolint:deadcode,varcheck
+//nolint:unused
 var applicationSet = wire.NewSet(
 	wire.Struct(new(app.Application), "*"),
 

@@ -18,7 +18,7 @@ import (
 	"go.etcd.io/bbolt"
 )
 
-//nolint:deadcode,varcheck
+//nolint:unused
 var txBoltAdaptersSet = wire.NewSet(
 	bolt.NewFeedRepository,
 	wire.Bind(new(commands.FeedRepository), new(*bolt.FeedRepository)),
@@ -36,7 +36,7 @@ var txBoltAdaptersSet = wire.NewSet(
 	bolt.NewBlobRepository,
 )
 
-//nolint:deadcode,varcheck
+//nolint:unused
 var boltAdaptersSet = wire.NewSet(
 	bolt.NewReadFeedRepository,
 	wire.Bind(new(queries.FeedRepository), new(*bolt.ReadFeedRepository)),
@@ -57,7 +57,7 @@ var boltAdaptersSet = wire.NewSet(
 	newTxRepositoriesFactory,
 )
 
-//nolint:deadcode,varcheck
+//nolint:unused
 var mockQueryAdaptersSet = wire.NewSet(
 	mocks.NewFeedRepositoryMock,
 	wire.Bind(new(queries.FeedRepository), new(*mocks.FeedRepositoryMock)),
@@ -75,7 +75,7 @@ func newTxRepositoriesFactory(local identity.Public, logger logging.Logger, hmac
 	}
 }
 
-//nolint:deadcode,varcheck
+//nolint:unused
 var blobsAdaptersSet = wire.NewSet(
 	newFilesystemStorage,
 	wire.Bind(new(blobReplication.BlobStorage), new(*blobs.FilesystemStorage)),
@@ -89,7 +89,7 @@ func newFilesystemStorage(logger logging.Logger, config Config) (*blobs.Filesyst
 	return blobs.NewFilesystemStorage(path.Join(config.DataDirectory, "blobs"), logger)
 }
 
-//nolint:deadcode,varcheck
+//nolint:unused
 var adaptersSet = wire.NewSet(
 	adapters.NewCurrentTimeProvider,
 	wire.Bind(new(commands.CurrentTimeProvider), new(*adapters.CurrentTimeProvider)),

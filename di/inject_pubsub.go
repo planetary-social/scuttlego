@@ -8,7 +8,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 )
 
-//nolint:deadcode,varcheck
+//nolint:unused
 var pubSubSet = wire.NewSet(
 	requestPubSubSet,
 	messagePubSubSet,

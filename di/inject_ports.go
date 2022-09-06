@@ -13,7 +13,7 @@ import (
 	portsrpc "github.com/planetary-social/scuttlego/service/ports/rpc"
 )
 
-//nolint:deadcode,varcheck
+//nolint:unused
 var portsSet = wire.NewSet(
 	mux.NewMux,
 

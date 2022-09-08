@@ -4,12 +4,13 @@ import (
 	"time"
 
 	"github.com/boreq/errors"
+	"github.com/planetary-social/scuttlego/service/adapters/bolt/utils"
 	"github.com/planetary-social/scuttlego/service/app/commands"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"go.etcd.io/bbolt"
 )
 
-var bucketWantList = bucketName("want_list")
+var bucketWantList = utils.BucketName("want_list")
 
 type WantListRepository struct {
 	tx                  *bbolt.Tx
@@ -158,15 +159,15 @@ func (r WantListRepository) fromValue(v []byte) (time.Time, error) {
 }
 
 func (r WantListRepository) createBucket() (*bbolt.Bucket, error) {
-	return createBucket(r.tx, r.bucketPath())
+	return utils.CreateBucket(r.tx, r.bucketPath())
 }
 
 func (r WantListRepository) getBucket() (*bbolt.Bucket, error) {
-	return getBucket(r.tx, r.bucketPath())
+	return utils.GetBucket(r.tx, r.bucketPath())
 }
 
-func (r WantListRepository) bucketPath() []bucketName {
-	return []bucketName{
+func (r WantListRepository) bucketPath() []utils.BucketName {
+	return []utils.BucketName{
 		bucketWantList,
 	}
 }

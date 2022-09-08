@@ -5,20 +5,18 @@ import (
 
 	"github.com/planetary-social/scuttlego/di"
 	"github.com/planetary-social/scuttlego/fixtures"
-	"github.com/planetary-social/scuttlego/service/adapters/bolt"
-	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/stretchr/testify/require"
 	"go.etcd.io/bbolt"
 )
 
 func TestMessageRepository_CountEmpty(t *testing.T) {
 	db := fixtures.Bolt(t)
-	identifier := NewRawMessageIdentifierMock()
 
 	err := db.View(func(tx *bbolt.Tx) error {
-		repository := bolt.NewMessageRepository(tx, identifier)
+		adapters, err := di.BuildTxTestAdapters(tx)
+		require.NoError(t, err)
 
-		n, err := repository.Count()
+		n, err := adapters.MessageRepository.Count()
 		require.NoError(t, err)
 		require.Equal(t, 0, n)
 
@@ -29,12 +27,12 @@ func TestMessageRepository_CountEmpty(t *testing.T) {
 
 func TestMessageRepository_GetNoMessage(t *testing.T) {
 	db := fixtures.Bolt(t)
-	identifier := NewRawMessageIdentifierMock()
 
 	err := db.View(func(tx *bbolt.Tx) error {
-		repository := bolt.NewMessageRepository(tx, identifier)
+		adapters, err := di.BuildTxTestAdapters(tx)
+		require.NoError(t, err)
 
-		_, err := repository.Get(fixtures.SomeRefMessage())
+		_, err = adapters.MessageRepository.Get(fixtures.SomeRefMessage())
 		require.EqualError(t, err, "message not found")
 
 		return nil
@@ -44,24 +42,26 @@ func TestMessageRepository_GetNoMessage(t *testing.T) {
 
 func TestMessageRepository_Put_Get(t *testing.T) {
 	db := fixtures.Bolt(t)
-	identifier := NewRawMessageIdentifierMock()
 
 	msg := fixtures.SomeMessage(fixtures.SomeSequence(), fixtures.SomeRefFeed())
 
 	err := db.Update(func(tx *bbolt.Tx) error {
-		repository := bolt.NewMessageRepository(tx, identifier)
-		return repository.Put(msg)
+		adapters, err := di.BuildTxTestAdapters(tx)
+		require.NoError(t, err)
+
+		return adapters.MessageRepository.Put(msg)
 	})
 	require.NoError(t, err)
 
 	err = db.View(func(tx *bbolt.Tx) error {
-		repository := bolt.NewMessageRepository(tx, identifier)
+		adapters, err := di.BuildTxTestAdapters(tx)
+		require.NoError(t, err)
 
-		retrievedMessage, err := repository.Get(msg.Id())
+		retrievedMessage, err := adapters.MessageRepository.Get(msg.Id())
 		require.NoError(t, err)
 		require.Equal(t, retrievedMessage.Raw(), msg.Raw())
 
-		n, err := repository.Count()
+		n, err := adapters.MessageRepository.Count()
 		require.NoError(t, err)
 		require.Equal(t, 1, n)
 
@@ -72,7 +72,6 @@ func TestMessageRepository_Put_Get(t *testing.T) {
 
 func TestReadMessageRepository_Count(t *testing.T) {
 	db := fixtures.Bolt(t)
-	identifier := NewRawMessageIdentifierMock()
 
 	msg := fixtures.SomeMessage(fixtures.SomeSequence(), fixtures.SomeRefFeed())
 
@@ -84,8 +83,10 @@ func TestReadMessageRepository_Count(t *testing.T) {
 	require.Equal(t, 0, count)
 
 	err = db.Update(func(tx *bbolt.Tx) error {
-		repository := bolt.NewMessageRepository(tx, identifier)
-		return repository.Put(msg)
+		adapters, err := di.BuildTxTestAdapters(tx)
+		require.NoError(t, err)
+
+		return adapters.MessageRepository.Put(msg)
 	})
 	require.NoError(t, err)
 
@@ -94,22 +95,46 @@ func TestReadMessageRepository_Count(t *testing.T) {
 	require.Equal(t, 1, count)
 }
 
-type RawMessageIdentifierMock struct {
-}
+func TestMessageRepository_Delete(t *testing.T) {
+	db := fixtures.Bolt(t)
 
-func NewRawMessageIdentifierMock() *RawMessageIdentifierMock {
-	return &RawMessageIdentifierMock{}
-}
+	msg := fixtures.SomeMessage(fixtures.SomeSequence(), fixtures.SomeRefFeed())
 
-func (r RawMessageIdentifierMock) IdentifyRawMessage(raw message.RawMessage) (message.Message, error) {
-	return message.NewMessage(
-		fixtures.SomeRefMessage(),
-		nil,
-		message.MustNewSequence(1),
-		fixtures.SomeRefIdentity(),
-		fixtures.SomeRefFeed(),
-		fixtures.SomeTime(),
-		fixtures.SomeContent(),
-		raw,
-	)
+	err := db.Update(func(tx *bbolt.Tx) error {
+		adapters, err := di.BuildTxTestAdapters(tx)
+		require.NoError(t, err)
+
+		return adapters.MessageRepository.Put(msg)
+	})
+	require.NoError(t, err)
+
+	err = db.View(func(tx *bbolt.Tx) error {
+		adapters, err := di.BuildTxTestAdapters(tx)
+		require.NoError(t, err)
+
+		_, err = adapters.MessageRepository.Get(msg.Id())
+		require.NoError(t, err)
+
+		return nil
+	})
+	require.NoError(t, err)
+
+	err = db.Update(func(tx *bbolt.Tx) error {
+		adapters, err := di.BuildTxTestAdapters(tx)
+		require.NoError(t, err)
+
+		return adapters.MessageRepository.Delete(msg.Id())
+	})
+	require.NoError(t, err)
+
+	err = db.View(func(tx *bbolt.Tx) error {
+		adapters, err := di.BuildTxTestAdapters(tx)
+		require.NoError(t, err)
+
+		_, err = adapters.MessageRepository.Get(msg.Id())
+		require.EqualError(t, err, "message not found")
+
+		return nil
+	})
+	require.NoError(t, err)
 }

@@ -4,11 +4,14 @@ import (
 	"encoding/json"
 
 	"github.com/boreq/errors"
+	"github.com/planetary-social/scuttlego/service/adapters/bolt/utils"
 	"github.com/planetary-social/scuttlego/service/domain/graph"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"go.etcd.io/bbolt"
 )
+
+const socialGraphRepositoryBucket = "graph"
 
 type SocialGraphRepository struct {
 	local identity.Public
@@ -50,6 +53,10 @@ func (s *SocialGraphRepository) Unblock(who refs.Identity, contact refs.Identity
 	return s.modifyContact(who, contact, func(c *storedContact) {
 		c.Blocking = false
 	})
+}
+
+func (s *SocialGraphRepository) Remove(who refs.Identity) error {
+	return s.deleteFeedBucket(who)
 }
 
 func (s *SocialGraphRepository) GetContacts(node refs.Identity) ([]refs.Identity, error) {
@@ -115,22 +122,32 @@ func (s *SocialGraphRepository) modifyContact(who, contact refs.Identity, f func
 
 }
 
-func (r *SocialGraphRepository) createFeedBucket(ref refs.Identity) (*bbolt.Bucket, error) {
-	return createBucket(r.tx, r.pathFunc(ref))
+func (s *SocialGraphRepository) createFeedBucket(ref refs.Identity) (*bbolt.Bucket, error) {
+	return utils.CreateBucket(s.tx, s.pathFunc(ref))
 }
 
-func (r *SocialGraphRepository) getFeedBucket(ref refs.Identity) (*bbolt.Bucket, error) {
-	return getBucket(r.tx, r.pathFunc(ref))
+func (s *SocialGraphRepository) getFeedBucket(ref refs.Identity) (*bbolt.Bucket, error) {
+	return utils.GetBucket(s.tx, s.pathFunc(ref))
 }
 
-func (r *SocialGraphRepository) pathFunc(who refs.Identity) []bucketName {
-	return []bucketName{
-		bucketName("graph"),
-		bucketName(who.String()),
+func (s *SocialGraphRepository) deleteFeedBucket(ref refs.Identity) error {
+	return utils.DeleteBucket(
+		s.tx,
+		[]utils.BucketName{
+			utils.BucketName(socialGraphRepositoryBucket),
+		},
+		utils.BucketName(ref.String()),
+	)
+}
+
+func (s *SocialGraphRepository) pathFunc(who refs.Identity) []utils.BucketName {
+	return []utils.BucketName{
+		utils.BucketName(socialGraphRepositoryBucket),
+		utils.BucketName(who.String()),
 	}
 }
 
-func (s *SocialGraphRepository) key(target refs.Identity) bucketName {
+func (s *SocialGraphRepository) key(target refs.Identity) utils.BucketName {
 	return []byte(target.String())
 }
 

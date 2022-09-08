@@ -235,7 +235,7 @@ func (h *LiveHistoryStreams) CleanupClosedStreams() {
 	defer h.streamsLock.Unlock()
 
 	for key := range h.streams {
-		for i := range h.streams[key] {
+		for i := len(h.streams[key]) - 1; i >= 0; i-- {
 			if h.streams[key][i].IsClosed() {
 				if closeErr := h.streams[key][i].CloseWithError(nil); closeErr != nil {
 					h.logger.WithError(closeErr).Debug("closing failed")

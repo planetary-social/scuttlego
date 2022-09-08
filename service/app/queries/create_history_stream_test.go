@@ -608,31 +608,50 @@ func TestCreateHistoryStream_ErrorInOnLiveMessageClosesTheStreamWithAnError(t *t
 func TestLiveHistoryStreams_StreamsWhichAreClosedAreClosedAndCleanedUp(t *testing.T) {
 	testCtx := fixtures.TestContext(t)
 
-	feed := fixtures.SomeRefFeed()
-	rw := newCreateHistoryStreamResponseWriterMock()
-	query := queries.CreateHistoryStream{
-		Id:             feed,
+	rw1 := newCreateHistoryStreamResponseWriterMock()
+	ctx1, cancel1 := context.WithCancel(testCtx)
+	stream1 := queries.NewHistoryStream(ctx1, queries.CreateHistoryStream{
+		Id:             fixtures.SomeRefFeed(),
 		Seq:            nil,
 		Limit:          nil,
 		Live:           true,
 		Old:            false,
-		ResponseWriter: rw,
-	}
+		ResponseWriter: rw1,
+	})
 
-	ctx, cancel := context.WithCancel(testCtx)
-	stream := queries.NewHistoryStream(ctx, query)
+	rw2 := newCreateHistoryStreamResponseWriterMock()
+	ctx2, cancel2 := context.WithCancel(testCtx)
+	stream2 := queries.NewHistoryStream(ctx2, queries.CreateHistoryStream{
+		Id:             fixtures.SomeRefFeed(),
+		Seq:            nil,
+		Limit:          nil,
+		Live:           true,
+		Old:            false,
+		ResponseWriter: rw2,
+	})
 
 	streams := queries.NewLiveHistoryStreams(logging.NewDevNullLogger())
-	streams.Add(stream)
+	streams.Add(stream1)
+	streams.Add(stream2)
 
-	require.Equal(t, 1, streams.Len())
+	require.Equal(t, 2, streams.Len())
 
-	cancel()
-
+	cancel1()
 	streams.CleanupClosedStreams()
 
-	require.Empty(t, rw.WrittenMessages)
-	require.Equal(t, []error{nil}, rw.WrittenErrors)
+	require.Empty(t, rw1.WrittenMessages)
+	require.Empty(t, rw2.WrittenMessages)
+	require.Equal(t, []error{nil}, rw1.WrittenErrors)
+	require.Empty(t, rw2.WrittenErrors)
+	require.Equal(t, 1, streams.Len())
+
+	cancel2()
+	streams.CleanupClosedStreams()
+
+	require.Empty(t, rw1.WrittenMessages)
+	require.Empty(t, rw2.WrittenMessages)
+	require.Equal(t, []error{nil}, rw1.WrittenErrors)
+	require.Equal(t, []error{nil}, rw2.WrittenErrors)
 	require.Equal(t, 0, streams.Len())
 }
 

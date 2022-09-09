@@ -167,10 +167,10 @@ func (s *RequestStreams) cleanupLoop(ctx context.Context) {
 // cleanup removes request streams which were closed by either party and marks
 // them as closed so that future incoming messages for this stream can be
 // ignored. This cleanup doesn't need to happen right away as:
-// - closing a stream many times is allowed
-// - if someone sends repeated messages then HandleNewMessage method should be
-//   able to handle it for async streams and the message will be rejected anyway
-//   for all other streams
+//   - closing a stream many times is allowed
+//   - if someone sends repeated messages then HandleNewMessage method should be
+//     able to handle it for async streams and the message will be rejected anyway
+//     for all other streams
 func (s *RequestStreams) cleanup() {
 	s.streamsLock.Lock()
 	defer s.streamsLock.Unlock()

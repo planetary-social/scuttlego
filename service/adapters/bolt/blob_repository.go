@@ -101,10 +101,6 @@ func (r BlobRepository) getBucketByMessageBlobRefs(ref refs.Message) (*bbolt.Buc
 	return utils.GetBucket(r.tx, r.bucketPathByMessageBlobRefs(ref))
 }
 
-func (r BlobRepository) getBucketByBlobMessageRefs(ref refs.Blob) (*bbolt.Bucket, error) {
-	return utils.GetBucket(r.tx, r.bucketPathByBlobMessageRefs(ref))
-}
-
 func (r BlobRepository) getBucketByBlob() (*bbolt.Bucket, error) {
 	return utils.GetBucket(r.tx, r.bucketPathByBlob())
 }

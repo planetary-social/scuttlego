@@ -195,10 +195,6 @@ func (r PubRepository) createBucketByPubMessages(pub feeds.PubToSave) (*bbolt.Bu
 	return utils.CreateBucket(r.tx, r.bucketPathByPubMessages(pub.Who(), pub.Content()))
 }
 
-func (r PubRepository) getBucketByPubMessages(pub feeds.PubToSave) (*bbolt.Bucket, error) {
-	return utils.GetBucket(r.tx, r.bucketPathByPubMessages(pub.Who(), pub.Content()))
-}
-
 func (r PubRepository) createBucketByMessagePubs(ref refs.Message) (*bbolt.Bucket, error) {
 	return utils.CreateBucket(r.tx, r.bucketPathByMessagePubs(ref))
 }

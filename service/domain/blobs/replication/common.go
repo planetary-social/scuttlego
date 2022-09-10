@@ -18,7 +18,7 @@ type BlobSizeRepository interface {
 }
 
 type WantListStorage interface {
-	GetWantList() (blobs.WantList, error)
+	List() (blobs.WantList, error)
 }
 
 type HasBlobHandler interface {

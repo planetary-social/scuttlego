@@ -117,7 +117,7 @@ func newWantListStorageMock() *wantListStorageMock {
 	return &wantListStorageMock{}
 }
 
-func (w wantListStorageMock) GetWantList() (blobs.WantList, error) {
+func (w wantListStorageMock) List() (blobs.WantList, error) {
 	return blobs.NewWantList(w.WantList)
 }
 

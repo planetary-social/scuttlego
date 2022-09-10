@@ -264,15 +264,15 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	if err != nil {
 		return Service{}, err
 	}
-	noTxWantListRepository := bolt.NewNoTxWantListRepository(db, txRepositoriesFactory)
+	readWantListRepository := bolt.NewReadWantListRepository(db, txRepositoriesFactory)
 	filesystemStorage, err := newFilesystemStorage(logger, config)
 	if err != nil {
 		return Service{}, err
 	}
 	blobsGetDownloader := replication2.NewBlobsGetDownloader(filesystemStorage, logger)
 	blobDownloadedPubSub := pubsub.NewBlobDownloadedPubSub()
-	hasHandler := replication2.NewHasHandler(filesystemStorage, noTxWantListRepository, blobsGetDownloader, blobDownloadedPubSub, logger)
-	replicationManager := replication2.NewManager(noTxWantListRepository, filesystemStorage, hasHandler, logger)
+	hasHandler := replication2.NewHasHandler(filesystemStorage, readWantListRepository, blobsGetDownloader, blobDownloadedPubSub, logger)
+	replicationManager := replication2.NewManager(readWantListRepository, filesystemStorage, hasHandler, logger)
 	replicator := replication2.NewReplicator(replicationManager)
 	peerManager := domain.NewPeerManager(contextContext, peerManagerConfig, gossipReplicator, replicator, dialer, logger)
 	connectHandler := commands.NewConnectHandler(peerManager, logger)

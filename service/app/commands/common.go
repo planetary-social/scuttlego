@@ -49,10 +49,9 @@ type SocialGraphRepository interface {
 }
 
 type WantListRepository interface {
-	// AddToWantList puts the blob in the want list. If the blob can't be
-	// retrieved before the specified point of time it will be removed from the
-	// want list.
-	AddToWantList(id refs.Blob, until time.Time) error
+	// Add puts the blob in the want list. If the blob can't be retrieved before
+	// the specified point of time it will be removed from the want list.
+	Add(id refs.Blob, until time.Time) error
 }
 
 type CurrentTimeProvider interface {

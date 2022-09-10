@@ -30,6 +30,6 @@ func NewDownloadBlobHandler(
 func (h *DownloadBlobHandler) Handle(cmd DownloadBlob) error {
 	until := h.currentTimeProvider.Get().Add(temporaryWantListDuration)
 	return h.transaction.Transact(func(adapters Adapters) error {
-		return adapters.WantList.AddToWantList(cmd.Id, until)
+		return adapters.WantList.Add(cmd.Id, until)
 	})
 }

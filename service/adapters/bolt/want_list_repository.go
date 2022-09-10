@@ -27,7 +27,7 @@ func NewWantListRepository(
 	}
 }
 
-func (r WantListRepository) AddToWantList(id refs.Blob, until time.Time) error {
+func (r WantListRepository) Add(id refs.Blob, until time.Time) error {
 	bucket, err := r.createBucket()
 	if err != nil {
 		return errors.Wrap(err, "failed to get the bucket")
@@ -50,7 +50,7 @@ func (r WantListRepository) AddToWantList(id refs.Blob, until time.Time) error {
 	return bucket.Put(key, r.toValue(until))
 }
 
-func (r WantListRepository) WantListContains(id refs.Blob) (bool, error) {
+func (r WantListRepository) Contains(id refs.Blob) (bool, error) {
 	bucket, err := r.getBucket()
 	if err != nil {
 		return false, errors.Wrap(err, "failed to get the bucket")
@@ -79,7 +79,7 @@ func (r WantListRepository) WantListContains(id refs.Blob) (bool, error) {
 	return true, nil
 }
 
-func (r WantListRepository) DeleteFromWantList(id refs.Blob) error {
+func (r WantListRepository) Delete(id refs.Blob) error {
 	bucket, err := r.getBucket()
 	if err != nil {
 		return errors.Wrap(err, "failed to get the bucket")

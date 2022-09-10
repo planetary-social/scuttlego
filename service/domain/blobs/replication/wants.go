@@ -72,7 +72,7 @@ func (p *WantsProcess) incomingLoop(ctx context.Context, ch chan<- messages.Blob
 	}
 
 	for {
-		wl, err := p.wantListStorage.GetWantList()
+		wl, err := p.wantListStorage.List()
 		if err != nil {
 			p.logger.WithError(err).Error("could not get the want list")
 			continue

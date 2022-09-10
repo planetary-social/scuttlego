@@ -15,8 +15,8 @@ type BlobStorage interface {
 }
 
 type WantListRepository interface {
-	WantListContains(id refs.Blob) (bool, error)
-	DeleteFromWantList(id refs.Blob) error
+	Contains(id refs.Blob) (bool, error)
+	Delete(id refs.Blob) error
 }
 
 type Downloader interface {
@@ -64,7 +64,7 @@ func (d *HasHandler) onHasReceived(ctx context.Context, peer transport.Peer, blo
 		return errors.New("blob too large")
 	}
 
-	blobIsInTheWantList, err := d.wantList.WantListContains(blob)
+	blobIsInTheWantList, err := d.wantList.Contains(blob)
 	if err != nil {
 		return errors.Wrap(err, "failed to check the want list")
 	}
@@ -86,7 +86,7 @@ func (d *HasHandler) onHasReceived(ctx context.Context, peer transport.Peer, blo
 		d.publisher.Publish(blob, declaredSize) // todo use actual size
 	}
 
-	if err := d.wantList.DeleteFromWantList(blob); err != nil {
+	if err := d.wantList.Delete(blob); err != nil {
 		return errors.Wrap(err, "error deleting from want list")
 	}
 

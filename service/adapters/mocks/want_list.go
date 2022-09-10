@@ -12,7 +12,7 @@ func NewWantListRepositoryMock() *WantListRepositoryMock {
 	}
 }
 
-func (w WantListRepositoryMock) WantListContains(id refs.Blob) (bool, error) {
+func (w WantListRepositoryMock) Contains(id refs.Blob) (bool, error) {
 	_, ok := w.wantList[id.String()]
 	return ok, nil
 }
@@ -29,7 +29,7 @@ func (w WantListRepositoryMock) List() []refs.Blob {
 	return result
 }
 
-func (w WantListRepositoryMock) DeleteFromWantList(id refs.Blob) error {
+func (w WantListRepositoryMock) Delete(id refs.Blob) error {
 	delete(w.wantList, id.String())
 	return nil
 }

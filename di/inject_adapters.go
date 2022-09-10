@@ -50,9 +50,9 @@ var boltAdaptersSet = wire.NewSet(
 	bolt.NewReadMessageRepository,
 	wire.Bind(new(queries.MessageRepository), new(*bolt.ReadMessageRepository)),
 
-	bolt.NewNoTxWantListRepository,
-	wire.Bind(new(blobReplication.WantListStorage), new(*bolt.NoTxWantListRepository)),
-	wire.Bind(new(blobReplication.WantListRepository), new(*bolt.NoTxWantListRepository)),
+	bolt.NewReadWantListRepository,
+	wire.Bind(new(blobReplication.WantListStorage), new(*bolt.ReadWantListRepository)),
+	wire.Bind(new(blobReplication.WantListRepository), new(*bolt.ReadWantListRepository)),
 
 	newTxRepositoriesFactory,
 )

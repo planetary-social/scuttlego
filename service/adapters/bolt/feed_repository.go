@@ -2,12 +2,10 @@ package bolt
 
 import (
 	"encoding/binary"
-	"fmt"
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/service/adapters/bolt/utils"
 	"github.com/planetary-social/scuttlego/service/domain/feeds"
-	"github.com/planetary-social/scuttlego/service/domain/feeds/content"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/formats"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
@@ -299,18 +297,9 @@ func (b FeedRepository) saveMessageInBucket(bucket *bbolt.Bucket, msg message.Me
 }
 
 func (b FeedRepository) saveContact(contact feeds.ContactToSave) error {
-	switch contact.Msg().Action() {
-	case content.ContactActionFollow:
-		return b.graph.Follow(contact.Who(), contact.Msg().Contact())
-	case content.ContactActionUnfollow:
-		return b.graph.Unfollow(contact.Who(), contact.Msg().Contact())
-	case content.ContactActionBlock:
-		return b.graph.Block(contact.Who(), contact.Msg().Contact())
-	case content.ContactActionUnblock:
-		return b.graph.Unblock(contact.Who(), contact.Msg().Contact())
-	default:
-		return fmt.Errorf("unknown contact action '%#v'", contact.Msg().Action())
-	}
+	return b.graph.UpdateContact(contact.Who(), contact.Msg().Contact(), func(c *feeds.Contact) error {
+		return c.Update(contact.Msg().Actions())
+	})
 }
 
 func messageKey(seq message.Sequence) []byte {

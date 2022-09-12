@@ -3,8 +3,10 @@ package transport
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/boreq/errors"
+	"github.com/planetary-social/scuttlego/internal"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/content"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 )
@@ -18,7 +20,7 @@ var contactMapping = MessageContentMapping{
 			Contact:            msg.Contact().String(),
 		}
 
-		err := marshalContactAction(msg.Action(), &t)
+		err := marshalContactActions(msg.Actions(), &t)
 		if err != nil {
 			return nil, errors.Wrap(err, "could not marshal contact action")
 		}
@@ -46,45 +48,84 @@ var contactMapping = MessageContentMapping{
 	},
 }
 
-func unmarshalContactAction(t transportContact) (content.ContactAction, error) {
-	if t.Following && !t.Blocking {
-		return content.ContactActionFollow, nil
+func unmarshalContactAction(t transportContact) (content.ContactActions, error) {
+	var actions []content.ContactAction
+
+	if v := t.Following; v != nil {
+		if *v {
+			actions = append(actions, content.ContactActionFollow)
+		} else {
+			actions = append(actions, content.ContactActionUnfollow)
+		}
 	}
 
-	if !t.Following && !t.Blocking {
-		return content.ContactActionUnfollow, nil
+	if v := t.Blocking; v != nil {
+		if *v {
+			actions = append(actions, content.ContactActionBlock)
+		} else {
+			actions = append(actions, content.ContactActionUnblock)
+		}
 	}
 
-	if !t.Following && t.Blocking {
-		return content.ContactActionBlock, nil
-	}
-
-	return content.ContactAction{}, errors.New("invalid contact action")
+	return content.NewContactActions(actions)
 }
 
-func marshalContactAction(action content.ContactAction, t *transportContact) error {
-	switch action {
-	case content.ContactActionFollow:
-		t.Following = true
-		t.Blocking = false
-		return nil
-	case content.ContactActionUnfollow:
-		t.Following = false
-		t.Blocking = false
-		return nil
-	case content.ContactActionBlock:
-		t.Following = false
-		t.Blocking = true
-		return nil
-	default:
-		return fmt.Errorf("unknown contact action '%#v'", action)
+func marshalContactActions(actions content.ContactActions, t *transportContact) error {
+	for _, action := range actions.List() {
+		switch action {
+		case content.ContactActionFollow:
+			t.Following = internal.Ptr(true)
+		case content.ContactActionUnfollow:
+			t.Following = internal.Ptr(false)
+		case content.ContactActionBlock:
+			t.Blocking = internal.Ptr(true)
+		case content.ContactActionUnblock:
+			t.Blocking = internal.Ptr(false)
+		default:
+			return fmt.Errorf("unknown contact action '%#v'", action)
+		}
 	}
+
+	return nil
 }
 
 type transportContact struct {
-	messageContentType        // todo this is stupid
-	Contact            string `json:"contact"`
-	Following          bool   `json:"following"`
-	Blocking           bool   `json:"blocking"`
+	messageContentType // todo this is stupid
+	Contact            string
+	Following          *bool
+	Blocking           *bool
 	// todo pub field
+}
+
+// MarshalJSON implements custom logic which fixes the default behaviour of the
+// encoding/json package which treats nil pointers and pointers to zero values
+// in the same way when omitempty is specified. For example normally both a bool
+// pointer which is nil and a bool pointer which is set to false will not appear
+// in resulting JSON when omitempty is used.
+//
+// I think this code is disgusting so if someone can write this in a nicer way
+// please submit a pull request.
+func (t transportContact) MarshalJSON() ([]byte, error) {
+	pairs := []string{
+		`"type":"contact"`,
+		fmt.Sprintf(`"contact":"%s"`, t.Contact),
+	}
+
+	if t.Following != nil {
+		v, err := json.Marshal(t.Following)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to marshal following")
+		}
+		pairs = append(pairs, fmt.Sprintf(`"following":%s`, string(v)))
+	}
+
+	if t.Blocking != nil {
+		v, err := json.Marshal(t.Blocking)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to marshal blocking")
+		}
+		pairs = append(pairs, fmt.Sprintf(`"blocking":%s`, string(v)))
+	}
+
+	return []byte("{" + strings.Join(pairs, ",") + "}"), nil
 }

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/planetary-social/scuttlego/fixtures"
+	"github.com/planetary-social/scuttlego/service/domain/feeds"
 	"github.com/planetary-social/scuttlego/service/domain/graph"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/stretchr/testify/require"
@@ -17,15 +18,15 @@ func TestContacts(t *testing.T) {
 	c := fixtures.SomeRefIdentity()
 
 	s := StorageMock{
-		contacts: map[string][]refs.Identity{
+		contacts: map[string][]*feeds.Contact{
 			local.String(): {
-				a,
+				feeds.MustNewContactFromHistory(a, true, false),
 			},
 			a.String(): {
-				b,
+				feeds.MustNewContactFromHistory(b, true, false),
 			},
 			b.String(): {
-				c,
+				feeds.MustNewContactFromHistory(c, true, false),
 			},
 		},
 	}
@@ -59,9 +60,9 @@ func TestContacts(t *testing.T) {
 }
 
 type StorageMock struct {
-	contacts map[string][]refs.Identity
+	contacts map[string][]*feeds.Contact
 }
 
-func (s StorageMock) GetContacts(node refs.Identity) ([]refs.Identity, error) {
+func (s StorageMock) GetContacts(node refs.Identity) ([]*feeds.Contact, error) {
 	return s.contacts[node.String()], nil
 }

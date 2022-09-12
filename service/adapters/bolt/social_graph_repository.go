@@ -5,6 +5,7 @@ import (
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/service/adapters/bolt/utils"
+	"github.com/planetary-social/scuttlego/service/domain/feeds"
 	"github.com/planetary-social/scuttlego/service/domain/graph"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
@@ -31,35 +32,39 @@ func (s *SocialGraphRepository) GetSocialGraph() (*graph.SocialGraph, error) {
 	return graph.NewSocialGraph(localRef, s.hops, s)
 }
 
-func (s *SocialGraphRepository) Follow(who, contact refs.Identity) error {
-	return s.modifyContact(who, contact, func(c *storedContact) {
-		c.Following = true
-	})
+type UpdateContactFn func(*feeds.Contact) error
+
+func (s *SocialGraphRepository) UpdateContact(author, target refs.Identity, f UpdateContactFn) error {
+	bucket, err := s.createFeedBucket(author)
+	if err != nil {
+		return errors.Wrap(err, "could not create a bucket")
+	}
+
+	key := s.key(target)
+	value := bucket.Get(key)
+
+	contact, err := s.loadOrCreateContact(target, value)
+	if err != nil {
+		return errors.Wrap(err, "failed to load the existing contact")
+	}
+
+	if err := f(contact); err != nil {
+		return errors.Wrap(err, "error updating the contact")
+	}
+
+	b, err := json.Marshal(newStoredContact(contact))
+	if err != nil {
+		return errors.Wrap(err, "could not marshal contact")
+	}
+
+	return bucket.Put(key, b)
 }
 
-func (s *SocialGraphRepository) Unfollow(who, contact refs.Identity) error {
-	return s.modifyContact(who, contact, func(c *storedContact) {
-		c.Following = false
-	})
+func (s *SocialGraphRepository) Remove(author refs.Identity) error {
+	return s.deleteFeedBucket(author)
 }
 
-func (s *SocialGraphRepository) Block(who, contact refs.Identity) error {
-	return s.modifyContact(who, contact, func(c *storedContact) {
-		c.Blocking = true
-	})
-}
-
-func (s *SocialGraphRepository) Unblock(who refs.Identity, contact refs.Identity) error {
-	return s.modifyContact(who, contact, func(c *storedContact) {
-		c.Blocking = false
-	})
-}
-
-func (s *SocialGraphRepository) Remove(who refs.Identity) error {
-	return s.deleteFeedBucket(who)
-}
-
-func (s *SocialGraphRepository) GetContacts(node refs.Identity) ([]refs.Identity, error) {
+func (s *SocialGraphRepository) GetContacts(node refs.Identity) ([]*feeds.Contact, error) {
 	bucket, err := s.getFeedBucket(node)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create a bucket")
@@ -69,22 +74,20 @@ func (s *SocialGraphRepository) GetContacts(node refs.Identity) ([]refs.Identity
 		return nil, nil
 	}
 
-	var result []refs.Identity
+	var result []*feeds.Contact
 
 	if err := bucket.ForEach(func(k, v []byte) error {
-		contactRef, err := refs.NewIdentity(string(k)) // todo is this certainly a copy or are we reusing the slice illegally
+		targetRef, err := refs.NewIdentity(string(k)) // todo is this certainly a copy or are we reusing the slice illegally
 		if err != nil {
 			return errors.Wrap(err, "could not create contact ref")
 		}
 
-		var c storedContact
-		if err := json.Unmarshal(v, &c); err != nil {
-			return errors.Wrap(err, "failed to unmarshal the value")
+		contact, err := s.loadContact(targetRef, v)
+		if err != nil {
+			return errors.Wrap(err, "failed to load the contact")
 		}
 
-		if c.Following {
-			result = append(result, contactRef)
-		}
+		result = append(result, contact)
 
 		return nil
 	}); err != nil {
@@ -94,32 +97,19 @@ func (s *SocialGraphRepository) GetContacts(node refs.Identity) ([]refs.Identity
 	return result, nil
 }
 
-func (s *SocialGraphRepository) modifyContact(who, contact refs.Identity, f func(c *storedContact)) error {
-	bucket, err := s.createFeedBucket(who)
-	if err != nil {
-		return errors.Wrap(err, "could not create a bucket")
+func (s *SocialGraphRepository) loadOrCreateContact(target refs.Identity, storedValue []byte) (*feeds.Contact, error) {
+	if storedValue != nil {
+		return s.loadContact(target, storedValue)
 	}
+	return feeds.NewContact(target)
+}
 
-	key := s.key(contact)
-
+func (s *SocialGraphRepository) loadContact(target refs.Identity, storedValue []byte) (*feeds.Contact, error) {
 	var c storedContact
-
-	value := bucket.Get(key)
-	if value != nil {
-		if err := json.Unmarshal(value, &c); err != nil {
-			return errors.Wrap(err, "failed to unmarshal the existing value")
-		}
+	if err := json.Unmarshal(storedValue, &c); err != nil {
+		return nil, errors.Wrap(err, "failed to unmarshal the existing value")
 	}
-
-	f(&c)
-
-	b, err := json.Marshal(c)
-	if err != nil {
-		return errors.Wrap(err, "could not marshal contact")
-	}
-
-	return bucket.Put(key, b)
-
+	return feeds.NewContactFromHistory(target, c.Following, c.Blocking)
 }
 
 func (s *SocialGraphRepository) createFeedBucket(ref refs.Identity) (*bbolt.Bucket, error) {
@@ -154,4 +144,11 @@ func (s *SocialGraphRepository) key(target refs.Identity) utils.BucketName {
 type storedContact struct {
 	Following bool `json:"following"`
 	Blocking  bool `json:"blocking"`
+}
+
+func newStoredContact(contact *feeds.Contact) storedContact {
+	return storedContact{
+		Following: contact.Following(),
+		Blocking:  contact.Blocking(),
+	}
 }

@@ -196,14 +196,14 @@ func TestFeed_MessagesWithKnownContentAreCorrectlyRecognized(t *testing.T) {
 			Name: "contact",
 			Content: msgcontents.MustNewContact(
 				someIdentity,
-				msgcontents.ContactActionFollow,
+				msgcontents.MustNewContactActions([]msgcontents.ContactAction{msgcontents.ContactActionFollow}),
 			),
 			ExpectedContacts: []feeds.ContactToSave{
 				feeds.NewContactToSave(
 					authorId,
 					msgcontents.MustNewContact(
 						someIdentity,
-						msgcontents.ContactActionFollow,
+						msgcontents.MustNewContactActions([]msgcontents.ContactAction{msgcontents.ContactActionFollow}),
 					),
 				),
 			},

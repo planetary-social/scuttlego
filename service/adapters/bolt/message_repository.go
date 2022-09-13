@@ -2,6 +2,7 @@ package bolt
 
 import (
 	"github.com/boreq/errors"
+	"github.com/planetary-social/scuttlego/service/adapters/bolt/utils"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"go.etcd.io/bbolt"
@@ -70,6 +71,25 @@ func (r MessageRepository) Get(id refs.Message) (message.Message, error) {
 	return msg, nil
 }
 
+func (r MessageRepository) Delete(id refs.Message) error {
+	bucket, err := r.getBucket()
+	if err != nil {
+		return errors.Wrap(err, "could not get the bucket")
+	}
+
+	if bucket == nil {
+		return nil
+	}
+
+	key := r.messageKey(id)
+
+	if err := bucket.Delete(key); err != nil {
+		return errors.Wrap(err, "bucket delete failed")
+	}
+
+	return nil
+}
+
 func (r MessageRepository) Count() (int, error) {
 	bucket, err := r.getBucket()
 	if err != nil {
@@ -89,16 +109,16 @@ func (r MessageRepository) messageKey(id refs.Message) []byte {
 }
 
 func (r MessageRepository) createBucket() (*bbolt.Bucket, error) {
-	return createBucket(r.tx, r.bucketPath())
+	return utils.CreateBucket(r.tx, r.bucketPath())
 }
 
 func (r MessageRepository) getBucket() (*bbolt.Bucket, error) {
-	return getBucket(r.tx, r.bucketPath())
+	return utils.GetBucket(r.tx, r.bucketPath())
 }
 
-func (r MessageRepository) bucketPath() []bucketName {
-	return []bucketName{
-		bucketName("messages"),
+func (r MessageRepository) bucketPath() []utils.BucketName {
+	return []utils.BucketName{
+		utils.BucketName("messages"),
 	}
 }
 

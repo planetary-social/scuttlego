@@ -70,11 +70,14 @@ func BuildTxTestAdapters(tx *bbolt.Tx) (TxTestAdapters, error) {
 	currentTimeProviderMock := mocks.NewCurrentTimeProviderMock()
 	wantListRepository := bolt.NewWantListRepository(tx, currentTimeProviderMock)
 	txTestAdapters := TxTestAdapters{
-		MessageRepository:   messageRepository,
-		FeedRepository:      feedRepository,
-		ReceiveLog:          receiveLogRepository,
-		WantList:            wantListRepository,
-		CurrentTimeProvider: currentTimeProviderMock,
+		MessageRepository:     messageRepository,
+		FeedRepository:        feedRepository,
+		BlobRepository:        blobRepository,
+		SocialGraphRepository: socialGraphRepository,
+		PubRepository:         pubRepository,
+		ReceiveLog:            receiveLogRepository,
+		WantList:              wantListRepository,
+		CurrentTimeProvider:   currentTimeProviderMock,
 	}
 	return txTestAdapters, nil
 }
@@ -351,10 +354,13 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 // wire.go:
 
 type TxTestAdapters struct {
-	MessageRepository *bolt.MessageRepository
-	FeedRepository    *bolt.FeedRepository
-	ReceiveLog        *bolt.ReceiveLogRepository
-	WantList          *bolt.WantListRepository
+	MessageRepository     *bolt.MessageRepository
+	FeedRepository        *bolt.FeedRepository
+	BlobRepository        *bolt.BlobRepository
+	SocialGraphRepository *bolt.SocialGraphRepository
+	PubRepository         *bolt.PubRepository
+	ReceiveLog            *bolt.ReceiveLogRepository
+	WantList              *bolt.WantListRepository
 
 	CurrentTimeProvider *mocks.CurrentTimeProviderMock
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/boreq/errors"
+	"github.com/planetary-social/scuttlego/service/adapters/bolt/utils"
 	"github.com/planetary-social/scuttlego/service/domain/feeds"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/content"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/formats"
@@ -12,6 +13,8 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"go.etcd.io/bbolt"
 )
+
+var ErrFeedNotFound = errors.New("feed not found")
 
 type FeedRepository struct {
 	tx                *bbolt.Tx
@@ -60,8 +63,6 @@ func (b FeedRepository) UpdateFeed(ref refs.Feed, f func(feed *feeds.Feed) (*fee
 
 	return b.saveFeed(ref, feed)
 }
-
-var ErrFeedNotFound = errors.New("feed not found")
 
 func (b FeedRepository) GetFeed(ref refs.Feed) (*feeds.Feed, error) {
 	f, err := b.loadFeed(ref)
@@ -136,6 +137,69 @@ func (b FeedRepository) Count() (int, error) {
 	return result, nil
 }
 
+func (b FeedRepository) DeleteFeed(ref refs.Feed) error {
+	bucket, err := b.getFeedBucket(ref)
+	if err != nil {
+		return errors.Wrap(err, "could not get the bucket")
+	}
+
+	if bucket == nil {
+		return nil
+	}
+
+	c := bucket.Cursor()
+
+	for k, value := c.First(); k != nil; k, value = c.Next() {
+		msgId, err := refs.NewMessage(string(value))
+		if err != nil {
+			return errors.Wrap(err, "failed to create a message ref")
+		}
+
+		if err := b.removeMessageData(msgId); err != nil {
+			return errors.Wrap(err, "failed to remove message data")
+		}
+	}
+
+	if err := b.removeFeedData(ref); err != nil {
+		return errors.Wrap(err, "failed to remove feed data")
+	}
+
+	return nil
+}
+
+func (b FeedRepository) removeMessageData(ref refs.Message) error {
+	if err := b.messageRepository.Delete(ref); err != nil {
+		return errors.Wrap(err, "failed to remove from message repository")
+	}
+
+	if err := b.blobRepository.Delete(ref); err != nil {
+		return errors.Wrap(err, "failed to remove from blob repository")
+	}
+
+	if err := b.pubRepository.Delete(ref); err != nil {
+		return errors.Wrap(err, "failed to remove from pub repository")
+	}
+
+	return nil
+}
+
+func (b FeedRepository) removeFeedData(ref refs.Feed) error {
+	idenRef, err := refs.NewIdentityFromPublic(ref.Identity()) // todo figure out if this should be feed or identity
+	if err != nil {
+		return errors.Wrap(err, "failed to create an identity ref")
+	}
+
+	if err := b.graph.Remove(idenRef); err != nil {
+		return errors.Wrap(err, "failed to remove from graph repository")
+	}
+
+	if err := b.deleteFeedBucket(ref); err != nil {
+		return errors.Wrap(err, "failed to remove from feed repository")
+	}
+
+	return nil
+}
+
 func (b FeedRepository) loadFeed(ref refs.Feed) (*feeds.Feed, error) {
 	bucket, err := b.getFeedBucket(ref)
 	if err != nil {
@@ -171,37 +235,64 @@ func (b FeedRepository) loadFeed(ref refs.Feed) (*feeds.Feed, error) {
 }
 
 func (b FeedRepository) saveFeed(ref refs.Feed, feed *feeds.Feed) error {
-	msgs, contacts, pubs, blobs := feed.PopForPersisting()
+	msgsToPersist := feed.PopForPersisting()
 
-	if len(msgs) != 0 {
+	if len(msgsToPersist) != 0 {
 		bucket, err := b.createFeedBucket(ref)
 		if err != nil {
 			return errors.Wrap(err, "could not create the bucket")
 		}
 
-		for _, msg := range msgs {
-			if err := b.saveMessage(bucket, msg); err != nil {
-				return errors.Wrap(err, "could not save a message")
+		for _, msgToPersist := range msgsToPersist {
+			if err := b.saveMessageInBucket(bucket, msgToPersist.Message()); err != nil {
+				return errors.Wrap(err, "could not save a message in bucket")
+			}
+
+			if err := b.saveMessageInRepositories(msgToPersist); err != nil {
+				return errors.Wrap(err, "could not save a message in repositories")
 			}
 		}
 	}
 
-	for _, contact := range contacts {
+	return nil
+}
+
+func (b FeedRepository) saveMessageInRepositories(msg feeds.MessageToPersist) error {
+	if err := b.messageRepository.Put(msg.Message()); err != nil {
+		return errors.Wrap(err, "message repository put failed")
+	}
+
+	if err := b.receiveLog.Put(msg.Message().Id()); err != nil {
+		return errors.Wrap(err, "receive log put failed")
+	}
+
+	for _, contact := range msg.ContactsToSave() {
 		if err := b.saveContact(contact); err != nil {
 			return errors.Wrap(err, "failed to save a contact")
 		}
 	}
 
-	for _, pub := range pubs {
+	for _, pub := range msg.PubsToSave() {
 		if err := b.pubRepository.Put(pub); err != nil {
 			return errors.Wrap(err, "pub repository put failed")
 		}
 	}
 
-	for _, blob := range blobs {
-		if err := b.blobRepository.Put(blob); err != nil {
+	for _, blob := range msg.BlobsToSave() {
+		if err := b.blobRepository.Put(msg.Message().Id(), blob); err != nil {
 			return errors.Wrap(err, "blob repository put failed")
 		}
+	}
+
+	return nil
+}
+
+func (b FeedRepository) saveMessageInBucket(bucket *bbolt.Bucket, msg message.Message) error {
+	key := messageKey(msg.Sequence())
+	value := []byte(msg.Id().String())
+
+	if err := bucket.Put(key, value); err != nil {
+		return errors.Wrap(err, "writing to the bucket failed")
 	}
 
 	return nil
@@ -222,25 +313,6 @@ func (b FeedRepository) saveContact(contact feeds.ContactToSave) error {
 	}
 }
 
-func (b FeedRepository) saveMessage(bucket *bbolt.Bucket, msg message.Message) error {
-	key := messageKey(msg.Sequence())
-	value := []byte(msg.Id().String())
-
-	if err := bucket.Put(key, value); err != nil {
-		return errors.Wrap(err, "writing to the bucket failed")
-	}
-
-	if err := b.messageRepository.Put(msg); err != nil {
-		return errors.Wrap(err, "message repository put failed")
-	}
-
-	if err := b.receiveLog.Put(msg.Id()); err != nil {
-		return errors.Wrap(err, "receive log put failed")
-	}
-
-	return nil
-}
-
 func messageKey(seq message.Sequence) []byte {
 	buf := make([]byte, 8)
 	binary.BigEndian.PutUint64(buf, uint64(seq.Int()))
@@ -248,26 +320,30 @@ func messageKey(seq message.Sequence) []byte {
 }
 
 func (b FeedRepository) createFeedBucket(ref refs.Feed) (bucket *bbolt.Bucket, err error) {
-	return createBucket(b.tx, b.feedBucketPath(ref))
+	return utils.CreateBucket(b.tx, b.feedBucketPath(ref))
 }
 
 func (b FeedRepository) getFeedBucket(ref refs.Feed) (*bbolt.Bucket, error) {
-	return getBucket(b.tx, b.feedBucketPath(ref))
+	return utils.GetBucket(b.tx, b.feedBucketPath(ref))
+}
+
+func (b FeedRepository) deleteFeedBucket(ref refs.Feed) error {
+	return utils.DeleteBucket(b.tx, b.feedsBucketPath(), utils.BucketName(ref.String()))
 }
 
 func (b FeedRepository) getFeedsBucket() (*bbolt.Bucket, error) {
-	return getBucket(b.tx, b.feedsBucketPath())
+	return utils.GetBucket(b.tx, b.feedsBucketPath())
 }
 
-func (b FeedRepository) feedsBucketPath() []bucketName {
-	return []bucketName{
-		bucketName("feeds"),
+func (b FeedRepository) feedsBucketPath() []utils.BucketName {
+	return []utils.BucketName{
+		utils.BucketName("feeds"),
 	}
 }
 
-func (b FeedRepository) feedBucketPath(ref refs.Feed) []bucketName {
-	return []bucketName{
-		bucketName("feeds"),
-		bucketName(ref.String()),
+func (b FeedRepository) feedBucketPath(ref refs.Feed) []utils.BucketName {
+	return []utils.BucketName{
+		utils.BucketName("feeds"),
+		utils.BucketName(ref.String()),
 	}
 }

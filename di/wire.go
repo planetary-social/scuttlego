@@ -35,10 +35,13 @@ import (
 )
 
 type TxTestAdapters struct {
-	MessageRepository *bolt.MessageRepository
-	FeedRepository    *bolt.FeedRepository
-	ReceiveLog        *bolt.ReceiveLogRepository
-	WantList          *bolt.WantListRepository
+	MessageRepository     *bolt.MessageRepository
+	FeedRepository        *bolt.FeedRepository
+	BlobRepository        *bolt.BlobRepository
+	SocialGraphRepository *bolt.SocialGraphRepository
+	PubRepository         *bolt.PubRepository
+	ReceiveLog            *bolt.ReceiveLogRepository
+	WantList              *bolt.WantListRepository
 
 	CurrentTimeProvider *mocks.CurrentTimeProviderMock
 }

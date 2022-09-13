@@ -1,13 +1,13 @@
-package bolt
+package utils
 
 import (
 	"github.com/boreq/errors"
 	"go.etcd.io/bbolt"
 )
 
-type bucketName []byte
+type BucketName []byte
 
-func getBucket(tx *bbolt.Tx, bucketNames []bucketName) (*bbolt.Bucket, error) {
+func GetBucket(tx *bbolt.Tx, bucketNames []BucketName) (*bbolt.Bucket, error) {
 	if len(bucketNames) == 0 {
 		return nil, errors.New("empty bucket names")
 	}
@@ -28,7 +28,7 @@ func getBucket(tx *bbolt.Tx, bucketNames []bucketName) (*bbolt.Bucket, error) {
 	return bucket, nil
 }
 
-func createBucket(tx *bbolt.Tx, bucketNames []bucketName) (*bbolt.Bucket, error) {
+func CreateBucket(tx *bbolt.Tx, bucketNames []BucketName) (*bbolt.Bucket, error) {
 	if len(bucketNames) == 0 {
 		return nil, errors.New("empty bucket names")
 	}
@@ -46,4 +46,27 @@ func createBucket(tx *bbolt.Tx, bucketNames []bucketName) (*bbolt.Bucket, error)
 	}
 
 	return bucket, nil
+}
+
+func DeleteBucket(tx *bbolt.Tx, parentBucketNames []BucketName, bucketName BucketName) error {
+	bucket, err := GetBucket(tx, parentBucketNames)
+	if err != nil {
+		return errors.Wrap(err, "failed to get the parent bucket")
+	}
+
+	if bucket == nil {
+		return nil
+	}
+
+	return bucket.DeleteBucket(bucketName)
+}
+
+func BucketIsEmpty(bucket *bbolt.Bucket) bool {
+	c := bucket.Cursor()
+
+	if k, _ := c.First(); k != nil {
+		return false
+	}
+
+	return true
 }

@@ -7,6 +7,7 @@ import (
 	"math"
 	"math/rand"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -124,6 +125,10 @@ func SomeSequence() message.Sequence {
 
 func SomeReceiveLogSequence() queries.ReceiveLogSequence {
 	return queries.MustNewReceiveLogSequence(rand.Int())
+}
+
+func SomeString() string {
+	return strconv.Itoa(SomeNonNegativeInt())
 }
 
 func SomeBytes() []byte {

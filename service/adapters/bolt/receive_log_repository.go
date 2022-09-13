@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 
 	"github.com/boreq/errors"
+	"github.com/planetary-social/scuttlego/service/adapters/bolt/utils"
 	"github.com/planetary-social/scuttlego/service/app/queries"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
@@ -152,32 +153,32 @@ func (r ReceiveLogRepository) loadMessage(value []byte) (message.Message, error)
 }
 
 func (r ReceiveLogRepository) createSequencesToMessagesBucket(tx *bbolt.Tx) (*bbolt.Bucket, error) {
-	return createBucket(tx, r.sequencesToMessagesBucketPath())
+	return utils.CreateBucket(tx, r.sequencesToMessagesBucketPath())
 }
 
 func (r ReceiveLogRepository) getSequencesToMessagesBucket(tx *bbolt.Tx) (*bbolt.Bucket, error) {
-	return getBucket(tx, r.sequencesToMessagesBucketPath())
+	return utils.GetBucket(tx, r.sequencesToMessagesBucketPath())
 }
 
-func (r ReceiveLogRepository) sequencesToMessagesBucketPath() []bucketName {
-	return []bucketName{
-		bucketName("receive_log"),
-		bucketName("sequences_to_messages"),
+func (r ReceiveLogRepository) sequencesToMessagesBucketPath() []utils.BucketName {
+	return []utils.BucketName{
+		utils.BucketName("receive_log"),
+		utils.BucketName("sequences_to_messages"),
 	}
 }
 
 func (r ReceiveLogRepository) createMessagesToSequencesBucket(tx *bbolt.Tx) (*bbolt.Bucket, error) {
-	return createBucket(tx, r.messagesToSequencesBucketPath())
+	return utils.CreateBucket(tx, r.messagesToSequencesBucketPath())
 }
 
 func (r ReceiveLogRepository) getMessagesToSequencesBucket(tx *bbolt.Tx) (*bbolt.Bucket, error) {
-	return getBucket(tx, r.messagesToSequencesBucketPath())
+	return utils.GetBucket(tx, r.messagesToSequencesBucketPath())
 }
 
-func (r ReceiveLogRepository) messagesToSequencesBucketPath() []bucketName {
-	return []bucketName{
-		bucketName("receive_log"),
-		bucketName("messages_to_sequences"),
+func (r ReceiveLogRepository) messagesToSequencesBucketPath() []utils.BucketName {
+	return []utils.BucketName{
+		utils.BucketName("receive_log"),
+		utils.BucketName("messages_to_sequences"),
 	}
 }
 

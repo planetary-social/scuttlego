@@ -7,16 +7,16 @@ import (
 	"go.etcd.io/bbolt"
 )
 
-type NoTxWantListRepository struct {
+type ReadWantListRepository struct {
 	db      *bbolt.DB
 	factory TxRepositoriesFactory
 }
 
-func NewNoTxWantListRepository(db *bbolt.DB, factory TxRepositoriesFactory) *NoTxWantListRepository {
-	return &NoTxWantListRepository{db: db, factory: factory}
+func NewReadWantListRepository(db *bbolt.DB, factory TxRepositoriesFactory) *ReadWantListRepository {
+	return &ReadWantListRepository{db: db, factory: factory}
 }
 
-func (b NoTxWantListRepository) GetWantList() (blobs.WantList, error) {
+func (b ReadWantListRepository) List() (blobs.WantList, error) {
 	var result []blobs.WantedBlob
 
 	if err := b.db.Batch(func(tx *bbolt.Tx) error {
@@ -45,7 +45,7 @@ func (b NoTxWantListRepository) GetWantList() (blobs.WantList, error) {
 	return blobs.NewWantList(result)
 }
 
-func (b NoTxWantListRepository) WantListContains(id refs.Blob) (bool, error) {
+func (b ReadWantListRepository) Contains(id refs.Blob) (bool, error) {
 	var result bool
 
 	if err := b.db.View(func(tx *bbolt.Tx) error {
@@ -54,7 +54,7 @@ func (b NoTxWantListRepository) WantListContains(id refs.Blob) (bool, error) {
 			return errors.Wrap(err, "could not call the factory")
 		}
 
-		contains, err := r.WantList.WantListContains(id)
+		contains, err := r.WantList.Contains(id)
 		if err != nil {
 			return errors.Wrap(err, "could not get blobs")
 		}
@@ -68,14 +68,14 @@ func (b NoTxWantListRepository) WantListContains(id refs.Blob) (bool, error) {
 	return result, nil
 }
 
-func (b NoTxWantListRepository) DeleteFromWantList(id refs.Blob) error {
+func (b ReadWantListRepository) Delete(id refs.Blob) error {
 	if err := b.db.Batch(func(tx *bbolt.Tx) error {
 		r, err := b.factory(tx)
 		if err != nil {
 			return errors.Wrap(err, "could not call the factory")
 		}
 
-		return r.WantList.DeleteFromWantList(id)
+		return r.WantList.Delete(id)
 	}); err != nil {
 		return errors.Wrap(err, "transaction failed")
 	}

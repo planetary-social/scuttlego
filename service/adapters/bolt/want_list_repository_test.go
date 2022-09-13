@@ -10,7 +10,7 @@ import (
 	"go.etcd.io/bbolt"
 )
 
-func TestWantListRepositoryListDoesNotReturnValuesForWhichUntilIsBeforeCurrentTime(t *testing.T) {
+func TestWantListRepository_ListDoesNotReturnValuesForWhichUntilIsBeforeCurrentTime(t *testing.T) {
 	db := fixtures.Bolt(t)
 
 	err := db.Update(func(tx *bbolt.Tx) error {
@@ -21,7 +21,7 @@ func TestWantListRepositoryListDoesNotReturnValuesForWhichUntilIsBeforeCurrentTi
 		afterUntil := until.Add(fixtures.SomeDuration())
 		beforeUntil := until.Add(-fixtures.SomeDuration())
 
-		err = txadapters.WantList.AddToWantList(fixtures.SomeRefBlob(), until)
+		err = txadapters.WantList.Add(fixtures.SomeRefBlob(), until)
 		require.NoError(t, err)
 
 		txadapters.CurrentTimeProvider.CurrentTime = beforeUntil
@@ -47,7 +47,7 @@ func TestWantListRepositoryListDoesNotReturnValuesForWhichUntilIsBeforeCurrentTi
 	require.NoError(t, err)
 }
 
-func TestWantListRepositoryLongerUntilOverwritesShorterUntil(t *testing.T) {
+func TestWantListRepository_LongerUntilOverwritesShorterUntil(t *testing.T) {
 	db := fixtures.Bolt(t)
 
 	err := db.Update(func(tx *bbolt.Tx) error {
@@ -58,10 +58,10 @@ func TestWantListRepositoryLongerUntilOverwritesShorterUntil(t *testing.T) {
 		afterFirstUntil := firstUntil.Add(fixtures.SomeDuration())
 		secondUntil := afterFirstUntil.Add(fixtures.SomeDuration())
 
-		err = txadapters.WantList.AddToWantList(fixtures.SomeRefBlob(), firstUntil)
+		err = txadapters.WantList.Add(fixtures.SomeRefBlob(), firstUntil)
 		require.NoError(t, err)
 
-		err = txadapters.WantList.AddToWantList(fixtures.SomeRefBlob(), secondUntil)
+		err = txadapters.WantList.Add(fixtures.SomeRefBlob(), secondUntil)
 		require.NoError(t, err)
 
 		txadapters.CurrentTimeProvider.CurrentTime = afterFirstUntil
@@ -75,7 +75,7 @@ func TestWantListRepositoryLongerUntilOverwritesShorterUntil(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestWantListRepositoryShorterUntilDoesNotOverwriteLongerUntil(t *testing.T) {
+func TestWantListRepository_ShorterUntilDoesNotOverwriteLongerUntil(t *testing.T) {
 	db := fixtures.Bolt(t)
 
 	err := db.Update(func(tx *bbolt.Tx) error {
@@ -86,10 +86,10 @@ func TestWantListRepositoryShorterUntilDoesNotOverwriteLongerUntil(t *testing.T)
 		afterFirstUntil := firstUntil.Add(fixtures.SomeDuration())
 		secondUntil := afterFirstUntil.Add(fixtures.SomeDuration())
 
-		err = txadapters.WantList.AddToWantList(fixtures.SomeRefBlob(), secondUntil)
+		err = txadapters.WantList.Add(fixtures.SomeRefBlob(), secondUntil)
 		require.NoError(t, err)
 
-		err = txadapters.WantList.AddToWantList(fixtures.SomeRefBlob(), firstUntil)
+		err = txadapters.WantList.Add(fixtures.SomeRefBlob(), firstUntil)
 		require.NoError(t, err)
 
 		txadapters.CurrentTimeProvider.CurrentTime = afterFirstUntil
@@ -103,7 +103,7 @@ func TestWantListRepositoryShorterUntilDoesNotOverwriteLongerUntil(t *testing.T)
 	require.NoError(t, err)
 }
 
-func TestWantListContainsAndDelete(t *testing.T) {
+func TestWantListRepository_ContainsAndDelete(t *testing.T) {
 	db := fixtures.Bolt(t)
 
 	err := db.Update(func(tx *bbolt.Tx) error {
@@ -116,21 +116,21 @@ func TestWantListContainsAndDelete(t *testing.T) {
 
 		id := fixtures.SomeRefBlob()
 
-		ok, err := txadapters.WantList.WantListContains(id)
+		ok, err := txadapters.WantList.Contains(id)
 		require.NoError(t, err)
 		require.False(t, ok)
 
-		err = txadapters.WantList.AddToWantList(id, until)
+		err = txadapters.WantList.Add(id, until)
 		require.NoError(t, err)
 
-		ok, err = txadapters.WantList.WantListContains(id)
+		ok, err = txadapters.WantList.Contains(id)
 		require.NoError(t, err)
 		require.True(t, ok)
 
-		err = txadapters.WantList.DeleteFromWantList(id)
+		err = txadapters.WantList.Delete(id)
 		require.NoError(t, err)
 
-		ok, err = txadapters.WantList.WantListContains(id)
+		ok, err = txadapters.WantList.Contains(id)
 		require.NoError(t, err)
 		require.False(t, ok)
 

@@ -35,11 +35,8 @@ func TestFeed_AppendMessage_FirstMessageMustBeARootMessage(t *testing.T) {
 	err := f.AppendMessage(msg)
 	require.EqualError(t, err, "first message in the feed must be a root message")
 
-	msgs, contacts, pubs, blobs := f.PopForPersisting()
-	require.Empty(t, msgs)
-	require.Empty(t, contacts)
-	require.Empty(t, pubs)
-	require.Empty(t, blobs)
+	msgsToPersist := f.PopForPersisting()
+	require.Empty(t, msgsToPersist)
 }
 
 func TestFeed_AppendMessage_SubsequentMessagesAreValidated(t *testing.T) {
@@ -157,15 +154,25 @@ func TestFeed_AppendMessage_SubsequentMessagesAreValidated(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			msgs, contacts, pubs, blobs := f.PopForPersisting()
+			msgsToPersist := f.PopForPersisting()
 			if testCase.ShouldBeAdded {
-				require.Len(t, msgs, 2)
+				require.Equal(
+					t,
+					msgsToPersist,
+					[]feeds.MessageToPersist{
+						feeds.MustNewMessageToPersist(firstMessage, nil, nil, nil),
+						feeds.MustNewMessageToPersist(testCase.Message, nil, nil, nil),
+					},
+				)
 			} else {
-				require.Len(t, msgs, 1)
+				require.Equal(
+					t,
+					msgsToPersist,
+					[]feeds.MessageToPersist{
+						feeds.MustNewMessageToPersist(firstMessage, nil, nil, nil),
+					},
+				)
 			}
-			require.Empty(t, contacts)
-			require.Empty(t, pubs)
-			require.Empty(t, blobs)
 		})
 	}
 }
@@ -183,7 +190,7 @@ func TestFeed_MessagesWithKnownContentAreCorrectlyRecognized(t *testing.T) {
 		Content          msgcontents.KnownMessageContent
 		ExpectedContacts []feeds.ContactToSave
 		ExpectedPubs     []feeds.PubToSave
-		ExpectedBlobs    []feeds.BlobsToSave
+		ExpectedBlobs    []feeds.BlobToSave
 	}{
 		{
 			Name: "contact",
@@ -225,10 +232,8 @@ func TestFeed_MessagesWithKnownContentAreCorrectlyRecognized(t *testing.T) {
 			Content: msgcontents.MustNewAbout(
 				&someBlob,
 			),
-			ExpectedBlobs: []feeds.BlobsToSave{
-				feeds.NewBlobsToSave(
-					feedId,
-					msgId,
+			ExpectedBlobs: []feeds.BlobToSave{
+				feeds.NewBlobToSave(
 					[]refs.Blob{
 						someBlob,
 					},
@@ -240,10 +245,8 @@ func TestFeed_MessagesWithKnownContentAreCorrectlyRecognized(t *testing.T) {
 			Content: msgcontents.MustNewPost(
 				[]refs.Blob{someBlob},
 			),
-			ExpectedBlobs: []feeds.BlobsToSave{
-				feeds.NewBlobsToSave(
-					feedId,
-					msgId,
+			ExpectedBlobs: []feeds.BlobToSave{
+				feeds.NewBlobToSave(
 					[]refs.Blob{
 						someBlob,
 					},
@@ -271,11 +274,18 @@ func TestFeed_MessagesWithKnownContentAreCorrectlyRecognized(t *testing.T) {
 				err := f.AppendMessage(msg)
 				require.NoError(t, err)
 
-				msgs, contacts, pubs, blobs := f.PopForPersisting()
-				require.Len(t, msgs, 1)
-				require.Equal(t, testCase.ExpectedContacts, contacts)
-				require.Equal(t, testCase.ExpectedPubs, pubs)
-				require.Equal(t, testCase.ExpectedBlobs, blobs)
+				msgsToPersist := f.PopForPersisting()
+				require.Equal(
+					t,
+					msgsToPersist,
+					[]feeds.MessageToPersist{
+						feeds.MustNewMessageToPersist(
+							msg,
+							testCase.ExpectedContacts,
+							testCase.ExpectedPubs,
+							testCase.ExpectedBlobs),
+					},
+				)
 			})
 
 			t.Run("create", func(t *testing.T) {
@@ -287,11 +297,18 @@ func TestFeed_MessagesWithKnownContentAreCorrectlyRecognized(t *testing.T) {
 				_, err := f.CreateMessage(fixtures.SomeRawMessageContent(), fixtures.SomeTime(), fixtures.SomePrivateIdentity())
 				require.NoError(t, err)
 
-				msgs, contacts, pubs, blobs := f.PopForPersisting()
-				require.Len(t, msgs, 1)
-				require.Equal(t, testCase.ExpectedContacts, contacts)
-				require.Equal(t, testCase.ExpectedPubs, pubs)
-				require.Equal(t, testCase.ExpectedBlobs, blobs)
+				msgsToPersist := f.PopForPersisting()
+				require.Equal(
+					t,
+					msgsToPersist,
+					[]feeds.MessageToPersist{
+						feeds.MustNewMessageToPersist(
+							msg,
+							testCase.ExpectedContacts,
+							testCase.ExpectedPubs,
+							testCase.ExpectedBlobs),
+					},
+				)
 			})
 		})
 	}
@@ -372,6 +389,28 @@ func TestFeed_CreateMessage_PassingIdentityWhichDoesNotMatchPreviousIdentityIsIn
 
 	_, err = f.CreateMessage(fixtures.SomeRawMessageContent(), fixtures.SomeTime(), fixtures.SomePrivateIdentity())
 	require.EqualError(t, err, "private identity doesn't match this feed's public identity")
+}
+
+func TestFeed_PopForPersistingClearsTheListOfMessagesToPersist(t *testing.T) {
+	format := newFormatMock()
+	f := feeds.NewFeed(format)
+
+	firstMessage := message.MustNewMessage(
+		fixtures.SomeRefMessage(),
+		nil,
+		message.MustNewSequence(1),
+		fixtures.SomeRefIdentity(),
+		fixtures.SomeRefFeed(),
+		fixtures.SomeTime(),
+		fixtures.SomeContent(),
+		fixtures.SomeRawMessage(),
+	)
+
+	err := f.AppendMessage(firstMessage)
+	require.NoError(t, err)
+
+	require.NotEmpty(t, f.PopForPersisting())
+	require.Empty(t, f.PopForPersisting())
 }
 
 type formatMock struct {

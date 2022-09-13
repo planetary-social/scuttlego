@@ -12,14 +12,9 @@ import (
 )
 
 type Feed struct {
-	lastMsg *message.Message
-
-	format FeedFormat
-
-	messagesToSave []message.Message
-	contactsToSave []ContactToSave
-	pubsToSave     []PubToSave
-	blobsToSave    []BlobsToSave
+	lastMsg        *message.Message
+	format         FeedFormat
+	messagesToSave []MessageToPersist
 }
 
 func NewFeed(format FeedFormat) *Feed {
@@ -66,8 +61,7 @@ func (f *Feed) AppendMessage(msg message.Message) error {
 		}
 	}
 
-	f.onNewMessage(msg)
-	return nil
+	return f.onNewMessage(msg)
 }
 
 func (f *Feed) CreateMessage(content message.RawMessageContent, timestamp time.Time, private identity.Private) (refs.Message, error) {
@@ -136,30 +130,31 @@ func (f *Feed) Sequence() message.Sequence {
 	return f.lastMsg.Sequence() // todo can be nil
 }
 
-func (f *Feed) PopForPersisting() ([]message.Message, []ContactToSave, []PubToSave, []BlobsToSave) {
-	defer func() { f.messagesToSave = nil; f.contactsToSave = nil; f.pubsToSave = nil }()
-	return f.messagesToSave, f.contactsToSave, f.pubsToSave, f.blobsToSave
-}
-
-func (f *Feed) onNewMessage(msg message.Message) {
-	contacts, pubs, blobs := f.processMessageContent(msg)
-
-	f.lastMsg = &msg
-	f.messagesToSave = append(f.messagesToSave, msg)
-	f.contactsToSave = append(f.contactsToSave, contacts...)
-	f.pubsToSave = append(f.pubsToSave, pubs...)
-	f.blobsToSave = append(f.blobsToSave, blobs...)
+func (f *Feed) PopForPersisting() []MessageToPersist {
+	defer func() { f.messagesToSave = nil }()
+	return f.messagesToSave
 }
 
 // todo ignore repeated calls to follow someone if the current state of the feed suggests that this is already done (indempotency)
-func (f *Feed) processMessageContent(msg message.Message) ([]ContactToSave, []PubToSave, []BlobsToSave) {
-	return f.getContactsToSave(msg), f.getPubsToSave(msg), f.getBlobsToSave(msg)
+func (f *Feed) onNewMessage(msg message.Message) error {
+	contacts := f.getContactsToSave(msg)
+	pubs := f.getPubsToSave(msg)
+	blobs := f.getBlobsToSave(msg)
+
+	msgToSave, err := NewMessageToPersist(msg, contacts, pubs, blobs)
+	if err != nil {
+		return errors.Wrap(err, "failed to create a message to save")
+	}
+
+	f.lastMsg = &msg
+	f.messagesToSave = append(f.messagesToSave, msgToSave)
+	return nil
 }
 
 func (f *Feed) getContactsToSave(msg message.Message) []ContactToSave {
 	switch v := msg.Content().(type) {
 	case msgcontents.Contact:
-		return []ContactToSave{NewContactToSave(msg.Author(), v)}
+		return []ContactToSave{NewContactToSave(msg.Author(), v)} // todo author or feed
 	default:
 		return nil
 	}
@@ -168,19 +163,19 @@ func (f *Feed) getContactsToSave(msg message.Message) []ContactToSave {
 func (f *Feed) getPubsToSave(msg message.Message) []PubToSave {
 	switch v := msg.Content().(type) {
 	case msgcontents.Pub:
-		return []PubToSave{NewPubToSave(msg.Author(), msg.Id(), v)}
+		return []PubToSave{NewPubToSave(msg.Author(), msg.Id(), v)} // todo author or feed
 	default:
 		return nil
 	}
 }
 
-func (f *Feed) getBlobsToSave(msg message.Message) []BlobsToSave {
+func (f *Feed) getBlobsToSave(msg message.Message) []BlobToSave {
 	blobReferencer, ok := msg.Content().(blobs.BlobReferencer)
 	if !ok {
 		return nil
 	}
 	if blobRefs := blobReferencer.Blobs(); len(blobRefs) > 0 {
-		return []BlobsToSave{NewBlobsToSave(msg.Feed(), msg.Id(), blobRefs)}
+		return []BlobToSave{NewBlobToSave(blobRefs)}
 	}
 	return nil
 }

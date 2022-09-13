@@ -5,6 +5,7 @@ import (
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/service/adapters/bolt/utils"
+	"github.com/planetary-social/scuttlego/service/app/commands"
 	"github.com/planetary-social/scuttlego/service/domain/feeds"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/formats"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
@@ -44,7 +45,7 @@ func NewFeedRepository(
 	}
 }
 
-func (b FeedRepository) UpdateFeed(ref refs.Feed, f func(feed *feeds.Feed) (*feeds.Feed, error)) error {
+func (b FeedRepository) UpdateFeed(ref refs.Feed, f commands.UpdateFeedFn) error {
 	feed, err := b.loadFeed(ref)
 	if err != nil {
 		return errors.Wrap(err, "could not load a feed")
@@ -54,8 +55,7 @@ func (b FeedRepository) UpdateFeed(ref refs.Feed, f func(feed *feeds.Feed) (*fee
 		feed = feeds.NewFeed(b.formatScuttlebutt)
 	}
 
-	feed, err = f(feed)
-	if err != nil {
+	if err = f(feed); err != nil {
 		return errors.Wrap(err, "provided function returned an error")
 	}
 

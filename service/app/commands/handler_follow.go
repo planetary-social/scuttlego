@@ -59,11 +59,11 @@ func (h *FollowHandler) Handle(cmd Follow) error {
 	}
 
 	return h.transaction.Transact(func(adapters Adapters) error {
-		return adapters.Feed.UpdateFeed(myRef.MainFeed(), func(feed *feeds.Feed) (*feeds.Feed, error) {
+		return adapters.Feed.UpdateFeed(myRef.MainFeed(), func(feed *feeds.Feed) error {
 			if _, err := feed.CreateMessage(content, time.Now(), h.local); err != nil {
-				return nil, errors.Wrap(err, "failed to create a message")
+				return errors.Wrap(err, "failed to create a message")
 			}
-			return feed, nil
+			return nil
 		})
 	})
 }

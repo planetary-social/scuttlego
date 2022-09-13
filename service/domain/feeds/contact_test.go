@@ -21,7 +21,7 @@ func TestNewContactFromHistory(t *testing.T) {
 		require.False(t, c.Blocking())
 	})
 
-	t.Run("following_false", func(t *testing.T) {
+	t.Run("blocking_true", func(t *testing.T) {
 		c, err := feeds.NewContactFromHistory(target, false, true)
 		require.NoError(t, err)
 

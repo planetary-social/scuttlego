@@ -9,11 +9,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestContact_AuthorCanNotBeTheSameAsTarget(t *testing.T) {
+	author := fixtures.SomeRefIdentity()
+
+	t.Run("new_contact", func(t *testing.T) {
+		_, err := feeds.NewContact(author, author)
+		require.EqualError(t, err, "author can't be the same as target")
+	})
+
+	t.Run("new_contact_from_history", func(t *testing.T) {
+		_, err := feeds.NewContactFromHistory(author, author, fixtures.SomeBool(), fixtures.SomeBool())
+		require.EqualError(t, err, "failed to call the constructor: author can't be the same as target")
+	})
+}
+
 func TestNewContactFromHistory(t *testing.T) {
+	author := fixtures.SomeRefIdentity()
 	target := fixtures.SomeRefIdentity()
 
 	t.Run("following_true", func(t *testing.T) {
-		c, err := feeds.NewContactFromHistory(target, true, false)
+		c, err := feeds.NewContactFromHistory(author, target, true, false)
 		require.NoError(t, err)
 
 		require.Equal(t, target, c.Target())
@@ -22,7 +37,7 @@ func TestNewContactFromHistory(t *testing.T) {
 	})
 
 	t.Run("blocking_true", func(t *testing.T) {
-		c, err := feeds.NewContactFromHistory(target, false, true)
+		c, err := feeds.NewContactFromHistory(author, target, false, true)
 		require.NoError(t, err)
 
 		require.Equal(t, target, c.Target())
@@ -74,7 +89,10 @@ func TestContact_Update(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
-			contact, err := feeds.NewContact(fixtures.SomeRefIdentity())
+			contact, err := feeds.NewContact(
+				fixtures.SomeRefIdentity(),
+				fixtures.SomeRefIdentity(),
+			)
 			require.NoError(t, err)
 
 			err = contact.Update(content.MustNewContactActions(testCase.Actions))
@@ -95,7 +113,12 @@ func TestContact_UpdateCorrectlyAppliesAllActions(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	contact, err := feeds.NewContactFromHistory(fixtures.SomeRefIdentity(), true, true)
+	contact, err := feeds.NewContactFromHistory(
+		fixtures.SomeRefIdentity(),
+		fixtures.SomeRefIdentity(),
+		true,
+		true,
+	)
 	require.NoError(t, err)
 
 	require.True(t, contact.Following())

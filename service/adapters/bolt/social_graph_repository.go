@@ -43,7 +43,7 @@ func (s *SocialGraphRepository) UpdateContact(author, target refs.Identity, f Up
 	key := s.key(target)
 	value := bucket.Get(key)
 
-	contact, err := s.loadOrCreateContact(target, value)
+	contact, err := s.loadOrCreateContact(author, target, value)
 	if err != nil {
 		return errors.Wrap(err, "failed to load the existing contact")
 	}
@@ -82,7 +82,7 @@ func (s *SocialGraphRepository) GetContacts(node refs.Identity) ([]*feeds.Contac
 			return errors.Wrap(err, "could not create contact ref")
 		}
 
-		contact, err := s.loadContact(targetRef, v)
+		contact, err := s.loadContact(node, targetRef, v)
 		if err != nil {
 			return errors.Wrap(err, "failed to load the contact")
 		}
@@ -97,19 +97,19 @@ func (s *SocialGraphRepository) GetContacts(node refs.Identity) ([]*feeds.Contac
 	return result, nil
 }
 
-func (s *SocialGraphRepository) loadOrCreateContact(target refs.Identity, storedValue []byte) (*feeds.Contact, error) {
+func (s *SocialGraphRepository) loadOrCreateContact(author, target refs.Identity, storedValue []byte) (*feeds.Contact, error) {
 	if storedValue != nil {
-		return s.loadContact(target, storedValue)
+		return s.loadContact(author, target, storedValue)
 	}
-	return feeds.NewContact(target)
+	return feeds.NewContact(author, target)
 }
 
-func (s *SocialGraphRepository) loadContact(target refs.Identity, storedValue []byte) (*feeds.Contact, error) {
+func (s *SocialGraphRepository) loadContact(author, target refs.Identity, storedValue []byte) (*feeds.Contact, error) {
 	var c storedContact
 	if err := json.Unmarshal(storedValue, &c); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal the existing value")
 	}
-	return feeds.NewContactFromHistory(target, c.Following, c.Blocking)
+	return feeds.NewContactFromHistory(author, target, c.Following, c.Blocking)
 }
 
 func (s *SocialGraphRepository) createFeedBucket(ref refs.Identity) (*bbolt.Bucket, error) {

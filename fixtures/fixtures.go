@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"io/ioutil"
 	"math"
 	"math/rand"
 	"os"
@@ -208,7 +207,7 @@ func randomBase64(bytes int) string {
 }
 
 func Directory(t *testing.T) string {
-	name, err := ioutil.TempDir("", "scuttlego-test")
+	name, err := os.MkdirTemp("", "scuttlego-test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -225,7 +224,7 @@ func Directory(t *testing.T) string {
 }
 
 func File(t *testing.T) string {
-	file, err := ioutil.TempFile("", "scuttlego-test")
+	file, err := os.CreateTemp("", "scuttlego-test")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -3,7 +3,6 @@ package mocks
 import (
 	"bytes"
 	"io"
-	"io/ioutil"
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/service/domain/blobs"
@@ -21,7 +20,7 @@ func NewBlobStorageMock() *BlobStorageMock {
 }
 
 func (b BlobStorageMock) Store(id refs.Blob, r io.Reader) error {
-	d, err := ioutil.ReadAll(r)
+	d, err := io.ReadAll(r)
 	if err != nil {
 		return errors.Wrap(err, "failed to read all")
 	}
@@ -39,7 +38,7 @@ func (b BlobStorageMock) Get(id refs.Blob) (io.ReadCloser, error) {
 	if !ok {
 		return nil, errors.New("blob not found")
 	}
-	return ioutil.NopCloser(bytes.NewBuffer(data)), nil
+	return io.NopCloser(bytes.NewBuffer(data)), nil
 }
 
 func (b BlobStorageMock) Size(id refs.Blob) (blobs.Size, error) {

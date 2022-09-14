@@ -13,6 +13,7 @@ import (
 
 	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/app/queries"
+	"github.com/planetary-social/scuttlego/service/domain/bans"
 	"github.com/planetary-social/scuttlego/service/domain/blobs"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/content"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
@@ -195,6 +196,15 @@ func SomeWantDistance() blobs.WantDistance {
 
 func SomeSize() blobs.Size {
 	return blobs.MustNewSize(int64(SomePositiveInt32()))
+}
+
+func SomeBanListHash() bans.Hash {
+	r := make([]byte, 32)
+	_, err := rand.Read(r)
+	if err != nil {
+		panic(err)
+	}
+	return bans.MustNewHash(r)
 }
 
 func randomBase64(bytes int) string {

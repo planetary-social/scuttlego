@@ -23,6 +23,9 @@ type Commands struct {
 	CreateWants  *commands.CreateWantsHandler
 	DownloadBlob *commands.DownloadBlobHandler
 	CreateBlob   *commands.CreateBlobHandler
+
+	AddToBanList      *commands.AddToBanListHandler
+	RemoveFromBanList *commands.RemoveFromBanListHandler
 }
 
 type Queries struct {

@@ -22,6 +22,7 @@ type FeedRepository struct {
 	messageRepository *MessageRepository
 	pubRepository     *PubRepository
 	blobRepository    *BlobRepository
+	banListRepository *BanListRepository
 	formatScuttlebutt *formats.Scuttlebutt
 }
 
@@ -32,6 +33,7 @@ func NewFeedRepository(
 	messageRepository *MessageRepository,
 	pubRepository *PubRepository,
 	blobRepository *BlobRepository,
+	banListRepository *BanListRepository,
 	formatScuttlebutt *formats.Scuttlebutt,
 ) *FeedRepository {
 	return &FeedRepository{
@@ -41,6 +43,7 @@ func NewFeedRepository(
 		messageRepository: messageRepository,
 		pubRepository:     pubRepository,
 		blobRepository:    blobRepository,
+		banListRepository: banListRepository,
 		formatScuttlebutt: formatScuttlebutt,
 	}
 }
@@ -191,6 +194,10 @@ func (b FeedRepository) removeFeedData(ref refs.Feed) error {
 		return errors.Wrap(err, "failed to remove from graph repository")
 	}
 
+	if err := b.banListRepository.RemoveFeedMapping(ref); err != nil {
+		return errors.Wrap(err, "failed to remove the ban list mapping")
+	}
+
 	if err := b.deleteFeedBucket(ref); err != nil {
 		return errors.Wrap(err, "failed to remove from feed repository")
 	}
@@ -239,6 +246,10 @@ func (b FeedRepository) saveFeed(ref refs.Feed, feed *feeds.Feed) error {
 		bucket, err := b.createFeedBucket(ref)
 		if err != nil {
 			return errors.Wrap(err, "could not create the bucket")
+		}
+
+		if err := b.banListRepository.CreateFeedMapping(ref); err != nil {
+			return errors.Wrap(err, "failed to create the ban list mapping")
 		}
 
 		for _, msgToPersist := range msgsToPersist {

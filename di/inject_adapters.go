@@ -30,6 +30,9 @@ var txBoltAdaptersSet = wire.NewSet(
 	wire.Bind(new(commands.WantListRepository), new(*bolt.WantListRepository)),
 	wire.Bind(new(blobReplication.WantListRepository), new(*bolt.WantListRepository)),
 
+	bolt.NewBanListRepository,
+	wire.Bind(new(commands.BanListRepository), new(*bolt.BanListRepository)),
+
 	bolt.NewReceiveLogRepository,
 	bolt.NewMessageRepository,
 	bolt.NewPubRepository,
@@ -93,4 +96,16 @@ func newFilesystemStorage(logger logging.Logger, config Config) (*blobs.Filesyst
 var adaptersSet = wire.NewSet(
 	adapters.NewCurrentTimeProvider,
 	wire.Bind(new(commands.CurrentTimeProvider), new(*adapters.CurrentTimeProvider)),
+
+	adapters.NewBanListHasher,
+	wire.Bind(new(bolt.BanListHasher), new(*adapters.BanListHasher)),
+)
+
+//nolint:unused
+var testAdaptersSet = wire.NewSet(
+	mocks.NewCurrentTimeProviderMock,
+	wire.Bind(new(commands.CurrentTimeProvider), new(*mocks.CurrentTimeProviderMock)),
+
+	mocks.NewBanListHasherMock,
+	wire.Bind(new(bolt.BanListHasher), new(*mocks.BanListHasherMock)),
 )

@@ -66,7 +66,9 @@ func BuildTxTestAdapters(tx *bbolt.Tx) (TxTestAdapters, error) {
 	receiveLogRepository := bolt.NewReceiveLogRepository(tx, messageRepository)
 	pubRepository := bolt.NewPubRepository(tx)
 	blobRepository := bolt.NewBlobRepository(tx)
-	feedRepository := bolt.NewFeedRepository(tx, socialGraphRepository, receiveLogRepository, messageRepository, pubRepository, blobRepository, scuttlebutt)
+	banListHasherMock := mocks.NewBanListHasherMock()
+	banListRepository := bolt.NewBanListRepository(tx, banListHasherMock)
+	feedRepository := bolt.NewFeedRepository(tx, socialGraphRepository, receiveLogRepository, messageRepository, pubRepository, blobRepository, banListRepository, scuttlebutt)
 	currentTimeProviderMock := mocks.NewCurrentTimeProviderMock()
 	wantListRepository := bolt.NewWantListRepository(tx, currentTimeProviderMock)
 	txTestAdapters := TxTestAdapters{
@@ -77,7 +79,9 @@ func BuildTxTestAdapters(tx *bbolt.Tx) (TxTestAdapters, error) {
 		PubRepository:         pubRepository,
 		ReceiveLog:            receiveLogRepository,
 		WantList:              wantListRepository,
+		BanList:               banListRepository,
 		CurrentTimeProvider:   currentTimeProviderMock,
+		BanListHasher:         banListHasherMock,
 	}
 	return txTestAdapters, nil
 }
@@ -171,13 +175,16 @@ func BuildTransactableAdapters(tx *bbolt.Tx, public identity.Public, config Conf
 	receiveLogRepository := bolt.NewReceiveLogRepository(tx, messageRepository)
 	pubRepository := bolt.NewPubRepository(tx)
 	blobRepository := bolt.NewBlobRepository(tx)
-	feedRepository := bolt.NewFeedRepository(tx, socialGraphRepository, receiveLogRepository, messageRepository, pubRepository, blobRepository, scuttlebutt)
+	banListHasher := adapters.NewBanListHasher()
+	banListRepository := bolt.NewBanListRepository(tx, banListHasher)
+	feedRepository := bolt.NewFeedRepository(tx, socialGraphRepository, receiveLogRepository, messageRepository, pubRepository, blobRepository, banListRepository, scuttlebutt)
 	currentTimeProvider := adapters.NewCurrentTimeProvider()
 	wantListRepository := bolt.NewWantListRepository(tx, currentTimeProvider)
 	commandsAdapters := commands.Adapters{
 		Feed:        feedRepository,
 		SocialGraph: socialGraphRepository,
 		WantList:    wantListRepository,
+		BanList:     banListRepository,
 	}
 	return commandsAdapters, nil
 }
@@ -201,7 +208,9 @@ func BuildTxRepositories(tx *bbolt.Tx, public identity.Public, logger logging.Lo
 	receiveLogRepository := bolt.NewReceiveLogRepository(tx, messageRepository)
 	pubRepository := bolt.NewPubRepository(tx)
 	blobRepository := bolt.NewBlobRepository(tx)
-	feedRepository := bolt.NewFeedRepository(tx, socialGraphRepository, receiveLogRepository, messageRepository, pubRepository, blobRepository, scuttlebutt)
+	banListHasher := adapters.NewBanListHasher()
+	banListRepository := bolt.NewBanListRepository(tx, banListHasher)
+	feedRepository := bolt.NewFeedRepository(tx, socialGraphRepository, receiveLogRepository, messageRepository, pubRepository, blobRepository, banListRepository, scuttlebutt)
 	currentTimeProvider := adapters.NewCurrentTimeProvider()
 	wantListRepository := bolt.NewWantListRepository(tx, currentTimeProvider)
 	txRepositories := bolt.TxRepositories{
@@ -283,6 +292,8 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	currentTimeProvider := adapters.NewCurrentTimeProvider()
 	downloadBlobHandler := commands.NewDownloadBlobHandler(transactionProvider, currentTimeProvider)
 	createBlobHandler := commands.NewCreateBlobHandler(filesystemStorage)
+	addToBanListHandler := commands.NewAddToBanListHandler(transactionProvider)
+	removeFromBanListHandler := commands.NewRemoveFromBanListHandler(transactionProvider)
 	appCommands := app.Commands{
 		RedeemInvite:             redeemInviteHandler,
 		Follow:                   followHandler,
@@ -294,6 +305,8 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 		CreateWants:              createWantsHandler,
 		DownloadBlob:             downloadBlobHandler,
 		CreateBlob:               createBlobHandler,
+		AddToBanList:             addToBanListHandler,
+		RemoveFromBanList:        removeFromBanListHandler,
 	}
 	readFeedRepository := bolt.NewReadFeedRepository(db, txRepositoriesFactory)
 	messagePubSub := pubsub.NewMessagePubSub()
@@ -361,8 +374,10 @@ type TxTestAdapters struct {
 	PubRepository         *bolt.PubRepository
 	ReceiveLog            *bolt.ReceiveLogRepository
 	WantList              *bolt.WantListRepository
+	BanList               *bolt.BanListRepository
 
 	CurrentTimeProvider *mocks.CurrentTimeProviderMock
+	BanListHasher       *mocks.BanListHasherMock
 }
 
 type TestAdapters struct {

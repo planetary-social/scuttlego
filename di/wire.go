@@ -42,8 +42,10 @@ type TxTestAdapters struct {
 	PubRepository         *bolt.PubRepository
 	ReceiveLog            *bolt.ReceiveLogRepository
 	WantList              *bolt.WantListRepository
+	BanList               *bolt.BanListRepository
 
 	CurrentTimeProvider *mocks.CurrentTimeProviderMock
+	BanListHasher       *mocks.BanListHasherMock
 }
 
 func BuildTxTestAdapters(*bbolt.Tx) (TxTestAdapters, error) {
@@ -51,6 +53,7 @@ func BuildTxTestAdapters(*bbolt.Tx) (TxTestAdapters, error) {
 		wire.Struct(new(TxTestAdapters), "*"),
 
 		txBoltAdaptersSet,
+		testAdaptersSet,
 
 		identity.NewPrivate,
 		privateIdentityToPublicIdentity,
@@ -61,9 +64,6 @@ func BuildTxTestAdapters(*bbolt.Tx) (TxTestAdapters, error) {
 
 		formatsSet,
 		wire.Value(hops),
-
-		mocks.NewCurrentTimeProviderMock,
-		wire.Bind(new(commands.CurrentTimeProvider), new(*mocks.CurrentTimeProviderMock)),
 	)
 
 	return TxTestAdapters{}, nil

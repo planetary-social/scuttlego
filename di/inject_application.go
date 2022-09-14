@@ -35,6 +35,9 @@ var commandsSet = wire.NewSet(
 
 	commands.NewCreateWantsHandler,
 	wire.Bind(new(portsrpc.CreateWantsCommandHandler), new(*commands.CreateWantsHandler)),
+
+	commands.NewAddToBanListHandler,
+	commands.NewRemoveFromBanListHandler,
 )
 
 var queriesSet = wire.NewSet(

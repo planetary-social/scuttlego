@@ -54,7 +54,7 @@ type FeedRepository interface {
 }
 
 type SocialGraphRepository interface {
-	GetSocialGraph() (*graph.SocialGraph, error)
+	GetSocialGraph() (graph.SocialGraph, error)
 }
 
 type WantListRepository interface {

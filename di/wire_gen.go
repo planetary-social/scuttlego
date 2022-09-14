@@ -8,10 +8,6 @@ package di
 
 import (
 	"context"
-	"path"
-	"testing"
-	"time"
-
 	"github.com/boreq/errors"
 	"github.com/google/wire"
 	"github.com/planetary-social/scuttlego/fixtures"
@@ -40,6 +36,9 @@ import (
 	pubsub2 "github.com/planetary-social/scuttlego/service/ports/pubsub"
 	rpc2 "github.com/planetary-social/scuttlego/service/ports/rpc"
 	"go.etcd.io/bbolt"
+	"path"
+	"testing"
+	"time"
 )
 
 // Injectors from wire.go:
@@ -62,12 +61,12 @@ func BuildTxTestAdapters(tx *bbolt.Tx) (TxTestAdapters, error) {
 	}
 	public := privateIdentityToPublicIdentity(private)
 	graphHops := _wireHopsValue
-	socialGraphRepository := bolt.NewSocialGraphRepository(tx, public, graphHops)
+	banListHasherMock := mocks.NewBanListHasherMock()
+	banListRepository := bolt.NewBanListRepository(tx, banListHasherMock)
+	socialGraphRepository := bolt.NewSocialGraphRepository(tx, public, graphHops, banListRepository)
 	receiveLogRepository := bolt.NewReceiveLogRepository(tx, messageRepository)
 	pubRepository := bolt.NewPubRepository(tx)
 	blobRepository := bolt.NewBlobRepository(tx)
-	banListHasherMock := mocks.NewBanListHasherMock()
-	banListRepository := bolt.NewBanListRepository(tx, banListHasherMock)
 	feedRepository := bolt.NewFeedRepository(tx, socialGraphRepository, receiveLogRepository, messageRepository, pubRepository, blobRepository, banListRepository, scuttlebutt)
 	currentTimeProviderMock := mocks.NewCurrentTimeProviderMock()
 	wantListRepository := bolt.NewWantListRepository(tx, currentTimeProviderMock)
@@ -160,7 +159,9 @@ func BuildTestQueries(t *testing.T) (TestQueries, error) {
 
 func BuildTransactableAdapters(tx *bbolt.Tx, public identity.Public, config Config) (commands.Adapters, error) {
 	graphHops := _wireGraphHopsValue
-	socialGraphRepository := bolt.NewSocialGraphRepository(tx, public, graphHops)
+	banListHasher := adapters.NewBanListHasher()
+	banListRepository := bolt.NewBanListRepository(tx, banListHasher)
+	socialGraphRepository := bolt.NewSocialGraphRepository(tx, public, graphHops, banListRepository)
 	messageContentMappings := transport.DefaultMappings()
 	logger := extractLoggerFromConfig(config)
 	marshaler, err := transport.NewMarshaler(messageContentMappings, logger)
@@ -175,8 +176,6 @@ func BuildTransactableAdapters(tx *bbolt.Tx, public identity.Public, config Conf
 	receiveLogRepository := bolt.NewReceiveLogRepository(tx, messageRepository)
 	pubRepository := bolt.NewPubRepository(tx)
 	blobRepository := bolt.NewBlobRepository(tx)
-	banListHasher := adapters.NewBanListHasher()
-	banListRepository := bolt.NewBanListRepository(tx, banListHasher)
 	feedRepository := bolt.NewFeedRepository(tx, socialGraphRepository, receiveLogRepository, messageRepository, pubRepository, blobRepository, banListRepository, scuttlebutt)
 	currentTimeProvider := adapters.NewCurrentTimeProvider()
 	wantListRepository := bolt.NewWantListRepository(tx, currentTimeProvider)
@@ -195,7 +194,9 @@ var (
 
 func BuildTxRepositories(tx *bbolt.Tx, public identity.Public, logger logging.Logger, messageHMAC formats.MessageHMAC) (bolt.TxRepositories, error) {
 	graphHops := _wireHopsValue2
-	socialGraphRepository := bolt.NewSocialGraphRepository(tx, public, graphHops)
+	banListHasher := adapters.NewBanListHasher()
+	banListRepository := bolt.NewBanListRepository(tx, banListHasher)
+	socialGraphRepository := bolt.NewSocialGraphRepository(tx, public, graphHops, banListRepository)
 	messageContentMappings := transport.DefaultMappings()
 	marshaler, err := transport.NewMarshaler(messageContentMappings, logger)
 	if err != nil {
@@ -208,8 +209,6 @@ func BuildTxRepositories(tx *bbolt.Tx, public identity.Public, logger logging.Lo
 	receiveLogRepository := bolt.NewReceiveLogRepository(tx, messageRepository)
 	pubRepository := bolt.NewPubRepository(tx)
 	blobRepository := bolt.NewBlobRepository(tx)
-	banListHasher := adapters.NewBanListHasher()
-	banListRepository := bolt.NewBanListRepository(tx, banListHasher)
 	feedRepository := bolt.NewFeedRepository(tx, socialGraphRepository, receiveLogRepository, messageRepository, pubRepository, blobRepository, banListRepository, scuttlebutt)
 	currentTimeProvider := adapters.NewCurrentTimeProvider()
 	wantListRepository := bolt.NewWantListRepository(tx, currentTimeProvider)

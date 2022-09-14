@@ -36,6 +36,8 @@ func TestFeedRepository_DeleteFeed(t *testing.T) {
 		adapters, err := di.BuildTxTestAdapters(tx)
 		require.NoError(t, err)
 
+		adapters.BanListHasher.Mock(feedRef, fixtures.SomeBanListHash())
+
 		err = adapters.FeedRepository.UpdateFeed(feedRef, func(feed *feeds.Feed) error {
 			return feed.AppendMessage(fixtures.SomeMessage(message.NewFirstSequence(), feedRef))
 		})
@@ -60,6 +62,8 @@ func TestFeedRepository_DeleteFeed(t *testing.T) {
 	err = db.Update(func(tx *bbolt.Tx) error {
 		adapters, err := di.BuildTxTestAdapters(tx)
 		require.NoError(t, err)
+
+		adapters.BanListHasher.Mock(feedRef, fixtures.SomeBanListHash())
 
 		err = adapters.FeedRepository.DeleteFeed(feedRef)
 		require.NoError(t, err)

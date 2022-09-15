@@ -141,6 +141,15 @@ func SomeBytes() []byte {
 	return r
 }
 
+func SomeBytesOfLength(n int) []byte {
+	r := make([]byte, n)
+	_, err := rand.Read(r)
+	if err != nil {
+		panic(err)
+	}
+	return r
+}
+
 func SomeJSON() []byte {
 	return []byte(`{"key":"value"}`)
 }

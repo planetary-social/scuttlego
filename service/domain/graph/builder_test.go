@@ -1,11 +1,11 @@
 package graph_test
 
 import (
-	"github.com/planetary-social/scuttlego/internal"
 	"sort"
 	"testing"
 
 	"github.com/planetary-social/scuttlego/fixtures"
+	"github.com/planetary-social/scuttlego/internal"
 	"github.com/planetary-social/scuttlego/service/domain/feeds"
 	"github.com/planetary-social/scuttlego/service/domain/graph"
 	"github.com/planetary-social/scuttlego/service/domain/refs"

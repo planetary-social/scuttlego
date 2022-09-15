@@ -8,6 +8,10 @@ package di
 
 import (
 	"context"
+	"path"
+	"testing"
+	"time"
+
 	"github.com/boreq/errors"
 	"github.com/google/wire"
 	"github.com/planetary-social/scuttlego/fixtures"
@@ -36,9 +40,6 @@ import (
 	pubsub2 "github.com/planetary-social/scuttlego/service/ports/pubsub"
 	rpc2 "github.com/planetary-social/scuttlego/service/ports/rpc"
 	"go.etcd.io/bbolt"
-	"path"
-	"testing"
-	"time"
 )
 
 // Injectors from wire.go:

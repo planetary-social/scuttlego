@@ -1,6 +1,7 @@
 package messages_test
 
 import (
+	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 	"testing"
 
 	"github.com/planetary-social/scuttlego/internal"
@@ -10,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewBlobsMarshal(t *testing.T) {
+func TestNewBlobsGet(t *testing.T) {
 	testCases := []struct {
 		Name string
 
@@ -63,10 +64,12 @@ func TestNewBlobsMarshal(t *testing.T) {
 			args, err := messages.NewBlobsGetArguments(testCase.Hash, testCase.Size, testCase.Max)
 			require.NoError(t, err)
 
-			j, err := args.MarshalJSON()
+			req, err := messages.NewBlobsGet(args)
 			require.NoError(t, err)
 
-			require.Equal(t, testCase.ExpectedJSON, string(j))
+			require.Equal(t, rpc.MustNewProcedureName([]string{"blobs", "get"}), req.Name())
+			require.Equal(t, rpc.ProcedureTypeSource, req.Type())
+			require.Equal(t, testCase.ExpectedJSON, string(req.Arguments()))
 		})
 	}
 }

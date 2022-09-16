@@ -15,8 +15,12 @@ func (s Set[T]) Contains(v T) bool {
 	return ok
 }
 
-func (s *Set[T]) Put(v T) {
+func (s Set[T]) Put(v T) {
 	s.values[v] = struct{}{}
+}
+
+func (s Set[T]) Delete(v T) {
+	delete(s.values, v)
 }
 
 func (s Set[T]) List() []T {

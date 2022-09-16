@@ -8,6 +8,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/adapters"
 	"github.com/planetary-social/scuttlego/service/adapters/blobs"
 	"github.com/planetary-social/scuttlego/service/adapters/bolt"
+	ebtadapters "github.com/planetary-social/scuttlego/service/adapters/ebt"
 	"github.com/planetary-social/scuttlego/service/adapters/mocks"
 	"github.com/planetary-social/scuttlego/service/app/commands"
 	"github.com/planetary-social/scuttlego/service/app/queries"
@@ -15,6 +16,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/feeds/formats"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
 	"github.com/planetary-social/scuttlego/service/domain/replication"
+	"github.com/planetary-social/scuttlego/service/domain/replication/ebt"
 	"go.etcd.io/bbolt"
 )
 
@@ -99,6 +101,9 @@ var adaptersSet = wire.NewSet(
 
 	adapters.NewBanListHasher,
 	wire.Bind(new(bolt.BanListHasher), new(*adapters.BanListHasher)),
+
+	ebtadapters.NewCreateHistoryStreamHandlerAdapter,
+	wire.Bind(new(ebt.MessageStreamer), new(*ebtadapters.CreateHistoryStreamHandlerAdapter)),
 )
 
 //nolint:unused

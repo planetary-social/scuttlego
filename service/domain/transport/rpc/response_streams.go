@@ -201,5 +201,7 @@ func (rs ResponseStream) Channel() <-chan ResponseWithError {
 
 type ResponseWithError struct {
 	Value *Response
-	Err   error
+
+	// Err is nil or set to ErrEndOrErr.
+	Err error
 }

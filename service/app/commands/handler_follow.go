@@ -38,7 +38,12 @@ func NewFollowHandler(
 }
 
 func (h *FollowHandler) Handle(cmd Follow) error {
-	contact, err := content.NewContact(cmd.Target, content.ContactActionFollow)
+	contactActions, err := content.NewContactActions([]content.ContactAction{content.ContactActionFollow})
+	if err != nil {
+		return errors.Wrap(err, "failed to create contact actions")
+	}
+
+	contact, err := content.NewContact(cmd.Target, contactActions)
 	if err != nil {
 		return errors.Wrap(err, "failed to create a contact message")
 	}

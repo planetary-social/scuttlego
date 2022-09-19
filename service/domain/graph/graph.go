@@ -4,11 +4,12 @@ import (
 	"sort"
 
 	"github.com/boreq/errors"
+	"github.com/planetary-social/scuttlego/service/domain/feeds"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 )
 
 type Storage interface {
-	GetContacts(node refs.Identity) ([]refs.Identity, error)
+	GetContacts(node refs.Identity) ([]*feeds.Contact, error)
 }
 
 type SocialGraph struct {
@@ -26,23 +27,24 @@ func NewSocialGraph(local refs.Identity, hops Hops, storage Storage) (*SocialGra
 }
 
 func (g *SocialGraph) load(hops Hops, local refs.Identity, storage Storage) error {
-	return g.depthFirstSearch(hops, 0, local, storage)
+	localContact := feeds.MustNewContactFromHistory(local, true, false)
+	return g.depthFirstSearch(hops, 0, localContact, storage)
 }
 
-func (g *SocialGraph) depthFirstSearch(hops Hops, depth int, node refs.Identity, s Storage) error {
+func (g *SocialGraph) depthFirstSearch(hops Hops, depth int, contact *feeds.Contact, s Storage) error {
 	if depth > hops.Int() {
 		return nil
 	}
 
-	g.graph[node.String()] = MustNewHops(depth)
+	g.graph[contact.Target().String()] = MustNewHops(depth)
 
-	contacts, err := s.GetContacts(node)
+	contacts, err := s.GetContacts(contact.Target())
 	if err != nil {
 		return errors.Wrap(err, "could not get contacts")
 	}
 
 	for _, contact := range contacts {
-		if _, ok := g.graph[contact.String()]; ok {
+		if _, ok := g.graph[contact.Target().String()]; ok {
 			continue
 		}
 

@@ -71,7 +71,12 @@ func (h *RedeemInviteHandler) Handle(ctx context.Context, cmd RedeemInvite) erro
 	// todo publish contact and pub message?
 
 	// todo main feed or should the invite contain a feed ref?
-	follow, err := content.NewContact(cmd.Invite.Remote(), content.ContactActionFollow)
+	contactActions, err := content.NewContactActions([]content.ContactAction{content.ContactActionFollow})
+	if err != nil {
+		return errors.Wrap(err, "failed to create contact actions")
+	}
+
+	follow, err := content.NewContact(cmd.Invite.Remote(), contactActions)
 	if err != nil {
 		return errors.Wrap(err, "could not create a follow message")
 	}

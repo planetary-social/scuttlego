@@ -33,6 +33,14 @@ func NewMessage(header MessageHeader, body []byte) (Message, error) {
 	}, nil
 }
 
+func MustNewMessage(header MessageHeader, body []byte) Message {
+	v, err := NewMessage(header, body)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
 type MessageHeader struct {
 	flags         MessageHeaderFlags
 	bodyLength    uint32

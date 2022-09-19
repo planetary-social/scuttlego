@@ -38,7 +38,7 @@ func (h HandlerBlobsGet) Procedure() rpc.Procedure {
 	return messages.BlobsGetProcedure
 }
 
-func (h HandlerBlobsGet) Handle(ctx context.Context, w mux.ResponseWriter, req *rpc.Request) error {
+func (h HandlerBlobsGet) Handle(ctx context.Context, s mux.Stream, req *rpc.Request) error {
 	args, err := messages.NewBlobsGetArgumentsFromBytes(req.Arguments())
 	if err != nil {
 		return errors.Wrap(err, "invalid arguments")
@@ -74,7 +74,7 @@ func (h HandlerBlobsGet) Handle(ctx context.Context, w mux.ResponseWriter, req *
 			return nil
 		}
 
-		if err := w.WriteMessage(buf.Bytes()); err != nil {
+		if err := s.WriteMessage(buf.Bytes()); err != nil {
 			return errors.Wrap(err, "failed to write the message")
 		}
 

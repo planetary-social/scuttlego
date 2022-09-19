@@ -44,9 +44,9 @@ func TestRequestStreams_RequestIsPassedToHandler(t *testing.T) {
 	)
 
 	ok := make(chan struct{})
-	handler := newRequestHandlerFunc(func(ctx context.Context, rw rpc.ResponseWriter, req *rpc.Request) {
+	handler := newRequestHandlerFunc(func(ctx context.Context, s rpc.Stream, req *rpc.Request) {
 		require.Equal(t, expectedRequest, req)
-		err := rw.CloseWithError(nil)
+		err := s.CloseWithError(nil)
 		require.NoError(t, err)
 		<-ctx.Done()
 		close(ok)
@@ -114,7 +114,7 @@ func TestRequestStreams_PassingMalformedRequestIsNotAnError(t *testing.T) {
 	logger := fixtures.TestLogger(t)
 
 	ok := make(chan struct{})
-	handler := newRequestHandlerFunc(func(ctx context.Context, rw rpc.ResponseWriter, req *rpc.Request) {
+	handler := newRequestHandlerFunc(func(ctx context.Context, s rpc.Stream, req *rpc.Request) {
 		close(ok)
 	})
 
@@ -139,7 +139,7 @@ func TestRequestStreams_ClosingContextTerminatesCreatedRequestStreams(t *testing
 	logger := fixtures.TestLogger(t)
 
 	ok := make(chan struct{})
-	handler := newRequestHandlerFunc(func(ctx context.Context, rw rpc.ResponseWriter, req *rpc.Request) {
+	handler := newRequestHandlerFunc(func(ctx context.Context, s rpc.Stream, req *rpc.Request) {
 		<-ctx.Done()
 		close(ok)
 	})
@@ -172,7 +172,7 @@ func TestRequestStreams_RemoteCanCloseRequestStreams(t *testing.T) {
 	logger := fixtures.TestLogger(t)
 
 	ok := make(chan struct{})
-	handler := newRequestHandlerFunc(func(ctx context.Context, rw rpc.ResponseWriter, req *rpc.Request) {
+	handler := newRequestHandlerFunc(func(ctx context.Context, s rpc.Stream, req *rpc.Request) {
 		<-ctx.Done()
 		close(ok)
 	})
@@ -203,8 +203,8 @@ func TestRequestStreams_HandlerCanCloseRequestStreams(t *testing.T) {
 	logger := fixtures.TestLogger(t)
 
 	ok := make(chan struct{})
-	handler := newRequestHandlerFunc(func(ctx context.Context, rw rpc.ResponseWriter, req *rpc.Request) {
-		err := rw.CloseWithError(nil)
+	handler := newRequestHandlerFunc(func(ctx context.Context, s rpc.Stream, req *rpc.Request) {
+		err := s.CloseWithError(nil)
 		require.NoError(t, err)
 		<-ctx.Done()
 		close(ok)
@@ -232,8 +232,8 @@ func TestRequestStreams_RemoteCanSendTerminationAfterTheStreamIsClosed(t *testin
 	logger := fixtures.TestLogger(t)
 
 	ok := make(chan struct{})
-	handler := newRequestHandlerFunc(func(ctx context.Context, rw rpc.ResponseWriter, req *rpc.Request) {
-		err := rw.CloseWithError(nil)
+	handler := newRequestHandlerFunc(func(ctx context.Context, s rpc.Stream, req *rpc.Request) {
+		err := s.CloseWithError(nil)
 		require.NoError(t, err)
 		<-ctx.Done()
 		close(ok)
@@ -262,6 +262,114 @@ func TestRequestStreams_RemoteCanSendTerminationAfterTheStreamIsClosed(t *testin
 	// - we may have hit the closed streams map
 	// - we may have hit the termination function for a stream that still hasn't
 	//   been cleaned up
+}
+
+func TestRequestStreams_MultipleMessagesSentInDuplexStream(t *testing.T) {
+	t.Parallel()
+
+	requestNumber := fixtures.SomePositiveInt32()
+
+	requestMsgData := []byte(`{"name":["some", "request"],"type":"duplex","args":["some", "args"]}`)
+	requestMsg, err := transport.NewMessage(
+		transport.MustNewMessageHeader(
+			transport.MustNewMessageHeaderFlags(
+				fixtures.SomeBool(),
+				false,
+				transport.MessageBodyTypeJSON,
+			),
+			uint32(len(requestMsgData)),
+			requestNumber,
+		),
+		requestMsgData,
+	)
+	require.NoError(t, err)
+
+	streamMsgData := fixtures.SomeBytes()
+	streamMsg, err := transport.NewMessage(
+		transport.MustNewMessageHeader(
+			transport.MustNewMessageHeaderFlags(
+				fixtures.SomeBool(),
+				false,
+				transport.MessageBodyTypeJSON,
+			),
+			uint32(len(streamMsgData)),
+			requestNumber,
+		),
+		streamMsgData,
+	)
+	require.NoError(t, err)
+
+	closeStreamMsgData := fixtures.SomeBytes()
+	closeStreamMsg, err := transport.NewMessage(
+		transport.MustNewMessageHeader(
+			transport.MustNewMessageHeaderFlags(
+				fixtures.SomeBool(),
+				true,
+				transport.MessageBodyTypeJSON,
+			),
+			uint32(len(closeStreamMsgData)),
+			requestNumber,
+		),
+		closeStreamMsgData,
+	)
+	require.NoError(t, err)
+
+	sender := NewSenderMock()
+	logger := fixtures.TestLogger(t)
+
+	var request *rpc.Request
+	var streamMessages []rpc.IncomingMessage
+
+	ok := make(chan struct{})
+	handler := newRequestHandlerFunc(func(ctx context.Context, s rpc.Stream, req *rpc.Request) {
+		request = req
+
+		ch, err := s.IncomingMessages()
+		require.NoError(t, err)
+
+		for msg := range ch {
+			streamMessages = append(streamMessages, msg)
+		}
+
+		err = s.CloseWithError(nil)
+		require.NoError(t, err)
+
+		<-ctx.Done()
+		close(ok)
+	})
+
+	ctx := fixtures.TestContext(t)
+	streams := rpc.NewRequestStreams(ctx, sender, handler, logger)
+
+	err = streams.HandleIncomingRequest(ctx, &requestMsg)
+	require.NoError(t, err)
+
+	err = streams.HandleIncomingRequest(ctx, &streamMsg)
+	require.NoError(t, err)
+
+	err = streams.HandleIncomingRequest(ctx, &closeStreamMsg)
+	require.NoError(t, err)
+
+	select {
+	case <-time.After(timeout):
+		t.Fatal("timeout, handler should have been called and then exited after being closed")
+	case <-ok:
+	}
+
+	require.Equal(t,
+		rpc.MustNewRequest(
+			rpc.MustNewProcedureName([]string{"some", "request"}),
+			rpc.ProcedureTypeDuplex,
+			[]byte(`["some", "args"]`),
+		),
+		request)
+	require.Equal(t,
+		[]rpc.IncomingMessage{
+			{
+				Body: streamMsgData,
+			},
+		},
+		streamMessages)
 }
 
 func someMessageOpeningAStream(t *testing.T) transport.Message {

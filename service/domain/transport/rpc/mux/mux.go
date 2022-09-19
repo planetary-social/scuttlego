@@ -10,11 +10,13 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 )
 
-type ResponseWriter interface {
+type Stream interface {
+	IncomingMessages() (<-chan rpc.IncomingMessage, error)
 	WriteMessage(body []byte) error
 }
 
-type ResponseWriterCloser interface {
+type CloserStream interface {
+	IncomingMessages() (<-chan rpc.IncomingMessage, error)
 	WriteMessage(body []byte) error
 	CloseWithError(err error) error
 }
@@ -31,7 +33,7 @@ type Handler interface {
 	// otherwise the connection is terminated cleanly. Handle is executed in a
 	// separate goroutine and can therefore block and process the request for as
 	// long as it needs.
-	Handle(ctx context.Context, rw ResponseWriter, req *rpc.Request) error
+	Handle(ctx context.Context, s Stream, req *rpc.Request) error
 }
 
 type SynchronousHandler interface {
@@ -47,7 +49,7 @@ type SynchronousHandler interface {
 	// pressure on the scheduler and garbage collector. This is useful in the
 	// case of create history stream requests which are performed in very large
 	// amounts when connecting to large pubs.
-	Handle(ctx context.Context, rw ResponseWriterCloser, req *rpc.Request)
+	Handle(ctx context.Context, s CloserStream, req *rpc.Request)
 }
 
 type Mux struct {
@@ -82,15 +84,15 @@ func NewMux(
 	return m, nil
 }
 
-func (m Mux) HandleRequest(ctx context.Context, rw ResponseWriterCloser, req *rpc.Request) {
+func (m Mux) HandleRequest(ctx context.Context, s CloserStream, req *rpc.Request) {
 	var findHandlerErr error
 
 	handler, err := m.getHandler(req)
 	if err == nil {
 		go func() {
-			if err := handler.Handle(ctx, rw, req); err != nil {
+			if err := handler.Handle(ctx, s, req); err != nil {
 				m.logger.WithError(err).Debug("handler returned an error")
-				if closeErr := rw.CloseWithError(err); closeErr != nil {
+				if closeErr := s.CloseWithError(err); closeErr != nil {
 					m.logger.WithError(closeErr).Debug("could not write an error returned by the handler")
 				}
 			}
@@ -102,7 +104,7 @@ func (m Mux) HandleRequest(ctx context.Context, rw ResponseWriterCloser, req *rp
 
 	closingHandler, err := m.getSynchronousHandler(req)
 	if err == nil {
-		closingHandler.Handle(ctx, rw, req)
+		closingHandler.Handle(ctx, s, req)
 		return
 	} else {
 		findHandlerErr = multierror.Append(findHandlerErr, err)
@@ -110,7 +112,7 @@ func (m Mux) HandleRequest(ctx context.Context, rw ResponseWriterCloser, req *rp
 
 	m.logger.WithError(findHandlerErr).Debug("handler not found")
 
-	if err := rw.CloseWithError(findHandlerErr); err != nil {
+	if err := s.CloseWithError(findHandlerErr); err != nil {
 		m.logger.WithError(err).Debug("could not write an error")
 	}
 }

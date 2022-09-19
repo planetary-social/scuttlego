@@ -13,21 +13,28 @@ import (
 
 const requestStreamsCleanupDelay = 500 * time.Millisecond
 
-type ResponseWriter interface {
+type IncomingMessage struct {
+	Body []byte
+}
+
+type Stream interface {
 	// WriteMessage sends a message over the underlying stream.
 	WriteMessage(body []byte) error
 
 	// CloseWithError terminates the underlying stream. Error is sent to the
 	// other party. Error can be nil.
 	CloseWithError(err error) error
+
+	// IncomingMessages gives the caller access to incoming messages. Returns an
+	// error if this isn't a duplex stream.
+	IncomingMessages() (<-chan IncomingMessage, error)
 }
 
 type RequestHandler interface {
 	// HandleRequest should respond to the provided request using the response
-	// writer. Implementations must eventually call
-	// ResponseWriter.CloseWithError. HandleRequest may block as it is executed
-	// in a goroutine.
-	HandleRequest(ctx context.Context, rw ResponseWriter, req *Request)
+	// writer. Implementations must eventually call Stream.CloseWithError.
+	// HandleRequest may block as it is executed in a goroutine.
+	HandleRequest(ctx context.Context, s Stream, req *Request)
 }
 
 // RequestStreams is used for handling streams initiated by remote (for which
@@ -58,8 +65,10 @@ func NewRequestStreams(ctx context.Context, raw MessageSender, handler RequestHa
 	return rs
 }
 
-// HandleIncomingRequest processes an incoming request. Returning an error from
-// this function shuts down the entire connection.
+// HandleIncomingRequest processes incoming messages: requests to open a new
+// stream, messages which are a part of an open duplex stream initiated by the
+// remote or messages closing a stream initiated by the remote. Returning an
+// error from this function shuts down the entire connection.
 func (s *RequestStreams) HandleIncomingRequest(ctx context.Context, msg *transport.Message) error {
 	if !msg.Header.IsRequest() {
 		return errors.New("passed a response")
@@ -108,7 +117,7 @@ func (s *RequestStreams) HandleIncomingRequest(ctx context.Context, msg *transpo
 			existingStream.TerminatedByRemote()
 			return nil
 		}
-		return existingStream.HandleNewMessage(msg)
+		return existingStream.HandleNewMessage(*msg)
 	}
 
 	return s.openNewRequestStream(ctx, msg)

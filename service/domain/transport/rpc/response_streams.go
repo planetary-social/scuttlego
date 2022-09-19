@@ -54,7 +54,11 @@ func (s *ResponseStreams) Open(ctx context.Context, req *Request) (*ResponseStre
 		return nil, errors.New("response stream with this number already exists")
 	}
 
-	rs := NewResponseStream(ctx, requestNumber)
+	rs, err := NewResponseStream(ctx, requestNumber, req.Type(), s.raw)
+	if err != nil {
+		return nil, errors.Wrap(err, "error creating a response stream")
+	}
+
 	s.streams[requestNumber] = rs
 
 	go s.waitAndCloseResponseStream(rs)
@@ -133,22 +137,62 @@ func (s *ResponseStreams) waitAndCloseResponseStream(rs *ResponseStream) {
 
 type ResponseStream struct {
 	number int
+	typ    ProcedureType
 	ctx    context.Context
 	cancel context.CancelFunc
 	ch     chan ResponseWithError
+	raw    MessageSender
 }
 
-func NewResponseStream(ctx context.Context, number int) *ResponseStream {
+func NewResponseStream(ctx context.Context, number int, typ ProcedureType, raw MessageSender) (*ResponseStream, error) {
+	if number <= 0 {
+		return nil, errors.New("number must be positive")
+	}
+
 	ctx, cancel := context.WithCancel(ctx)
 
-	rs := &ResponseStream{
+	return &ResponseStream{
 		number: number,
+		typ:    typ,
 		ctx:    ctx,
 		cancel: cancel,
 		ch:     make(chan ResponseWithError),
+		raw:    raw,
+	}, nil
+}
+
+func (rs ResponseStream) WriteMessage(body []byte) error {
+	if rs.typ != ProcedureTypeDuplex {
+		return errors.New("not a duplex stream")
 	}
 
-	return rs
+	select {
+	case <-rs.ctx.Done():
+		return rs.ctx.Err()
+	default:
+	}
+
+	// todo do this correctly? are the flags correct?
+	flags, err := transport.NewMessageHeaderFlags(true, false, transport.MessageBodyTypeJSON)
+	if err != nil {
+		return errors.Wrap(err, "could not create message header flags")
+	}
+
+	header, err := transport.NewMessageHeader(flags, uint32(len(body)), int32(rs.number))
+	if err != nil {
+		return errors.Wrap(err, "could not create a message header")
+	}
+
+	msg, err := transport.NewMessage(header, body)
+	if err != nil {
+		return errors.Wrap(err, "could not create a message")
+	}
+
+	if err := rs.raw.Send(&msg); err != nil {
+		return errors.Wrap(err, "could not send a message")
+	}
+
+	return nil
 }
 
 func (rs ResponseStream) Channel() <-chan ResponseWithError {

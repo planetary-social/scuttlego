@@ -2,10 +2,11 @@ package replication
 
 import (
 	"context"
+	"time"
+
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/domain/transport"
-	"time"
 )
 
 var ErrPeerDoesNotSupportEBT = errors.New("peer does not support ebt")

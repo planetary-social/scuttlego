@@ -2,11 +2,12 @@ package ebt
 
 import (
 	"context"
+	"sync"
+	"time"
+
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/internal"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
-	"sync"
-	"time"
 )
 
 const (
@@ -45,7 +46,7 @@ func (t *SessionTracker) RemoteSessionOpened(id rpc.ConnectionId) (SessionEndedF
 	return errors.New("not implemented")
 }
 
-func (t *SessionTracker) sessionEndedFnForConn(id rpc.ConnectionId) (SessionEndedFn) {
+func (t *SessionTracker) sessionEndedFnForConn(id rpc.ConnectionId) SessionEndedFn {
 	return func() {
 		t.lock.Lock()
 		defer t.lock.Unlock()

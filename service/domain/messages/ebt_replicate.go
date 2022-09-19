@@ -2,7 +2,10 @@ package messages
 
 import (
 	"encoding/json"
+
 	"github.com/boreq/errors"
+	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
+	"github.com/planetary-social/scuttlego/service/domain/replication/ebt"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 )
 
@@ -124,4 +127,9 @@ type EbtReplicateFormat struct {
 
 func (f EbtReplicateFormat) IsZero() bool {
 	return f == EbtReplicateFormat{}
+}
+
+type NoteOrMessage struct {
+	note    ebt.Note
+	message message.Message
 }

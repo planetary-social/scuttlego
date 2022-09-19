@@ -1,13 +1,13 @@
 package messages_test
 
 import (
-	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 	"testing"
 
 	"github.com/planetary-social/scuttlego/internal"
 	"github.com/planetary-social/scuttlego/service/domain/blobs"
 	"github.com/planetary-social/scuttlego/service/domain/messages"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
+	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 	"github.com/stretchr/testify/require"
 )
 

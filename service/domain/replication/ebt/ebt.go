@@ -2,6 +2,7 @@ package ebt
 
 import (
 	"context"
+
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/service/domain/messages"
 	"github.com/planetary-social/scuttlego/service/domain/replication"

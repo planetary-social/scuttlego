@@ -1,10 +1,11 @@
 package messages_test
 
 import (
+	"testing"
+
 	"github.com/planetary-social/scuttlego/service/domain/messages"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestNewEbtReplicateArgumentsFromBytes(t *testing.T) {

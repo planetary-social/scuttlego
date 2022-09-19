@@ -101,7 +101,7 @@ func TestSocialGraphRepository_GetContacts(t *testing.T) {
 
 		contacts, err := txadapters.SocialGraphRepository.GetContacts(iden)
 		require.NoError(t, err)
-		sortAndCompareContacts(t,
+		sortAndRequireEqualContacts(t,
 			[]*feeds.Contact{
 				feeds.MustNewContactFromHistory(target1, true, false),
 				feeds.MustNewContactFromHistory(target2, true, false),
@@ -131,7 +131,7 @@ func TestSocialGraphRepository_GetContacts(t *testing.T) {
 
 		contacts, err := txadapters.SocialGraphRepository.GetContacts(iden)
 		require.NoError(t, err)
-		sortAndCompareContacts(
+		sortAndRequireEqualContacts(
 			t,
 			[]*feeds.Contact{
 				feeds.MustNewContactFromHistory(target1, true, true),
@@ -146,7 +146,7 @@ func TestSocialGraphRepository_GetContacts(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func sortAndCompareContacts(t *testing.T, a []*feeds.Contact, b []*feeds.Contact) {
+func sortAndRequireEqualContacts(t *testing.T, a []*feeds.Contact, b []*feeds.Contact) {
 	sort.Slice(a, func(i, j int) bool {
 		return a[i].Target().String() < a[j].Target().String()
 	})

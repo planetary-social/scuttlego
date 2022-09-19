@@ -4,6 +4,7 @@ import (
 	"sort"
 
 	"github.com/boreq/errors"
+	"github.com/planetary-social/scuttlego/internal"
 	"github.com/planetary-social/scuttlego/service/domain/feeds"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 )
@@ -26,29 +27,46 @@ func NewSocialGraph(local refs.Identity, hops Hops, storage Storage) (*SocialGra
 	return g, nil
 }
 
-func (g *SocialGraph) load(hops Hops, local refs.Identity, storage Storage) error {
+func (g *SocialGraph) load(maxHops Hops, local refs.Identity, storage Storage) error {
 	localContact := feeds.MustNewContactFromHistory(local, true, false)
-	return g.depthFirstSearch(hops, 0, localContact, storage)
+	localBlocks := internal.NewSet[string]()
+	return g.depthFirstSearch(maxHops, MustNewHops(0), localContact, localBlocks, storage)
 }
 
-func (g *SocialGraph) depthFirstSearch(hops Hops, depth int, contact *feeds.Contact, s Storage) error {
-	if depth > hops.Int() {
+func (g *SocialGraph) depthFirstSearch(maxHops Hops, currentHops Hops, contact *feeds.Contact, localBlocks internal.Set[string], s Storage) error {
+	if currentHops.Int() > maxHops.Int() {
 		return nil
 	}
 
-	g.graph[contact.Target().String()] = MustNewHops(depth)
+	if !contact.Following() || contact.Blocking() || localBlocks.Contains(contact.Target().String()) {
+		return nil
+	}
 
-	contacts, err := s.GetContacts(contact.Target())
+	if existingHops, ok := g.graph[contact.Target().String()]; ok {
+		if existingHops.Int() > currentHops.Int() {
+			g.graph[contact.Target().String()] = currentHops
+
+		}
+		return nil
+	}
+
+	g.graph[contact.Target().String()] = currentHops
+
+	childContacts, err := s.GetContacts(contact.Target())
 	if err != nil {
 		return errors.Wrap(err, "could not get contacts")
 	}
 
-	for _, contact := range contacts {
-		if _, ok := g.graph[contact.Target().String()]; ok {
-			continue
+	if currentHops.Int() == 0 {
+		for _, childContact := range childContacts {
+			if childContact.Blocking() {
+				localBlocks.Put(childContact.Target().String())
+			}
 		}
+	}
 
-		if err := g.depthFirstSearch(hops, depth+1, contact, s); err != nil {
+	for _, childContact := range childContacts {
+		if err := g.depthFirstSearch(maxHops, MustNewHops(currentHops.Int()+1), childContact, localBlocks, s); err != nil {
 			return errors.Wrap(err, "recursion failed")
 		}
 	}

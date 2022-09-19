@@ -103,9 +103,9 @@ func TestSocialGraphRepository_GetContacts(t *testing.T) {
 		require.NoError(t, err)
 		sortAndRequireEqualContacts(t,
 			[]*feeds.Contact{
-				feeds.MustNewContactFromHistory(target1, true, false),
-				feeds.MustNewContactFromHistory(target2, true, false),
-				feeds.MustNewContactFromHistory(target3, true, false),
+				feeds.MustNewContactFromHistory(iden, target1, true, false),
+				feeds.MustNewContactFromHistory(iden, target2, true, false),
+				feeds.MustNewContactFromHistory(iden, target3, true, false),
 			},
 			contacts,
 		)
@@ -134,9 +134,9 @@ func TestSocialGraphRepository_GetContacts(t *testing.T) {
 		sortAndRequireEqualContacts(
 			t,
 			[]*feeds.Contact{
-				feeds.MustNewContactFromHistory(target1, true, true),
-				feeds.MustNewContactFromHistory(target2, false, false),
-				feeds.MustNewContactFromHistory(target3, true, false),
+				feeds.MustNewContactFromHistory(iden, target1, true, true),
+				feeds.MustNewContactFromHistory(iden, target2, false, false),
+				feeds.MustNewContactFromHistory(iden, target3, true, false),
 			},
 			contacts,
 		)

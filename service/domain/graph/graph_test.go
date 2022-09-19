@@ -21,13 +21,13 @@ func TestContacts_FolloweesAreAddedToTheGraphUpToCertainDepth(t *testing.T) {
 	s := StorageMock{
 		contacts: map[string][]*feeds.Contact{
 			local.String(): {
-				feeds.MustNewContactFromHistory(a, true, false),
+				feeds.MustNewContactFromHistory(local, a, true, false),
 			},
 			a.String(): {
-				feeds.MustNewContactFromHistory(b, true, false),
+				feeds.MustNewContactFromHistory(a, b, true, false),
 			},
 			b.String(): {
-				feeds.MustNewContactFromHistory(c, true, false),
+				feeds.MustNewContactFromHistory(b, c, true, false),
 			},
 		},
 	}
@@ -68,11 +68,11 @@ func TestContacts_SmallerNumberOfHopsTakesPriority(t *testing.T) {
 	s := StorageMock{
 		contacts: map[string][]*feeds.Contact{
 			local.String(): {
-				feeds.MustNewContactFromHistory(a, true, false),
-				feeds.MustNewContactFromHistory(b, true, false),
+				feeds.MustNewContactFromHistory(local, a, true, false),
+				feeds.MustNewContactFromHistory(local, b, true, false),
 			},
 			a.String(): {
-				feeds.MustNewContactFromHistory(b, true, false),
+				feeds.MustNewContactFromHistory(a, b, true, false),
 			},
 		},
 	}
@@ -111,13 +111,13 @@ func TestContacts_EdgesWhichAreBlockedOrNotSetAsFollowingAreNotFollowed(t *testi
 	s := StorageMock{
 		contacts: map[string][]*feeds.Contact{
 			local.String(): {
-				feeds.MustNewContactFromHistory(a, true, false),
+				feeds.MustNewContactFromHistory(local, a, true, false),
 			},
 			a.String(): {
-				feeds.MustNewContactFromHistory(b, true, false),
-				feeds.MustNewContactFromHistory(c, false, true),
-				feeds.MustNewContactFromHistory(d, false, false),
-				feeds.MustNewContactFromHistory(e, true, true),
+				feeds.MustNewContactFromHistory(a, b, true, false),
+				feeds.MustNewContactFromHistory(a, c, false, true),
+				feeds.MustNewContactFromHistory(a, d, false, false),
+				feeds.MustNewContactFromHistory(a, e, true, true),
 			},
 		},
 	}
@@ -156,17 +156,17 @@ func TestContacts_LocalBlockingTakesPriorityAndAlwaysExcludesFeeds(t *testing.T)
 	s := StorageMock{
 		contacts: map[string][]*feeds.Contact{
 			local.String(): {
-				feeds.MustNewContactFromHistory(a, true, false),
-				feeds.MustNewContactFromHistory(b, true, false),
-				feeds.MustNewContactFromHistory(c, false, true),
-				feeds.MustNewContactFromHistory(d, false, false),
-				feeds.MustNewContactFromHistory(e, true, true),
+				feeds.MustNewContactFromHistory(local, a, true, false),
+				feeds.MustNewContactFromHistory(local, b, true, false),
+				feeds.MustNewContactFromHistory(local, c, false, true),
+				feeds.MustNewContactFromHistory(local, d, false, false),
+				feeds.MustNewContactFromHistory(local, e, true, true),
 			},
 			a.String(): {
-				feeds.MustNewContactFromHistory(b, true, false),
-				feeds.MustNewContactFromHistory(c, true, false),
-				feeds.MustNewContactFromHistory(d, true, false),
-				feeds.MustNewContactFromHistory(e, true, false),
+				feeds.MustNewContactFromHistory(a, b, true, false),
+				feeds.MustNewContactFromHistory(a, c, true, false),
+				feeds.MustNewContactFromHistory(a, d, true, false),
+				feeds.MustNewContactFromHistory(a, e, true, false),
 			},
 		},
 	}

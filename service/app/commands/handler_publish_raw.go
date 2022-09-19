@@ -43,13 +43,13 @@ func (h *PublishRawHandler) Handle(cmd PublishRaw) (refs.Message, error) {
 	var id refs.Message
 
 	if err := h.transaction.Transact(func(adapters Adapters) error {
-		return adapters.Feed.UpdateFeed(myRef.MainFeed(), func(feed *feeds.Feed) (*feeds.Feed, error) {
+		return adapters.Feed.UpdateFeed(myRef.MainFeed(), func(feed *feeds.Feed) error {
 			var err error
 			id, err = feed.CreateMessage(content, time.Now(), h.local)
 			if err != nil {
-				return nil, errors.Wrap(err, "failed to create a message")
+				return errors.Wrap(err, "failed to create a message")
 			}
-			return feed, nil
+			return nil
 		})
 	}); err != nil {
 		return refs.Message{}, errors.Wrap(err, "transaction failed")

@@ -39,9 +39,12 @@ type Adapters struct {
 	WantList    WantListRepository
 }
 
+type UpdateFeedFn func(feed *feeds.Feed) error
+
 type FeedRepository interface {
-	// UpdateFeed updates the specified feed by calling the provided function on it. Feed is never nil.
-	UpdateFeed(ref refs.Feed, f func(feed *feeds.Feed) (*feeds.Feed, error)) error
+	// UpdateFeed updates the specified feed by calling the provided function on
+	// it. Feed is never nil.
+	UpdateFeed(ref refs.Feed, f UpdateFeedFn) error
 }
 
 type SocialGraphRepository interface {

@@ -94,12 +94,11 @@ func (h *RedeemInviteHandler) Handle(ctx context.Context, cmd RedeemInvite) erro
 	}
 
 	if err := h.transaction.Transact(func(adapters Adapters) error {
-		if err := adapters.Feed.UpdateFeed(myRef.MainFeed(), func(feed *feeds.Feed) (*feeds.Feed, error) {
+		if err := adapters.Feed.UpdateFeed(myRef.MainFeed(), func(feed *feeds.Feed) error {
 			if _, err := feed.CreateMessage(followContent, time.Now(), h.local); err != nil {
-				return nil, errors.Wrap(err, "could not append a message")
+				return errors.Wrap(err, "could not append a message")
 			}
-
-			return feed, nil
+			return nil
 		}); err != nil {
 			return errors.Wrap(err, "failed to update the feed")
 		}

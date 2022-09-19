@@ -36,11 +36,8 @@ func TestFeedRepository_DeleteFeed(t *testing.T) {
 		adapters, err := di.BuildTxTestAdapters(tx)
 		require.NoError(t, err)
 
-		err = adapters.FeedRepository.UpdateFeed(feedRef, func(feed *feeds.Feed) (*feeds.Feed, error) {
-			err := feed.AppendMessage(fixtures.SomeMessage(message.NewFirstSequence(), feedRef))
-			require.NoError(t, err)
-
-			return feed, nil
+		err = adapters.FeedRepository.UpdateFeed(feedRef, func(feed *feeds.Feed) error {
+			return feed.AppendMessage(fixtures.SomeMessage(message.NewFirstSequence(), feedRef))
 		})
 		require.NoError(t, err)
 

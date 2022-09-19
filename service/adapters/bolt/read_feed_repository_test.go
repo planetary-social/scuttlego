@@ -3,7 +3,6 @@ package bolt_test
 import (
 	"testing"
 
-	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/di"
 	"github.com/planetary-social/scuttlego/fixtures"
 	"github.com/planetary-social/scuttlego/service/domain/feeds"
@@ -29,12 +28,8 @@ func TestReadFeedRepository_Count(t *testing.T) {
 		feedRef := fixtures.SomeRefFeed()
 		msg := fixtures.SomeMessage(message.NewFirstSequence(), feedRef)
 
-		return txadapters.FeedRepository.UpdateFeed(feedRef, func(feed *feeds.Feed) (*feeds.Feed, error) {
-			if err := feed.AppendMessage(msg); err != nil {
-				return nil, errors.Wrap(err, "failed to append message")
-			}
-
-			return feed, nil
+		return txadapters.FeedRepository.UpdateFeed(feedRef, func(feed *feeds.Feed) error {
+			return feed.AppendMessage(msg)
 		})
 	})
 	require.NoError(t, err)

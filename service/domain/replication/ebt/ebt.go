@@ -5,7 +5,6 @@ import (
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/service/domain/messages"
-	"github.com/planetary-social/scuttlego/service/domain/replication"
 	"github.com/planetary-social/scuttlego/service/domain/transport"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 )
@@ -16,6 +15,7 @@ const (
 
 type Replicator struct {
 	tracker *SessionTracker
+	runner  *SessionRunner
 }
 
 func (r Replicator) Replicate(ctx context.Context, peer transport.Peer) error {
@@ -27,21 +27,6 @@ func (r Replicator) Replicate(ctx context.Context, peer transport.Peer) error {
 	}
 
 	return r.tracker.WaitForSession(ctx, peer.Conn().Id())
-}
-
-func (r Replicator) ebtLoop(rs *rpc.ResponseStream) error {
-	for response := range rs.Channel() {
-		if err := response.Err; err != nil {
-			if errors.Is(err, rpc.ErrEndOrErr) {
-				return replication.ErrPeerDoesNotSupportEBT
-			}
-			return errors.Wrap(err, "response stream error")
-		}
-
-		// process incoming messages
-	}
-
-	return nil
 }
 
 func (r Replicator) startLocalSession(ctx context.Context, peer transport.Peer) error {
@@ -56,7 +41,7 @@ func (r Replicator) startLocalSession(ctx context.Context, peer transport.Peer) 
 		return errors.Wrap(err, "error starting the ebt session")
 	}
 
-	return r.ebtLoop(rs)
+	return r.runner.HandleStream(NewResponseStreamAdapter(rs))
 }
 
 func (r Replicator) openEbtStream(ctx context.Context, peer transport.Peer) (*rpc.ResponseStream, error) {

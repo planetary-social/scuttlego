@@ -4,9 +4,8 @@ import (
 	"encoding/json"
 
 	"github.com/boreq/errors"
-	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
-	"github.com/planetary-social/scuttlego/service/domain/replication/ebt"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
+	"go.cryptoscope.co/ssb"
 )
 
 var (
@@ -129,7 +128,21 @@ func (f EbtReplicateFormat) IsZero() bool {
 	return f == EbtReplicateFormat{}
 }
 
-type NoteOrMessage struct {
-	note    ebt.Note
-	message message.Message
+type EbtReplicateNote struct {
+	receive   bool
+	replicate bool
+	sequence  int
+}
+
+func NewEbtReplicateNoteFromBytes(b []byte) (EbtReplicateNote, error) {
+	var n ssb.Note
+	if err := json.Unmarshal(b, &n); err != nil {
+		return EbtReplicateNote{}, errors.Wrap(err, "json unmarshal error")
+	}
+
+	return EbtReplicateNote{
+		receive:   n.Receive,
+		replicate: n.Replicate,
+		sequence:  int(n.Seq),
+	}, nil
 }

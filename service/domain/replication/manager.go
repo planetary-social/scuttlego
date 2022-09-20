@@ -46,6 +46,43 @@ const (
 	waitForTaskToBePickedUp = 10 * time.Millisecond
 )
 
+type TaskResult struct {
+	s string
+}
+
+var (
+	TaskResultDoesNotHaveMoreMessages = TaskResult{"does_not_have_more_messages"}
+	TaskResultHasMoreMessages         = TaskResult{"has_more_messages"}
+	TaskResultFailed                  = TaskResult{"failed"}
+
+	// TaskResultDidNotStart is used internally by the manager. It should not be
+	// used by replicators.
+	TaskResultDidNotStart = TaskResult{"did_not_start"}
+)
+
+type TaskCompletedFn func(result TaskResult)
+
+type ReplicateFeedTask struct {
+	Id    refs.Feed
+	State FeedState
+	Ctx   context.Context
+
+	OnComplete TaskCompletedFn
+}
+
+type ReplicationManager interface {
+	// GetFeedsToReplicate returns a channel on which replication tasks are
+	// received. The channel stays open as long as the passed context isn't
+	// cancelled. Cancelling the context cancels all child contexts in the
+	// received tasks. The caller must call the completion function for each
+	// task.
+	GetFeedsToReplicate(ctx context.Context, remote identity.Public) <-chan ReplicateFeedTask
+}
+
+type RawMessageHandler interface {
+	Handle(msg message.RawMessage) error
+}
+
 type Storage interface {
 	// GetContacts returns a list of contacts. Contacts are sorted by hops,
 	// ascending. Contacts include the local feed.

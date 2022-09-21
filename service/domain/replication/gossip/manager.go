@@ -1,4 +1,4 @@
-package replication
+package gossip
 
 import (
 	"context"
@@ -12,6 +12,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/graph"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
+	"github.com/planetary-social/scuttlego/service/domain/replication"
 )
 
 const (
@@ -64,7 +65,7 @@ type TaskCompletedFn func(result TaskResult)
 
 type ReplicateFeedTask struct {
 	Id    refs.Feed
-	State FeedState
+	State replication.FeedState
 	Ctx   context.Context
 
 	OnComplete TaskCompletedFn
@@ -96,7 +97,7 @@ type MessageBuffer interface {
 type Contact struct {
 	Who       refs.Feed
 	Hops      graph.Hops
-	FeedState FeedState
+	FeedState replication.FeedState
 }
 
 // Manager distributes replication tasks to replicators. Replicators consume
@@ -209,26 +210,26 @@ func (m *Manager) sendFeedToReplicate(ctx context.Context, ch chan ReplicateFeed
 	}
 }
 
-func (m *Manager) bufferState(contact Contact) (FeedState, error) {
+func (m *Manager) bufferState(contact Contact) (replication.FeedState, error) {
 	bufferSequence, inBuffer := m.buffer.Sequence(contact.Who)
 	storageSequence, inStorage := contact.FeedState.Sequence()
 
 	if !inBuffer && !inStorage {
-		return NewEmptyFeedState(), nil
+		return replication.NewEmptyFeedState(), nil
 	}
 
 	if inBuffer && !inStorage {
-		return NewFeedState(bufferSequence)
+		return replication.NewFeedState(bufferSequence)
 	}
 
 	if !inBuffer && inStorage {
-		return NewFeedState(storageSequence)
+		return replication.NewFeedState(storageSequence)
 	}
 
 	if bufferSequence.ComesAfter(storageSequence) {
-		return NewFeedState(bufferSequence)
+		return replication.NewFeedState(bufferSequence)
 	} else {
-		return NewFeedState(storageSequence)
+		return replication.NewFeedState(storageSequence)
 	}
 }
 

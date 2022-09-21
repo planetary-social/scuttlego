@@ -34,12 +34,22 @@ func (r *ResponseStreamAdapter) IncomingMessages(ctx context.Context) <-chan Inc
 				}
 			}
 
-			if _, err := r.parse(resp.Value.Bytes()); err != nil {
-
+			incomingMessage, err := r.parse(resp.Value.Bytes())
+			if err != nil {
+				select {
+				case <-ctx.Done():
+					return
+				case ch <- NewIncomingMessageWithErr(err):
+					return
+				}
 			}
 
+			select {
+			case <-ctx.Done():
+				return
+			case ch <- incomingMessage:
+			}
 		}
-
 	}()
 	return ch
 }
@@ -73,7 +83,6 @@ func (r *ResponseStreamAdapter) parse(b []byte) (IncomingMessage, error) {
 }
 
 func (r *ResponseStreamAdapter) SendNote(note messages.EbtReplicateNote) {
-	//TO*DO implement me
 	panic("implement me")
 }
 

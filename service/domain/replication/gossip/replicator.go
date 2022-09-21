@@ -26,12 +26,12 @@ const (
 )
 
 type GossipReplicator struct {
-	manager replication.ReplicationManager
-	handler replication.RawMessageHandler
+	manager ReplicationManager
+	handler RawMessageHandler
 	logger  logging.Logger
 }
 
-func NewGossipReplicator(manager replication.ReplicationManager, handler replication.RawMessageHandler, logger logging.Logger) (*GossipReplicator, error) {
+func NewGossipReplicator(manager ReplicationManager, handler RawMessageHandler, logger logging.Logger) (*GossipReplicator, error) {
 	return &GossipReplicator{
 		manager: manager,
 		handler: handler,
@@ -47,19 +47,19 @@ func (r GossipReplicator) Replicate(ctx context.Context, peer transport.Peer) er
 	return nil
 }
 
-func (r GossipReplicator) startWorkers(peer transport.Peer, ch <-chan replication.ReplicateFeedTask) {
+func (r GossipReplicator) startWorkers(peer transport.Peer, ch <-chan ReplicateFeedTask) {
 	for i := 0; i < numWorkers; i++ {
 		go r.worker(peer, ch)
 	}
 }
 
-func (r GossipReplicator) worker(peer transport.Peer, ch <-chan replication.ReplicateFeedTask) {
+func (r GossipReplicator) worker(peer transport.Peer, ch <-chan ReplicateFeedTask) {
 	for task := range ch {
 		r.replicateFeedTask(peer, task)
 	}
 }
 
-func (r GossipReplicator) replicateFeedTask(peer transport.Peer, task replication.ReplicateFeedTask) {
+func (r GossipReplicator) replicateFeedTask(peer transport.Peer, task ReplicateFeedTask) {
 	logger := r.logger.
 		WithField("peer", peer.Identity().String()).
 		WithField("feed", task.Id.String()).
@@ -71,20 +71,20 @@ func (r GossipReplicator) replicateFeedTask(peer transport.Peer, task replicatio
 	n, err := r.replicateFeed(peer, task)
 	if err != nil && !errors.Is(err, rpc.ErrEndOrErr) {
 		logger.WithField("received_messages", n).WithError(err).Error("failed")
-		task.OnComplete(replication.TaskResultFailed)
+		task.OnComplete(TaskResultFailed)
 		return
 	}
 
 	logger.WithField("received_messages", n).Trace("finished")
 
 	if n < limit {
-		task.OnComplete(replication.TaskResultDoesNotHaveMoreMessages)
+		task.OnComplete(TaskResultDoesNotHaveMoreMessages)
 	} else {
-		task.OnComplete(replication.TaskResultHasMoreMessages)
+		task.OnComplete(TaskResultHasMoreMessages)
 	}
 }
 
-func (r GossipReplicator) replicateFeed(peer transport.Peer, feed replication.ReplicateFeedTask) (int, error) {
+func (r GossipReplicator) replicateFeed(peer transport.Peer, feed ReplicateFeedTask) (int, error) {
 	ctx, cancel := context.WithCancel(feed.Ctx)
 	defer cancel()
 

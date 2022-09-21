@@ -32,6 +32,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/network"
 	"github.com/planetary-social/scuttlego/service/domain/network/local"
 	"github.com/planetary-social/scuttlego/service/domain/replication"
+	"github.com/planetary-social/scuttlego/service/domain/replication/gossip"
 	transport2 "github.com/planetary-social/scuttlego/service/domain/transport"
 	"github.com/planetary-social/scuttlego/service/domain/transport/boxstream"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
@@ -264,7 +265,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	txRepositoriesFactory := newTxRepositoriesFactory(public, logger, messageHMAC)
 	readContactsRepository := bolt.NewReadContactsRepository(db, txRepositoriesFactory)
 	messageBuffer := commands.NewMessageBuffer(transactionProvider, logger)
-	manager := replication.NewManager(logger, readContactsRepository, messageBuffer)
+	manager := gossip.NewManager(logger, readContactsRepository, messageBuffer)
 	scuttlebutt := formats.NewScuttlebutt(marshaler, messageHMAC)
 	v := newFormats(scuttlebutt)
 	rawMessageIdentifier := formats.NewRawMessageIdentifier(v)
@@ -399,7 +400,7 @@ type TestQueries struct {
 	LocalIdentity identity.Public
 }
 
-var replicatorSet = wire.NewSet(replication.NewManager, wire.Bind(new(replication.ReplicationManager), new(*replication.Manager)), replication.NewGossipReplicator, wire.Bind(new(domain.MessageReplicator), new(*replication.GossipReplicator)))
+var replicatorSet = wire.NewSet(gossip.NewManager, wire.Bind(new(gossip.ReplicationManager), new(*gossip.Manager)), replication.NewGossipReplicator, wire.Bind(new(domain.MessageReplicator), new(*replication.GossipReplicator)))
 
 var blobReplicatorSet = wire.NewSet(replication2.NewManager, wire.Bind(new(replication2.ReplicationManager), new(*replication2.Manager)), wire.Bind(new(commands.BlobReplicationManager), new(*replication2.Manager)), replication2.NewReplicator, wire.Bind(new(domain.BlobReplicator), new(*replication2.Replicator)), replication2.NewBlobsGetDownloader, wire.Bind(new(replication2.Downloader), new(*replication2.BlobsGetDownloader)), replication2.NewHasHandler, wire.Bind(new(replication2.HasBlobHandler), new(*replication2.HasHandler)))
 

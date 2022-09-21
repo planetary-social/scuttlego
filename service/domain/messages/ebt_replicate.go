@@ -128,6 +128,23 @@ func (f EbtReplicateFormat) IsZero() bool {
 	return f == EbtReplicateFormat{}
 }
 
+type EbtReplicateNotes struct {
+	v map[string]EbtReplicateNote
+}
+
+func NewEbtReplicateNotesFromBytes(b []byte) (EbtReplicateNotes, error) {
+	var n ssb.Note
+	if err := json.Unmarshal(b, &n); err != nil {
+		return EbtReplicateNotes{}, errors.Wrap(err, "json unmarshal error")
+	}
+
+	return EbtReplicateNote{
+		receive:   n.Receive,
+		replicate: n.Replicate,
+		sequence:  int(n.Seq),
+	}, nil
+}
+
 type EbtReplicateNote struct {
 	receive   bool
 	replicate bool

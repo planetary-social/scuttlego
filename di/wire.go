@@ -27,6 +27,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/network"
 	"github.com/planetary-social/scuttlego/service/domain/network/local"
 	"github.com/planetary-social/scuttlego/service/domain/replication"
+	"github.com/planetary-social/scuttlego/service/domain/replication/gossip"
 	domaintransport "github.com/planetary-social/scuttlego/service/domain/transport"
 	"github.com/planetary-social/scuttlego/service/domain/transport/boxstream"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
@@ -196,7 +197,7 @@ func BuildService(context.Context, identity.Private, Config) (Service, error) {
 		privateIdentityToPublicIdentity,
 
 		commands.NewMessageBuffer,
-		wire.Bind(new(replication.MessageBuffer), new(*commands.MessageBuffer)),
+		wire.Bind(new(gossip.MessageBuffer), new(*commands.MessageBuffer)),
 
 		portsSet,
 		applicationSet,
@@ -214,8 +215,8 @@ func BuildService(context.Context, identity.Private, Config) (Service, error) {
 }
 
 var replicatorSet = wire.NewSet(
-	replication.NewManager,
-	wire.Bind(new(replication.ReplicationManager), new(*replication.Manager)),
+	gossip.NewManager,
+	wire.Bind(new(gossip.ReplicationManager), new(*gossip.Manager)),
 
 	replication.NewGossipReplicator,
 	wire.Bind(new(domain.MessageReplicator), new(*replication.GossipReplicator)),

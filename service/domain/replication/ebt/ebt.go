@@ -41,7 +41,7 @@ func (r Replicator) startLocalSession(ctx context.Context, peer transport.Peer) 
 		return errors.Wrap(err, "error starting the ebt session")
 	}
 
-	return r.runner.HandleStream(NewResponseStreamAdapter(rs))
+	return r.runner.HandleStream(ctx, NewResponseStreamAdapter(rs))
 }
 
 func (r Replicator) openEbtStream(ctx context.Context, peer transport.Peer) (*rpc.ResponseStream, error) {

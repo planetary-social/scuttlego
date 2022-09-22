@@ -113,13 +113,6 @@ func (s IncomingStreamAdapter) IncomingMessages(ctx context.Context) <-chan Inco
 			case ch <- incomingMessage:
 			}
 		}
-
-		select {
-		case <-ctx.Done():
-			return
-		case ch <- NewIncomingMessageWithErr(err):
-			return
-		}
 	}()
 	return ch
 }

@@ -160,6 +160,25 @@ func NewEbtReplicateNotesFromBytes(b []byte) (EbtReplicateNotes, error) {
 	}, nil
 }
 
+func NewEbtReplicateNotes(notes []EbtReplicateNote) (EbtReplicateNotes, error) {
+	v := map[string]struct{}{}
+	for _, note := range notes {
+		if note.IsZero() {
+			return EbtReplicateNotes{}, errors.New("note is zero")
+		}
+
+		if _, ok := v[note.Ref().String()]; ok {
+			return EbtReplicateNotes{}, errors.New("duplicate note")
+		}
+
+		v[note.Ref().String()] = struct{}{}
+	}
+
+	return EbtReplicateNotes{
+		notes: notes,
+	}, nil
+}
+
 func (n *EbtReplicateNotes) Notes() []EbtReplicateNote {
 	result := make([]EbtReplicateNote, len(n.notes))
 	copy(result, n.notes)
@@ -208,4 +227,8 @@ func (e EbtReplicateNote) Replicate() bool {
 
 func (e EbtReplicateNote) Sequence() int {
 	return e.sequence
+}
+
+func (e EbtReplicateNote) IsZero() bool {
+	return e.ref.IsZero()
 }

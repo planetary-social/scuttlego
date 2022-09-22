@@ -27,29 +27,44 @@ func (r Replicator) Replicate(ctx context.Context, peer transport.Peer) error {
 	defer cancel()
 
 	if !peer.Conn().WasInitiatedByRemote() {
-		return r.startLocalSession(ctx, peer)
+		done, err := r.tracker.OpenSession(peer.Conn().Id())
+		if err != nil {
+			return errors.Wrap(err, "failed to mark local session as open")
+		}
+		defer done()
+
+		rs, err := r.openEbtStream(ctx, peer)
+		if err != nil {
+			return errors.Wrap(err, "error starting the ebt session")
+		}
+
+		return r.runner.HandleStream(ctx, NewOutgoingStreamAdapter(rs))
 	}
 
 	return r.tracker.WaitForSession(ctx, peer.Conn().Id())
 }
 
 func (r Replicator) HandleIncoming(ctx context.Context, version int, format messages.EbtReplicateFormat, stream Stream) error {
-	return errors.New("not implemented")
-}
+	if version != ebtReplicateVersion {
+		return errors.New("invalid ebt version")
+	}
 
-func (r Replicator) startLocalSession(ctx context.Context, peer transport.Peer) error {
-	done, err := r.tracker.OpenLocalSession(peer.Conn().Id())
+	if format != messages.EbtReplicateFormatClassic {
+		return errors.New("invalid ebt format")
+	}
+
+	connectionId, ok := rpc.GetConnectionIdFromContext(ctx)
+	if !ok {
+		return errors.New("connection id not found in context")
+	}
+
+	done, err := r.tracker.OpenSession(connectionId)
 	if err != nil {
 		return errors.Wrap(err, "failed to mark local session as open")
 	}
 	defer done()
 
-	rs, err := r.openEbtStream(ctx, peer)
-	if err != nil {
-		return errors.Wrap(err, "error starting the ebt session")
-	}
-
-	return r.runner.HandleStream(ctx, NewResponseStreamAdapter(rs))
+	return r.runner.HandleStream(ctx, stream)
 }
 
 func (r Replicator) openEbtStream(ctx context.Context, peer transport.Peer) (*rpc.ResponseStream, error) {

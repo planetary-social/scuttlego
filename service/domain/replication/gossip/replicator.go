@@ -27,11 +27,11 @@ const (
 
 type GossipReplicator struct {
 	manager ReplicationManager
-	handler RawMessageHandler
+	handler replication.RawMessageHandler
 	logger  logging.Logger
 }
 
-func NewGossipReplicator(manager ReplicationManager, handler RawMessageHandler, logger logging.Logger) (*GossipReplicator, error) {
+func NewGossipReplicator(manager ReplicationManager, handler replication.RawMessageHandler, logger logging.Logger) (*GossipReplicator, error) {
 	return &GossipReplicator{
 		manager: manager,
 		handler: handler,

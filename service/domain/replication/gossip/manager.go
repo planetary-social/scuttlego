@@ -9,7 +9,6 @@ import (
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
-	"github.com/planetary-social/scuttlego/service/domain/graph"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/planetary-social/scuttlego/service/domain/replication"
@@ -36,10 +35,6 @@ const (
 	// messages from a feed if a replication task fails eg. an invalid message
 	// is returned by the peer.
 	backoffFailed = 10 * time.Minute
-
-	// For how long the social graph will be cached before rebuilding it. Until
-	// this refresh happens newly discovered feeds are not taken into account.
-	refreshContactsEvery = 5 * time.Second
 
 	// For how long to wait for the task to be picked up by a peer's replicator
 	// before giving up and making that feed available to be replicated by other
@@ -71,6 +66,12 @@ type ReplicateFeedTask struct {
 	OnComplete TaskCompletedFn
 }
 
+type ContactsStorage interface {
+	// GetContacts returns a list of contacts. Contacts are sorted by hops,
+	// ascending. Contacts include the local feed.
+	GetContacts() ([]replication.Contact, error)
+}
+
 type ReplicationManager interface {
 	// GetFeedsToReplicate returns a channel on which replication tasks are
 	// received. The channel stays open as long as the passed context isn't
@@ -80,24 +81,8 @@ type ReplicationManager interface {
 	GetFeedsToReplicate(ctx context.Context, remote identity.Public) <-chan ReplicateFeedTask
 }
 
-type RawMessageHandler interface {
-	Handle(msg message.RawMessage) error
-}
-
-type Storage interface {
-	// GetContacts returns a list of contacts. Contacts are sorted by hops,
-	// ascending. Contacts include the local feed.
-	GetContacts() ([]Contact, error)
-}
-
 type MessageBuffer interface {
 	Sequence(feed refs.Feed) (message.Sequence, bool)
-}
-
-type Contact struct {
-	Who       refs.Feed
-	Hops      graph.Hops
-	FeedState replication.FeedState
 }
 
 // Manager distributes replication tasks to replicators. Replicators consume
@@ -112,20 +97,16 @@ type Contact struct {
 // any new messages for a feed before attempting to ask it for messages from
 // that feed again. Backoff time is increased for feeds which are further away.
 type Manager struct {
-	storage Storage
+	storage ContactsStorage
 	buffer  MessageBuffer
 	logger  logging.Logger
 
 	activeTasks *activeTasksSet
 	peerState   peerMap    // todo clean up periodically
 	lock        sync.Mutex // locks activeTasks and peerState
-
-	contactsCache          []Contact
-	contactsCacheTimestamp time.Time
-	contactsCacheLock      sync.Mutex // locks contactsCache and contactsCacheTimestamp
 }
 
-func NewManager(logger logging.Logger, storage Storage, buffer MessageBuffer) *Manager {
+func NewManager(logger logging.Logger, storage ContactsStorage, buffer MessageBuffer) *Manager {
 	return &Manager{
 		storage:     storage,
 		buffer:      buffer,
@@ -161,7 +142,7 @@ func (m *Manager) sendFeedsToReplicateLoop(ctx context.Context, ch chan Replicat
 }
 
 func (m *Manager) sendFeedToReplicate(ctx context.Context, ch chan ReplicateFeedTask, remote identity.Public) error {
-	contacts, err := m.getContacts()
+	contacts, err := m.storage.GetContacts()
 	if err != nil {
 		return errors.Wrap(err, "could not get contacts")
 	}
@@ -210,7 +191,7 @@ func (m *Manager) sendFeedToReplicate(ctx context.Context, ch chan ReplicateFeed
 	}
 }
 
-func (m *Manager) bufferState(contact Contact) (replication.FeedState, error) {
+func (m *Manager) bufferState(contact replication.Contact) (replication.FeedState, error) {
 	bufferSequence, inBuffer := m.buffer.Sequence(contact.Who)
 	storageSequence, inStorage := contact.FeedState.Sequence()
 
@@ -233,7 +214,7 @@ func (m *Manager) bufferState(contact Contact) (replication.FeedState, error) {
 	}
 }
 
-func (m *Manager) finishReplication(remote identity.Public, contact Contact, result TaskResult) {
+func (m *Manager) finishReplication(remote identity.Public, contact replication.Contact, result TaskResult) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
@@ -257,7 +238,7 @@ func (m *Manager) finishReplication(remote identity.Public, contact Contact, res
 	}
 }
 
-func (m *Manager) startReplication(remote identity.Public, contact Contact) (bool, error) {
+func (m *Manager) startReplication(remote identity.Public, contact replication.Contact) (bool, error) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
@@ -274,7 +255,7 @@ func (m *Manager) startReplication(remote identity.Public, contact Contact) (boo
 	return true, nil
 }
 
-func (m *Manager) shouldStartReplication(remote identity.Public, contact Contact) (bool, error) {
+func (m *Manager) shouldStartReplication(remote identity.Public, contact replication.Contact) (bool, error) {
 	if m.activeTasks.Contains(contact.Who) {
 		return false, nil
 	}
@@ -303,23 +284,6 @@ func (m *Manager) shouldStartReplication(remote identity.Public, contact Contact
 	default:
 		return false, fmt.Errorf("unknown result '%v'", peerFeedState.Result)
 	}
-}
-
-func (m *Manager) getContacts() ([]Contact, error) {
-	m.contactsCacheLock.Lock()
-	defer m.contactsCacheLock.Unlock()
-
-	if time.Since(m.contactsCacheTimestamp) > refreshContactsEvery {
-		contacts, err := m.storage.GetContacts()
-		if err != nil {
-			return nil, errors.Wrap(err, "could not get fresh contacts")
-		}
-
-		m.contactsCache = contacts
-		m.contactsCacheTimestamp = time.Now()
-	}
-
-	return m.contactsCache, nil
 }
 
 type peerMap map[string]peerState

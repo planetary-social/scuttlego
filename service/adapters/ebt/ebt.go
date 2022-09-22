@@ -9,11 +9,16 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/replication/ebt"
 )
 
-type StreamMessagesRequestHandler struct {
-	handler queries.CreateHistoryStreamHandler
+type CreateHistoryStreamHandler interface {
+	Handle(ctx context.Context, query queries.CreateHistoryStream)
 }
 
-func NewStreamMessagesRequestHandler(handler queries.CreateHistoryStreamHandler) *StreamMessagesRequestHandler {
+// todo rename
+type StreamMessagesRequestHandler struct {
+	handler CreateHistoryStreamHandler
+}
+
+func NewStreamMessagesRequestHandler(handler CreateHistoryStreamHandler) *StreamMessagesRequestHandler {
 	return &StreamMessagesRequestHandler{handler: handler}
 }
 

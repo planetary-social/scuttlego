@@ -2,9 +2,11 @@ package di
 
 import (
 	"github.com/google/wire"
+	ebtadapters "github.com/planetary-social/scuttlego/service/adapters/ebt"
 	"github.com/planetary-social/scuttlego/service/app"
 	"github.com/planetary-social/scuttlego/service/app/commands"
 	"github.com/planetary-social/scuttlego/service/app/queries"
+	"github.com/planetary-social/scuttlego/service/domain/replication/ebt"
 	"github.com/planetary-social/scuttlego/service/domain/replication/gossip"
 	portsrpc "github.com/planetary-social/scuttlego/service/ports/rpc"
 )
@@ -32,6 +34,7 @@ var commandsSet = wire.NewSet(
 
 	commands.NewRawMessageHandler,
 	wire.Bind(new(gossip.RawMessageHandler), new(*commands.RawMessageHandler)),
+	wire.Bind(new(ebt.RawMessageHandler), new(*commands.RawMessageHandler)),
 
 	commands.NewCreateWantsHandler,
 	wire.Bind(new(portsrpc.CreateWantsCommandHandler), new(*commands.CreateWantsHandler)),
@@ -48,6 +51,7 @@ var queriesSet = wire.NewSet(
 
 	queries.NewCreateHistoryStreamHandler,
 	wire.Bind(new(portsrpc.CreateHistoryStreamQueryHandler), new(*queries.CreateHistoryStreamHandler)),
+	wire.Bind(new(ebtadapters.CreateHistoryStreamHandler), new(*queries.CreateHistoryStreamHandler)),
 
 	queries.NewReceiveLogHandler,
 	queries.NewPublishedLogHandler,

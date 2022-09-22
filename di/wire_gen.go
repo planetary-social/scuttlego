@@ -18,6 +18,7 @@ import (
 	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/adapters"
 	"github.com/planetary-social/scuttlego/service/adapters/bolt"
+	ebt2 "github.com/planetary-social/scuttlego/service/adapters/ebt"
 	"github.com/planetary-social/scuttlego/service/adapters/mocks"
 	"github.com/planetary-social/scuttlego/service/adapters/pubsub"
 	"github.com/planetary-social/scuttlego/service/app"
@@ -351,7 +352,8 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	handlerBlobsGet := rpc2.NewHandlerBlobsGet(getBlobHandler)
 	handlerBlobsCreateWants := rpc2.NewHandlerBlobsCreateWants(createWantsHandler)
 	sessionTracker := ebt.NewSessionTracker()
-	sessionRunner := ebt.NewSessionRunner()
+	streamMessagesRequestHandler := ebt2.NewStreamMessagesRequestHandler(createHistoryStreamHandler)
+	sessionRunner := ebt.NewSessionRunner(logger, rawMessageHandler, streamMessagesRequestHandler)
 	ebtReplicator := ebt.NewReplicator(sessionTracker, sessionRunner)
 	handleIncomingEbtReplicateHandler := commands.NewHandleIncomingEbtReplicateHandler(ebtReplicator)
 	handlerEbtReplicate := rpc2.NewHandlerEbtReplicate(handleIncomingEbtReplicateHandler)

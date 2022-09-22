@@ -24,14 +24,15 @@ import (
 	"github.com/planetary-social/scuttlego/service/app/commands"
 	"github.com/planetary-social/scuttlego/service/app/queries"
 	"github.com/planetary-social/scuttlego/service/domain"
-	replication2 "github.com/planetary-social/scuttlego/service/domain/blobs/replication"
+	"github.com/planetary-social/scuttlego/service/domain/blobs/replication"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/content/transport"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/formats"
 	"github.com/planetary-social/scuttlego/service/domain/graph"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
 	"github.com/planetary-social/scuttlego/service/domain/network"
 	"github.com/planetary-social/scuttlego/service/domain/network/local"
-	"github.com/planetary-social/scuttlego/service/domain/replication"
+	replication2 "github.com/planetary-social/scuttlego/service/domain/replication"
+	"github.com/planetary-social/scuttlego/service/domain/replication/ebt"
 	"github.com/planetary-social/scuttlego/service/domain/replication/gossip"
 	transport2 "github.com/planetary-social/scuttlego/service/domain/transport"
 	"github.com/planetary-social/scuttlego/service/domain/transport/boxstream"
@@ -270,7 +271,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	v := newFormats(scuttlebutt)
 	rawMessageIdentifier := formats.NewRawMessageIdentifier(v)
 	rawMessageHandler := commands.NewRawMessageHandler(rawMessageIdentifier, messageBuffer, logger)
-	gossipReplicator, err := replication.NewGossipReplicator(manager, rawMessageHandler, logger)
+	gossipReplicator, err := gossip.NewGossipReplicator(manager, rawMessageHandler, logger)
 	if err != nil {
 		return Service{}, err
 	}
@@ -279,11 +280,11 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	if err != nil {
 		return Service{}, err
 	}
-	blobsGetDownloader := replication2.NewBlobsGetDownloader(filesystemStorage, logger)
+	blobsGetDownloader := replication.NewBlobsGetDownloader(filesystemStorage, logger)
 	blobDownloadedPubSub := pubsub.NewBlobDownloadedPubSub()
-	hasHandler := replication2.NewHasHandler(filesystemStorage, readWantListRepository, blobsGetDownloader, blobDownloadedPubSub, logger)
-	replicationManager := replication2.NewManager(readWantListRepository, filesystemStorage, hasHandler, logger)
-	replicator := replication2.NewReplicator(replicationManager)
+	hasHandler := replication.NewHasHandler(filesystemStorage, readWantListRepository, blobsGetDownloader, blobDownloadedPubSub, logger)
+	replicationManager := replication.NewManager(readWantListRepository, filesystemStorage, hasHandler, logger)
+	replicator := replication.NewReplicator(replicationManager)
 	peerManager := domain.NewPeerManager(contextContext, peerManagerConfig, gossipReplicator, replicator, dialer, logger)
 	connectHandler := commands.NewConnectHandler(peerManager, logger)
 	establishNewConnectionsHandler := commands.NewEstablishNewConnectionsHandler(peerManager)
@@ -349,7 +350,12 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	connectionEstablisher := network2.NewConnectionEstablisher(application, logger)
 	handlerBlobsGet := rpc2.NewHandlerBlobsGet(getBlobHandler)
 	handlerBlobsCreateWants := rpc2.NewHandlerBlobsCreateWants(createWantsHandler)
-	v2 := rpc2.NewMuxHandlers(handlerBlobsGet, handlerBlobsCreateWants)
+	sessionTracker := ebt.NewSessionTracker()
+	sessionRunner := ebt.NewSessionRunner()
+	ebtReplicator := ebt.NewReplicator(sessionTracker, sessionRunner)
+	handleIncomingEbtReplicateHandler := commands.NewHandleIncomingEbtReplicateHandler(ebtReplicator)
+	handlerEbtReplicate := rpc2.NewHandlerEbtReplicate(handleIncomingEbtReplicateHandler)
+	v2 := rpc2.NewMuxHandlers(handlerBlobsGet, handlerBlobsCreateWants, handlerEbtReplicate)
 	handlerCreateHistoryStream := rpc2.NewHandlerCreateHistoryStream(createHistoryStreamHandler, logger)
 	v3 := rpc2.NewMuxClosingHandlers(handlerCreateHistoryStream)
 	muxMux, err := mux.NewMux(logger, v2, v3)
@@ -400,9 +406,9 @@ type TestQueries struct {
 	LocalIdentity identity.Public
 }
 
-var replicatorSet = wire.NewSet(gossip.NewManager, wire.Bind(new(gossip.ReplicationManager), new(*gossip.Manager)), replication.NewGossipReplicator, wire.Bind(new(domain.MessageReplicator), new(*replication.GossipReplicator)))
+var replicatorSet = wire.NewSet(gossip.NewManager, wire.Bind(new(gossip.ReplicationManager), new(*gossip.Manager)), gossip.NewGossipReplicator, wire.Bind(new(domain.MessageReplicator), new(*gossip.GossipReplicator)), ebt.NewReplicator, wire.Bind(new(replication2.EpidemicBroadcastTreesReplicator), new(ebt.Replicator)), ebt.NewSessionTracker, ebt.NewSessionRunner)
 
-var blobReplicatorSet = wire.NewSet(replication2.NewManager, wire.Bind(new(replication2.ReplicationManager), new(*replication2.Manager)), wire.Bind(new(commands.BlobReplicationManager), new(*replication2.Manager)), replication2.NewReplicator, wire.Bind(new(domain.BlobReplicator), new(*replication2.Replicator)), replication2.NewBlobsGetDownloader, wire.Bind(new(replication2.Downloader), new(*replication2.BlobsGetDownloader)), replication2.NewHasHandler, wire.Bind(new(replication2.HasBlobHandler), new(*replication2.HasHandler)))
+var blobReplicatorSet = wire.NewSet(replication.NewManager, wire.Bind(new(replication.ReplicationManager), new(*replication.Manager)), wire.Bind(new(commands.BlobReplicationManager), new(*replication.Manager)), replication.NewReplicator, wire.Bind(new(domain.BlobReplicator), new(*replication.Replicator)), replication.NewBlobsGetDownloader, wire.Bind(new(replication.Downloader), new(*replication.BlobsGetDownloader)), replication.NewHasHandler, wire.Bind(new(replication.HasBlobHandler), new(*replication.HasHandler)))
 
 var hops = graph.MustNewHops(3)
 

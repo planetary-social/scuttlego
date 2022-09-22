@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/boreq/errors"
+	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 	"go.cryptoscope.co/ssb"
 )
@@ -129,37 +130,82 @@ func (f EbtReplicateFormat) IsZero() bool {
 }
 
 type EbtReplicateNotes struct {
-	v map[string]EbtReplicateNote
+	notes []EbtReplicateNote
 }
 
 func NewEbtReplicateNotesFromBytes(b []byte) (EbtReplicateNotes, error) {
-	var n ssb.Note
-	if err := json.Unmarshal(b, &n); err != nil {
+	var frontier ssb.NetworkFrontier
+	if err := json.Unmarshal(b, &frontier); err != nil {
 		return EbtReplicateNotes{}, errors.Wrap(err, "json unmarshal error")
 	}
 
-	return EbtReplicateNote{
-		receive:   n.Receive,
-		replicate: n.Replicate,
-		sequence:  int(n.Seq),
+	var notes []EbtReplicateNote
+
+	for feedRefString, note := range frontier {
+		ref, err := refs.NewFeed(feedRefString)
+		if err != nil {
+			return EbtReplicateNotes{}, errors.Wrap(err, "error creating a ref")
+		}
+
+		note, err := NewEbtReplicateNote(ref, note.Receive, note.Replicate, int(note.Seq))
+		if err != nil {
+			return EbtReplicateNotes{}, errors.Wrap(err, "error creating a note")
+		}
+
+		notes = append(notes, note)
+	}
+
+	return EbtReplicateNotes{
+		notes: notes,
 	}, nil
 }
 
+func (n *EbtReplicateNotes) Notes() []EbtReplicateNote {
+	result := make([]EbtReplicateNote, len(n.notes))
+	copy(result, n.notes)
+	return result
+}
+
 type EbtReplicateNote struct {
+	ref       refs.Feed
 	receive   bool
 	replicate bool
 	sequence  int
 }
 
-func NewEbtReplicateNoteFromBytes(b []byte) (EbtReplicateNote, error) {
-	var n ssb.Note
-	if err := json.Unmarshal(b, &n); err != nil {
-		return EbtReplicateNote{}, errors.Wrap(err, "json unmarshal error")
+func NewEbtReplicateNote(ref refs.Feed, receive, replicate bool, sequence int) (EbtReplicateNote, error) {
+	if ref.IsZero() {
+		return EbtReplicateNote{}, errors.New("zero value of feed ref")
 	}
 
 	return EbtReplicateNote{
-		receive:   n.Receive,
-		replicate: n.Replicate,
-		sequence:  int(n.Seq),
+		ref:       ref,
+		receive:   receive,
+		replicate: replicate,
+		sequence:  sequence,
 	}, nil
+}
+
+func MustNewEbtReplicateNote(ref refs.Feed, receive, replicate bool, sequence int) EbtReplicateNote {
+	v, err := NewEbtReplicateNote(ref, receive, replicate, sequence)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
+func (e EbtReplicateNote) Ref() refs.Feed {
+	return e.ref
+}
+
+func (e EbtReplicateNote) Receive() bool {
+	return e.receive
+}
+
+func (e EbtReplicateNote) Replicate() bool {
+	return e.replicate
+}
+
+func (e EbtReplicateNote) Sequence() int {
+	return e.sequence
 }

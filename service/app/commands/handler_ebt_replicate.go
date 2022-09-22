@@ -5,38 +5,53 @@ import (
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/service/domain/messages"
+	"github.com/planetary-social/scuttlego/service/domain/replication/ebt"
 )
 
-type EbtReplicate struct {
-	ch <-chan messages.NoteOrMessage
+type HandleIncomingEbtReplicate struct {
+	version int
+	format  messages.EbtReplicateFormat
+	stream  ebt.Stream
 }
 
-func NewEbtReplicate(ch <-chan messages.NoteOrMessage) (EbtReplicate, error) {
-	if ch == nil {
-		return EbtReplicate{}, errors.New("channel is not initialized")
+func NewHandleIncomingEbtReplicate(version int, format messages.EbtReplicateFormat, stream ebt.Stream) (HandleIncomingEbtReplicate, error) {
+	if format.IsZero() {
+		return HandleIncomingEbtReplicate{}, errors.New("zero value of format")
 	}
-	return EbtReplicate{ch: ch}, nil
+	if stream == nil {
+		return HandleIncomingEbtReplicate{}, errors.New("nil stream")
+	}
+	return HandleIncomingEbtReplicate{stream: stream}, nil
 }
 
-func (cmd EbtReplicate) Ch() <-chan messages.NoteOrMessage {
-	return cmd.ch
+func (cmd HandleIncomingEbtReplicate) Version() int {
+	return cmd.version
 }
 
-func (cmd EbtReplicate) IsZero() bool {
-	return cmd == EbtReplicate{}
+func (cmd HandleIncomingEbtReplicate) Format() messages.EbtReplicateFormat {
+	return cmd.format
 }
 
-type EbtReplicateHandler struct {
+func (cmd HandleIncomingEbtReplicate) Stream() ebt.Stream {
+	return cmd.stream
 }
 
-func NewEbtReplicateHandler() *EbtReplicateHandler {
-	return &EbtReplicateHandler{}
+func (cmd HandleIncomingEbtReplicate) IsZero() bool {
+	return cmd == HandleIncomingEbtReplicate{}
 }
 
-func (h *EbtReplicateHandler) Handle(ctx context.Context, cmd EbtReplicate) (<-chan messages.NoteOrMessage, error) {
+type HandleIncomingEbtReplicateHandler struct {
+	replicator ebt.Replicator
+}
+
+func NewHandleIncomingEbtReplicateHandler(replicator ebt.Replicator) *HandleIncomingEbtReplicateHandler {
+	return &HandleIncomingEbtReplicateHandler{replicator: replicator}
+}
+
+func (h *HandleIncomingEbtReplicateHandler) Handle(ctx context.Context, cmd HandleIncomingEbtReplicate) error {
 	if cmd.IsZero() {
-		return nil, errors.New("zero value of command")
+		return errors.New("zero value of command")
 	}
 
-	return nil, errors.New("not implemented")
+	return h.replicator.HandleIncoming(ctx, cmd.Version(), cmd.Format(), cmd.Stream())
 }

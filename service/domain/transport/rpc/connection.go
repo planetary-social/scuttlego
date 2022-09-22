@@ -17,6 +17,9 @@ type RawConnection interface {
 }
 
 type Connection struct {
+	id                   ConnectionId
+	wasInitiatedByRemote bool
+
 	ctx    context.Context
 	cancel context.CancelFunc
 
@@ -34,6 +37,7 @@ type Connection struct {
 func NewConnection(
 	ctx context.Context,
 	id ConnectionId,
+	wasInitiatedByRemote bool,
 	raw RawConnection,
 	handler RequestHandler,
 	logger logging.Logger,
@@ -43,12 +47,14 @@ func NewConnection(
 	ctx, cancel := context.WithCancel(ctx)
 
 	conn := &Connection{
-		ctx:             ctx,
-		cancel:          cancel,
-		raw:             raw,
-		responseStreams: NewResponseStreams(raw, logger),
-		requestStreams:  NewRequestStreams(ctx, raw, handler, logger),
-		logger:          logger.New("connection"),
+		id:                   id,
+		wasInitiatedByRemote: wasInitiatedByRemote,
+		ctx:                  ctx,
+		cancel:               cancel,
+		raw:                  raw,
+		responseStreams:      NewResponseStreams(raw, logger),
+		requestStreams:       NewRequestStreams(ctx, raw, handler, logger),
+		logger:               logger.New("connection"),
 	}
 
 	go func() {
@@ -81,6 +87,14 @@ func (c *Connection) Context() context.Context {
 func (c *Connection) Close() error {
 	c.cancel()
 	return nil
+}
+
+func (c *Connection) WasInitiatedByRemote() bool {
+	return c.wasInitiatedByRemote
+}
+
+func (c *Connection) Id() ConnectionId {
+	return c.id
 }
 
 func (c *Connection) readLoop() {

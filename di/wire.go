@@ -27,6 +27,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/network"
 	"github.com/planetary-social/scuttlego/service/domain/network/local"
 	"github.com/planetary-social/scuttlego/service/domain/replication"
+	"github.com/planetary-social/scuttlego/service/domain/replication/ebt"
 	"github.com/planetary-social/scuttlego/service/domain/replication/gossip"
 	domaintransport "github.com/planetary-social/scuttlego/service/domain/transport"
 	"github.com/planetary-social/scuttlego/service/domain/transport/boxstream"
@@ -218,8 +219,14 @@ var replicatorSet = wire.NewSet(
 	gossip.NewManager,
 	wire.Bind(new(gossip.ReplicationManager), new(*gossip.Manager)),
 
-	replication.NewGossipReplicator,
-	wire.Bind(new(domain.MessageReplicator), new(*replication.GossipReplicator)),
+	gossip.NewGossipReplicator,
+	wire.Bind(new(domain.MessageReplicator), new(*gossip.GossipReplicator)),
+
+	ebt.NewReplicator,
+	wire.Bind(new(replication.EpidemicBroadcastTreesReplicator), new(ebt.Replicator)),
+
+	ebt.NewSessionTracker,
+	ebt.NewSessionRunner,
 )
 
 var blobReplicatorSet = wire.NewSet(

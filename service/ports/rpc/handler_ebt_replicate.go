@@ -1,9 +1,18 @@
 package rpc
 
-/*
+import (
+	"context"
+
+	"github.com/boreq/errors"
+	"github.com/planetary-social/scuttlego/service/app/commands"
+	"github.com/planetary-social/scuttlego/service/domain/messages"
+	"github.com/planetary-social/scuttlego/service/domain/replication/ebt"
+	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
+	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/mux"
+)
 
 type EbtReplicateCommandHandler interface {
-	Handle(ctx context.Context, cmd commands.EbtReplicate) (<-chan messages.NoteOrMessage, error)
+	Handle(ctx context.Context, cmd commands.HandleIncomingEbtReplicate) error
 }
 
 type HandlerEbtReplicate struct {
@@ -19,34 +28,25 @@ func (h HandlerEbtReplicate) Procedure() rpc.Procedure {
 }
 
 func (h HandlerEbtReplicate) Handle(ctx context.Context, s mux.Stream, req *rpc.Request) error {
-	cmd := commands.CreateWants{}
-
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	ch, err := h.handler.Handle(ctx, cmd)
+	args, err := messages.NewEbtReplicateArgumentsFromBytes(req.Arguments())
 	if err != nil {
-		return errors.Wrap(err, "could not execute the create wants command")
+		return errors.Wrap(err, "error parsing arguments")
 	}
 
-	for v := range ch {
-		resp, err := messages.NewBlobsCreateWantsResponse(v.Id(), v.SizeOrWantDistance())
-		if err != nil {
-			return errors.Wrap(err, "failed to create a response")
-		}
+	stream := ebt.NewIncomingStreamAdapter(s)
 
-		j, err := resp.MarshalJSON()
-		if err != nil {
-			return errors.Wrap(err, "json marshalling failed")
-		}
-
-		if err := w.WriteMessage(j); err != nil {
-			return errors.Wrap(err, "failed to send a message")
-		}
+	cmd, err := commands.NewHandleIncomingEbtReplicate(args.Version(), args.Format(), stream)
+	if err != nil {
+		return errors.Wrap(err, "error creating the command")
 	}
 
-	return errors.New("not implemented")
+	err = h.handler.Handle(ctx, cmd)
+	if err != nil {
+		return errors.Wrap(err, "error executing the command")
+	}
+
+	return nil
 }
-
-
-*/

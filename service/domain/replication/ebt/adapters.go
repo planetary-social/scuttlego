@@ -9,17 +9,18 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/messages"
 	"github.com/planetary-social/scuttlego/service/domain/replication"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
+	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/mux"
 )
 
-type ResponseStreamAdapter struct {
+type OutgoingStreamAdapter struct {
 	stream *rpc.ResponseStream
 }
 
-func NewResponseStreamAdapter(stream *rpc.ResponseStream) *ResponseStreamAdapter {
-	return &ResponseStreamAdapter{stream: stream}
+func NewOutgoingStreamAdapter(stream *rpc.ResponseStream) *OutgoingStreamAdapter {
+	return &OutgoingStreamAdapter{stream: stream}
 }
 
-func (r *ResponseStreamAdapter) IncomingMessages(ctx context.Context) <-chan IncomingMessage {
+func (r *OutgoingStreamAdapter) IncomingMessages(ctx context.Context) <-chan IncomingMessage {
 	ch := make(chan IncomingMessage)
 	go func() {
 		defer close(ch)
@@ -34,7 +35,7 @@ func (r *ResponseStreamAdapter) IncomingMessages(ctx context.Context) <-chan Inc
 				}
 			}
 
-			incomingMessage, err := r.parse(resp.Value.Bytes())
+			incomingMessage, err := parseIncomingMsg(resp.Value.Bytes())
 			if err != nil {
 				select {
 				case <-ctx.Done():
@@ -54,7 +55,7 @@ func (r *ResponseStreamAdapter) IncomingMessages(ctx context.Context) <-chan Inc
 	return ch
 }
 
-func (r *ResponseStreamAdapter) parseErr(err error) error {
+func (r *OutgoingStreamAdapter) parseErr(err error) error {
 	if err != nil {
 		if errors.Is(err, rpc.ErrEndOrErr) {
 			return replication.ErrPeerDoesNotSupportEBT
@@ -64,10 +65,79 @@ func (r *ResponseStreamAdapter) parseErr(err error) error {
 	return nil
 }
 
-func (r *ResponseStreamAdapter) parse(b []byte) (IncomingMessage, error) {
+func (r *OutgoingStreamAdapter) SendNote(note messages.EbtReplicateNote) {
+	panic("implement me")
+}
+
+func (r *OutgoingStreamAdapter) SendMessage(msg *message.Message) {
+	panic("implement me")
+}
+
+type IncomingStreamAdapter struct {
+	stream mux.Stream
+}
+
+func NewIncomingStreamAdapter(stream mux.Stream) IncomingStreamAdapter {
+	return IncomingStreamAdapter{stream: stream}
+}
+
+func (s IncomingStreamAdapter) IncomingMessages(ctx context.Context) <-chan IncomingMessage {
+	ch := make(chan IncomingMessage)
+	go func() {
+		defer close(ch)
+
+		incomingMessages, err := s.stream.IncomingMessages()
+		if err != nil {
+			select {
+			case <-ctx.Done():
+				return
+			case ch <- NewIncomingMessageWithErr(err):
+				return
+			}
+		}
+
+		for msg := range incomingMessages {
+			incomingMessage, err := parseIncomingMsg(msg.Body)
+			if err != nil {
+				select {
+				case <-ctx.Done():
+					return
+				case ch <- NewIncomingMessageWithErr(err):
+					return
+				}
+			}
+
+			select {
+			case <-ctx.Done():
+				return
+			case ch <- incomingMessage:
+			}
+		}
+
+		select {
+		case <-ctx.Done():
+			return
+		case ch <- NewIncomingMessageWithErr(err):
+			return
+		}
+	}()
+	return ch
+}
+
+func (s IncomingStreamAdapter) SendNote(note messages.EbtReplicateNote) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (s IncomingStreamAdapter) SendMessage(msg *message.Message) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func parseIncomingMsg(b []byte) (IncomingMessage, error) {
 	var returnErr error
 
-	note, err := messages.NewEbtReplicateNoteFromBytes(b)
+	note, err := messages.NewEbtReplicateNotesFromBytes(b)
 	if err == nil {
 		return NewIncomingMessageWithNote(note), nil
 	}
@@ -80,12 +150,4 @@ func (r *ResponseStreamAdapter) parse(b []byte) (IncomingMessage, error) {
 	returnErr = multierror.Append(returnErr, errors.Wrap(err, "could not create a new raw message"))
 
 	return IncomingMessage{}, returnErr
-}
-
-func (r *ResponseStreamAdapter) SendNote(note messages.EbtReplicateNote) {
-	panic("implement me")
-}
-
-func (r *ResponseStreamAdapter) SendMessage(msg *message.Message) {
-	panic("implement me")
 }

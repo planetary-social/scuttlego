@@ -38,6 +38,9 @@ var commandsSet = wire.NewSet(
 
 	commands.NewAddToBanListHandler,
 	commands.NewRemoveFromBanListHandler,
+
+	commands.NewHandleIncomingEbtReplicateHandler,
+	wire.Bind(new(portsrpc.EbtReplicateCommandHandler), new(*commands.HandleIncomingEbtReplicateHandler)),
 )
 
 var queriesSet = wire.NewSet(

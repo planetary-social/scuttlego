@@ -18,6 +18,10 @@ type Replicator struct {
 	runner  *SessionRunner
 }
 
+func NewReplicator(tracker *SessionTracker, runner *SessionRunner) Replicator {
+	return Replicator{tracker: tracker, runner: runner}
+}
+
 func (r Replicator) Replicate(ctx context.Context, peer transport.Peer) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -27,6 +31,10 @@ func (r Replicator) Replicate(ctx context.Context, peer transport.Peer) error {
 	}
 
 	return r.tracker.WaitForSession(ctx, peer.Conn().Id())
+}
+
+func (r Replicator) HandleIncoming(ctx context.Context, version int, format messages.EbtReplicateFormat, stream Stream) error {
+	return errors.New("not implemented")
 }
 
 func (r Replicator) startLocalSession(ctx context.Context, peer transport.Peer) error {

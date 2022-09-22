@@ -20,6 +20,7 @@ var portsSet = wire.NewSet(
 	portsrpc.NewMuxHandlers,
 	portsrpc.NewHandlerBlobsGet,
 	portsrpc.NewHandlerBlobsCreateWants,
+	portsrpc.NewHandlerEbtReplicate,
 
 	portsrpc.NewMuxClosingHandlers,
 	portsrpc.NewHandlerCreateHistoryStream,

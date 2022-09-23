@@ -124,6 +124,8 @@ func NewSession(
 	return &Session{
 		stream: stream,
 
+		remoteNotes: make(map[string]messages.EbtReplicateNote),
+
 		logger:            logger.New("session"),
 		rawMessageHandler: rawMessageHandler,
 		streamer:          streamer,

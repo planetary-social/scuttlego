@@ -225,6 +225,10 @@ var replicatorSet = wire.NewSet(
 	ebt.NewReplicator,
 	wire.Bind(new(replication.EpidemicBroadcastTreesReplicator), new(ebt.Replicator)),
 
+	replication.NewContactsCache,
+	wire.Bind(new(gossip.ContactsStorage), new(*replication.ContactsCache)),
+	wire.Bind(new(ebt.ContactsStorage), new(*replication.ContactsCache)),
+
 	ebt.NewSessionTracker,
 	ebt.NewSessionRunner,
 )

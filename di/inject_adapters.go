@@ -15,8 +15,8 @@ import (
 	blobReplication "github.com/planetary-social/scuttlego/service/domain/blobs/replication"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/formats"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
+	"github.com/planetary-social/scuttlego/service/domain/replication"
 	"github.com/planetary-social/scuttlego/service/domain/replication/ebt"
-	"github.com/planetary-social/scuttlego/service/domain/replication/gossip"
 	"go.etcd.io/bbolt"
 )
 
@@ -47,7 +47,7 @@ var boltAdaptersSet = wire.NewSet(
 	wire.Bind(new(queries.FeedRepository), new(*bolt.ReadFeedRepository)),
 
 	bolt.NewReadContactsRepository,
-	wire.Bind(new(gossip.Storage), new(*bolt.ReadContactsRepository)),
+	wire.Bind(new(replication.ContactsRepository), new(*bolt.ReadContactsRepository)),
 
 	bolt.NewReadReceiveLogRepository,
 	wire.Bind(new(queries.ReceiveLogRepository), new(*bolt.ReadReceiveLogRepository)),

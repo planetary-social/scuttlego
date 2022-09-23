@@ -4,7 +4,6 @@ import (
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/planetary-social/scuttlego/service/domain/replication"
-	"github.com/planetary-social/scuttlego/service/domain/replication/gossip"
 	"go.etcd.io/bbolt"
 )
 
@@ -17,8 +16,8 @@ func NewReadContactsRepository(db *bbolt.DB, factory TxRepositoriesFactory) *Rea
 	return &ReadContactsRepository{db: db, factory: factory}
 }
 
-func (b ReadContactsRepository) GetContacts() ([]gossip.Contact, error) {
-	var result []gossip.Contact
+func (b ReadContactsRepository) GetContacts() ([]replication.Contact, error) {
+	var result []replication.Contact
 
 	if err := b.db.View(func(tx *bbolt.Tx) error {
 		r, err := b.factory(tx)
@@ -39,7 +38,7 @@ func (b ReadContactsRepository) GetContacts() ([]gossip.Contact, error) {
 				return errors.Wrap(err, "could not get feed state")
 			}
 
-			result = append(result, gossip.Contact{
+			result = append(result, replication.Contact{
 				Who:       f,
 				Hops:      contact.Hops,
 				FeedState: feedState,

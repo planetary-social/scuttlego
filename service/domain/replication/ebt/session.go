@@ -30,7 +30,7 @@ type MessageStreamer interface {
 type Stream interface {
 	IncomingMessages(ctx context.Context) <-chan IncomingMessage
 	SendNotes(notes messages.EbtReplicateNotes) error
-	SendMessage(msg *message.Message)
+	SendMessage(msg *message.Message) error
 }
 
 type IncomingMessage struct {

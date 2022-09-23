@@ -65,11 +65,11 @@ func (r *OutgoingStreamAdapter) parseErr(err error) error {
 	return nil
 }
 
-func (r *OutgoingStreamAdapter) SendNote(note messages.EbtReplicateNote) {
+func (r *OutgoingStreamAdapter) SendNotes(notes messages.EbtReplicateNotes) error {
 	panic("implement me")
 }
 
-func (r *OutgoingStreamAdapter) SendMessage(msg *message.Message) {
+func (r *OutgoingStreamAdapter) SendMessage(msg *message.Message) error {
 	panic("implement me")
 }
 
@@ -117,12 +117,12 @@ func (s IncomingStreamAdapter) IncomingMessages(ctx context.Context) <-chan Inco
 	return ch
 }
 
-func (s IncomingStreamAdapter) SendNote(note messages.EbtReplicateNote) {
+func (s IncomingStreamAdapter) SendNotes(notes messages.EbtReplicateNotes) error {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (s IncomingStreamAdapter) SendMessage(msg *message.Message) {
+func (s IncomingStreamAdapter) SendMessage(msg *message.Message) error {
 	//TODO implement me
 	panic("implement me")
 }

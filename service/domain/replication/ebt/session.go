@@ -251,6 +251,5 @@ func NewStreamMessageWriter(stream Stream) *StreamMessageWriter {
 }
 
 func (s StreamMessageWriter) WriteMessage(msg message.Message) error {
-	s.stream.SendMessage(&msg)
-	return nil
+	return s.stream.SendMessage(&msg)
 }

@@ -66,6 +66,7 @@ func (r *OutgoingStreamAdapter) parseErr(err error) error {
 }
 
 func (r *OutgoingStreamAdapter) SendNotes(notes messages.EbtReplicateNotes) error {
+	notes.Notes()
 	panic("implement me")
 }
 

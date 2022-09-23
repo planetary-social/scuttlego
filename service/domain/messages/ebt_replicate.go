@@ -185,6 +185,20 @@ func (n *EbtReplicateNotes) Notes() []EbtReplicateNote {
 	return result
 }
 
+func (n *EbtReplicateNotes) MarshalJSON() ([]byte, error) {
+	frontier := make(ssb.NetworkFrontier)
+
+	for _, note := range n.notes {
+		frontier[note.Ref().String()] = ssb.Note{
+			Seq:       int64(note.Sequence()),
+			Replicate: note.Replicate(),
+			Receive:   note.Receive(),
+		}
+	}
+
+	return json.Marshal(frontier)
+}
+
 type EbtReplicateNote struct {
 	ref       refs.Feed
 	receive   bool

@@ -7,6 +7,7 @@ import (
 
 	"github.com/planetary-social/scuttlego/fixtures"
 	"github.com/planetary-social/scuttlego/service/domain/messages"
+	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 	"github.com/stretchr/testify/require"
 )
@@ -99,6 +100,63 @@ func TestNewEbtReplicateNotesFromBytes(t *testing.T) {
 				},
 				notes.Notes(),
 			)
+		})
+	}
+}
+
+func TestEbtReplicateNotes_MarshalJSON(t *testing.T) {
+	feed := refs.MustNewFeed("@qFtLJ6P5Eh9vKxnj7Rsh8SkE6B6Z36DVLP7ZOKNeQ/Y=.ed25519")
+
+	testCases := []struct {
+		Receive       bool
+		Replicate     bool
+		Seq           int
+		ExpectedValue string
+	}{
+		{
+			Receive:       false,
+			Replicate:     false,
+			Seq:           -1,
+			ExpectedValue: `{"@qFtLJ6P5Eh9vKxnj7Rsh8SkE6B6Z36DVLP7ZOKNeQ/Y=.ed25519":-1}`,
+		},
+		{
+			Receive:       true,
+			Replicate:     true,
+			Seq:           0,
+			ExpectedValue: `{"@qFtLJ6P5Eh9vKxnj7Rsh8SkE6B6Z36DVLP7ZOKNeQ/Y=.ed25519":0}`,
+		},
+		{
+			Receive:       false,
+			Replicate:     true,
+			Seq:           0,
+			ExpectedValue: `{"@qFtLJ6P5Eh9vKxnj7Rsh8SkE6B6Z36DVLP7ZOKNeQ/Y=.ed25519":1}`,
+		},
+		{
+			Receive:       true,
+			Replicate:     true,
+			Seq:           1,
+			ExpectedValue: `{"@qFtLJ6P5Eh9vKxnj7Rsh8SkE6B6Z36DVLP7ZOKNeQ/Y=.ed25519":2}`,
+		},
+		{
+			Receive:       false,
+			Replicate:     true,
+			Seq:           1,
+			ExpectedValue: `{"@qFtLJ6P5Eh9vKxnj7Rsh8SkE6B6Z36DVLP7ZOKNeQ/Y=.ed25519":3}`,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.ExpectedValue, func(t *testing.T) {
+			note, err := messages.NewEbtReplicateNote(feed, testCase.Receive, testCase.Replicate, testCase.Seq)
+			require.NoError(t, err)
+
+			notes, err := messages.NewEbtReplicateNotes([]messages.EbtReplicateNote{note})
+			require.NoError(t, err)
+
+			j, err := notes.MarshalJSON()
+			require.NoError(t, err)
+
+			require.Equal(t, testCase.ExpectedValue, string(j))
 		})
 	}
 }

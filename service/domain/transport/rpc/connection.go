@@ -17,7 +17,6 @@ type RawConnection interface {
 }
 
 type Connection struct {
-	id                   ConnectionId
 	wasInitiatedByRemote bool
 
 	ctx    context.Context
@@ -47,7 +46,6 @@ func NewConnection(
 	ctx, cancel := context.WithCancel(ctx)
 
 	conn := &Connection{
-		id:                   id,
 		wasInitiatedByRemote: wasInitiatedByRemote,
 		ctx:                  ctx,
 		cancel:               cancel,
@@ -91,10 +89,6 @@ func (c *Connection) Close() error {
 
 func (c *Connection) WasInitiatedByRemote() bool {
 	return c.wasInitiatedByRemote
-}
-
-func (c *Connection) Id() ConnectionId {
-	return c.id
 }
 
 func (c *Connection) readLoop() {

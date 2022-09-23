@@ -26,8 +26,13 @@ func (r Replicator) Replicate(ctx context.Context, peer transport.Peer) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	connectionId, ok := rpc.GetConnectionIdFromContext(ctx)
+	if !ok {
+		return errors.New("connection id not found in context")
+	}
+
 	if !peer.Conn().WasInitiatedByRemote() {
-		done, err := r.tracker.OpenSession(peer.Conn().Id())
+		done, err := r.tracker.OpenSession(connectionId)
 		if err != nil {
 			return errors.Wrap(err, "failed to mark local session as open")
 		}
@@ -41,7 +46,7 @@ func (r Replicator) Replicate(ctx context.Context, peer transport.Peer) error {
 		return r.runner.HandleStream(ctx, NewOutgoingStreamAdapter(rs))
 	}
 
-	return r.tracker.WaitForSession(ctx, peer.Conn().Id())
+	return r.tracker.WaitForSession(ctx, connectionId)
 }
 
 func (r Replicator) HandleIncoming(ctx context.Context, version int, format messages.EbtReplicateFormat, stream Stream) error {

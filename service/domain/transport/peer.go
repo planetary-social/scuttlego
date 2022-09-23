@@ -20,10 +20,6 @@ type Connection interface {
 	// WasInitiatedByRemote returns true if this is a connection that was
 	// initiated by the remote peer.
 	WasInitiatedByRemote() bool
-
-	// Id returns an id which uniquely identifies this connection. This id can
-	// be used to match the RPC connection to incoming RPC requests.
-	Id() rpc.ConnectionId
 }
 
 // Peer exists just for the purpose of keeping track of a connection together

@@ -122,13 +122,15 @@ func (s IncomingStreamAdapter) IncomingMessages(ctx context.Context) <-chan Inco
 }
 
 func (s IncomingStreamAdapter) SendNotes(notes messages.EbtReplicateNotes) error {
-	//TODO implement me
-	panic("implement me")
+	j, err := notes.MarshalJSON()
+	if err != nil {
+		return errors.Wrap(err, "json marshal error")
+	}
+	return s.stream.WriteMessage(j)
 }
 
 func (s IncomingStreamAdapter) SendMessage(msg *message.Message) error {
-	//TODO implement me
-	panic("implement me")
+	return s.stream.WriteMessage(msg.Raw().Bytes())
 }
 
 func parseIncomingMsg(b []byte) (IncomingMessage, error) {

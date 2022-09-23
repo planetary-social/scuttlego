@@ -21,7 +21,11 @@ func NewHandleIncomingEbtReplicate(version int, format messages.EbtReplicateForm
 	if stream == nil {
 		return HandleIncomingEbtReplicate{}, errors.New("nil stream")
 	}
-	return HandleIncomingEbtReplicate{stream: stream}, nil
+	return HandleIncomingEbtReplicate{
+		version: version,
+		format:  format,
+		stream:  stream,
+	}, nil
 }
 
 func (cmd HandleIncomingEbtReplicate) Version() int {

@@ -2,6 +2,7 @@ package ebt
 
 import (
 	"context"
+	"time"
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/logging"
@@ -11,7 +12,8 @@ import (
 )
 
 const (
-	ebtReplicateVersion = 3
+	waitForRemoteToStartEbtSessionFor = 5 * time.Second
+	ebtReplicateVersion               = 3
 )
 
 var (
@@ -61,7 +63,7 @@ func (r Replicator) Replicate(ctx context.Context, peer transport.Peer) error {
 	}
 
 	logger.Debug("waiting for an EBT session")
-	return r.tracker.WaitForSession(ctx, connectionId)
+	return r.tracker.WaitForSession(ctx, connectionId, waitForRemoteToStartEbtSessionFor)
 }
 
 func (r Replicator) HandleIncoming(ctx context.Context, version int, format messages.EbtReplicateFormat, stream Stream) error {

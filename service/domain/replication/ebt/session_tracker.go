@@ -10,19 +10,17 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 )
 
-const (
-	waitForRemoteToStartEbtSessionFor = 5 * time.Second
-)
-
 type SessionTracker struct {
 	lock     sync.Mutex // secures sessions and waiting
 	sessions internal.Set[rpc.ConnectionId]
 	waiting  map[rpc.ConnectionId][]chan<- struct{}
+	waitFor  time.Duration
 }
 
 func NewSessionTracker() *SessionTracker {
 	return &SessionTracker{
 		sessions: internal.NewSet[rpc.ConnectionId](),
+		waiting:  make(map[rpc.ConnectionId][]chan<- struct{}),
 	}
 }
 
@@ -43,11 +41,11 @@ func (t *SessionTracker) OpenSession(id rpc.ConnectionId) (SessionEndedFn, error
 
 // WaitForSession waits for a session for the given connection to start and then
 // blocks as long as this session is active. If a session doesn't start for a
-// certain amount of time an error is returned. If the session terminates an
-// error is returned.
-func (t *SessionTracker) WaitForSession(ctx context.Context, id rpc.ConnectionId) error {
+// certain amount of time an error is returned. If the session is started but
+// then terminates an error is not returned.
+func (t *SessionTracker) WaitForSession(ctx context.Context, id rpc.ConnectionId, waitTime time.Duration) error {
 	select {
-	case <-time.After(waitForRemoteToStartEbtSessionFor):
+	case <-time.After(waitTime):
 	case <-ctx.Done():
 		return ctx.Err()
 	}

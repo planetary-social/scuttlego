@@ -66,12 +66,15 @@ func (r *OutgoingStreamAdapter) parseErr(err error) error {
 }
 
 func (r *OutgoingStreamAdapter) SendNotes(notes messages.EbtReplicateNotes) error {
-	notes.Notes()
-	panic("implement me")
+	j, err := notes.MarshalJSON()
+	if err != nil {
+		return errors.Wrap(err, "json marshal error")
+	}
+	return r.stream.WriteMessage(j)
 }
 
 func (r *OutgoingStreamAdapter) SendMessage(msg *message.Message) error {
-	panic("implement me")
+	return r.stream.WriteMessage(msg.Raw().Bytes())
 }
 
 type IncomingStreamAdapter struct {

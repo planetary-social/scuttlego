@@ -27,8 +27,16 @@ type Negotiator struct {
 	chsReplicator CreateHistoryStreamReplicator
 }
 
-func NewNegotiator(logger logging.Logger) *Negotiator {
-	return &Negotiator{logger: logger}
+func NewNegotiator(
+	logger logging.Logger,
+	ebtReplicator EpidemicBroadcastTreesReplicator,
+	chsReplicator CreateHistoryStreamReplicator,
+) *Negotiator {
+	return &Negotiator{
+		logger:        logger,
+		ebtReplicator: ebtReplicator,
+		chsReplicator: chsReplicator,
+	}
 }
 
 func (n Negotiator) Replicate(ctx context.Context, peer transport.Peer) error {

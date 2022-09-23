@@ -20,13 +20,13 @@ func TestManager_OnlyOnePeerAtATimeWillBeAskedToReplicateAFeed(t *testing.T) {
 
 	m := newTestManager()
 
-	contact := gossip.Contact{
+	contact := replication.Contact{
 		Who:       fixtures.SomeRefFeed(),
 		Hops:      graph.MustNewHops(0),
 		FeedState: replication.NewEmptyFeedState(),
 	}
 
-	m.Storage.Contacts = []gossip.Contact{
+	m.Storage.Contacts = []replication.Contact{
 		contact,
 	}
 
@@ -56,13 +56,13 @@ func TestManager_TheSamePeerWillBeAskedForAFeedAgainRightAwayIfNotAllMessagesThe
 
 	m := newTestManager()
 
-	contact := gossip.Contact{
+	contact := replication.Contact{
 		Who:       fixtures.SomeRefFeed(),
 		Hops:      graph.MustNewHops(0),
 		FeedState: replication.NewEmptyFeedState(),
 	}
 
-	m.Storage.Contacts = []gossip.Contact{
+	m.Storage.Contacts = []replication.Contact{
 		contact,
 	}
 
@@ -98,13 +98,13 @@ func TestManager_TheSamePeerWillNotBeAskedForAFeedAgainRightAwayIfAllMessagesThe
 
 	m := newTestManager()
 
-	contact := gossip.Contact{
+	contact := replication.Contact{
 		Who:       fixtures.SomeRefFeed(),
 		Hops:      graph.MustNewHops(0),
 		FeedState: replication.NewEmptyFeedState(),
 	}
 
-	m.Storage.Contacts = []gossip.Contact{
+	m.Storage.Contacts = []replication.Contact{
 		contact,
 	}
 
@@ -197,7 +197,7 @@ func TestManager_SequenceIsDeterminedBasedOnStorageStateAndMessageBufferState(t 
 
 			m := newTestManager()
 
-			contact := gossip.Contact{
+			contact := replication.Contact{
 				Who:       fixtures.SomeRefFeed(),
 				Hops:      graph.MustNewHops(0),
 				FeedState: replication.NewEmptyFeedState(),
@@ -210,7 +210,7 @@ func TestManager_SequenceIsDeterminedBasedOnStorageStateAndMessageBufferState(t 
 				contact.FeedState = replication.NewEmptyFeedState()
 			}
 
-			m.Storage.Contacts = []gossip.Contact{
+			m.Storage.Contacts = []replication.Contact{
 				contact,
 			}
 
@@ -259,14 +259,14 @@ func newTestManager() testManager {
 }
 
 type storageMock struct {
-	Contacts []gossip.Contact
+	Contacts []replication.Contact
 }
 
 func newStorageMock() *storageMock {
 	return &storageMock{}
 }
 
-func (s storageMock) GetContacts() ([]gossip.Contact, error) {
+func (s storageMock) GetContacts() ([]replication.Contact, error) {
 	return s.Contacts, nil
 }
 

@@ -220,7 +220,7 @@ var replicatorSet = wire.NewSet(
 	wire.Bind(new(gossip.ReplicationManager), new(*gossip.Manager)),
 
 	gossip.NewGossipReplicator,
-	wire.Bind(new(domain.MessageReplicator), new(*gossip.GossipReplicator)),
+	wire.Bind(new(replication.CreateHistoryStreamReplicator), new(*gossip.GossipReplicator)),
 
 	ebt.NewReplicator,
 	wire.Bind(new(replication.EpidemicBroadcastTreesReplicator), new(ebt.Replicator)),
@@ -231,6 +231,9 @@ var replicatorSet = wire.NewSet(
 
 	ebt.NewSessionTracker,
 	ebt.NewSessionRunner,
+
+	replication.NewNegotiator,
+	wire.Bind(new(domain.MessageReplicator), new(*replication.Negotiator)),
 )
 
 var blobReplicatorSet = wire.NewSet(

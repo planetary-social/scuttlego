@@ -138,7 +138,7 @@ func parseIncomingMsg(b []byte) (IncomingMessage, error) {
 
 	note, err := messages.NewEbtReplicateNotesFromBytes(b)
 	if err == nil {
-		return NewIncomingMessageWithNote(note), nil
+		return NewIncomingMessageWithNotes(note), nil
 	}
 	returnErr = multierror.Append(returnErr, errors.Wrap(err, "could not create a new note"))
 

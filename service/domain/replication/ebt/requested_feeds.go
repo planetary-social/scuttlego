@@ -8,6 +8,10 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 )
 
+type MessageStreamer interface {
+	Handle(ctx context.Context, id refs.Feed, seq *message.Sequence, messageWriter MessageWriter)
+}
+
 type RequestedFeeds struct {
 	messageStreamer MessageStreamer
 	stream          Stream

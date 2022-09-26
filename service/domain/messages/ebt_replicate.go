@@ -179,10 +179,22 @@ func NewEbtReplicateNotes(notes []EbtReplicateNote) (EbtReplicateNotes, error) {
 	}, nil
 }
 
+func MustNewEbtReplicateNotes(notes []EbtReplicateNote) EbtReplicateNotes {
+	v, err := NewEbtReplicateNotes(notes)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
 func (n *EbtReplicateNotes) Notes() []EbtReplicateNote {
 	result := make([]EbtReplicateNote, len(n.notes))
 	copy(result, n.notes)
 	return result
+}
+
+func (n *EbtReplicateNotes) Empty() bool {
+	return len(n.notes) == 0
 }
 
 func (n *EbtReplicateNotes) MarshalJSON() ([]byte, error) {
@@ -245,4 +257,11 @@ func (e EbtReplicateNote) Sequence() int {
 
 func (e EbtReplicateNote) IsZero() bool {
 	return e.ref.IsZero()
+}
+
+func (e EbtReplicateNote) Equal(o EbtReplicateNote) bool {
+	return e.ref.Equal(o.ref) &&
+		e.receive == o.receive &&
+		e.replicate == o.replicate &&
+		e.sequence == o.sequence
 }

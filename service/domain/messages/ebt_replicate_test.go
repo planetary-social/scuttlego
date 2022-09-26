@@ -104,6 +104,22 @@ func TestNewEbtReplicateNotesFromBytes(t *testing.T) {
 	}
 }
 
+func TestEbtReplicateNotes_Empty(t *testing.T) {
+	t.Run("not_empty", func(t *testing.T) {
+		notes, err := messages.NewEbtReplicateNotes([]messages.EbtReplicateNote{
+			messages.MustNewEbtReplicateNote(fixtures.SomeRefFeed(), true, true, 1),
+		})
+		require.NoError(t, err)
+		require.False(t, notes.Empty())
+	})
+
+	t.Run("empty", func(t *testing.T) {
+		notes, err := messages.NewEbtReplicateNotes(nil)
+		require.NoError(t, err)
+		require.True(t, notes.Empty())
+	})
+}
+
 func TestEbtReplicateNotes_MarshalJSON(t *testing.T) {
 	feed := refs.MustNewFeed("@qFtLJ6P5Eh9vKxnj7Rsh8SkE6B6Z36DVLP7ZOKNeQ/Y=.ed25519")
 

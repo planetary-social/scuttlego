@@ -99,14 +99,27 @@ func NewSessionRunner(
 func (s *SessionRunner) HandleStream(ctx context.Context, stream Stream) error {
 	session := NewSession(stream, s.logger, s.rawMessageHandler, s.streamer, s.contactsStorage)
 	go session.HandleIncomingMessages(ctx)
-	return session.SendNotesLoop(ctx)
+	for {
+		if err := session.SendNotes(); err != nil {
+			s.logger.WithError(err).Debug("error sending our notes")
+		}
+
+		select {
+		case <-time.After(10 * time.Second):
+			continue
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
 }
 
 type Session struct {
 	stream Stream
 
-	remoteNotes map[string]messages.EbtReplicateNote
-	lock        sync.Mutex // guards remoteNotes
+	remoteNotes          map[string]messages.EbtReplicateNote
+	lock                 sync.Mutex // guards remoteNotes
+	sentNotes            *SentNotes
+	sentNotesAtLeastOnce bool
 
 	logger            logging.Logger
 	rawMessageHandler replication.RawMessageHandler
@@ -125,6 +138,7 @@ func NewSession(
 		stream: stream,
 
 		remoteNotes: make(map[string]messages.EbtReplicateNote),
+		sentNotes:   NewSentNotes(),
 
 		logger:            logger.New("session"),
 		rawMessageHandler: rawMessageHandler,
@@ -141,21 +155,6 @@ func (s *Session) HandleIncomingMessages(ctx context.Context) {
 	}
 }
 
-func (s *Session) SendNotesLoop(ctx context.Context) error {
-	for {
-		if err := s.sendNotes(); err != nil {
-
-		}
-
-		select {
-		case <-time.After(10 * time.Second):
-			continue
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	}
-}
-
 func (s *Session) handleIncomingMessage(ctx context.Context, incoming IncomingMessage) error {
 	if err := incoming.Err(); err != nil {
 		return errors.Wrap(err, "error receiving messages")
@@ -163,11 +162,13 @@ func (s *Session) handleIncomingMessage(ctx context.Context, incoming IncomingMe
 
 	notes, ok := incoming.Notes()
 	if ok {
+		s.logger.WithField("number_of_notes", len(notes.Notes())).Debug("received notes")
 		return s.handleIncomingNotes(ctx, notes)
 	}
 
 	msg, ok := incoming.Msg()
 	if ok {
+		s.logger.Debug("received a raw message")
 		if err := s.rawMessageHandler.Handle(msg); err != nil {
 			return errors.Wrap(err, "error handling a message")
 		}
@@ -207,39 +208,28 @@ func (s *Session) parseSeq(seq int) (*message.Sequence, error) {
 	return &sequence, nil
 }
 
-func (s *Session) sendNotes() error {
+func (s *Session) SendNotes() error {
 	contacts, err := s.contactsStorage.GetContacts()
 	if err != nil {
 		return errors.Wrap(err, "could not get the contacts")
 	}
 
-	notes, err := s.createNotes(contacts)
+	notesToSend, err := s.sentNotes.Update(contacts)
 	if err != nil {
 		return errors.Wrap(err, "could not create the notes")
 	}
 
-	return s.stream.SendNotes(notes)
-}
-
-func (s *Session) createNotes(contacts []replication.Contact) (messages.EbtReplicateNotes, error) {
-	var notes []messages.EbtReplicateNote
-
-	for _, contact := range contacts {
-		seq := 0
-		sequence, ok := contact.FeedState.Sequence()
-		if ok {
-			seq = sequence.Int()
-		}
-
-		note, err := messages.NewEbtReplicateNote(contact.Who, true, true, seq)
-		if err != nil {
-			return messages.EbtReplicateNotes{}, errors.Wrap(err, "could not create a note")
-		}
-
-		notes = append(notes, note)
+	if notesToSend.Empty() && s.sentNotesAtLeastOnce {
+		return nil
 	}
 
-	return messages.NewEbtReplicateNotes(notes)
+	s.sentNotesAtLeastOnce = true
+
+	s.logger.
+		WithField("number_of_notes", len(notesToSend.Notes())).
+		Debug("sending notes")
+
+	return s.stream.SendNotes(notesToSend)
 }
 
 type StreamMessageWriter struct {

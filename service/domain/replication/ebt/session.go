@@ -205,7 +205,6 @@ func (s *Session) handleIncomingMessage(ctx context.Context, incoming IncomingMe
 
 	msg, ok := incoming.Msg()
 	if ok {
-		s.logger.Debug("received a raw message")
 		if err := s.rawMessageHandler.Handle(msg); err != nil {
 			return errors.Wrap(err, "error handling a message")
 		}

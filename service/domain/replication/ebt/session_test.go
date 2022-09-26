@@ -86,10 +86,12 @@ type testSession struct {
 }
 
 func newTestSession(t *testing.T) testSession {
+	ctx := fixtures.TestContext(t)
 	logger := fixtures.TestLogger(t)
 	stream := newMockStream()
 	contactsStorage := newContactsStorage()
 	session := ebt.NewSession(
+		ctx,
 		stream,
 		logger,
 		nil,

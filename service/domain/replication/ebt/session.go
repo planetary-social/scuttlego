@@ -97,59 +97,59 @@ func NewSessionRunner(
 }
 
 func (s *SessionRunner) HandleStream(ctx context.Context, stream Stream) error {
-	session := NewSession(stream, s.logger, s.rawMessageHandler, s.streamer, s.contactsStorage)
-	go session.HandleIncomingMessages(ctx)
-	for {
-		if err := session.SendNotes(); err != nil {
-			s.logger.WithError(err).Debug("error sending our notes")
-		}
-
-		select {
-		case <-time.After(10 * time.Second):
-			continue
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	}
+	session := NewSession(ctx, stream, s.logger, s.rawMessageHandler, s.streamer, s.contactsStorage)
+	go session.HandleIncomingMessages()
+	return session.SendNotesLoop()
 }
 
 type Session struct {
+	ctx    context.Context
+	cancel context.CancelFunc
+
 	stream Stream
 
 	remoteNotes          map[string]messages.EbtReplicateNote
 	lock                 sync.Mutex // guards remoteNotes
 	sentNotes            *SentNotes
 	sentNotesAtLeastOnce bool
+	requestedFeeds       *RequestedFeeds
 
 	logger            logging.Logger
 	rawMessageHandler replication.RawMessageHandler
-	streamer          MessageStreamer
 	contactsStorage   ContactsStorage
 }
 
 func NewSession(
+	ctx context.Context,
 	stream Stream,
 	logger logging.Logger,
 	rawMessageHandler replication.RawMessageHandler,
 	streamer MessageStreamer,
 	contactsStorage ContactsStorage,
 ) *Session {
+	ctx, cancel := context.WithCancel(ctx)
+
 	return &Session{
+		ctx:    ctx,
+		cancel: cancel,
+
 		stream: stream,
 
-		remoteNotes: make(map[string]messages.EbtReplicateNote),
-		sentNotes:   NewSentNotes(),
+		remoteNotes:    make(map[string]messages.EbtReplicateNote),
+		sentNotes:      NewSentNotes(),
+		requestedFeeds: NewRequestedFeeds(streamer, stream),
 
 		logger:            logger.New("session"),
 		rawMessageHandler: rawMessageHandler,
-		streamer:          streamer,
 		contactsStorage:   contactsStorage,
 	}
 }
 
-func (s *Session) HandleIncomingMessages(ctx context.Context) {
-	for incoming := range s.stream.IncomingMessages(ctx) {
-		if err := s.handleIncomingMessage(ctx, incoming); err != nil {
+func (s *Session) HandleIncomingMessages() {
+	defer s.cancel()
+
+	for incoming := range s.stream.IncomingMessages(s.ctx) {
+		if err := s.handleIncomingMessage(s.ctx, incoming); err != nil {
 			s.logger.WithError(err).Debug("error processing incoming message")
 		}
 	}
@@ -190,8 +190,7 @@ func (s *Session) handleIncomingNotes(ctx context.Context, notes messages.EbtRep
 			return errors.Wrap(err, "error parsing sequence")
 		}
 
-		// todo kill old streams
-		s.streamer.Handle(ctx, note.Ref(), seq, NewStreamMessageWriter(s.stream))
+		s.requestedFeeds.Request(ctx, note.Ref(), seq)
 	}
 
 	return nil
@@ -206,6 +205,21 @@ func (s *Session) parseSeq(seq int) (*message.Sequence, error) {
 		return nil, errors.Wrap(err, "new sequence error")
 	}
 	return &sequence, nil
+}
+
+func (s *Session) SendNotesLoop() error {
+	for {
+		if err := s.SendNotes(); err != nil {
+			s.logger.WithError(err).Debug("error sending our notes")
+		}
+
+		select {
+		case <-time.After(10 * time.Second):
+			continue
+		case <-s.ctx.Done():
+			return s.ctx.Err()
+		}
+	}
 }
 
 func (s *Session) SendNotes() error {

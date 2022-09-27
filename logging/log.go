@@ -5,7 +5,7 @@ import "github.com/sirupsen/logrus"
 type Logger interface {
 	New(name string) Logger
 	WithError(err error) Logger
-	WithField(key string, v interface{}) Logger
+	WithField(key string, v any) Logger
 
 	Error(message string)
 	Debug(message string)
@@ -42,7 +42,7 @@ func (l LogrusLogger) WithError(err error) Logger {
 	return NewLogrusLogger(l.logger.WithError(err), l.name, l.level)
 }
 
-func (l LogrusLogger) WithField(key string, v interface{}) Logger {
+func (l LogrusLogger) WithField(key string, v any) Logger {
 	return NewLogrusLogger(l.logger.WithField(key, v), l.name, l.level)
 }
 
@@ -83,7 +83,7 @@ func (l DevNullLogger) WithError(err error) Logger {
 	return l
 }
 
-func (l DevNullLogger) WithField(key string, v interface{}) Logger {
+func (l DevNullLogger) WithField(key string, v any) Logger {
 	return l
 }
 

@@ -300,7 +300,7 @@ func (t testingLogger) WithError(err error) logging.Logger {
 	return t.withField("err", err)
 }
 
-func (t testingLogger) WithField(key string, v interface{}) logging.Logger {
+func (t testingLogger) WithField(key string, v any) logging.Logger {
 	t.t.Helper()
 	return t.withField(key, v)
 }
@@ -320,7 +320,7 @@ func (t testingLogger) Trace(message string) {
 	t.withField("level", "trace").log(message)
 }
 
-func (t testingLogger) withField(key string, v interface{}) testingLogger {
+func (t testingLogger) withField(key string, v any) testingLogger {
 	prev := t.log
 	return testingLogger{name: t.name, t: t.t, log: func(args ...any) {
 		t.t.Helper()

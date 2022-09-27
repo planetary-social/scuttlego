@@ -366,7 +366,7 @@ func (c *connectionMock) IsClosed() bool {
 	}
 }
 
-func eventually(t *testing.T, condition func() bool, msgAndArgs ...interface{}) {
+func eventually(t *testing.T, condition func() bool, msgAndArgs ...any) {
 	require.Eventually(t, condition, 1*time.Second, 10*time.Millisecond, msgAndArgs)
 }
 

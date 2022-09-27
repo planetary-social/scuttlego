@@ -69,10 +69,10 @@ type CurrentTimeProvider interface {
 
 // BannableRef wraps a feed ref.
 type BannableRef struct {
-	v interface{}
+	v any
 }
 
-func NewBannableRef(v interface{}) (BannableRef, error) {
+func NewBannableRef(v any) (BannableRef, error) {
 	switch v.(type) {
 	case refs.Feed:
 	default:
@@ -81,7 +81,7 @@ func NewBannableRef(v interface{}) (BannableRef, error) {
 	return BannableRef{v: v}, nil
 }
 
-func (b *BannableRef) Value() interface{} {
+func (b *BannableRef) Value() any {
 	return b.v
 }
 

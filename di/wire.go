@@ -198,7 +198,6 @@ func BuildService(context.Context, identity.Private, Config) (Service, error) {
 		privateIdentityToPublicIdentity,
 
 		commands.NewMessageBuffer,
-		wire.Bind(new(gossip.MessageBuffer), new(*commands.MessageBuffer)),
 
 		portsSet,
 		applicationSet,

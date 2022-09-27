@@ -126,8 +126,11 @@ func (f *Feed) createMessage(content message.RawMessageContent, timestamp time.T
 	}
 }
 
-func (f *Feed) Sequence() message.Sequence {
-	return f.lastMsg.Sequence() // todo can be nil
+func (f *Feed) Sequence() (message.Sequence, bool) {
+	if f.lastMsg == nil {
+		return message.Sequence{}, false
+	}
+	return f.lastMsg.Sequence(), true
 }
 
 func (f *Feed) PopForPersisting() []MessageToPersist {

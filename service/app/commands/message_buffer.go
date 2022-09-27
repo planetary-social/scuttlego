@@ -2,7 +2,6 @@ package commands
 
 import (
 	"context"
-	"sort"
 	"sync"
 	"time"
 
@@ -10,17 +9,20 @@ import (
 	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/domain/feeds"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
+	"github.com/planetary-social/scuttlego/service/domain/messagebuffer"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 )
 
 const (
 	messageBufferPersistAtMessages = 1000
 	messageBufferPersistEvery      = 5 * time.Second
+
+	leaveUnpersistedMessagesFor = 15 * time.Second
 )
 
 type MessageBuffer struct {
-	feeds     feedsMap
-	feedsLock *sync.Mutex
+	messages     messagesList
+	messagesLock *sync.Mutex
 
 	forcePersistCh   chan struct{}
 	forcePersistOnce sync.Once
@@ -31,11 +33,13 @@ type MessageBuffer struct {
 
 func NewMessageBuffer(transaction TransactionProvider, logger logging.Logger) *MessageBuffer {
 	return &MessageBuffer{
-		feeds:          make(feedsMap),
-		feedsLock:      &sync.Mutex{},
+		messages:     make(messagesList),
+		messagesLock: &sync.Mutex{},
+
 		forcePersistCh: make(chan struct{}),
-		transaction:    transaction,
-		logger:         logger.New("message_buffer"),
+
+		transaction: transaction,
+		logger:      logger.New("message_buffer"),
 	}
 }
 
@@ -44,6 +48,8 @@ func (m *MessageBuffer) Run(ctx context.Context) error {
 		if err := m.persist(); err != nil {
 			m.logger.WithError(err).Error("error persisting messages")
 		}
+
+		m.cleanup()
 
 		select {
 		case <-time.After(messageBufferPersistEvery):
@@ -57,12 +63,14 @@ func (m *MessageBuffer) Run(ctx context.Context) error {
 }
 
 func (m *MessageBuffer) Handle(msg message.Message) error {
-	m.feedsLock.Lock()
-	defer m.feedsLock.Unlock()
+	m.messagesLock.Lock()
+	defer m.messagesLock.Unlock()
 
-	m.feeds.AddMessage(msg)
+	if err := m.messages.AddMessage(time.Now(), msg); err != nil {
+		return errors.Wrap(err, "could not add a message")
+	}
 
-	if m.feeds.MessageCount() > messageBufferPersistAtMessages {
+	if m.messages.MessageCount() > messageBufferPersistAtMessages {
 		m.forcePersistOnce.Do(
 			func() {
 				close(m.forcePersistCh)
@@ -73,29 +81,16 @@ func (m *MessageBuffer) Handle(msg message.Message) error {
 	return nil
 }
 
-func (m *MessageBuffer) Sequence(feed refs.Feed) (message.Sequence, bool) {
-	m.feedsLock.Lock()
-	defer m.feedsLock.Unlock()
-
-	msgs := m.feeds[feed.String()]
-	if len(msgs) == 0 {
-		return message.Sequence{}, false
-	}
-
-	return msgs[len(msgs)-1].Sequence(), true
-}
-
 func (m *MessageBuffer) persist() error {
-	m.feedsLock.Lock()
-	defer m.feedsLock.Unlock()
+	m.messagesLock.Lock()
+	defer m.messagesLock.Unlock()
 
 	defer func() {
-		m.feeds = make(feedsMap)
 		m.forcePersistCh = make(chan struct{})
 		m.forcePersistOnce = sync.Once{}
 	}()
 
-	numberOfMessages := m.feeds.MessageCount()
+	numberOfMessages := m.messages.MessageCount()
 	if numberOfMessages == 0 {
 		return nil
 	}
@@ -103,7 +98,7 @@ func (m *MessageBuffer) persist() error {
 	start := time.Now()
 
 	if err := m.transaction.Transact(func(adapters Adapters) error {
-		return m.persistTransaction(adapters, m.feeds)
+		return m.persistTransaction(adapters)
 	}); err != nil {
 		return errors.Wrap(err, "transaction failed")
 	}
@@ -116,17 +111,25 @@ func (m *MessageBuffer) persist() error {
 	return nil
 }
 
-func (m *MessageBuffer) persistTransaction(adapters Adapters, feedsToPersist feedsMap) error {
+func (m *MessageBuffer) persistTransaction(adapters Adapters) error {
 	socialGraph, err := adapters.SocialGraph.GetSocialGraph()
 	if err != nil {
 		return errors.Wrap(err, "could not load the social graph")
 	}
 
-	for _, msgs := range feedsToPersist {
-		firstMessage := msgs[0]
+	counterAll := 0
+	counterSuccesses := 0
 
-		authorRef := firstMessage.Author()
-		feedRef := firstMessage.Feed()
+	for key, feedMessages := range m.messages {
+		counterAll++
+
+		feedRef := feedMessages.Feed()
+		authorRef, err := refs.NewIdentityFromPublic(feedRef.Identity()) // todo cleanup
+		if err != nil {
+			return errors.Wrap(err, "error creating an identity")
+		}
+
+		feedLogger := m.logger.WithField("feed", feedRef)
 
 		feedIsBanned, err := adapters.BanList.ContainsFeed(feedRef)
 		if err != nil {
@@ -141,41 +144,109 @@ func (m *MessageBuffer) persistTransaction(adapters Adapters, feedsToPersist fee
 			continue // do nothing as this contact is not in our social graph
 		}
 
+		var lastSequence *message.Sequence
+
 		if err := adapters.Feed.UpdateFeed(feedRef, func(feed *feeds.Feed) error {
+			seq := m.getSequence(feed)
+			msgs := feedMessages.ConsecutiveSliceStartingWith(seq)
+
+			feedLogger.
+				WithField("sequence_in_database", seq).
+				WithField("messages_that_can_be_persisted", len(msgs)).
+				Debug("persisting messages")
+
+			if len(msgs) > 0 {
+				counterSuccesses++
+			}
+
 			for _, msg := range msgs {
 				if err := feed.AppendMessage(msg); err != nil {
-					return errors.Wrap(err, "could not append a message")
+					// TODO if error then drop all messages?
+					return errors.Wrap(err, "error updating feed")
 				}
 			}
+
+			sequence, ok := feed.Sequence()
+			if ok {
+				lastSequence = &sequence
+			}
+
 			return nil
 		}); err != nil {
 			return errors.Wrapf(err, "failed to update the feed '%s'", feedRef)
 		}
+
+		if lastSequence != nil {
+			feedMessages.LeaveOnlyAfter(*lastSequence)
+		}
+
+		if feedMessages.Len() == 0 {
+			delete(m.messages, key)
+		}
 	}
+
+	m.logger.
+		WithField("health", float64(counterSuccesses)/float64(counterAll)).
+		WithField("messages", m.messages.MessageCount()).
+		WithField("feeds", len(m.messages)).
+		Debug("update complete")
 
 	return nil
 }
 
-type feedsMap map[string][]message.Message
+func (m *MessageBuffer) cleanup() {
+	m.messagesLock.Lock()
+	defer m.messagesLock.Unlock()
 
-func (f feedsMap) AddMessage(msg message.Message) {
-	key := msg.Feed().String()
-	f[key] = append(f[key], msg)
+	messagesBefore := m.messages.MessageCount()
+	feedsBefore := len(m.messages)
 
-	if msgs := f[key]; len(msgs) > 1 {
-		last := len(msgs) - 1
-		if !msgs[last].Sequence().ComesAfter(msgs[last-1].Sequence()) {
-			sort.Slice(msgs, func(i, j int) bool {
-				return msgs[j].Sequence().ComesAfter(msgs[i].Sequence())
-			})
+	for key, feedMessages := range m.messages {
+		feedMessages.RemoveOlderThan(time.Now().Add(-leaveUnpersistedMessagesFor))
+		if feedMessages.Len() == 0 {
+			delete(m.messages, key)
 		}
 	}
+
+	messagesAfter := m.messages.MessageCount()
+	feedsAfter := len(m.messages)
+
+	m.logger.
+		WithField("messages_before", messagesBefore).
+		WithField("messages_after", messagesAfter).
+		WithField("feeds_before", feedsBefore).
+		WithField("feeds_after", feedsAfter).
+		Debug("cleanup complete")
 }
 
-func (f feedsMap) MessageCount() int {
+func (m *MessageBuffer) getSequence(feed *feeds.Feed) *message.Sequence {
+	seq, ok := feed.Sequence()
+	if !ok {
+		return nil
+	}
+	return &seq
+}
+
+type messagesList map[string]*messagebuffer.FeedMessages
+
+func (f messagesList) AddMessage(t time.Time, msg message.Message) error {
+	return f.get(msg.Feed()).Add(t, msg)
+}
+
+func (f messagesList) get(feed refs.Feed) *messagebuffer.FeedMessages {
+	key := feed.String()
+	v, ok := f[key]
+	if !ok {
+		v = messagebuffer.NewFeedMessages(feed)
+		f[key] = v
+	}
+	return v
+}
+
+func (f messagesList) MessageCount() int {
 	var result int
 	for _, messages := range f {
-		result += len(messages)
+		result += messages.Len()
 	}
 	return result
 }

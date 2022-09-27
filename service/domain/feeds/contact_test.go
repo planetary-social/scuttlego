@@ -9,17 +9,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestContact_AuthorCanNotBeTheSameAsTarget(t *testing.T) {
+func TestContact_AuthorCanBeTheSameAsTarget(t *testing.T) {
 	author := fixtures.SomeRefIdentity()
 
 	t.Run("new_contact", func(t *testing.T) {
 		_, err := feeds.NewContact(author, author)
-		require.EqualError(t, err, "author can't be the same as target")
+		require.NoError(t, err)
 	})
 
 	t.Run("new_contact_from_history", func(t *testing.T) {
 		_, err := feeds.NewContactFromHistory(author, author, fixtures.SomeBool(), fixtures.SomeBool())
-		require.EqualError(t, err, "failed to call the constructor: author can't be the same as target")
+		require.NoError(t, err)
 	})
 }
 

@@ -14,11 +14,25 @@ type MessageSender interface {
 	Send(msg *transport.Message) error
 }
 
+// ResponseStream represents a stream that we initiated.
+type ResponseStream interface {
+	WriteMessage(body []byte) error
+	Channel() <-chan ResponseWithError
+}
+
+type ResponseWithError struct {
+	// Value is only set if Err is nil.
+	Value *Response
+
+	// Err is nil or set to ErrEndOrErr.
+	Err error
+}
+
 // ResponseStreams is used for handling streams initiated by us (for which
 // incoming messages have negative request numbers).
 type ResponseStreams struct {
 	closed      bool
-	streams     map[int]*ResponseStream
+	streams     map[int]*responseStream
 	streamsLock sync.Mutex
 
 	outgoingRequestNumber uint32
@@ -30,12 +44,12 @@ type ResponseStreams struct {
 func NewResponseStreams(raw MessageSender, logger logging.Logger) *ResponseStreams {
 	return &ResponseStreams{
 		raw:     raw,
-		streams: make(map[int]*ResponseStream),
+		streams: make(map[int]*responseStream),
 		logger:  logger.New("response_streams"),
 	}
 }
 
-func (s *ResponseStreams) Open(ctx context.Context, req *Request) (*ResponseStream, error) {
+func (s *ResponseStreams) Open(ctx context.Context, req *Request) (ResponseStream, error) {
 	msg, err := s.marshalRequest(req)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not marshal a request")
@@ -54,7 +68,7 @@ func (s *ResponseStreams) Open(ctx context.Context, req *Request) (*ResponseStre
 		return nil, errors.New("response stream with this number already exists")
 	}
 
-	rs, err := NewResponseStream(ctx, requestNumber, req.Type(), s.raw)
+	rs, err := newResponseStream(ctx, requestNumber, req.Type(), s.raw)
 	if err != nil {
 		return nil, errors.Wrap(err, "error creating a response stream")
 	}
@@ -119,7 +133,7 @@ func (s *ResponseStreams) Close() {
 	}
 }
 
-func (s *ResponseStreams) waitAndCloseResponseStream(rs *ResponseStream) {
+func (s *ResponseStreams) waitAndCloseResponseStream(rs *responseStream) {
 	<-rs.ctx.Done()
 
 	s.streamsLock.Lock()
@@ -135,7 +149,7 @@ func (s *ResponseStreams) waitAndCloseResponseStream(rs *ResponseStream) {
 	close(rs.ch)
 }
 
-type ResponseStream struct {
+type responseStream struct {
 	number int
 	typ    ProcedureType
 	ctx    context.Context
@@ -144,14 +158,14 @@ type ResponseStream struct {
 	raw    MessageSender
 }
 
-func NewResponseStream(ctx context.Context, number int, typ ProcedureType, raw MessageSender) (*ResponseStream, error) {
+func newResponseStream(ctx context.Context, number int, typ ProcedureType, raw MessageSender) (*responseStream, error) {
 	if number <= 0 {
 		return nil, errors.New("number must be positive")
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
 
-	return &ResponseStream{
+	return &responseStream{
 		number: number,
 		typ:    typ,
 		ctx:    ctx,
@@ -161,7 +175,7 @@ func NewResponseStream(ctx context.Context, number int, typ ProcedureType, raw M
 	}, nil
 }
 
-func (rs ResponseStream) WriteMessage(body []byte) error {
+func (rs responseStream) WriteMessage(body []byte) error {
 	if rs.typ != ProcedureTypeDuplex {
 		return errors.New("not a duplex stream")
 	}
@@ -195,13 +209,6 @@ func (rs ResponseStream) WriteMessage(body []byte) error {
 	return nil
 }
 
-func (rs ResponseStream) Channel() <-chan ResponseWithError {
+func (rs responseStream) Channel() <-chan ResponseWithError {
 	return rs.ch
-}
-
-type ResponseWithError struct {
-	Value *Response
-
-	// Err is nil or set to ErrEndOrErr.
-	Err error
 }

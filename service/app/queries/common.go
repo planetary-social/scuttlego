@@ -1,8 +1,13 @@
 package queries
 
 import (
+	"context"
+
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
+	"github.com/planetary-social/scuttlego/service/domain/identity"
+	"github.com/planetary-social/scuttlego/service/domain/network"
+	"github.com/planetary-social/scuttlego/service/domain/transport"
 )
 
 type LogMessage struct {
@@ -36,4 +41,8 @@ func MustNewReceiveLogSequence(seq int) ReceiveLogSequence {
 
 func (r ReceiveLogSequence) Int() int {
 	return r.seq
+}
+
+type Dialer interface {
+	Dial(ctx context.Context, remote identity.Public, address network.Address) (transport.Peer, error)
 }

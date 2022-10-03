@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"bytes"
 	"context"
 	"sync"
 	"sync/atomic"
@@ -20,11 +21,21 @@ type ResponseStream interface {
 	Channel() <-chan ResponseWithError
 }
 
+var (
+	// ErrRemoteEnd signals that the remote closed the stream but didn't signal
+	// that an error occurred.
+	ErrRemoteEnd = errors.New("remote end")
+
+	// ErrRemoteError signals that the remote closed the stream with an error.
+	ErrRemoteError = errors.New("remote error")
+)
+
 type ResponseWithError struct {
 	// Value is only set if Err is nil.
 	Value *Response
 
-	// Err is nil or set to ErrEndOrErr.
+	// If Err is not nil then it may be one of ErrRemoteEnd, ErrRemoteError or a
+	// different error.
 	Err error
 }
 
@@ -99,15 +110,11 @@ func (s *ResponseStreams) HandleIncomingResponse(msg *transport.Message) error {
 		return nil
 	}
 
-	var err error
 	if msg.Header.Flags().EndOrError() {
-		err = ErrEndOrErr
 		defer rs.cancel()
-	}
-
-	select {
-	case rs.ch <- ResponseWithError{Value: NewResponse(msg.Body), Err: err}:
-	case <-rs.ctx.Done():
+		rs.handleRemoteErr(msg.Body)
+	} else {
+		rs.handleRemoteResponse(NewResponse(msg.Body))
 	}
 
 	return nil
@@ -154,8 +161,9 @@ type responseStream struct {
 	typ    ProcedureType
 	ctx    context.Context
 	cancel context.CancelFunc
-	ch     chan ResponseWithError
 	raw    MessageSender
+
+	ch chan ResponseWithError
 }
 
 func newResponseStream(ctx context.Context, number int, typ ProcedureType, raw MessageSender) (*responseStream, error) {
@@ -170,8 +178,8 @@ func newResponseStream(ctx context.Context, number int, typ ProcedureType, raw M
 		typ:    typ,
 		ctx:    ctx,
 		cancel: cancel,
-		ch:     make(chan ResponseWithError),
 		raw:    raw,
+		ch:     make(chan ResponseWithError),
 	}, nil
 }
 
@@ -211,4 +219,25 @@ func (rs responseStream) WriteMessage(body []byte) error {
 
 func (rs responseStream) Channel() <-chan ResponseWithError {
 	return rs.ch
+}
+
+func (rs responseStream) handleRemoteErr(body []byte) {
+	select {
+	case rs.ch <- ResponseWithError{Err: rs.guessError(body)}:
+	case <-rs.ctx.Done():
+	}
+}
+
+func (rs responseStream) handleRemoteResponse(resp *Response) {
+	select {
+	case rs.ch <- ResponseWithError{Value: resp}:
+	case <-rs.ctx.Done():
+	}
+}
+
+func (rs responseStream) guessError(body []byte) error {
+	if bytes.Equal([]byte("true"), body) {
+		return ErrRemoteEnd
+	}
+	return ErrRemoteError
 }

@@ -120,8 +120,10 @@ func BuildTestCommands(t *testing.T) (TestCommands, error) {
 		return TestCommands{}, err
 	}
 	roomsAliasRegisterHandler := commands.NewRoomsAliasRegisterHandler(dialerMock, private)
+	roomsAliasRevokeHandler := commands.NewRoomsAliasRevokeHandler(dialerMock, private)
 	testCommands := TestCommands{
 		RoomsAliasRegister: roomsAliasRegisterHandler,
+		RoomsAliasRevoke:   roomsAliasRevokeHandler,
 		Dialer:             dialerMock,
 	}
 	return testCommands, nil
@@ -415,6 +417,7 @@ type TestAdapters struct {
 
 type TestCommands struct {
 	RoomsAliasRegister *commands.RoomsAliasRegisterHandler
+	RoomsAliasRevoke   *commands.RoomsAliasRevokeHandler
 
 	Dialer *mocks.DialerMock
 }

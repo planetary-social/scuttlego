@@ -22,9 +22,6 @@ func NewContact(author, target refs.Identity) (*Contact, error) {
 	if target.IsZero() {
 		return nil, errors.New("zero value of target")
 	}
-	if author.Equal(target) {
-		return nil, errors.New("author can't be the same as target")
-	}
 	return &Contact{
 		author: author,
 		target: target,

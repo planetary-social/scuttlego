@@ -3,6 +3,8 @@ package commands
 import (
 	"time"
 
+	"github.com/boreq/errors"
+	"github.com/planetary-social/scuttlego/service/domain/bans"
 	"github.com/planetary-social/scuttlego/service/domain/feeds"
 	"github.com/planetary-social/scuttlego/service/domain/graph"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
@@ -37,6 +39,7 @@ type Adapters struct {
 	Feed        FeedRepository
 	SocialGraph SocialGraphRepository
 	WantList    WantListRepository
+	BanList     BanListRepository
 }
 
 type UpdateFeedFn func(feed *feeds.Feed) error
@@ -45,10 +48,13 @@ type FeedRepository interface {
 	// UpdateFeed updates the specified feed by calling the provided function on
 	// it. Feed is never nil.
 	UpdateFeed(ref refs.Feed, f UpdateFeedFn) error
+
+	// DeleteFeed removes the feed with all associated data.
+	DeleteFeed(ref refs.Feed) error
 }
 
 type SocialGraphRepository interface {
-	GetSocialGraph() (*graph.SocialGraph, error)
+	GetSocialGraph() (graph.SocialGraph, error)
 }
 
 type WantListRepository interface {
@@ -60,3 +66,39 @@ type WantListRepository interface {
 type CurrentTimeProvider interface {
 	Get() time.Time
 }
+
+// BannableRef wraps a feed ref.
+type BannableRef struct {
+	v interface{}
+}
+
+func NewBannableRef(v interface{}) (BannableRef, error) {
+	switch v.(type) {
+	case refs.Feed:
+	default:
+		return BannableRef{}, errors.New("must carry a feed ref")
+	}
+	return BannableRef{v: v}, nil
+}
+
+func (b *BannableRef) Value() interface{} {
+	return b.v
+}
+
+type BanListRepository interface {
+	// Add adds a hash to the ban list.
+	Add(hash bans.Hash) error
+
+	// Remove removes a hash from the ban list. If a hash isn't in the ban list
+	// no errors are returned.
+	Remove(hash bans.Hash) error
+
+	// ContainsFeed checks if the particular feed is banned.
+	ContainsFeed(feed refs.Feed) (bool, error)
+
+	// LookupMapping returns ErrBanListMappingNotFound error if a ref can not be
+	// found.
+	LookupMapping(hash bans.Hash) (BannableRef, error)
+}
+
+var ErrBanListMappingNotFound = errors.New("ban list mapping not found")

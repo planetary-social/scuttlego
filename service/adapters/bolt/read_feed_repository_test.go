@@ -28,6 +28,8 @@ func TestReadFeedRepository_Count(t *testing.T) {
 		feedRef := fixtures.SomeRefFeed()
 		msg := fixtures.SomeMessage(message.NewFirstSequence(), feedRef)
 
+		txadapters.BanListHasher.Mock(feedRef, fixtures.SomeBanListHash())
+
 		return txadapters.FeedRepository.UpdateFeed(feedRef, func(feed *feeds.Feed) error {
 			return feed.AppendMessage(msg)
 		})

@@ -128,6 +128,15 @@ func (m *MessageBuffer) persistTransaction(adapters Adapters, feedsToPersist fee
 		authorRef := firstMessage.Author()
 		feedRef := firstMessage.Feed()
 
+		feedIsBanned, err := adapters.BanList.ContainsFeed(feedRef)
+		if err != nil {
+			return errors.Wrap(err, "error checking if the feed is banned")
+		}
+
+		if feedIsBanned {
+			return errors.New("feed is banned")
+		}
+
 		if !socialGraph.HasContact(authorRef) {
 			continue // do nothing as this contact is not in our social graph
 		}

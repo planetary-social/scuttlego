@@ -15,21 +15,32 @@ import (
 const socialGraphRepositoryBucket = "graph"
 
 type SocialGraphRepository struct {
-	local identity.Public
-	hops  graph.Hops
-	tx    *bbolt.Tx
+	local   identity.Public
+	hops    graph.Hops
+	tx      *bbolt.Tx
+	banList *BanListRepository
 }
 
-func NewSocialGraphRepository(tx *bbolt.Tx, local identity.Public, hops graph.Hops) *SocialGraphRepository {
-	return &SocialGraphRepository{tx: tx, local: local, hops: hops}
+func NewSocialGraphRepository(
+	tx *bbolt.Tx,
+	local identity.Public,
+	hops graph.Hops,
+	banList *BanListRepository,
+) *SocialGraphRepository {
+	return &SocialGraphRepository{
+		tx:      tx,
+		local:   local,
+		hops:    hops,
+		banList: banList,
+	}
 }
 
-func (s *SocialGraphRepository) GetSocialGraph() (*graph.SocialGraph, error) {
+func (s *SocialGraphRepository) GetSocialGraph() (graph.SocialGraph, error) {
 	localRef, err := refs.NewIdentityFromPublic(s.local)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not create a local ref")
+		return graph.SocialGraph{}, errors.Wrap(err, "could not create a local ref")
 	}
-	return graph.NewSocialGraph(localRef, s.hops, s)
+	return graph.NewSocialGraphBuilder(s, s.banList).Build(s.hops, localRef)
 }
 
 type UpdateContactFn func(*feeds.Contact) error

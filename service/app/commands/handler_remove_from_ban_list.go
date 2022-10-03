@@ -44,5 +44,5 @@ func (h *RemoveFromBanListHandler) Handle(cmd RemoveFromBanList) error {
 		return errors.Wrap(err, "transaction failed")
 	}
 
-	return errors.New("not implemented")
+	return nil
 }

@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/boreq/errors"
-	"github.com/planetary-social/scuttlego/service/domain/identity"
 	"github.com/planetary-social/scuttlego/service/domain/messages"
 	"github.com/planetary-social/scuttlego/service/domain/network"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
@@ -62,16 +61,13 @@ func (r RoomsAliasRevoke) IsZero() bool {
 
 type RoomsAliasRevokeHandler struct {
 	dialer Dialer
-	local  identity.Private
 }
 
 func NewRoomsAliasRevokeHandler(
 	dialer Dialer,
-	local identity.Private,
 ) *RoomsAliasRevokeHandler {
 	return &RoomsAliasRevokeHandler{
 		dialer: dialer,
-		local:  local,
 	}
 }
 

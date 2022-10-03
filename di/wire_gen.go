@@ -120,7 +120,7 @@ func BuildTestCommands(t *testing.T) (TestCommands, error) {
 		return TestCommands{}, err
 	}
 	roomsAliasRegisterHandler := commands.NewRoomsAliasRegisterHandler(dialerMock, private)
-	roomsAliasRevokeHandler := commands.NewRoomsAliasRevokeHandler(dialerMock, private)
+	roomsAliasRevokeHandler := commands.NewRoomsAliasRevokeHandler(dialerMock)
 	testCommands := TestCommands{
 		RoomsAliasRegister: roomsAliasRegisterHandler,
 		RoomsAliasRevoke:   roomsAliasRevokeHandler,

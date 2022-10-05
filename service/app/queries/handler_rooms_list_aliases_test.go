@@ -10,7 +10,6 @@ import (
 	"github.com/planetary-social/scuttlego/service/app/queries"
 	"github.com/planetary-social/scuttlego/service/domain/messages"
 	"github.com/planetary-social/scuttlego/service/domain/network"
-	"github.com/planetary-social/scuttlego/service/domain/rooms"
 	"github.com/planetary-social/scuttlego/service/domain/transport/mocks"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 	"github.com/stretchr/testify/require"
@@ -58,9 +57,9 @@ func TestRoomsListAliasesHandler(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t,
-		[]rooms.Alias{
-			rooms.MustNewAlias("alias1"),
-			rooms.MustNewAlias("alias2"),
+		[]aliases.Alias{
+			aliases.MustNewAlias("alias1"),
+			aliases.MustNewAlias("alias2"),
 		},
 		aliases,
 	)

@@ -1,4 +1,4 @@
-package rooms
+package aliases
 
 import (
 	"crypto/ed25519"

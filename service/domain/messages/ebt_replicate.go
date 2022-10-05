@@ -10,8 +10,10 @@ import (
 )
 
 var (
-	EbtReplicateProcedureName = rpc.MustNewProcedureName([]string{"ebt", "replicate"})
-	EbtReplicateProcedure     = rpc.MustNewProcedure(EbtReplicateProcedureName, rpc.ProcedureTypeDuplex)
+	EbtReplicateProcedure = rpc.MustNewProcedure(
+		rpc.MustNewProcedureName([]string{"ebt", "replicate"}),
+		rpc.ProcedureTypeDuplex,
+	)
 )
 
 func NewEbtReplicate(arguments EbtReplicateArguments) (*rpc.Request, error) {

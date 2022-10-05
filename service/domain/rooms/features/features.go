@@ -1,4 +1,4 @@
-package rooms
+package features
 
 import (
 	"fmt"

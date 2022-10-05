@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/boreq/errors"
-	"github.com/planetary-social/scuttlego/service/domain/rooms"
+	"github.com/planetary-social/scuttlego/service/domain/rooms/features"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 )
 
@@ -25,7 +25,7 @@ func NewRoomMetadata() (*rpc.Request, error) {
 
 type RoomMetadataResponse struct {
 	membership bool
-	features   rooms.Features
+	features   features.Features
 }
 
 func NewRoomMetadataResponse(b []byte) (RoomMetadataResponse, error) {
@@ -34,7 +34,7 @@ func NewRoomMetadataResponse(b []byte) (RoomMetadataResponse, error) {
 		return RoomMetadataResponse{}, errors.Wrap(err, "json unmarshal failed")
 	}
 
-	var featuresSlice []rooms.Feature
+	var featuresSlice []features.Feature
 
 	for _, featureString := range transport.Features {
 		feature, ok := decodeRoomFeature(featureString)
@@ -43,7 +43,7 @@ func NewRoomMetadataResponse(b []byte) (RoomMetadataResponse, error) {
 		}
 	}
 
-	features, err := rooms.NewFeatures(featuresSlice)
+	features, err := features.NewFeatures(featuresSlice)
 	if err != nil {
 		return RoomMetadataResponse{}, errors.Wrap(err, "could not create features")
 	}
@@ -58,7 +58,7 @@ func (r RoomMetadataResponse) Membership() bool {
 	return r.membership
 }
 
-func (r RoomMetadataResponse) Features() rooms.Features {
+func (r RoomMetadataResponse) Features() features.Features {
 	return r.features
 }
 
@@ -67,11 +67,11 @@ type roomMetadataTransport struct {
 	Features   []string `json:"features"`
 }
 
-func decodeRoomFeature(s string) (rooms.Feature, bool) {
+func decodeRoomFeature(s string) (features.Feature, bool) {
 	switch s {
 	case "tunnel":
-		return rooms.FeatureTunnel, true
+		return features.FeatureTunnel, true
 	default:
-		return rooms.Feature{}, false
+		return features.Feature{}, false
 	}
 }

@@ -9,8 +9,10 @@ import (
 )
 
 var (
-	InviteUseProcedureName = rpc.MustNewProcedureName([]string{"invite", "use"})
-	InviteUseProcedure     = rpc.MustNewProcedure(InviteUseProcedureName, rpc.ProcedureTypeAsync)
+	InviteUseProcedure = rpc.MustNewProcedure(
+		rpc.MustNewProcedureName([]string{"invite", "use"}),
+		rpc.ProcedureTypeAsync,
+	)
 )
 
 func NewInviteUse(arguments InviteUseArguments) (*rpc.Request, error) {

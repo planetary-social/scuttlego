@@ -19,7 +19,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
-	"github.com/planetary-social/scuttlego/service/domain/rooms"
+	"github.com/planetary-social/scuttlego/service/domain/rooms/aliases"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/transport"
 	"github.com/sirupsen/logrus"
@@ -137,8 +137,8 @@ func SomeString() string {
 	return strconv.Itoa(SomeNonNegativeInt())
 }
 
-func SomeAlias() rooms.Alias {
-	return rooms.MustNewAlias("alias" + SomeString())
+func SomeAlias() aliases.Alias {
+	return aliases.MustNewAlias("alias" + SomeString())
 }
 
 func SomeBytes() []byte {

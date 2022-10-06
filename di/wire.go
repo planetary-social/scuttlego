@@ -24,15 +24,11 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/feeds/formats"
 	"github.com/planetary-social/scuttlego/service/domain/graph"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
-	"github.com/planetary-social/scuttlego/service/domain/network"
 	"github.com/planetary-social/scuttlego/service/domain/network/local"
 	"github.com/planetary-social/scuttlego/service/domain/replication"
 	"github.com/planetary-social/scuttlego/service/domain/replication/ebt"
 	"github.com/planetary-social/scuttlego/service/domain/replication/gossip"
-	domaintransport "github.com/planetary-social/scuttlego/service/domain/transport"
-	"github.com/planetary-social/scuttlego/service/domain/transport/boxstream"
-	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
-	portsnetwork "github.com/planetary-social/scuttlego/service/ports/network"
+	"github.com/planetary-social/scuttlego/service/domain/rooms"
 	"go.etcd.io/bbolt"
 )
 
@@ -197,21 +193,6 @@ func BuildService(context.Context, identity.Private, Config) (Service, error) {
 	wire.Build(
 		NewService,
 
-		extractFromConfigSet,
-
-		boxstream.NewHandshaker,
-
-		domaintransport.NewPeerInitializer,
-		wire.Bind(new(portsnetwork.ServerPeerInitializer), new(*domaintransport.PeerInitializer)),
-		wire.Bind(new(network.ClientPeerInitializer), new(*domaintransport.PeerInitializer)),
-
-		rpc.NewConnectionIdGenerator,
-
-		network.NewDialer,
-		wire.Bind(new(commands.Dialer), new(*network.Dialer)),
-		wire.Bind(new(queries.Dialer), new(*network.Dialer)),
-		wire.Bind(new(domain.Dialer), new(*network.Dialer)),
-
 		domain.NewPeerManager,
 		wire.Bind(new(commands.NewPeerHandler), new(*domain.PeerManager)),
 		wire.Bind(new(commands.PeerManager), new(*domain.PeerManager)),
@@ -221,10 +202,19 @@ func BuildService(context.Context, identity.Private, Config) (Service, error) {
 		wire.Bind(new(commands.TransactionProvider), new(*bolt.TransactionProvider)),
 		newAdaptersFactory,
 
+		newBolt,
+
 		newAdvertiser,
 		privateIdentityToPublicIdentity,
 
 		commands.NewMessageBuffer,
+
+		rooms.NewScanner,
+		wire.Bind(new(domain.RoomScanner), new(*rooms.Scanner)),
+
+		rooms.NewPeerRPCAdapter,
+		wire.Bind(new(rooms.MetadataGetter), new(*rooms.PeerRPCAdapter)),
+		wire.Bind(new(rooms.AttendantsGetter), new(*rooms.PeerRPCAdapter)),
 
 		portsSet,
 		applicationSet,
@@ -235,8 +225,8 @@ func BuildService(context.Context, identity.Private, Config) (Service, error) {
 		boltAdaptersSet,
 		blobsAdaptersSet,
 		adaptersSet,
-
-		newBolt,
+		extractFromConfigSet,
+		networkingSet,
 	)
 	return Service{}, nil
 }

@@ -17,8 +17,8 @@ var (
 
 func NewRoomMetadata() (*rpc.Request, error) {
 	return rpc.NewRequest(
-		RoomListAliasesProcedure.Name(),
-		RoomListAliasesProcedure.Typ(),
+		RoomMetadataProcedure.Name(),
+		RoomMetadataProcedure.Typ(),
 		[]byte("[]"),
 	)
 }

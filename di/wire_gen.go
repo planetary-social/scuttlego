@@ -35,6 +35,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/replication"
 	"github.com/planetary-social/scuttlego/service/domain/replication/ebt"
 	"github.com/planetary-social/scuttlego/service/domain/replication/gossip"
+	"github.com/planetary-social/scuttlego/service/domain/rooms"
 	transport2 "github.com/planetary-social/scuttlego/service/domain/transport"
 	"github.com/planetary-social/scuttlego/service/domain/transport/boxstream"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
@@ -318,7 +319,10 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	hasHandler := replication2.NewHasHandler(filesystemStorage, readWantListRepository, blobsGetDownloader, blobDownloadedPubSub, logger)
 	replicationManager := replication2.NewManager(readWantListRepository, filesystemStorage, hasHandler, logger)
 	replicationReplicator := replication2.NewReplicator(replicationManager)
-	peerManager := domain.NewPeerManager(contextContext, peerManagerConfig, negotiator, replicationReplicator, dialer, logger)
+	peerRPCAdapter := rooms.NewPeerRPCAdapter(logger)
+	roomAttendantEventPubSub := pubsub.NewRoomAttendantEventPubSub()
+	scanner := rooms.NewScanner(peerRPCAdapter, peerRPCAdapter, roomAttendantEventPubSub, logger)
+	peerManager := domain.NewPeerManager(contextContext, peerManagerConfig, dialer, negotiator, replicationReplicator, scanner, logger)
 	connectHandler := commands.NewConnectHandler(peerManager, logger)
 	establishNewConnectionsHandler := commands.NewEstablishNewConnectionsHandler(peerManager)
 	acceptNewPeerHandler := commands.NewAcceptNewPeerHandler(peerManager)
@@ -331,21 +335,23 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	removeFromBanListHandler := commands.NewRemoveFromBanListHandler(transactionProvider)
 	roomsAliasRegisterHandler := commands.NewRoomsAliasRegisterHandler(dialer, private)
 	roomsAliasRevokeHandler := commands.NewRoomsAliasRevokeHandler(dialer)
+	processRoomAttendantEventHandler := commands.NewProcessRoomAttendantEventHandler(peerManager)
 	appCommands := app.Commands{
-		RedeemInvite:             redeemInviteHandler,
-		Follow:                   followHandler,
-		PublishRaw:               publishRawHandler,
-		Connect:                  connectHandler,
-		EstablishNewConnections:  establishNewConnectionsHandler,
-		AcceptNewPeer:            acceptNewPeerHandler,
-		ProcessNewLocalDiscovery: processNewLocalDiscoveryHandler,
-		CreateWants:              createWantsHandler,
-		DownloadBlob:             downloadBlobHandler,
-		CreateBlob:               createBlobHandler,
-		AddToBanList:             addToBanListHandler,
-		RemoveFromBanList:        removeFromBanListHandler,
-		RoomsAliasRegister:       roomsAliasRegisterHandler,
-		RoomsAliasRevoke:         roomsAliasRevokeHandler,
+		RedeemInvite:              redeemInviteHandler,
+		Follow:                    followHandler,
+		PublishRaw:                publishRawHandler,
+		Connect:                   connectHandler,
+		EstablishNewConnections:   establishNewConnectionsHandler,
+		AcceptNewPeer:             acceptNewPeerHandler,
+		ProcessNewLocalDiscovery:  processNewLocalDiscoveryHandler,
+		CreateWants:               createWantsHandler,
+		DownloadBlob:              downloadBlobHandler,
+		CreateBlob:                createBlobHandler,
+		AddToBanList:              addToBanListHandler,
+		RemoveFromBanList:         removeFromBanListHandler,
+		RoomsAliasRegister:        roomsAliasRegisterHandler,
+		RoomsAliasRevoke:          roomsAliasRevokeHandler,
+		ProcessRoomAttendantEvent: processRoomAttendantEventHandler,
 	}
 	readReceiveLogRepository := bolt.NewReadReceiveLogRepository(db, txRepositoriesFactory)
 	receiveLogHandler := queries.NewReceiveLogHandler(readReceiveLogRepository)
@@ -399,11 +405,12 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 		return Service{}, err
 	}
 	requestSubscriber := pubsub2.NewRequestSubscriber(requestPubSub, muxMux)
+	roomAttendantEventSubscriber := pubsub2.NewRoomAttendantEventSubscriber(roomAttendantEventPubSub, application, logger)
 	advertiser, err := newAdvertiser(public, config)
 	if err != nil {
 		return Service{}, err
 	}
-	service := NewService(application, listener, networkDiscoverer, connectionEstablisher, requestSubscriber, advertiser, messageBuffer, createHistoryStreamHandler)
+	service := NewService(application, listener, networkDiscoverer, connectionEstablisher, requestSubscriber, roomAttendantEventSubscriber, advertiser, messageBuffer, createHistoryStreamHandler)
 	return service, nil
 }
 

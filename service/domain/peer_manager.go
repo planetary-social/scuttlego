@@ -26,6 +26,10 @@ type BlobReplicator interface {
 	Replicate(ctx context.Context, peer transport.Peer) error
 }
 
+type RoomScanner interface {
+	Run(ctx context.Context, peer transport.Peer) error
+}
+
 type PeerManagerConfig struct {
 	// Peer manager will attempt to remain connected to the preferred pubs.
 	PreferredPubs []Pub
@@ -47,6 +51,7 @@ type PeerManager struct {
 	dialer            Dialer
 	messageReplicator MessageReplicator
 	blobReplicator    BlobReplicator
+	roomScanner       RoomScanner
 	logger            logging.Logger
 }
 
@@ -55,9 +60,10 @@ type PeerManager struct {
 func NewPeerManager(
 	ctx context.Context,
 	config PeerManagerConfig,
+	dialer Dialer,
 	messageReplicator MessageReplicator,
 	blobReplicator BlobReplicator,
-	dialer Dialer,
+	roomScanner RoomScanner,
 	logger logging.Logger,
 ) *PeerManager {
 	return &PeerManager{
@@ -68,6 +74,7 @@ func NewPeerManager(
 		dialer:            dialer,
 		messageReplicator: messageReplicator,
 		blobReplicator:    blobReplicator,
+		roomScanner:       roomScanner,
 		logger:            logger.New("peer_manager"),
 	}
 }
@@ -118,6 +125,7 @@ func (p PeerManager) Connect(remote identity.Public, address network.Address) er
 	}
 
 	p.logger.WithField("remote", remote).WithField("address", address).Debug("dialing")
+	defer p.logger.Debug("dial exiting")
 
 	peer, err := p.dialer.Dial(p.ctx, remote, address)
 	if err != nil {
@@ -190,41 +198,46 @@ func (p PeerManager) peerKey(remote identity.Public) string {
 // todo this probably shouldn't be handled by the peer manager
 func (p PeerManager) processConnection(peer transport.Peer) {
 	p.logger.WithField("peer", peer).Debug("handling a new peer")
-	if err := p.handleConnection(peer); err != nil {
-		p.logger.WithError(err).WithField("peer", peer).Debug("connection ended")
+	if err := p.runTasks(peer); err != nil {
+		p.logger.WithError(err).WithField("peer", peer).Debug("all tasks ended")
 	}
 }
 
-func (p PeerManager) handleConnection(peer transport.Peer) error {
+func (p PeerManager) runTasks(peer transport.Peer) error {
 	ch := make(chan error)
 
 	ctx, cancel := context.WithCancel(peer.Conn().Context())
+	defer cancel()
 
 	tasks := 0
 
-	tasks++
-	go func() {
-		defer cancel()
-		defer p.logger.Debug("message replication task terminating")
-		if err := p.messageReplicator.Replicate(ctx, peer); err != nil {
-			ch <- err
-		}
-	}()
-
-	tasks++
-	go func() {
-		defer cancel()
-		defer p.logger.Debug("blob replication task terminating")
-		if err := p.blobReplicator.Replicate(ctx, peer); err != nil {
-			ch <- err
-		}
-	}()
+	p.startTask(&tasks, ctx, peer, ch, p.messageReplicator.Replicate, "message replication")
+	p.startTask(&tasks, ctx, peer, ch, p.blobReplicator.Replicate, "blob replication")
+	p.startTask(&tasks, ctx, peer, ch, p.roomScanner.Run, "room scanner")
 
 	var result error
 	for i := 0; i < tasks; i++ {
 		result = multierror.Append(result, <-ch)
 	}
 	return result
+}
+
+func (p PeerManager) startTask(
+	tasks *int,
+	ctx context.Context,
+	peer transport.Peer,
+	ch chan<- error,
+	fn func(ctx context.Context, peer transport.Peer) error,
+	taskName string,
+) {
+	peerLogger := p.logger.WithField("peer", peer)
+	*tasks = *tasks + 1
+	go func() {
+		err := fn(ctx, peer)
+		peerLogger.WithError(err).WithField("task", taskName).Debug("task terminating")
+		ch <- err
+	}()
+
 }
 
 type connectedPeer struct {

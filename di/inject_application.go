@@ -45,6 +45,7 @@ var commandsSet = wire.NewSet(
 
 	commands.NewRoomsAliasRegisterHandler,
 	commands.NewRoomsAliasRevokeHandler,
+	commands.NewProcessRoomAttendantEventHandler,
 )
 
 var queriesSet = wire.NewSet(

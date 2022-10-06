@@ -37,6 +37,7 @@ type Peer struct {
 }
 
 func NewPeer(remote identity.Public, conn Connection) Peer {
+	// todo check arguments
 	return Peer{
 		remote: remote,
 		conn:   conn,
@@ -49,6 +50,10 @@ func (p Peer) Identity() identity.Public {
 
 func (p Peer) Conn() Connection {
 	return p.conn
+}
+
+func (p Peer) IsZero() bool {
+	return p.conn == nil
 }
 
 func (p Peer) String() string {

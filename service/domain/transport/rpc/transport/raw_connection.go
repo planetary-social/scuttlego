@@ -85,11 +85,14 @@ func (s RawConnection) Close() error {
 }
 
 func (s RawConnection) loggerWithMessageFields(msg *Message) logging.Logger {
-	return s.logger.
+	l := s.logger.
 		WithField("header.flags", msg.Header.Flags()).
 		WithField("header.number", msg.Header.RequestNumber()).
-		WithField("header.bodyLength", msg.Header.BodyLength()).
-		WithField("body", string(msg.Body))
+		WithField("header.bodyLength", msg.Header.BodyLength())
+	if msg.Header.Flags().BodyType() != MessageBodyTypeBinary {
+		l = l.WithField("body", string(msg.Body))
+	}
+	return l
 }
 
 func isTermination(bytes []byte) bool {

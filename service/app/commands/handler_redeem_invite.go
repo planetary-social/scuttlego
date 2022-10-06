@@ -12,17 +12,11 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/identity"
 	"github.com/planetary-social/scuttlego/service/domain/invites"
 	"github.com/planetary-social/scuttlego/service/domain/messages"
-	"github.com/planetary-social/scuttlego/service/domain/network"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/planetary-social/scuttlego/service/domain/transport"
 	"github.com/planetary-social/scuttlego/service/domain/transport/boxstream"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 )
-
-type Dialer interface {
-	DialWithInitializer(ctx context.Context, initializer network.ClientPeerInitializer, remote identity.Public, addr network.Address) (transport.Peer, error)
-	Dial(ctx context.Context, remote identity.Public, address network.Address) (transport.Peer, error)
-}
 
 type RedeemInvite struct {
 	Invite invites.Invite

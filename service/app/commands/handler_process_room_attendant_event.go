@@ -1,8 +1,6 @@
 package commands
 
 import (
-	"fmt"
-
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/service/domain/rooms"
 	"github.com/planetary-social/scuttlego/service/domain/transport"
@@ -44,9 +42,13 @@ func NewProcessRoomAttendantEventHandler(peerManager PeerManager) *ProcessRoomAt
 func (h *ProcessRoomAttendantEventHandler) Handle(cmd ProcessRoomAttendantEvent) error {
 	if cmd.IsZero() {
 		return errors.New("zero value of command")
-
 	}
-	fmt.Println("application", cmd)
+
+	if cmd.event.Typ() == rooms.RoomAttendantsEventTypeJoined {
+		if err := h.peerManager.ConnectViaRoom(cmd.portal, cmd.event.Id().Identity()); err != nil {
+			return errors.Wrap(err, "failed to connect")
+		}
+	}
 
 	return nil
 }

@@ -28,6 +28,7 @@ func NewDialer(initializer ClientPeerInitializer) *Dialer {
 }
 
 func (d *Dialer) DialViaRoom(ctx context.Context, portal transport.Peer, target identity.Public) (transport.Peer, error) {
+	// todo timeout?
 	portalRef, err := refs.NewIdentityFromPublic(portal.Identity())
 	if err != nil {
 		return transport.Peer{}, errors.Wrap(err, "error creating portal identity ref")

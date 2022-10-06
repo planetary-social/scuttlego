@@ -36,6 +36,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/replication/ebt"
 	"github.com/planetary-social/scuttlego/service/domain/replication/gossip"
 	"github.com/planetary-social/scuttlego/service/domain/rooms"
+	"github.com/planetary-social/scuttlego/service/domain/rooms/tunnel"
 	transport2 "github.com/planetary-social/scuttlego/service/domain/transport"
 	"github.com/planetary-social/scuttlego/service/domain/transport/boxstream"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
@@ -287,6 +288,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	followHandler := commands.NewFollowHandler(transactionProvider, private, marshaler, logger)
 	publishRawHandler := commands.NewPublishRawHandler(transactionProvider, private, logger)
 	peerManagerConfig := extractPeerManagerConfigFromConfig(config)
+	tunnelDialer := tunnel.NewDialer(peerInitializer)
 	sessionTracker := ebt.NewSessionTracker()
 	messageHMAC := extractMessageHMACFromConfig(config)
 	scuttlebutt := formats.NewScuttlebutt(marshaler, messageHMAC)
@@ -322,7 +324,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	peerRPCAdapter := rooms.NewPeerRPCAdapter(logger)
 	roomAttendantEventPubSub := pubsub.NewRoomAttendantEventPubSub()
 	scanner := rooms.NewScanner(peerRPCAdapter, peerRPCAdapter, roomAttendantEventPubSub, logger)
-	peerManager := domain.NewPeerManager(contextContext, peerManagerConfig, dialer, negotiator, replicationReplicator, scanner, logger)
+	peerManager := domain.NewPeerManager(contextContext, peerManagerConfig, dialer, tunnelDialer, negotiator, replicationReplicator, scanner, logger)
 	connectHandler := commands.NewConnectHandler(peerManager, logger)
 	establishNewConnectionsHandler := commands.NewEstablishNewConnectionsHandler(peerManager)
 	acceptNewPeerHandler := commands.NewAcceptNewPeerHandler(peerManager)

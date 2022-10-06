@@ -6,6 +6,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/app/queries"
 	"github.com/planetary-social/scuttlego/service/domain"
 	"github.com/planetary-social/scuttlego/service/domain/network"
+	"github.com/planetary-social/scuttlego/service/domain/rooms/tunnel"
 	domaintransport "github.com/planetary-social/scuttlego/service/domain/transport"
 	"github.com/planetary-social/scuttlego/service/domain/transport/boxstream"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
@@ -17,6 +18,7 @@ var networkingSet = wire.NewSet(
 	domaintransport.NewPeerInitializer,
 	wire.Bind(new(portsnetwork.ServerPeerInitializer), new(*domaintransport.PeerInitializer)),
 	wire.Bind(new(network.ClientPeerInitializer), new(*domaintransport.PeerInitializer)),
+	wire.Bind(new(tunnel.ClientPeerInitializer), new(*domaintransport.PeerInitializer)),
 
 	rpc.NewConnectionIdGenerator,
 

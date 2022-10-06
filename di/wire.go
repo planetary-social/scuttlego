@@ -29,6 +29,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/replication/ebt"
 	"github.com/planetary-social/scuttlego/service/domain/replication/gossip"
 	"github.com/planetary-social/scuttlego/service/domain/rooms"
+	"github.com/planetary-social/scuttlego/service/domain/rooms/tunnel"
 	"go.etcd.io/bbolt"
 )
 
@@ -215,6 +216,9 @@ func BuildService(context.Context, identity.Private, Config) (Service, error) {
 		rooms.NewPeerRPCAdapter,
 		wire.Bind(new(rooms.MetadataGetter), new(*rooms.PeerRPCAdapter)),
 		wire.Bind(new(rooms.AttendantsGetter), new(*rooms.PeerRPCAdapter)),
+
+		tunnel.NewDialer,
+		wire.Bind(new(domain.RoomDialer), new(*tunnel.Dialer)),
 
 		portsSet,
 		applicationSet,

@@ -270,7 +270,6 @@ func (p PeerManager) startTask(
 		peerLogger.WithError(err).WithField("task", taskName).Debug("task terminating")
 		ch <- err
 	}()
-
 }
 
 type connectedPeer struct {

@@ -1,6 +1,7 @@
 package mocks
 
 import (
+	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
 	"github.com/planetary-social/scuttlego/service/domain/network"
 	"github.com/planetary-social/scuttlego/service/domain/transport"
@@ -16,8 +17,7 @@ func NewPeerManagerMock() *PeerManagerMock {
 }
 
 func (p *PeerManagerMock) Connect(remote identity.Public, address network.Address) error {
-	//TODO implement me
-	panic("implement me")
+	return errors.New("not implemented")
 }
 
 func (p *PeerManagerMock) ConnectViaRoom(portal transport.Peer, target identity.Public) error {
@@ -36,13 +36,11 @@ func (p *PeerManagerMock) ConnectViaRoomCalls() []PeerManagerConnectViaRoomCall 
 }
 
 func (p *PeerManagerMock) EstablishNewConnections() error {
-	//TODO implement me
-	panic("implement me")
+	return errors.New("not implemented")
 }
 
 func (p *PeerManagerMock) ProcessNewLocalDiscovery(remote identity.Public, address network.Address) error {
-	//TODO implement me
-	panic("implement me")
+	return errors.New("not implemented")
 }
 
 func (p PeerManagerMock) Peers() []transport.Peer {

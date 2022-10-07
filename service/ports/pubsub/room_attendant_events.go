@@ -6,25 +6,28 @@ import (
 
 	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/adapters/pubsub"
-	"github.com/planetary-social/scuttlego/service/app"
 	"github.com/planetary-social/scuttlego/service/app/commands"
 )
 
+type ProcessRoomAttendantEventHandler interface {
+	Handle(cmd commands.ProcessRoomAttendantEvent) error
+}
+
 type RoomAttendantEventSubscriber struct {
-	pubsub *pubsub.RoomAttendantEventPubSub
-	app    app.Application
-	logger logging.Logger
+	pubsub  *pubsub.RoomAttendantEventPubSub
+	handler ProcessRoomAttendantEventHandler
+	logger  logging.Logger
 }
 
 func NewRoomAttendantEventSubscriber(
 	pubsub *pubsub.RoomAttendantEventPubSub,
-	app app.Application,
+	handler ProcessRoomAttendantEventHandler,
 	logger logging.Logger,
 ) *RoomAttendantEventSubscriber {
 	return &RoomAttendantEventSubscriber{
-		pubsub: pubsub,
-		app:    app,
-		logger: logger.New("room_attendant_event_subscriber"),
+		pubsub:  pubsub,
+		handler: handler,
+		logger:  logger.New("room_attendant_event_subscriber"),
 	}
 }
 
@@ -36,7 +39,7 @@ func (p *RoomAttendantEventSubscriber) Run(ctx context.Context) error {
 			continue
 		}
 
-		if err := p.app.Commands.ProcessRoomAttendantEvent.Handle(cmd); err != nil {
+		if err := p.handler.Handle(cmd); err != nil {
 			p.logger.WithError(err).Debug("error handling the command")
 			continue
 		}

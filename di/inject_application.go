@@ -7,6 +7,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/app/commands"
 	"github.com/planetary-social/scuttlego/service/app/queries"
 	"github.com/planetary-social/scuttlego/service/domain/replication"
+	"github.com/planetary-social/scuttlego/service/ports/pubsub"
 	portsrpc "github.com/planetary-social/scuttlego/service/ports/rpc"
 )
 
@@ -45,7 +46,9 @@ var commandsSet = wire.NewSet(
 
 	commands.NewRoomsAliasRegisterHandler,
 	commands.NewRoomsAliasRevokeHandler,
+
 	commands.NewProcessRoomAttendantEventHandler,
+	wire.Bind(new(pubsub.ProcessRoomAttendantEventHandler), new(*commands.ProcessRoomAttendantEventHandler)),
 )
 
 var queriesSet = wire.NewSet(

@@ -55,7 +55,7 @@ type RoomListAliasesResponse struct {
 	aliases []aliases.Alias
 }
 
-func NewRoomsListAliasesResponse(b []byte) (RoomListAliasesResponse, error) {
+func NewRoomListAliasesResponseFromBytes(b []byte) (RoomListAliasesResponse, error) {
 	var aliasesAsStrings []string
 	if err := json.Unmarshal(b, &aliasesAsStrings); err != nil {
 		return RoomListAliasesResponse{}, errors.Wrap(err, "json unmarshal failed")

@@ -28,7 +28,7 @@ type RoomMetadataResponse struct {
 	features   features.Features
 }
 
-func NewRoomMetadataResponse(b []byte) (RoomMetadataResponse, error) {
+func NewRoomMetadataResponseFromBytes(b []byte) (RoomMetadataResponse, error) {
 	var transport roomMetadataTransport
 	if err := json.Unmarshal(b, &transport); err != nil {
 		return RoomMetadataResponse{}, errors.Wrap(err, "json unmarshal failed")

@@ -40,7 +40,7 @@ func (a *PeerRPCAdapter) GetMetadata(ctx context.Context, peer transport.Peer) (
 			return messages.RoomMetadataResponse{}, errors.Wrap(err, "received an error")
 		}
 
-		metadataResponse, err := messages.NewRoomMetadataResponse(v.Value.Bytes())
+		metadataResponse, err := messages.NewRoomMetadataResponseFromBytes(v.Value.Bytes())
 		if err != nil {
 			return messages.RoomMetadataResponse{}, errors.Wrap(err, "could not parse the response")
 		}

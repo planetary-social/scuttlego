@@ -100,7 +100,7 @@ func (h *RoomsListAliasesHandler) Handle(ctx context.Context, query RoomsListAli
 		return nil, errors.Wrap(err, "received an error")
 	}
 
-	listAliasesResponse, err := messages.NewRoomsListAliasesResponse(response.Value.Bytes())
+	listAliasesResponse, err := messages.NewRoomListAliasesResponseFromBytes(response.Value.Bytes())
 	if err != nil {
 		return nil, errors.Wrap(err, "error creating the response")
 	}

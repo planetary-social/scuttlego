@@ -30,6 +30,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/feeds/formats"
 	"github.com/planetary-social/scuttlego/service/domain/graph"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
+	mocks2 "github.com/planetary-social/scuttlego/service/domain/mocks"
 	"github.com/planetary-social/scuttlego/service/domain/network"
 	"github.com/planetary-social/scuttlego/service/domain/network/local"
 	"github.com/planetary-social/scuttlego/service/domain/replication"
@@ -123,10 +124,14 @@ func BuildTestCommands(t *testing.T) (TestCommands, error) {
 	}
 	roomsAliasRegisterHandler := commands.NewRoomsAliasRegisterHandler(dialerMock, private)
 	roomsAliasRevokeHandler := commands.NewRoomsAliasRevokeHandler(dialerMock)
+	peerManagerMock := mocks2.NewPeerManagerMock()
+	processRoomAttendantEventHandler := commands.NewProcessRoomAttendantEventHandler(peerManagerMock)
 	testCommands := TestCommands{
-		RoomsAliasRegister: roomsAliasRegisterHandler,
-		RoomsAliasRevoke:   roomsAliasRevokeHandler,
-		Dialer:             dialerMock,
+		RoomsAliasRegister:        roomsAliasRegisterHandler,
+		RoomsAliasRevoke:          roomsAliasRevokeHandler,
+		ProcessRoomAttendantEvent: processRoomAttendantEventHandler,
+		PeerManager:               peerManagerMock,
+		Dialer:                    dialerMock,
 	}
 	return testCommands, nil
 }
@@ -149,7 +154,7 @@ func BuildTestQueries(t *testing.T) (TestQueries, error) {
 		return TestQueries{}, err
 	}
 	messageRepositoryMock := mocks.NewMessageRepositoryMock()
-	peerManagerMock := mocks.NewPeerManagerMock()
+	peerManagerMock := mocks2.NewPeerManagerMock()
 	statusHandler := queries.NewStatusHandler(messageRepositoryMock, feedRepositoryMock, peerManagerMock)
 	blobStorageMock := mocks.NewBlobStorageMock()
 	getBlobHandler, err := queries.NewGetBlobHandler(blobStorageMock)
@@ -439,10 +444,12 @@ type TestAdapters struct {
 }
 
 type TestCommands struct {
-	RoomsAliasRegister *commands.RoomsAliasRegisterHandler
-	RoomsAliasRevoke   *commands.RoomsAliasRevokeHandler
+	RoomsAliasRegister        *commands.RoomsAliasRegisterHandler
+	RoomsAliasRevoke          *commands.RoomsAliasRevokeHandler
+	ProcessRoomAttendantEvent *commands.ProcessRoomAttendantEventHandler
 
-	Dialer *mocks.DialerMock
+	PeerManager *mocks2.PeerManagerMock
+	Dialer      *mocks.DialerMock
 }
 
 type TestQueries struct {
@@ -451,7 +458,7 @@ type TestQueries struct {
 	FeedRepository       *mocks.FeedRepositoryMock
 	MessagePubSub        *mocks.MessagePubSubMock
 	MessageRepository    *mocks.MessageRepositoryMock
-	PeerManager          *mocks.PeerManagerMock
+	PeerManager          *mocks2.PeerManagerMock
 	BlobStorage          *mocks.BlobStorageMock
 	ReceiveLogRepository *mocks.ReceiveLogRepositoryMock
 	Dialer               *mocks.DialerMock

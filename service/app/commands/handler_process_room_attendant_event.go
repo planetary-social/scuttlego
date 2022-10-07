@@ -27,6 +27,14 @@ func NewProcessRoomAttendantEvent(
 	}, nil
 }
 
+func (e ProcessRoomAttendantEvent) Portal() transport.Peer {
+	return e.portal
+}
+
+func (e ProcessRoomAttendantEvent) Event() rooms.RoomAttendantsEvent {
+	return e.event
+}
+
 func (e ProcessRoomAttendantEvent) IsZero() bool {
 	return e.event.IsZero()
 }
@@ -44,8 +52,8 @@ func (h *ProcessRoomAttendantEventHandler) Handle(cmd ProcessRoomAttendantEvent)
 		return errors.New("zero value of command")
 	}
 
-	if cmd.event.Typ() == rooms.RoomAttendantsEventTypeJoined {
-		if err := h.peerManager.ConnectViaRoom(cmd.portal, cmd.event.Id().Identity()); err != nil {
+	if cmd.Event().Typ() == rooms.RoomAttendantsEventTypeJoined {
+		if err := h.peerManager.ConnectViaRoom(cmd.Portal(), cmd.Event().Id().Identity()); err != nil {
 			return errors.Wrap(err, "failed to connect")
 		}
 	}

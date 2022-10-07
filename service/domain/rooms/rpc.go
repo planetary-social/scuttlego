@@ -177,15 +177,15 @@ func NewRoomAttendantsEvent(typ RoomAttendantsEventType, id refs.Identity) (Room
 	}, nil
 }
 
-func (e *RoomAttendantsEvent) Typ() RoomAttendantsEventType {
+func (e RoomAttendantsEvent) Typ() RoomAttendantsEventType {
 	return e.typ
 }
 
-func (e *RoomAttendantsEvent) Id() refs.Identity {
+func (e RoomAttendantsEvent) Id() refs.Identity {
 	return e.id
 }
 
-func (e *RoomAttendantsEvent) IsZero() bool {
+func (e RoomAttendantsEvent) IsZero() bool {
 	return e.id.IsZero()
 }
 

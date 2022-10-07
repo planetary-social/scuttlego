@@ -33,7 +33,7 @@ func (d *DialerMock) Dial(ctx context.Context, remote identity.Public, address n
 }
 
 func (d *DialerMock) MockPeer(remote identity.Public, address network.Address, connection transport.Connection) {
-	d.peers[d.key(remote, address)] = transport.NewPeer(
+	d.peers[d.key(remote, address)] = transport.MustNewPeer(
 		remote,
 		connection,
 	)

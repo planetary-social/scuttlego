@@ -24,6 +24,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/feeds/formats"
 	"github.com/planetary-social/scuttlego/service/domain/graph"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
+	domainmocks "github.com/planetary-social/scuttlego/service/domain/mocks"
 	"github.com/planetary-social/scuttlego/service/domain/network/local"
 	"github.com/planetary-social/scuttlego/service/domain/replication"
 	"github.com/planetary-social/scuttlego/service/domain/replication/ebt"
@@ -92,10 +93,12 @@ func BuildTestAdapters(*bbolt.DB) (TestAdapters, error) {
 }
 
 type TestCommands struct {
-	RoomsAliasRegister *commands.RoomsAliasRegisterHandler
-	RoomsAliasRevoke   *commands.RoomsAliasRevokeHandler
+	RoomsAliasRegister        *commands.RoomsAliasRegisterHandler
+	RoomsAliasRevoke          *commands.RoomsAliasRevokeHandler
+	ProcessRoomAttendantEvent *commands.ProcessRoomAttendantEventHandler
 
-	Dialer *mocks.DialerMock
+	PeerManager *domainmocks.PeerManagerMock
+	Dialer      *mocks.DialerMock
 }
 
 func BuildTestCommands(*testing.T) (TestCommands, error) {
@@ -104,6 +107,9 @@ func BuildTestCommands(*testing.T) (TestCommands, error) {
 
 		mocks.NewDialerMock,
 		wire.Bind(new(commands.Dialer), new(*mocks.DialerMock)),
+
+		domainmocks.NewPeerManagerMock,
+		wire.Bind(new(commands.PeerManager), new(*domainmocks.PeerManagerMock)),
 
 		identity.NewPrivate,
 
@@ -119,7 +125,7 @@ type TestQueries struct {
 	FeedRepository       *mocks.FeedRepositoryMock
 	MessagePubSub        *mocks.MessagePubSubMock
 	MessageRepository    *mocks.MessageRepositoryMock
-	PeerManager          *mocks.PeerManagerMock
+	PeerManager          *domainmocks.PeerManagerMock
 	BlobStorage          *mocks.BlobStorageMock
 	ReceiveLogRepository *mocks.ReceiveLogRepositoryMock
 	Dialer               *mocks.DialerMock
@@ -136,8 +142,8 @@ func BuildTestQueries(*testing.T) (TestQueries, error) {
 		mocks.NewMessagePubSubMock,
 		wire.Bind(new(queries.MessageSubscriber), new(*mocks.MessagePubSubMock)),
 
-		mocks.NewPeerManagerMock,
-		wire.Bind(new(queries.PeerManager), new(*mocks.PeerManagerMock)),
+		domainmocks.NewPeerManagerMock,
+		wire.Bind(new(queries.PeerManager), new(*domainmocks.PeerManagerMock)),
 
 		identity.NewPrivate,
 		privateIdentityToPublicIdentity,

@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
@@ -36,12 +37,27 @@ type Peer struct {
 	conn   Connection
 }
 
-func NewPeer(remote identity.Public, conn Connection) Peer {
-	// todo check arguments
+func NewPeer(remote identity.Public, conn Connection) (Peer, error) {
+	if remote.IsZero() {
+		return Peer{}, errors.New("zero value of remote identity")
+	}
+
+	if conn == nil {
+		return Peer{}, errors.New("conn is nil")
+	}
+
 	return Peer{
 		remote: remote,
 		conn:   conn,
+	}, nil
+}
+
+func MustNewPeer(remote identity.Public, conn Connection) Peer {
+	v, err := NewPeer(remote, conn)
+	if err != nil {
+		panic(err)
 	}
+	return v
 }
 
 func (p Peer) Identity() identity.Public {

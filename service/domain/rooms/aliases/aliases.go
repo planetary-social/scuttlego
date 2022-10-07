@@ -148,6 +148,14 @@ func NewAliasEndpointURL(s string) (AliasEndpointURL, error) {
 	return AliasEndpointURL{s: s}, nil
 }
 
+func MustNewAliasEndpointURL(s string) AliasEndpointURL {
+	v, err := NewAliasEndpointURL(s)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
 func (a AliasEndpointURL) String() string {
 	return a.s
 }

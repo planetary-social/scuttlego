@@ -121,7 +121,7 @@ func (a *PeerRPCAdapter) streamAttendants(ctx context.Context, ch chan RoomAtten
 }
 
 func (a *PeerRPCAdapter) parseFirstGetAttendantsMessage(v []byte) ([]RoomAttendantsEvent, error) {
-	msg, err := messages.NewRoomAttendantsResponseState(v)
+	msg, err := messages.NewRoomAttendantsResponseStateFromBytes(v)
 	if err != nil {
 		return nil, errors.Wrap(err, "error parsing the message")
 	}
@@ -141,7 +141,7 @@ func (a *PeerRPCAdapter) parseFirstGetAttendantsMessage(v []byte) ([]RoomAttenda
 }
 
 func (a *PeerRPCAdapter) parseNextGetAttendantsMessage(v []byte) (RoomAttendantsEvent, error) {
-	msg, err := messages.NewRoomAttendantsResponseJoinedOrLeft(v)
+	msg, err := messages.NewRoomAttendantsResponseJoinedOrLeftFromBytes(v)
 	if err != nil {
 		return RoomAttendantsEvent{}, errors.Wrap(err, "error parsing the message")
 	}

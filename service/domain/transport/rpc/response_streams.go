@@ -30,6 +30,7 @@ var (
 	ErrRemoteError = errors.New("remote error")
 )
 
+// todo private fields and constructor
 type ResponseWithError struct {
 	// Value is only set if Err is nil.
 	Value *Response

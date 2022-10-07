@@ -54,6 +54,13 @@ func NewRoomMetadataResponseFromBytes(b []byte) (RoomMetadataResponse, error) {
 	}, nil
 }
 
+func NewRoomMetadataResponse(membership bool, ftrs features.Features) RoomMetadataResponse {
+	return RoomMetadataResponse{
+		membership: membership,
+		features:   ftrs,
+	}
+}
+
 func (r RoomMetadataResponse) Membership() bool {
 	return r.membership
 }

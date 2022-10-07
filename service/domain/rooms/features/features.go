@@ -31,6 +31,14 @@ func NewFeatures(features []Feature) (Features, error) {
 	}, nil
 }
 
+func MustNewFeatures(features []Feature) Features {
+	v, err := NewFeatures(features)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
 func (f Features) Contains(feature Feature) bool {
 	return f.features.Contains(feature)
 }

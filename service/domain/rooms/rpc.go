@@ -177,6 +177,14 @@ func NewRoomAttendantsEvent(typ RoomAttendantsEventType, id refs.Identity) (Room
 	}, nil
 }
 
+func MustNewRoomAttendantsEvent(typ RoomAttendantsEventType, id refs.Identity) RoomAttendantsEvent {
+	v, err := NewRoomAttendantsEvent(typ, id)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
 func (e RoomAttendantsEvent) Typ() RoomAttendantsEventType {
 	return e.typ
 }

@@ -18,7 +18,7 @@ func TestGetMetadata(t *testing.T) {
 	ctx := fixtures.TestContext(t)
 
 	conn := mocks.NewConnectionMock(ctx)
-	peer := transport.NewPeer(fixtures.SomePublicIdentity(), conn)
+	peer := transport.MustNewPeer(fixtures.SomePublicIdentity(), conn)
 
 	conn.Mock(func(req *rpc.Request) []rpc.ResponseWithError {
 		return []rpc.ResponseWithError{
@@ -33,7 +33,10 @@ func TestGetMetadata(t *testing.T) {
 	ctx, cancel := context.WithTimeout(ctx, time.Second)
 	defer cancel()
 
-	metadata, err := rooms.GetMetadata(ctx, peer)
+	logger := fixtures.TestLogger(t)
+	adapter := rooms.NewPeerRPCAdapter(logger)
+
+	metadata, err := adapter.GetMetadata(ctx, peer)
 	require.NoError(t, err)
 
 	require.True(t, metadata.Membership())

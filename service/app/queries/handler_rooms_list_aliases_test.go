@@ -11,6 +11,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/messages"
 	"github.com/planetary-social/scuttlego/service/domain/mocks"
 	"github.com/planetary-social/scuttlego/service/domain/network"
+	"github.com/planetary-social/scuttlego/service/domain/rooms/aliases"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 	"github.com/stretchr/testify/require"
 )
@@ -53,7 +54,7 @@ func TestRoomsListAliasesHandler(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	aliases, err := c.Queries.RoomsListAliases.Handle(ctx, query)
+	result, err := c.Queries.RoomsListAliases.Handle(ctx, query)
 	require.NoError(t, err)
 
 	require.Equal(t,
@@ -61,6 +62,6 @@ func TestRoomsListAliasesHandler(t *testing.T) {
 			aliases.MustNewAlias("alias1"),
 			aliases.MustNewAlias("alias2"),
 		},
-		aliases,
+		result,
 	)
 }

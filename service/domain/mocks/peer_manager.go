@@ -43,11 +43,11 @@ func (p *PeerManagerMock) ProcessNewLocalDiscovery(remote identity.Public, addre
 	return errors.New("not implemented")
 }
 
-func (p PeerManagerMock) Peers() []transport.Peer {
+func (p *PeerManagerMock) Peers() []transport.Peer {
 	return p.peersReturnValue
 }
 
-func (p PeerManagerMock) MockPeers(peers []transport.Peer) {
+func (p *PeerManagerMock) MockPeers(peers []transport.Peer) {
 	p.peersReturnValue = peers
 }
 

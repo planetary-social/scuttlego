@@ -2,8 +2,10 @@ package transport
 
 import (
 	"encoding/json"
+	"strings"
 
 	"github.com/boreq/errors"
+	"github.com/hashicorp/go-multierror"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/content"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 )
@@ -65,6 +67,53 @@ type transportAbout struct {
 
 	// this may be a plain string with a blob ref in it or a blobLink object
 	Image json.RawMessage `json:"image"`
+}
+
+func unmarshalMentions(j json.RawMessage) ([]refs.Blob, error) {
+	var returnErr error
+
+	if len(j) == 0 {
+		return nil, nil
+	}
+
+	var mentionsSlice []json.RawMessage
+	if err := json.Unmarshal(j, &mentionsSlice); err != nil {
+		returnErr = multierror.Append(returnErr, errors.Wrap(err, "slice unmarshal error"))
+	} else {
+		return unmarshalMentionsSlice(mentionsSlice)
+	}
+
+	var mentionsMap map[string]json.RawMessage
+	if err := json.Unmarshal(j, &mentionsMap); err != nil {
+		returnErr = multierror.Append(returnErr, errors.Wrap(err, "map unmarshal error"))
+	} else {
+		return nil, nil
+	}
+
+	return nil, returnErr
+}
+
+func unmarshalMentionsSlice(slice []json.RawMessage) ([]refs.Blob, error) {
+	var blobs []refs.Blob
+	for _, rawJSON := range slice {
+		mention, err := unmarshalMention(rawJSON)
+		if err != nil {
+			return nil, errors.Wrap(err, "could not unmarshal a blob link")
+		}
+
+		if !strings.HasPrefix(mention.Link, "&") {
+			continue
+		}
+
+		blob, err := refs.NewBlob(mention.Link)
+		if err != nil {
+			return nil, errors.Wrap(err, "could not create a blob ref")
+		}
+
+		blobs = append(blobs, blob)
+	}
+
+	return blobs, nil
 }
 
 type mention struct {

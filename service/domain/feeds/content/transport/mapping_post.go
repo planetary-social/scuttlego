@@ -2,11 +2,9 @@ package transport
 
 import (
 	"encoding/json"
-	"strings"
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/content"
-	"github.com/planetary-social/scuttlego/service/domain/refs"
 )
 
 var postMapping = MessageContentMapping{
@@ -20,23 +18,9 @@ var postMapping = MessageContentMapping{
 			return nil, errors.Wrap(err, "json unmarshal failed")
 		}
 
-		var blobs []refs.Blob
-		for _, rawJSON := range t.Mentions {
-			mention, err := unmarshalMention(rawJSON)
-			if err != nil {
-				return nil, errors.Wrap(err, "could not unmarshal a blob link")
-			}
-
-			if !strings.HasPrefix(mention.Link, "&") {
-				continue
-			}
-
-			blob, err := refs.NewBlob(mention.Link)
-			if err != nil {
-				return nil, errors.Wrap(err, "could not create a blob ref")
-			}
-
-			blobs = append(blobs, blob)
+		blobs, err := unmarshalMentions(t.Mentions)
+		if err != nil {
+			return nil, errors.Wrap(err, "could not unmarshal mentions")
 		}
 
 		return content.NewPost(blobs)
@@ -46,5 +30,5 @@ var postMapping = MessageContentMapping{
 type transportPost struct {
 	messageContentType // todo this is stupid
 
-	Mentions []json.RawMessage `json:"mentions"`
+	Mentions json.RawMessage `json:"mentions"`
 }

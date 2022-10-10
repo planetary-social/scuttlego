@@ -69,3 +69,27 @@ func (b ReadFeedRepository) Count() (int, error) {
 
 	return result, nil
 }
+
+func (b ReadFeedRepository) GetMessage(feed refs.Feed, sequence message.Sequence) (message.Message, error) {
+	var result message.Message
+
+	if err := b.db.View(func(tx *bbolt.Tx) error {
+		r, err := b.factory(tx)
+		if err != nil {
+			return errors.Wrap(err, "factory returned an error")
+		}
+
+		msg, err := r.Feed.GetMessage(feed, sequence)
+		if err != nil {
+			return errors.Wrap(err, "failed to call the feed repository")
+		}
+
+		result = msg
+
+		return nil
+	}); err != nil {
+		return message.Message{}, errors.Wrap(err, "transaction failed")
+	}
+
+	return result, nil
+}

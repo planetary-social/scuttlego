@@ -12,6 +12,43 @@ import (
 	"go.etcd.io/bbolt"
 )
 
+func TestFeedRepository_GetMessageReturnsMessageWhichIsStoredInRepo(t *testing.T) {
+	db := fixtures.Bolt(t)
+
+	feedRef := fixtures.SomeRefFeed()
+	sequence := message.NewFirstSequence()
+
+	err := db.Update(func(tx *bbolt.Tx) error {
+		adapters, err := di.BuildTxTestAdapters(tx)
+		require.NoError(t, err)
+
+		adapters.BanListHasher.Mock(feedRef, fixtures.SomeBanListHash())
+
+		err = adapters.FeedRepository.UpdateFeed(feedRef, func(feed *feeds.Feed) error {
+			return feed.AppendMessage(fixtures.SomeMessage(sequence, feedRef))
+		})
+		require.NoError(t, err)
+
+		return nil
+	})
+	require.NoError(t, err)
+
+	err = db.View(func(tx *bbolt.Tx) error {
+		adapters, err := di.BuildTxTestAdapters(tx)
+		require.NoError(t, err)
+
+		adapters.BanListHasher.Mock(feedRef, fixtures.SomeBanListHash())
+
+		_, err = adapters.FeedRepository.GetMessage(feedRef, sequence)
+		require.NoError(t, err)
+
+		// todo returned message will not match the saved message due to the way fixtures.SomeMessage works, this should be fixed
+
+		return nil
+	})
+	require.NoError(t, err)
+}
+
 func TestFeedRepository_GetFeed_ReturnsAppropriateErrorWhenEmpty(t *testing.T) {
 	db := fixtures.Bolt(t)
 

@@ -83,13 +83,10 @@ func (w *SentNotes) contactToNote(contact replication.Contact) (messages.EbtRepl
 }
 
 func (w *SentNotes) shouldSend(note messages.EbtReplicateNote) bool {
-	prevNote, ok := w.prevNotes[note.Ref().String()]
-	if ok {
+	if prevNote, ok := w.prevNotes[note.Ref().String()]; ok {
 		if prevNote.Equal(note) {
 			return false
 		}
-
 	}
-
 	return true
 }

@@ -75,7 +75,9 @@ func TestSessionTracker_WaitForSessionBlocksIfSessionExists(t *testing.T) {
 	go func() {
 		defer close(doneCh)
 
-		tracker.WaitForSession(ctx, connectionId, testWaitDuration)
+		if err := tracker.WaitForSession(ctx, connectionId, testWaitDuration); err != nil {
+			panic(err)
+		}
 	}()
 
 	done, err := tracker.OpenSession(connectionId)

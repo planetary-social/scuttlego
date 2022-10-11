@@ -14,7 +14,6 @@ type SessionTracker struct {
 	lock     sync.Mutex // secures sessions and waiting
 	sessions internal.Set[rpc.ConnectionId]
 	waiting  map[rpc.ConnectionId][]chan<- struct{}
-	waitFor  time.Duration
 }
 
 func NewSessionTracker() *SessionTracker {

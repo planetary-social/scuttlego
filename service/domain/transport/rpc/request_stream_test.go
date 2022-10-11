@@ -291,7 +291,9 @@ func TestRequestStream_IncomingMessagesReturnsClosedChannelIfStreamIsClosed(t *t
 	require.Eventually(t,
 		func() bool {
 			ch, err := stream.IncomingMessages()
-			require.NoError(t, err)
+			if err != nil {
+				return false
+			}
 
 			select {
 			case _, ok := <-ch:

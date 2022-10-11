@@ -55,6 +55,10 @@ func SomeNonNegativeInt() int {
 	return rand.Int()
 }
 
+func SomePositiveInt() int {
+	return 1 + rand.Intn(math.MaxInt-1)
+}
+
 func SomeUint32() uint32 {
 	return rand.Uint32()
 }

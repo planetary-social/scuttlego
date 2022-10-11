@@ -18,6 +18,9 @@ type RequestStream struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	raw    MessageSender
+
+	incomingMessagesOut chan IncomingMessage
+	incomingMessagesIn  chan IncomingMessage
 }
 
 func NewRequestStream(ctx context.Context, number int, typ ProcedureType, raw MessageSender) (*RequestStream, error) {
@@ -38,6 +41,13 @@ func NewRequestStream(ctx context.Context, number int, typ ProcedureType, raw Me
 		ctx:    ctx,
 		cancel: cancel,
 		raw:    raw,
+
+		incomingMessagesOut: make(chan IncomingMessage),
+		incomingMessagesIn:  make(chan IncomingMessage),
+	}
+
+	if typ == ProcedureTypeDuplex {
+		go rs.passIncomingMessages()
 	}
 
 	return rs, nil
@@ -86,6 +96,13 @@ func (rs *RequestStream) CloseWithError(err error) error {
 	return sendCloseStream(rs.raw, -rs.requestNumber, err)
 }
 
+func (rs *RequestStream) IncomingMessages() (<-chan IncomingMessage, error) {
+	if rs.typ != ProcedureTypeDuplex {
+		return nil, errors.New("only duplex streams can receive messages")
+	}
+	return rs.incomingMessagesOut, nil
+}
+
 func (rs *RequestStream) Context() context.Context {
 	return rs.ctx
 }
@@ -98,12 +115,35 @@ func (rs *RequestStream) TerminatedByRemote() {
 	rs.cancel()
 }
 
-func (rs *RequestStream) HandleNewMessage(msg *transport.Message) error {
+func (rs *RequestStream) HandleNewMessage(msg transport.Message) error {
 	if rs.typ != ProcedureTypeDuplex {
-		return errors.New("only duplex streams can receive more than one message")
+		return errors.New("only duplex streams can receive messages")
 	}
 
-	// todo pass msg to the handler
+	select {
+	case <-rs.ctx.Done():
+		return rs.ctx.Err()
+	case rs.incomingMessagesIn <- IncomingMessage{
+		Body: msg.Body,
+	}:
+		return nil
+	}
+}
 
-	return nil
+func (rs *RequestStream) passIncomingMessages() {
+	defer close(rs.incomingMessagesOut)
+
+	for {
+		select {
+		case <-rs.ctx.Done():
+			return
+		case v := <-rs.incomingMessagesIn:
+			select {
+			case <-rs.ctx.Done():
+				return
+			case rs.incomingMessagesOut <- v:
+			}
+		}
+
+	}
 }

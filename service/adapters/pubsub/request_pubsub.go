@@ -7,9 +7,9 @@ import (
 )
 
 type Request struct {
-	Ctx context.Context
-	Rw  rpc.ResponseWriter
-	Req *rpc.Request
+	Ctx    context.Context
+	Stream rpc.Stream
+	Req    *rpc.Request
 }
 
 type RequestPubSub struct {
@@ -22,12 +22,12 @@ func NewRequestPubSub() *RequestPubSub {
 	}
 }
 
-func (m *RequestPubSub) HandleRequest(ctx context.Context, rw rpc.ResponseWriter, req *rpc.Request) {
+func (m *RequestPubSub) HandleRequest(ctx context.Context, s rpc.Stream, req *rpc.Request) {
 	m.pubsub.Publish(
 		Request{
-			Ctx: ctx,
-			Rw:  rw,
-			Req: req,
+			Ctx:    ctx,
+			Stream: s,
+			Req:    req,
 		},
 	)
 }

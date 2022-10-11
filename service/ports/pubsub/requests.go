@@ -38,7 +38,7 @@ func (p *RequestSubscriber) Run(ctx context.Context) error {
 	requests := p.pubsub.SubscribeToRequests(ctx)
 
 	for request := range requests {
-		p.mux.HandleRequest(request.Ctx, request.Rw, request.Req)
+		p.mux.HandleRequest(request.Ctx, request.Stream, request.Req)
 	}
 
 	return nil

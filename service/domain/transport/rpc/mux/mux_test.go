@@ -158,8 +158,8 @@ func TestNewMux_HandlerDoesNotBlock(t *testing.T) {
 	handlers := []mux.Handler{
 		newMockHandler(
 			procedure,
-			func(ctx context.Context, rw mux.ResponseWriter, req *rpc.Request) error {
-				if err := rw.WriteMessage(fixtures.SomeBytes()); err != nil {
+			func(ctx context.Context, s mux.Stream, req *rpc.Request) error {
+				if err := s.WriteMessage(fixtures.SomeBytes()); err != nil {
 					t.Fatal(err)
 				}
 				<-time.After(delay)
@@ -172,15 +172,15 @@ func TestNewMux_HandlerDoesNotBlock(t *testing.T) {
 	require.NoError(t, err)
 
 	ctx := fixtures.TestContext(t)
-	rw := mocks.NewMockResponseWriterCloser()
+	s := mocks.NewMockCloserStream()
 	req := rpc.MustNewRequest(procedure.Name(), procedure.Typ(), nil)
 
 	start := time.Now()
-	m.HandleRequest(ctx, rw, req)
+	m.HandleRequest(ctx, s, req)
 	require.Eventually(
 		t,
 		func() bool {
-			return len(rw.WrittenMessages) > 0
+			return len(s.WrittenMessages) > 0
 		},
 		delay, 10*time.Millisecond,
 	)
@@ -202,8 +202,8 @@ func TestNewMux_SynchronousHandlerBlocks(t *testing.T) {
 	synchronousHandlers := []mux.SynchronousHandler{
 		newMockSynchronousHandler(
 			procedure,
-			func(ctx context.Context, rw mux.ResponseWriterCloser, req *rpc.Request) {
-				if err := rw.WriteMessage(fixtures.SomeBytes()); err != nil {
+			func(ctx context.Context, s mux.Stream, req *rpc.Request) {
+				if err := s.WriteMessage(fixtures.SomeBytes()); err != nil {
 					t.Fatal(err)
 				}
 				<-time.After(delay)
@@ -215,22 +215,22 @@ func TestNewMux_SynchronousHandlerBlocks(t *testing.T) {
 	require.NoError(t, err)
 
 	ctx := fixtures.TestContext(t)
-	rw := mocks.NewMockResponseWriterCloser()
+	s := mocks.NewMockCloserStream()
 	req := rpc.MustNewRequest(procedure.Name(), procedure.Typ(), nil)
 
 	start := time.Now()
-	m.HandleRequest(ctx, rw, req)
+	m.HandleRequest(ctx, s, req)
 	require.Eventually(
 		t,
 		func() bool {
-			return len(rw.WrittenMessages) > 0
+			return len(s.WrittenMessages) > 0
 		},
 		delay, 10*time.Millisecond,
 	)
 	require.Greater(t, time.Since(start), delay)
 }
 
-type handlerFn func(ctx context.Context, rw mux.ResponseWriter, req *rpc.Request) error
+type handlerFn func(ctx context.Context, s mux.Stream, req *rpc.Request) error
 
 type mockHandler struct {
 	procedure rpc.Procedure
@@ -245,14 +245,14 @@ func (m mockHandler) Procedure() rpc.Procedure {
 	return m.procedure
 }
 
-func (m mockHandler) Handle(ctx context.Context, rw mux.ResponseWriter, req *rpc.Request) error {
+func (m mockHandler) Handle(ctx context.Context, s mux.Stream, req *rpc.Request) error {
 	if m.handlerFn != nil {
-		return m.handlerFn(ctx, rw, req)
+		return m.handlerFn(ctx, s, req)
 	}
 	return nil
 }
 
-type synchronousHandlerFn func(ctx context.Context, rw mux.ResponseWriterCloser, req *rpc.Request)
+type synchronousHandlerFn func(ctx context.Context, s mux.Stream, req *rpc.Request)
 
 type mockSynchronousHandler struct {
 	procedure            rpc.Procedure
@@ -267,12 +267,12 @@ func (m mockSynchronousHandler) Procedure() rpc.Procedure {
 	return m.procedure
 }
 
-func (m mockSynchronousHandler) Handle(ctx context.Context, rw mux.ResponseWriterCloser, req *rpc.Request) {
+func (m mockSynchronousHandler) Handle(ctx context.Context, s mux.CloserStream, req *rpc.Request) {
 	if m.synchronousHandlerFn != nil {
-		m.synchronousHandlerFn(ctx, rw, req)
+		m.synchronousHandlerFn(ctx, s, req)
 		return
 	}
-	if err := rw.CloseWithError(nil); err != nil {
+	if err := s.CloseWithError(nil); err != nil {
 		fmt.Println(err)
 	}
 }

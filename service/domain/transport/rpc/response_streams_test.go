@@ -1,6 +1,7 @@
 package rpc_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -10,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCancellingContextReleasesChannel(t *testing.T) {
+func TestResponseStreams_CancellingContextReleasesChannel(t *testing.T) {
 	sender := NewSenderMock()
 	logger := fixtures.SomeLogger()
 	ctx := fixtures.TestContext(t)
@@ -45,6 +46,133 @@ func TestCancellingContextReleasesChannel(t *testing.T) {
 		require.ErrorIs(t, resp.Err, rpc.ErrEndOrErr)
 	case <-time.After(5 * time.Second):
 		t.Fatal("channel was not released")
+	}
+}
+
+func TestResponseStreams_RequestsAndInStreamMessagesAreCorrectlyMarshaledInDuplexStreams(t *testing.T) {
+	sender := NewSenderMock()
+	logger := fixtures.SomeLogger()
+
+	ctx, cancel := context.WithCancel(fixtures.TestContext(t))
+
+	req := rpc.MustNewRequest(
+		fixtures.SomeProcedureName(),
+		rpc.ProcedureTypeDuplex,
+		fixtures.SomeJSON(),
+	)
+	inStreamMessageData := fixtures.SomeBytes()
+
+	streams := rpc.NewResponseStreams(sender, logger)
+
+	stream, err := streams.Open(ctx, req)
+	require.NoError(t, err)
+
+	err = stream.WriteMessage(inStreamMessageData)
+	require.NoError(t, err)
+
+	cancel()
+
+	expectedRequestMessage := expectedFlagsAndRequestNumber{
+		transport.MustNewMessageHeaderFlags(true, false, transport.MessageBodyTypeJSON),
+		1,
+	}
+	expectedInStreamMessage := expectedFlagsAndRequestNumber{
+		transport.MustNewMessageHeaderFlags(true, false, transport.MessageBodyTypeJSON),
+		1,
+	}
+	expectedTerminationMessage := expectedFlagsAndRequestNumber{
+		transport.MustNewMessageHeaderFlags(true, true, transport.MessageBodyTypeJSON),
+		1,
+	}
+	expectedMessages := []expectedFlagsAndRequestNumber{
+		expectedRequestMessage,
+		expectedInStreamMessage,
+		expectedTerminationMessage,
+	}
+
+	require.Eventually(t, func() bool {
+		return len(sender.calls) == len(expectedMessages)
+	}, time.Second, 10*time.Millisecond)
+
+	for i := range expectedMessages {
+		t.Log(i)
+
+		expected := expectedMessages[i]
+		actual := sender.calls[i]
+
+		require.Equal(t, expected.Flags, actual.Header.Flags())
+		require.Equal(t, expected.RequestNumber, actual.Header.RequestNumber())
+	}
+}
+
+type expectedFlagsAndRequestNumber struct {
+	Flags         transport.MessageHeaderFlags
+	RequestNumber int
+}
+
+func TestResponseStream_RequestNumberMustBePositive(t *testing.T) {
+	ctx := fixtures.TestContext(t)
+	sender := NewSenderMock()
+
+	t.Run("positive", func(t *testing.T) {
+		_, err := rpc.NewResponseStream(ctx, 1, fixtures.SomeProcedureType(), sender)
+		require.NoError(t, err)
+	})
+
+	t.Run("zero", func(t *testing.T) {
+		_, err := rpc.NewResponseStream(ctx, 0, fixtures.SomeProcedureType(), sender)
+		require.EqualError(t, err, "number must be positive")
+	})
+
+	t.Run("negative", func(t *testing.T) {
+		_, err := rpc.NewResponseStream(ctx, -1, fixtures.SomeProcedureType(), sender)
+		require.EqualError(t, err, "number must be positive")
+	})
+}
+
+func TestResponseStream_WriteMessageWorksOnlyForDuplexStreams(t *testing.T) {
+	testCases := []struct {
+		Name          string
+		ProcedureType rpc.ProcedureType
+		ExpectedError bool
+	}{
+		{
+			Name:          "unknown",
+			ProcedureType: rpc.ProcedureTypeUnknown,
+			ExpectedError: true,
+		},
+		{
+			Name:          "async",
+			ProcedureType: rpc.ProcedureTypeAsync,
+			ExpectedError: true,
+		},
+		{
+			Name:          "source",
+			ProcedureType: rpc.ProcedureTypeSource,
+			ExpectedError: true,
+		},
+		{
+			Name:          "duplex",
+			ProcedureType: rpc.ProcedureTypeDuplex,
+			ExpectedError: false,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			ctx := fixtures.TestContext(t)
+			sender := NewSenderMock()
+
+			stream, err := rpc.NewResponseStream(ctx, fixtures.SomePositiveInt(), testCase.ProcedureType, sender)
+			require.NoError(t, err)
+
+			err = stream.WriteMessage(fixtures.SomeBytes())
+			if testCase.ExpectedError {
+				require.EqualError(t, err, "not a duplex stream")
+			} else {
+				require.NoError(t, err)
+			}
+		})
 	}
 }
 

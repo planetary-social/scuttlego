@@ -2,6 +2,7 @@ package rpc_test
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"sync"
 	"testing"
@@ -335,12 +336,14 @@ func TestIncomingRequests(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
+			t.Parallel()
+
 			ctx := fixtures.TestContext(t)
 			logger := fixtures.SomeLogger()
 			raw := newRawConnectionMock()
 
-			handler := newRequestHandlerFunc(func(ctx context.Context, rw rpc.ResponseWriter, req *rpc.Request) {
-				err := rw.CloseWithError(nil)
+			handler := newRequestHandlerFunc(func(ctx context.Context, s rpc.Stream, req *rpc.Request) {
+				err := s.CloseWithError(nil)
 				require.NoError(t, err)
 			})
 
@@ -352,24 +355,30 @@ func TestIncomingRequests(t *testing.T) {
 
 			require.Eventually(t,
 				func() bool {
-					return len(raw.SentMessages) == len(testCase.ExpectedSentMessages)
+					sentMessages := raw.SentMessages()
+					for i, msg := range sentMessages {
+						t.Log(i, fmt.Sprintf("%#v", msg))
+					}
+					return len(sentMessages) == len(testCase.ExpectedSentMessages)
 				},
-				1*time.Second,
+				10*time.Second,
 				10*time.Millisecond,
 			)
+
+			sentMessages := raw.SentMessages()
 
 			sort.Slice(testCase.ExpectedSentMessages, func(i, j int) bool {
 				return testCase.ExpectedSentMessages[i].Header.RequestNumber() < testCase.ExpectedSentMessages[j].Header.RequestNumber()
 			})
 
-			sort.Slice(raw.SentMessages, func(i, j int) bool {
-				return raw.SentMessages[i].Header.RequestNumber() < raw.SentMessages[j].Header.RequestNumber()
+			sort.Slice(sentMessages, func(i, j int) bool {
+				return sentMessages[i].Header.RequestNumber() < sentMessages[j].Header.RequestNumber()
 			})
 
 			require.Equal(
 				t,
 				testCase.ExpectedSentMessages,
-				raw.SentMessages,
+				sentMessages,
 			)
 		})
 	}
@@ -380,24 +389,24 @@ func TestPrematureTerminationByRemote(t *testing.T) {
 
 	testCases := []struct {
 		Name                 string
-		Handler              func(ctx context.Context, rw rpc.ResponseWriter, req *rpc.Request)
+		Handler              func(ctx context.Context, s rpc.Stream, req *rpc.Request)
 		ExpectedSentMessages []*transport.Message
 	}{
 		{
 			Name: "sending_close_is_not_automatic",
-			Handler: func(ctx context.Context, rw rpc.ResponseWriter, req *rpc.Request) {
+			Handler: func(ctx context.Context, s rpc.Stream, req *rpc.Request) {
 				<-ctx.Done()
 				require.Error(t, ctx.Err())
 			},
-			ExpectedSentMessages: nil,
+			ExpectedSentMessages: []*transport.Message{},
 		},
 		{
 			Name: "sending_close_with_error",
-			Handler: func(ctx context.Context, rw rpc.ResponseWriter, req *rpc.Request) {
+			Handler: func(ctx context.Context, s rpc.Stream, req *rpc.Request) {
 				<-ctx.Done()
 				require.Error(t, ctx.Err())
 
-				err := rw.CloseWithError(ctx.Err())
+				err := s.CloseWithError(ctx.Err())
 				require.NoError(t, err)
 			},
 			ExpectedSentMessages: []*transport.Message{
@@ -413,11 +422,11 @@ func TestPrematureTerminationByRemote(t *testing.T) {
 		},
 		{
 			Name: "sending_close_without_error",
-			Handler: func(ctx context.Context, rw rpc.ResponseWriter, req *rpc.Request) {
+			Handler: func(ctx context.Context, s rpc.Stream, req *rpc.Request) {
 				<-ctx.Done()
 				require.Error(t, ctx.Err())
 
-				err := rw.CloseWithError(nil)
+				err := s.CloseWithError(nil)
 				require.NoError(t, err)
 			},
 			ExpectedSentMessages: []*transport.Message{
@@ -441,8 +450,8 @@ func TestPrematureTerminationByRemote(t *testing.T) {
 
 			var requestHandlerTerminatedCorrectly bool
 
-			handler := newRequestHandlerFunc(func(ctx context.Context, rw rpc.ResponseWriter, req *rpc.Request) {
-				testCase.Handler(ctx, rw, req)
+			handler := newRequestHandlerFunc(func(ctx context.Context, s rpc.Stream, req *rpc.Request) {
+				testCase.Handler(ctx, s, req)
 				requestHandlerTerminatedCorrectly = true
 			})
 
@@ -476,12 +485,12 @@ func TestPrematureTerminationByRemote(t *testing.T) {
 			)
 
 			require.Eventually(t, func() bool { return requestHandlerTerminatedCorrectly }, 1*time.Second, 10*time.Millisecond)
-			require.Equal(t, testCase.ExpectedSentMessages, raw.SentMessages)
+			require.Equal(t, testCase.ExpectedSentMessages, raw.SentMessages())
 		})
 	}
 }
 
-type handlerFunc func(ctx context.Context, rw rpc.ResponseWriter, req *rpc.Request)
+type handlerFunc func(ctx context.Context, s rpc.Stream, req *rpc.Request)
 
 type requestHandlerFunc struct {
 	h handlerFunc
@@ -493,12 +502,12 @@ func newRequestHandlerFunc(h handlerFunc) rpc.RequestHandler {
 	}
 }
 
-func (r *requestHandlerFunc) HandleRequest(ctx context.Context, rw rpc.ResponseWriter, req *rpc.Request) {
-	r.h(ctx, rw, req)
+func (r *requestHandlerFunc) HandleRequest(ctx context.Context, s rpc.Stream, req *rpc.Request) {
+	r.h(ctx, s, req)
 }
 
 type rawConnectionMock struct {
-	SentMessages []*transport.Message
+	sentMessages []*transport.Message
 
 	closedCh chan struct{}
 	closed   bool
@@ -539,7 +548,7 @@ func (r *rawConnectionMock) Send(msg *transport.Message) error {
 	if r.closed {
 		return errors.New("raw connection is closed")
 	}
-	r.SentMessages = append(r.SentMessages, msg)
+	r.sentMessages = append(r.sentMessages, msg)
 	return nil
 }
 
@@ -551,4 +560,12 @@ func (r *rawConnectionMock) Close() error {
 		close(r.closedCh)
 	}
 	return nil
+}
+
+func (r *rawConnectionMock) SentMessages() []*transport.Message {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+	result := make([]*transport.Message, len(r.sentMessages))
+	copy(result, r.sentMessages)
+	return result
 }

@@ -34,7 +34,7 @@ func TestRequestStream_RequestNumber(t *testing.T) {
 	require.Equal(t, requestNumber, stream.RequestNumber())
 }
 
-func TestRequestStream_WriteMessage(t *testing.T) {
+func TestRequestStream_WriteMessageCallsMessageSender(t *testing.T) {
 	ctx := fixtures.TestContext(t)
 	sender := NewSenderMock()
 
@@ -142,7 +142,7 @@ func TestRequestStream_CloseWithError(t *testing.T) {
 	}
 }
 
-func TestRequestStream_CloseWithError_Twice(t *testing.T) {
+func TestRequestStream_CloseWithErrorReturnsAnErrorWhenCalledForTheSecondTime(t *testing.T) {
 	ctx := fixtures.TestContext(t)
 	sender := NewSenderMock()
 
@@ -160,12 +160,17 @@ func TestRequestStream_CloseWithError_Twice(t *testing.T) {
 	require.Len(t, sender.calls, 1)
 }
 
-func TestRequestStream_HandleNewMessage(t *testing.T) {
+func TestRequestStream_HandleNewMessageReturnsAnErrorForProceduresThatAreNotDuplex(t *testing.T) {
 	testCases := []struct {
 		Name                    string
 		ProcedureType           rpc.ProcedureType
 		AcceptsFollowUpMessages bool
 	}{
+		{
+			Name:                    "unknown",
+			ProcedureType:           rpc.ProcedureTypeUnknown,
+			AcceptsFollowUpMessages: false,
+		},
 		{
 			Name:                    "async",
 			ProcedureType:           rpc.ProcedureTypeAsync,
@@ -193,24 +198,172 @@ func TestRequestStream_HandleNewMessage(t *testing.T) {
 			stream, err := rpc.NewRequestStream(ctx, requestNumber, testCase.ProcedureType, sender)
 			require.NoError(t, err)
 
-			data := fixtures.SomeBytes()
+			msg := someDuplexIncomingMessage(t, requestNumber)
 
-			msg, err := transport.NewMessage(
-				transport.MustNewMessageHeader(
-					transport.MustNewMessageHeaderFlags(fixtures.SomeBool(), false, transport.MessageBodyTypeJSON),
-					uint32(len(data)),
-					int32(requestNumber),
-				),
-				data,
-			)
-			require.NoError(t, err)
-
-			err = stream.HandleNewMessage(&msg)
+			err = stream.HandleNewMessage(msg)
 			if testCase.AcceptsFollowUpMessages {
 				require.NoError(t, err)
 			} else {
-				require.EqualError(t, err, "only duplex streams can receive more than one message")
+				require.EqualError(t, err, "only duplex streams can receive messages")
 			}
 		})
 	}
+}
+
+func TestRequestStream_IncomingMessagesReturnsAnErrorForProceduresThatAreNotDuplex(t *testing.T) {
+	testCases := []struct {
+		Name          string
+		ProcedureType rpc.ProcedureType
+		ExpectedError bool
+	}{
+		{
+			Name:          "unknown",
+			ProcedureType: rpc.ProcedureTypeUnknown,
+			ExpectedError: true,
+		},
+		{
+			Name:          "async",
+			ProcedureType: rpc.ProcedureTypeAsync,
+			ExpectedError: true,
+		},
+		{
+			Name:          "source",
+			ProcedureType: rpc.ProcedureTypeSource,
+			ExpectedError: true,
+		},
+		{
+			Name:          "duplex",
+			ProcedureType: rpc.ProcedureTypeDuplex,
+			ExpectedError: false,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			ctx := fixtures.TestContext(t)
+			sender := NewSenderMock()
+
+			stream, err := rpc.NewRequestStream(ctx, fixtures.SomePositiveInt(), testCase.ProcedureType, sender)
+			require.NoError(t, err)
+
+			_, err = stream.IncomingMessages()
+			if testCase.ExpectedError {
+				require.EqualError(t, err, "only duplex streams can receive messages")
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestRequestStream_IncomingMessagesBlockUntilStreamIsClosed(t *testing.T) {
+	ctx := fixtures.TestContext(t)
+	sender := NewSenderMock()
+
+	requestNumber := fixtures.SomePositiveInt()
+
+	stream, err := rpc.NewRequestStream(ctx, requestNumber, rpc.ProcedureTypeDuplex, sender)
+	require.NoError(t, err)
+
+	ch, err := stream.IncomingMessages()
+	require.NoError(t, err)
+
+	select {
+	case <-time.After(timeout):
+		t.Log("ok, blocked for a while")
+	case <-ch:
+		t.Fatal("closed")
+	}
+}
+
+func TestRequestStream_IncomingMessagesReturnsClosedChannelIfStreamIsClosed(t *testing.T) {
+	ctx := fixtures.TestContext(t)
+	sender := NewSenderMock()
+
+	requestNumber := fixtures.SomePositiveInt()
+
+	stream, err := rpc.NewRequestStream(ctx, requestNumber, rpc.ProcedureTypeDuplex, sender)
+	require.NoError(t, err)
+
+	err = stream.CloseWithError(nil)
+	require.NoError(t, err)
+
+	require.Eventually(t,
+		func() bool {
+			ch, err := stream.IncomingMessages()
+			if err != nil {
+				return false
+			}
+
+			select {
+			case _, ok := <-ch:
+				return ok == false
+			default:
+				return false
+			}
+
+		}, timeout, 10*time.Millisecond)
+}
+
+func TestRequestStream_IncomingMessagesReceivesIncomingMessages(t *testing.T) {
+	ctx := fixtures.TestContext(t)
+	sender := NewSenderMock()
+
+	requestNumber := fixtures.SomePositiveInt()
+
+	stream, err := rpc.NewRequestStream(ctx, requestNumber, rpc.ProcedureTypeDuplex, sender)
+	require.NoError(t, err)
+
+	ch, err := stream.IncomingMessages()
+	require.NoError(t, err)
+
+	var incomingMessages []rpc.IncomingMessage
+	doneCh := make(chan struct{})
+
+	go func() {
+		defer close(doneCh)
+		for v := range ch {
+			incomingMessages = append(incomingMessages, v)
+		}
+	}()
+
+	msg := someDuplexIncomingMessage(t, requestNumber)
+
+	err = stream.HandleNewMessage(msg)
+	require.NoError(t, err)
+
+	err = stream.CloseWithError(nil)
+	require.NoError(t, err)
+
+	select {
+	case <-time.After(timeout):
+		t.Fatal("timeout")
+	case <-doneCh:
+		t.Log("ok, the channel was closed")
+	}
+
+	require.Equal(t,
+		[]rpc.IncomingMessage{
+			{
+				Body: msg.Body,
+			},
+		},
+		incomingMessages,
+	)
+}
+
+func someDuplexIncomingMessage(t *testing.T, requestNumber int) transport.Message {
+	data := fixtures.SomeBytes()
+
+	msg, err := transport.NewMessage(
+		transport.MustNewMessageHeader(
+			transport.MustNewMessageHeaderFlags(fixtures.SomeBool(), false, transport.MessageBodyTypeJSON),
+			uint32(len(data)),
+			int32(requestNumber),
+		),
+		data,
+	)
+	require.NoError(t, err)
+
+	return msg
 }

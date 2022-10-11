@@ -38,10 +38,10 @@ func (h *HandlerCreateHistoryStream) Procedure() rpc.Procedure {
 	return messages.CreateHistoryStreamProcedure
 }
 
-func (h *HandlerCreateHistoryStream) Handle(ctx context.Context, rw mux.ResponseWriterCloser, req *rpc.Request) {
+func (h *HandlerCreateHistoryStream) Handle(ctx context.Context, s mux.CloserStream, req *rpc.Request) {
 	args, err := messages.NewCreateHistoryStreamArgumentsFromBytes(req.Arguments())
 	if err != nil {
-		if closeErr := rw.CloseWithError(err); closeErr != nil {
+		if closeErr := s.CloseWithError(err); closeErr != nil {
 			h.logger.WithError(closeErr).Debug("could not close the stream")
 		}
 		return
@@ -53,7 +53,7 @@ func (h *HandlerCreateHistoryStream) Handle(ctx context.Context, rw mux.Response
 		Limit:          args.Limit(),
 		Live:           args.Live(),
 		Old:            args.Old(),
-		ResponseWriter: NewCreateHistoryStreamResponseWriter(args, rw),
+		ResponseWriter: NewCreateHistoryStreamResponseWriter(args, s),
 	}
 
 	h.q.Handle(ctx, query)
@@ -61,16 +61,16 @@ func (h *HandlerCreateHistoryStream) Handle(ctx context.Context, rw mux.Response
 
 type CreateHistoryStreamResponseWriter struct {
 	args messages.CreateHistoryStreamArguments
-	rw   rpc.ResponseWriter
+	s    rpc.Stream
 }
 
 func NewCreateHistoryStreamResponseWriter(
 	args messages.CreateHistoryStreamArguments,
-	rw rpc.ResponseWriter,
+	s rpc.Stream,
 ) *CreateHistoryStreamResponseWriter {
 	return &CreateHistoryStreamResponseWriter{
 		args: args,
-		rw:   rw,
+		s:    s,
 	}
 }
 
@@ -80,7 +80,7 @@ func (rw CreateHistoryStreamResponseWriter) WriteMessage(msg message.Message) er
 		return errors.Wrap(err, "could not create a response")
 	}
 
-	if err := rw.rw.WriteMessage(b); err != nil {
+	if err := rw.s.WriteMessage(b); err != nil {
 		return errors.Wrap(err, "could not write the message")
 	}
 
@@ -88,7 +88,7 @@ func (rw CreateHistoryStreamResponseWriter) WriteMessage(msg message.Message) er
 }
 
 func (rw CreateHistoryStreamResponseWriter) CloseWithError(err error) error {
-	return rw.rw.CloseWithError(err)
+	return rw.s.CloseWithError(err)
 }
 
 func (rw CreateHistoryStreamResponseWriter) createResponse(msg message.Message) ([]byte, error) {

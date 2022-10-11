@@ -28,7 +28,7 @@ func (h HandlerBlobsCreateWants) Procedure() rpc.Procedure {
 	return messages.BlobsCreateWantsProcedure
 }
 
-func (h HandlerBlobsCreateWants) Handle(ctx context.Context, w mux.ResponseWriter, req *rpc.Request) error {
+func (h HandlerBlobsCreateWants) Handle(ctx context.Context, s mux.Stream, req *rpc.Request) error {
 	cmd := commands.CreateWants{}
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -50,7 +50,7 @@ func (h HandlerBlobsCreateWants) Handle(ctx context.Context, w mux.ResponseWrite
 			return errors.Wrap(err, "json marshalling failed")
 		}
 
-		if err := w.WriteMessage(j); err != nil {
+		if err := s.WriteMessage(j); err != nil {
 			return errors.Wrap(err, "failed to send a message")
 		}
 	}

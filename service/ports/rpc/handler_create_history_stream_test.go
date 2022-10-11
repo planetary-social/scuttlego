@@ -43,19 +43,19 @@ func TestCreateHistoryStream(t *testing.T) {
 		t.Run(testCase.Name, func(t *testing.T) {
 			ctx := fixtures.TestContext(t)
 			queryHandler := NewMockCreateHistoryStreamQueryHandler()
-			rw := mocks.NewMockResponseWriterCloser()
+			s := mocks.NewMockCloserStream()
 			h := rpc.NewHandlerCreateHistoryStream(queryHandler, logging.NewDevNullLogger())
 
 			req := createHistoryStreamRequest(t, testCase.Keys)
 
-			h.Handle(ctx, rw, req)
+			h.Handle(ctx, s, req)
 			require.Len(t, queryHandler.Calls, 1)
 
 			msg := fixtures.SomeMessage(fixtures.SomeSequence(), fixtures.SomeRefFeed())
 			err := queryHandler.Calls[0].ResponseWriter.WriteMessage(msg)
 			require.NoError(t, err)
-			require.Len(t, rw.WrittenMessages, 1)
-			for _, body := range rw.WrittenMessages {
+			require.Len(t, s.WrittenMessages, 1)
+			for _, body := range s.WrittenMessages {
 				keyJSON := []byte(`"key":`)
 				require.Equal(t, testCase.ContainsKeys, bytes.Contains(body, keyJSON))
 			}

@@ -94,10 +94,10 @@ func TestArgumentsArePassedToQuery(t *testing.T) {
 			h := rpc.NewHandlerBlobsGet(queryHandler)
 
 			ctx := fixtures.TestContext(t)
-			rw := mocks.NewMockResponseWriterCloser()
+			s := mocks.NewMockCloserStream()
 			req := createBlobsGetRequest(t, testCase.Hash, testCase.Size, testCase.Max)
 
-			err := h.Handle(ctx, rw, req)
+			err := h.Handle(ctx, s, req)
 			require.NoError(t, err)
 
 			require.Equal(t, []queries.GetBlob{testCase.ExpectedQuery}, queryHandler.Calls)
@@ -110,13 +110,13 @@ func TestIfHandlerReturnsErrorNoMessagesAreSent(t *testing.T) {
 	h := rpc.NewHandlerBlobsGet(queryHandler)
 
 	ctx := fixtures.TestContext(t)
-	rw := mocks.NewMockResponseWriterCloser()
+	s := mocks.NewMockCloserStream()
 	req := createBlobsGetRequest(t, fixtures.SomeRefBlob(), nil, nil)
 
-	err := h.Handle(ctx, rw, req)
+	err := h.Handle(ctx, s, req)
 	require.Error(t, err)
 
-	require.Empty(t, rw.WrittenMessages)
+	require.Empty(t, s.WrittenMessages)
 }
 
 func TestSmallBlobIsWrittenToResponseWriter(t *testing.T) {
@@ -127,14 +127,14 @@ func TestSmallBlobIsWrittenToResponseWriter(t *testing.T) {
 	queryHandler.MockBlob(id, []byte("test"))
 
 	ctx := fixtures.TestContext(t)
-	rw := mocks.NewMockResponseWriterCloser()
+	s := mocks.NewMockCloserStream()
 	req := createBlobsGetRequest(t, id, nil, nil)
 
-	err := h.Handle(ctx, rw, req)
+	err := h.Handle(ctx, s, req)
 	require.NoError(t, err)
 
-	require.Len(t, rw.WrittenMessages, 1)
-	require.Equal(t, []byte("test"), rw.WrittenMessages[0])
+	require.Len(t, s.WrittenMessages, 1)
+	require.Equal(t, []byte("test"), s.WrittenMessages[0])
 
 	queryHandler.RequireThereAreNoOpenReadClosers(t)
 }
@@ -156,16 +156,16 @@ func TestLargeBlobIsWrittenToResponseWriter(t *testing.T) {
 	queryHandler.MockBlob(id, payload)
 
 	ctx := fixtures.TestContext(t)
-	rw := mocks.NewMockResponseWriterCloser()
+	s := mocks.NewMockCloserStream()
 	req := createBlobsGetRequest(t, id, nil, nil)
 
-	err := h.Handle(ctx, rw, req)
+	err := h.Handle(ctx, s, req)
 	require.NoError(t, err)
 
-	require.Len(t, rw.WrittenMessages, 3)
-	require.Equal(t, payloadInFirstMessage, rw.WrittenMessages[0])
-	require.Equal(t, payloadInSecondMessage, rw.WrittenMessages[1])
-	require.Equal(t, payloadInThirdMessage, rw.WrittenMessages[2])
+	require.Len(t, s.WrittenMessages, 3)
+	require.Equal(t, payloadInFirstMessage, s.WrittenMessages[0])
+	require.Equal(t, payloadInSecondMessage, s.WrittenMessages[1])
+	require.Equal(t, payloadInThirdMessage, s.WrittenMessages[2])
 
 	queryHandler.RequireThereAreNoOpenReadClosers(t)
 }

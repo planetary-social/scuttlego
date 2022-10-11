@@ -13,16 +13,15 @@ type CreateHistoryStreamHandler interface {
 	Handle(ctx context.Context, query queries.CreateHistoryStream)
 }
 
-// todo rename
-type StreamMessagesRequestHandler struct {
+type CreateHistoryStreamHandlerAdapter struct {
 	handler CreateHistoryStreamHandler
 }
 
-func NewStreamMessagesRequestHandler(handler CreateHistoryStreamHandler) *StreamMessagesRequestHandler {
-	return &StreamMessagesRequestHandler{handler: handler}
+func NewCreateHistoryStreamHandlerAdapter(handler CreateHistoryStreamHandler) *CreateHistoryStreamHandlerAdapter {
+	return &CreateHistoryStreamHandlerAdapter{handler: handler}
 }
 
-func (h StreamMessagesRequestHandler) Handle(ctx context.Context, id refs.Feed, seq *message.Sequence, messageWriter ebt.MessageWriter) {
+func (h CreateHistoryStreamHandlerAdapter) Handle(ctx context.Context, id refs.Feed, seq *message.Sequence, messageWriter ebt.MessageWriter) {
 	query := queries.CreateHistoryStream{
 		Id:             id,
 		Seq:            seq,

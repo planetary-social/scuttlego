@@ -102,8 +102,8 @@ var adaptersSet = wire.NewSet(
 	adapters.NewBanListHasher,
 	wire.Bind(new(bolt.BanListHasher), new(*adapters.BanListHasher)),
 
-	ebtadapters.NewStreamMessagesRequestHandler,
-	wire.Bind(new(ebt.MessageStreamer), new(*ebtadapters.StreamMessagesRequestHandler)),
+	ebtadapters.NewCreateHistoryStreamHandlerAdapter,
+	wire.Bind(new(ebt.MessageStreamer), new(*ebtadapters.CreateHistoryStreamHandlerAdapter)),
 )
 
 //nolint:unused

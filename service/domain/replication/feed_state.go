@@ -7,10 +7,6 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 )
 
-type RawMessageHandler interface {
-	Handle(msg message.RawMessage) error
-}
-
 // FeedState wraps the sequence number so that both the state of feeds which
 // have some messages in them and empty feeds can be represented.
 type FeedState struct {

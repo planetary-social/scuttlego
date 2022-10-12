@@ -211,6 +211,10 @@ func SomeSize() blobs.Size {
 	return blobs.MustNewSize(int64(SomePositiveInt32()))
 }
 
+func SomeError() error {
+	return fmt.Errorf("some error: %d", rand.Int())
+}
+
 func SomeBanListHash() bans.Hash {
 	r := make([]byte, 32)
 	_, err := rand.Read(r)

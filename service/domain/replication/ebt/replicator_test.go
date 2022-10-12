@@ -14,96 +14,49 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestReplicator_ReplicateWaitsForSessionIfConnectionInitiatedByRemote(t *testing.T) {
-	testCases := []struct {
-		Name                           string
-		ConnectionWasInitiatedByRemote bool
-		ExpectedWaitForSessionCall     bool
-		ExpectedOpenSessionCall        bool
-		ExpectedRequest                bool
-		ExpectedRunnerCall             bool
-	}{
-		{
-			Name:                           "not_initiated_by_remote",
-			ConnectionWasInitiatedByRemote: true,
-			ExpectedWaitForSessionCall:     true,
-			ExpectedOpenSessionCall:        false,
-			ExpectedRequest:                false,
-			ExpectedRunnerCall:             false,
+func TestReplicator_ReplicateCallsWaitForSessionIfConnectionWasInitiatedByRemote(t *testing.T) {
+	tr := newTestReplicator(t)
+
+	connectionId := fixtures.SomeConnectionId()
+	ctx := fixtures.TestContext(t)
+	ctx = rpc.PutConnectionIdInContext(ctx, connectionId)
+	connThatWasInitiatedByRemote := newConnectionMock(true)
+	peer := transport.NewPeer(fixtures.SomePublicIdentity(), connThatWasInitiatedByRemote)
+
+	tr.Tracker.WaitForSessionResult = true
+
+	err := tr.Replicator.Replicate(ctx, peer)
+	require.NoError(t, err)
+
+	require.Equal(t, []rpc.ConnectionId{connectionId}, tr.Tracker.WaitForSessionCalls)
+	require.Empty(t, tr.Tracker.OpenSessionCalls)
+	require.Empty(t, tr.Tracker.OpenSessionDoneCalls)
+	require.Empty(t, connThatWasInitiatedByRemote.PerformRequestCalls)
+	require.Equal(t, 0, tr.Runner.HandleStreamCallsCount)
+}
+
+func TestReplicator_ReplicateInitiatesTheSessionIfConnectionWasNotInitiatedByRemote(t *testing.T) {
+	tr := newTestReplicator(t)
+
+	connectionId := fixtures.SomeConnectionId()
+	ctx := fixtures.TestContext(t)
+	ctx = rpc.PutConnectionIdInContext(ctx, connectionId)
+	connectionThatWasNotInitiatedByRemote := newConnectionMock(false)
+	peer := transport.NewPeer(fixtures.SomePublicIdentity(), connectionThatWasNotInitiatedByRemote)
+
+	err := tr.Replicator.Replicate(ctx, peer)
+	require.NoError(t, err)
+
+	require.Empty(t, tr.Tracker.WaitForSessionCalls)
+	require.Equal(t, []rpc.ConnectionId{connectionId}, tr.Tracker.OpenSessionCalls)
+	require.Equal(t, []rpc.ConnectionId{connectionId}, tr.Tracker.OpenSessionDoneCalls)
+	require.Equal(t,
+		[]*rpc.Request{
+			rpc.MustNewRequest(messages.EbtReplicateProcedure.Name(), messages.EbtReplicateProcedure.Typ(), []byte(`[{"version":3,"format":"classic"}]`)),
 		},
-		{
-			Name:                           "initiated_by_remote",
-			ConnectionWasInitiatedByRemote: false,
-			ExpectedWaitForSessionCall:     false,
-			ExpectedOpenSessionCall:        true,
-			ExpectedRequest:                true,
-			ExpectedRunnerCall:             true,
-		},
-	}
-
-	for _, testCase := range testCases {
-		t.Run(testCase.Name, func(t *testing.T) {
-			tr := newTestReplicator(t)
-
-			connectionId := fixtures.SomeConnectionId()
-			ctx := fixtures.TestContext(t)
-			ctx = rpc.PutConnectionIdInContext(ctx, connectionId)
-			conn := newConnectionMock(testCase.ConnectionWasInitiatedByRemote)
-			peer := transport.NewPeer(fixtures.SomePublicIdentity(), conn)
-
-			tr.Tracker.WaitForSessionResult = true
-
-			err := tr.Replicator.Replicate(ctx, peer)
-			require.NoError(t, err)
-
-			if testCase.ExpectedWaitForSessionCall {
-				require.Equal(t,
-					[]rpc.ConnectionId{
-						connectionId,
-					},
-					tr.Tracker.WaitForSessionCalls,
-				)
-			} else {
-				require.Empty(t, tr.Tracker.WaitForSessionCalls)
-			}
-
-			if testCase.ExpectedOpenSessionCall {
-				require.Equal(t,
-					[]rpc.ConnectionId{
-						connectionId,
-					},
-					tr.Tracker.OpenSessionCalls,
-				)
-
-				require.Equal(t,
-					[]rpc.ConnectionId{
-						connectionId,
-					},
-					tr.Tracker.OpenSessionDoneCalls,
-				)
-			} else {
-				require.Empty(t, tr.Tracker.OpenSessionCalls)
-				require.Empty(t, tr.Tracker.OpenSessionDoneCalls)
-			}
-
-			if testCase.ExpectedRequest {
-				require.Equal(t,
-					[]*rpc.Request{
-						rpc.MustNewRequest(messages.EbtReplicateProcedure.Name(), messages.EbtReplicateProcedure.Typ(), []byte(`[{"version":3,"format":"classic"}]`)),
-					},
-					conn.PerformRequestCalls,
-				)
-			} else {
-				require.Empty(t, conn.PerformRequestCalls)
-			}
-
-			if testCase.ExpectedRunnerCall {
-				require.Equal(t, 1, tr.Runner.HandleStreamCallsCount)
-			} else {
-				require.Equal(t, 0, tr.Runner.HandleStreamCallsCount)
-			}
-		})
-	}
+		connectionThatWasNotInitiatedByRemote.PerformRequestCalls,
+	)
+	require.Equal(t, 1, tr.Runner.HandleStreamCallsCount)
 }
 
 func TestReplicator_ReplicateReturnsAnErrorAndDoesNotWaitIfOpenSessionReturnsAnError(t *testing.T) {

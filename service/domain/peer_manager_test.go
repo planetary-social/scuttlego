@@ -344,6 +344,10 @@ func newConnectionMock() *connectionMock {
 	}
 }
 
+func (c connectionMock) WasInitiatedByRemote() bool {
+	return fixtures.SomeBool()
+}
+
 func (c connectionMock) PerformRequest(ctx context.Context, req *rpc.Request) (*rpc.ResponseStream, error) {
 	return nil, errors.New("not implemented")
 }

@@ -19,3 +19,17 @@ func TestSet(t *testing.T) {
 	require.Equal(t, 1, s.Len())
 	require.Equal(t, []int{0}, s.List())
 }
+
+func TestSet_Delete(t *testing.T) {
+	s := NewSet[int]()
+
+	require.False(t, s.Contains(0))
+
+	s.Put(0)
+
+	require.True(t, s.Contains(0))
+
+	s.Delete(0)
+
+	require.False(t, s.Contains(0))
+}

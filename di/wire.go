@@ -27,6 +27,8 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/network"
 	"github.com/planetary-social/scuttlego/service/domain/network/local"
 	"github.com/planetary-social/scuttlego/service/domain/replication"
+	"github.com/planetary-social/scuttlego/service/domain/replication/ebt"
+	"github.com/planetary-social/scuttlego/service/domain/replication/gossip"
 	domaintransport "github.com/planetary-social/scuttlego/service/domain/transport"
 	"github.com/planetary-social/scuttlego/service/domain/transport/boxstream"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
@@ -196,7 +198,7 @@ func BuildService(context.Context, identity.Private, Config) (Service, error) {
 		privateIdentityToPublicIdentity,
 
 		commands.NewMessageBuffer,
-		wire.Bind(new(replication.MessageBuffer), new(*commands.MessageBuffer)),
+		wire.Bind(new(gossip.MessageBuffer), new(*commands.MessageBuffer)),
 
 		portsSet,
 		applicationSet,
@@ -214,11 +216,27 @@ func BuildService(context.Context, identity.Private, Config) (Service, error) {
 }
 
 var replicatorSet = wire.NewSet(
-	replication.NewManager,
-	wire.Bind(new(replication.ReplicationManager), new(*replication.Manager)),
+	gossip.NewManager,
+	wire.Bind(new(gossip.ReplicationManager), new(*gossip.Manager)),
 
-	replication.NewGossipReplicator,
-	wire.Bind(new(domain.MessageReplicator), new(*replication.GossipReplicator)),
+	gossip.NewGossipReplicator,
+	wire.Bind(new(replication.CreateHistoryStreamReplicator), new(*gossip.GossipReplicator)),
+
+	ebt.NewReplicator,
+	wire.Bind(new(replication.EpidemicBroadcastTreesReplicator), new(ebt.Replicator)),
+
+	replication.NewContactsCache,
+	wire.Bind(new(gossip.ContactsStorage), new(*replication.ContactsCache)),
+	wire.Bind(new(ebt.ContactsStorage), new(*replication.ContactsCache)),
+
+	ebt.NewSessionTracker,
+	wire.Bind(new(ebt.Tracker), new(*ebt.SessionTracker)),
+
+	ebt.NewSessionRunner,
+	wire.Bind(new(ebt.Runner), new(*ebt.SessionRunner)),
+
+	replication.NewNegotiator,
+	wire.Bind(new(domain.MessageReplicator), new(*replication.Negotiator)),
 )
 
 var blobReplicatorSet = wire.NewSet(

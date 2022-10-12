@@ -1,4 +1,4 @@
-package replication
+package gossip
 
 import (
 	"context"
@@ -6,9 +6,9 @@ import (
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
-	"github.com/planetary-social/scuttlego/service/domain/identity"
 	"github.com/planetary-social/scuttlego/service/domain/messages"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
+	"github.com/planetary-social/scuttlego/service/domain/replication"
 	"github.com/planetary-social/scuttlego/service/domain/transport"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 )
@@ -25,50 +25,13 @@ const (
 	limit = 1000
 )
 
-type TaskResult struct {
-	s string
-}
-
-var (
-	TaskResultDoesNotHaveMoreMessages = TaskResult{"does_not_have_more_messages"}
-	TaskResultHasMoreMessages         = TaskResult{"has_more_messages"}
-	TaskResultFailed                  = TaskResult{"failed"}
-
-	// TaskResultDidNotStart is used internally by the manager. It should not be
-	// used by replicators.
-	TaskResultDidNotStart = TaskResult{"did_not_start"}
-)
-
-type TaskCompletedFn func(result TaskResult)
-
-type ReplicateFeedTask struct {
-	Id    refs.Feed
-	State FeedState
-	Ctx   context.Context
-
-	OnComplete TaskCompletedFn
-}
-
-type ReplicationManager interface {
-	// GetFeedsToReplicate returns a channel on which replication tasks are
-	// received. The channel stays open as long as the passed context isn't
-	// cancelled. Cancelling the context cancels all child contexts in the
-	// received tasks. The caller must call the completion function for each
-	// task.
-	GetFeedsToReplicate(ctx context.Context, remote identity.Public) <-chan ReplicateFeedTask
-}
-
-type RawMessageHandler interface {
-	Handle(msg message.RawMessage) error
-}
-
 type GossipReplicator struct {
 	manager ReplicationManager
-	handler RawMessageHandler
+	handler replication.RawMessageHandler
 	logger  logging.Logger
 }
 
-func NewGossipReplicator(manager ReplicationManager, handler RawMessageHandler, logger logging.Logger) (*GossipReplicator, error) {
+func NewGossipReplicator(manager ReplicationManager, handler replication.RawMessageHandler, logger logging.Logger) (*GossipReplicator, error) {
 	return &GossipReplicator{
 		manager: manager,
 		handler: handler,
@@ -161,7 +124,7 @@ func (r GossipReplicator) replicateFeed(peer transport.Peer, feed ReplicateFeedT
 	return counter, nil
 }
 
-func (r GossipReplicator) newCreateHistoryStreamArguments(id refs.Feed, state FeedState) (messages.CreateHistoryStreamArguments, error) {
+func (r GossipReplicator) newCreateHistoryStreamArguments(id refs.Feed, state replication.FeedState) (messages.CreateHistoryStreamArguments, error) {
 	var seq *message.Sequence
 	if sequence, hasAnyMessages := state.Sequence(); hasAnyMessages {
 		seq = &sequence

@@ -42,7 +42,7 @@ func (i PeerInitializer) InitializeServerPeer(ctx context.Context, rwc io.ReadWr
 		return Peer{}, errors.Wrap(err, "failed to open a server stream")
 	}
 
-	return i.initializePeer(ctx, boxStream)
+	return i.initializePeer(ctx, boxStream, true)
 }
 
 func (i PeerInitializer) InitializeClientPeer(ctx context.Context, rwc io.ReadWriteCloser, remote identity.Public) (Peer, error) {
@@ -51,10 +51,10 @@ func (i PeerInitializer) InitializeClientPeer(ctx context.Context, rwc io.ReadWr
 		return Peer{}, errors.Wrap(err, "failed to open a client stream")
 	}
 
-	return i.initializePeer(ctx, boxStream)
+	return i.initializePeer(ctx, boxStream, false)
 }
 
-func (i PeerInitializer) initializePeer(ctx context.Context, boxStream *boxstream.Stream) (Peer, error) {
+func (i PeerInitializer) initializePeer(ctx context.Context, boxStream *boxstream.Stream, wasInitiatedByRemote bool) (Peer, error) {
 	logger, err := i.peerLogger(boxStream)
 	if err != nil {
 		return Peer{}, errors.Wrap(err, "failed to create a peer logger")
@@ -64,7 +64,7 @@ func (i PeerInitializer) initializePeer(ctx context.Context, boxStream *boxstrea
 
 	connectionId := i.connectionIdGenerator.Generate()
 
-	rpcConn, err := rpc.NewConnection(ctx, connectionId, raw, i.requestHandler, logger)
+	rpcConn, err := rpc.NewConnection(ctx, connectionId, wasInitiatedByRemote, raw, i.requestHandler, logger)
 	if err != nil {
 		return Peer{}, errors.Wrap(err, "failed to establish an RPC connection")
 	}

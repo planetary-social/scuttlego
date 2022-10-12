@@ -45,7 +45,7 @@ var boltAdaptersSet = wire.NewSet(
 	wire.Bind(new(queries.FeedRepository), new(*bolt.ReadFeedRepository)),
 
 	bolt.NewReadContactsRepository,
-	wire.Bind(new(replication.Storage), new(*bolt.ReadContactsRepository)),
+	wire.Bind(new(replication.ContactsRepository), new(*bolt.ReadContactsRepository)),
 
 	bolt.NewReadReceiveLogRepository,
 	wire.Bind(new(queries.ReceiveLogRepository), new(*bolt.ReadReceiveLogRepository)),

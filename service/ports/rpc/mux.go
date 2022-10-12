@@ -10,10 +10,12 @@ import (
 func NewMuxHandlers(
 	blobsGet *HandlerBlobsGet,
 	blobsCreateWants *HandlerBlobsCreateWants,
+	ebtReplicate *HandlerEbtReplicate,
 ) []mux.Handler {
 	return []mux.Handler{
 		blobsGet,
 		blobsCreateWants,
+		ebtReplicate,
 	}
 }
 

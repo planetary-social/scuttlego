@@ -20,13 +20,22 @@ var (
 	ebtReplicateFormat = messages.EbtReplicateFormatClassic
 )
 
+type Tracker interface {
+	OpenSession(id rpc.ConnectionId) (SessionEndedFn, error)
+	WaitForSession(ctx context.Context, id rpc.ConnectionId, waitTime time.Duration) error
+}
+
+type Runner interface {
+	HandleStream(ctx context.Context, stream Stream) error
+}
+
 type Replicator struct {
-	tracker *SessionTracker
-	runner  *SessionRunner
+	tracker Tracker
+	runner  Runner
 	logger  logging.Logger
 }
 
-func NewReplicator(tracker *SessionTracker, runner *SessionRunner, logger logging.Logger) Replicator {
+func NewReplicator(tracker Tracker, runner Runner, logger logging.Logger) Replicator {
 	return Replicator{
 		tracker: tracker,
 		runner:  runner,

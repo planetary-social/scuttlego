@@ -71,7 +71,7 @@ func TestSessionTracker_WaitForSessionExitsAndReturnsTrueIfSessionExistsButTermi
 		require.True(t, ok)
 		require.True(t, result)
 		require.NotZero(t, doneDuration)
-		require.Greater(t, doneDuration, 2*testWaitDuration)
+		require.Greater(t, doneDuration, 2*testWaitDuration, "wait for session exited before the session was marked as done (probably due to the timer)")
 		require.False(t, tracker.SomeoneIsWaiting(connectionId))
 	case <-time.After(4 * testWaitDuration):
 		t.Fatal("timeout")
@@ -112,7 +112,7 @@ func TestSessionTracker_WaitForSessionExitsAndReturnsTrueIfSessionExistsButTermi
 		require.True(t, ok)
 		require.True(t, result)
 		require.NotZero(t, doneDuration)
-		require.Less(t, doneDuration, testWaitDuration)
+		require.Less(t, doneDuration, testWaitDuration, "wait for session exited way after the session was marked as done (probably due to the timer)")
 		require.False(t, tracker.SomeoneIsWaiting(connectionId))
 	case <-time.After(4 * testWaitDuration):
 		t.Fatal("timeout")
@@ -162,7 +162,7 @@ func TestSessionTracker_WaitForSessionExitsAndReturnsTrueIfSessionExistsButTermi
 		require.True(t, ok)
 		require.True(t, result)
 		require.NotZero(t, doneDuration)
-		require.Greater(t, doneDuration, 2*testWaitDuration)
+		require.Greater(t, doneDuration, 2*testWaitDuration, "wait for session exited before the session was marked as done (probably due to the timer)")
 	case <-time.After(4 * testWaitDuration):
 		t.Fatal("timeout")
 	}
@@ -211,7 +211,7 @@ func TestSessionTracker_WaitForSessionExitsAndReturnsTrueIfSessionExistsButTermi
 		require.True(t, ok)
 		require.True(t, result)
 		require.NotZero(t, doneDuration)
-		require.Less(t, doneDuration, testWaitDuration)
+		require.Less(t, doneDuration, testWaitDuration, "wait for session exited way after the session was marked as done (probably due to the timer)")
 	case <-time.After(4 * testWaitDuration):
 		t.Fatal("timeout")
 	}

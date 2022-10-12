@@ -7,6 +7,7 @@ import (
 
 	"github.com/planetary-social/scuttlego/fixtures"
 	"github.com/planetary-social/scuttlego/service/domain/messages"
+	"github.com/planetary-social/scuttlego/service/domain/replication"
 	"github.com/planetary-social/scuttlego/service/domain/replication/ebt"
 	"github.com/planetary-social/scuttlego/service/domain/transport"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
@@ -49,6 +50,8 @@ func TestReplicator_ReplicateWaitsForSessionIfConnectionInitiatedByRemote(t *tes
 			ctx = rpc.PutConnectionIdInContext(ctx, connectionId)
 			conn := newConnectionMock(testCase.ConnectionWasInitiatedByRemote)
 			peer := transport.NewPeer(fixtures.SomePublicIdentity(), conn)
+
+			tr.Tracker.WaitForSessionResult = true
 
 			err := tr.Replicator.Replicate(ctx, peer)
 			require.NoError(t, err)
@@ -124,6 +127,27 @@ func TestReplicator_ReplicateReturnsAnErrorAndDoesNotWaitIfOpenSessionReturnsAnE
 	require.Equal(t, 0, tr.Runner.HandleStreamCallsCount)
 }
 
+func TestReplicator_ReplicateReturnsErrPeerDoesNotSupportEbtIfRemoteNeverOpensASession(t *testing.T) {
+	tr := newTestReplicator(t)
+
+	connectionId := fixtures.SomeConnectionId()
+	ctx := fixtures.TestContext(t)
+	ctx = rpc.PutConnectionIdInContext(ctx, connectionId)
+	conn := newConnectionMock(true)
+	peer := transport.NewPeer(fixtures.SomePublicIdentity(), conn)
+
+	tr.Tracker.WaitForSessionResult = false
+
+	err := tr.Replicator.Replicate(ctx, peer)
+	require.ErrorIs(t, err, replication.ErrPeerDoesNotSupportEBT)
+
+	require.Empty(t, tr.Tracker.OpenSessionCalls)
+	require.Empty(t, tr.Tracker.OpenSessionDoneCalls)
+	require.NotEmpty(t, tr.Tracker.WaitForSessionCalls)
+	require.Empty(t, conn.PerformRequestCalls)
+	require.Equal(t, 0, tr.Runner.HandleStreamCallsCount)
+}
+
 type testReplicator struct {
 	Tracker    *trackerMock
 	Runner     *runnerMock
@@ -174,6 +198,7 @@ type trackerMock struct {
 	OpenSessionCalls     []rpc.ConnectionId
 	OpenSessionDoneCalls []rpc.ConnectionId
 	OpenSessionError     error
+	WaitForSessionResult bool
 }
 
 func newTrackerMock() *trackerMock {
@@ -187,9 +212,9 @@ func (t *trackerMock) OpenSession(id rpc.ConnectionId) (ebt.SessionEndedFn, erro
 	}, t.OpenSessionError
 }
 
-func (t *trackerMock) WaitForSession(ctx context.Context, id rpc.ConnectionId, waitTime time.Duration) error {
+func (t *trackerMock) WaitForSession(ctx context.Context, id rpc.ConnectionId, waitTime time.Duration) bool {
 	t.WaitForSessionCalls = append(t.WaitForSessionCalls, id)
-	return nil
+	return t.WaitForSessionResult
 }
 
 type runnerMock struct {

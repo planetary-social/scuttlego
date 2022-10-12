@@ -13,13 +13,13 @@ import (
 type SessionTracker struct {
 	lock     sync.Mutex // secures sessions and waiting
 	sessions internal.Set[rpc.ConnectionId]
-	waiting  map[rpc.ConnectionId][]chan<- struct{}
+	waiting  map[rpc.ConnectionId][]chan<- bool
 }
 
 func NewSessionTracker() *SessionTracker {
 	return &SessionTracker{
 		sessions: internal.NewSet[rpc.ConnectionId](),
-		waiting:  make(map[rpc.ConnectionId][]chan<- struct{}),
+		waiting:  make(map[rpc.ConnectionId][]chan<- bool),
 	}
 }
 
@@ -38,41 +38,30 @@ func (t *SessionTracker) OpenSession(id rpc.ConnectionId) (SessionEndedFn, error
 	return t.sessionEndedFnForConn(id), nil
 }
 
-// WaitForSession waits for a session for the given connection to start and then
-// blocks as long as this session is active. If a session doesn't start for a
-// certain amount of time an error is returned. If the session is started but
-// then terminates an error is not returned.
-func (t *SessionTracker) WaitForSession(ctx context.Context, id rpc.ConnectionId, waitTime time.Duration) error {
-	select {
-	case <-time.After(waitTime):
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-
-	ch := make(chan struct{})
-
-	if err := t.registerWaitChannelIfSessionExists(id, ch); err != nil {
-		return errors.Wrap(err, "error registering the wait channel")
-	}
+func (t *SessionTracker) WaitForSession(ctx context.Context, id rpc.ConnectionId, waitTime time.Duration) bool {
+	ch := make(chan bool)
+	t.registerWaitChannel(id, ch)
+	go t.closeChannelAfterWaitTimeIfSessionDoesNotExist(id, ch, waitTime)
 
 	select {
-	case <-ch:
-		return nil
+	case v := <-ch:
+		return v
 	case <-ctx.Done():
-		return ctx.Err()
+		return false
 	}
 }
 
-func (t *SessionTracker) registerWaitChannelIfSessionExists(id rpc.ConnectionId, ch chan<- struct{}) error {
+func (t *SessionTracker) SomeoneIsWaiting(id rpc.ConnectionId) bool {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+	return len(t.waiting[id]) > 0
+}
+
+func (t *SessionTracker) registerWaitChannel(id rpc.ConnectionId, ch chan<- bool) {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 
-	if !t.sessions.Contains(id) {
-		return errors.New("session wasn't started")
-	}
-
 	t.waiting[id] = append(t.waiting[id], ch)
-	return nil
 }
 
 func (t *SessionTracker) sessionEndedFnForConn(id rpc.ConnectionId) SessionEndedFn {
@@ -82,8 +71,30 @@ func (t *SessionTracker) sessionEndedFnForConn(id rpc.ConnectionId) SessionEnded
 
 		t.sessions.Delete(id)
 		for _, channel := range t.waiting[id] {
+			channel <- true
 			close(channel)
 		}
 		delete(t.waiting, id)
+	}
+}
+
+func (t *SessionTracker) closeChannelAfterWaitTimeIfSessionDoesNotExist(id rpc.ConnectionId, ch chan bool, waitTime time.Duration) {
+	<-time.After(waitTime)
+
+	t.lock.Lock()
+	defer t.lock.Unlock()
+
+	if !t.sessions.Contains(id) {
+		for i, currentChannel := range t.waiting[id] {
+			if currentChannel == ch {
+				currentChannel <- false
+				close(currentChannel)
+				t.waiting[id] = append(t.waiting[id][:i], t.waiting[id][i+1:]...)
+				break
+			}
+		}
+		if len(t.waiting[id]) == 0 {
+			delete(t.waiting, id)
+		}
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/domain/messages"
+	"github.com/planetary-social/scuttlego/service/domain/replication"
 	"github.com/planetary-social/scuttlego/service/domain/transport"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 )
@@ -22,7 +23,13 @@ var (
 
 type Tracker interface {
 	OpenSession(id rpc.ConnectionId) (SessionEndedFn, error)
-	WaitForSession(ctx context.Context, id rpc.ConnectionId, waitTime time.Duration) error
+
+	// WaitForSession waits for the session to be started for the provided
+	// amount of time. If the session starts within the provided time window
+	// then WaitForSession blocks for as long as the session is running.
+	// Returning true signifies that the session existed at any point after
+	// calling this function.
+	WaitForSession(ctx context.Context, id rpc.ConnectionId, waitTime time.Duration) bool
 }
 
 type Runner interface {
@@ -72,7 +79,10 @@ func (r Replicator) Replicate(ctx context.Context, peer transport.Peer) error {
 	}
 
 	logger.Debug("waiting for an EBT session")
-	return r.tracker.WaitForSession(ctx, connectionId, waitForRemoteToStartEbtSessionFor)
+	if ok := r.tracker.WaitForSession(ctx, connectionId, waitForRemoteToStartEbtSessionFor); !ok {
+		return replication.ErrPeerDoesNotSupportEBT
+	}
+	return nil
 }
 
 func (r Replicator) HandleIncoming(ctx context.Context, version int, format messages.EbtReplicateFormat, stream Stream) error {

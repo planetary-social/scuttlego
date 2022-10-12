@@ -20,25 +20,30 @@ func TestSessionTracker_OpenSessionReturnsAnInitializedDoneFunction(t *testing.T
 	done, err := tracker.OpenSession(fixtures.SomeConnectionId())
 	require.NoError(t, err)
 	require.NotNil(t, done)
+	require.NotPanics(t, func() {
+		done()
+	})
 }
 
-func TestSessionTracker_WaitForSessionExitsAndReturnsAnErrorIfSessionDoesNotExist(t *testing.T) {
+func TestSessionTracker_WaitForSessionExitsAndReturnsFalseIfSessionDoesNotExist(t *testing.T) {
 	t.Parallel()
 
 	tracker := NewSessionTracker()
 	ctx := fixtures.TestContext(t)
 
-	err := tracker.WaitForSession(ctx, fixtures.SomeConnectionId(), testWaitDuration)
-	require.Error(t, err)
+	ok := tracker.WaitForSession(ctx, fixtures.SomeConnectionId(), testWaitDuration)
+	require.False(t, ok)
 }
 
-func TestSessionTracker_WaitForSessionExitsAndDoesNotReturnAnErrorIfSessionExists(t *testing.T) {
+func TestSessionTracker_WaitForSessionExitsAndReturnsTrueIfSessionExistsButTerminatesAfterGracePeriod_OpenFirst(t *testing.T) {
 	t.Parallel()
 
 	tracker := NewSessionTracker()
 	ctx := fixtures.TestContext(t)
 	connectionId := fixtures.SomeConnectionId()
-	doneCh := make(chan error)
+
+	doneCh := make(chan bool)
+	var doneDuration time.Duration
 
 	done, err := tracker.OpenSession(connectionId)
 	require.NoError(t, err)
@@ -46,10 +51,12 @@ func TestSessionTracker_WaitForSessionExitsAndDoesNotReturnAnErrorIfSessionExist
 	go func() {
 		defer close(doneCh)
 
-		err := tracker.WaitForSession(ctx, connectionId, testWaitDuration)
+		start := time.Now()
+		ok := tracker.WaitForSession(ctx, connectionId, testWaitDuration)
+		doneDuration = time.Since(start)
 		select {
 		case <-ctx.Done():
-		case doneCh <- err:
+		case doneCh <- ok:
 		}
 	}()
 
@@ -57,8 +64,161 @@ func TestSessionTracker_WaitForSessionExitsAndDoesNotReturnAnErrorIfSessionExist
 	done()
 
 	select {
-	case err := <-doneCh:
+	case result, ok := <-doneCh:
+		require.True(t, ok)
+		require.True(t, result)
+		require.NotZero(t, doneDuration)
+		require.Greater(t, doneDuration, 2*testWaitDuration)
+		require.False(t, tracker.SomeoneIsWaiting(connectionId))
+	case <-time.After(4 * testWaitDuration):
+		t.Fatal("timeout")
+	}
+}
+
+func TestSessionTracker_WaitForSessionExitsAndReturnsTrueIfSessionExistsButTerminatesBeforeGracePeriod_OpenFirst(t *testing.T) {
+	t.Parallel()
+
+	tracker := NewSessionTracker()
+	ctx := fixtures.TestContext(t)
+	connectionId := fixtures.SomeConnectionId()
+
+	doneCh := make(chan bool)
+	var doneDuration time.Duration
+
+	done, err := tracker.OpenSession(connectionId)
+	require.NoError(t, err)
+
+	go func() {
+		defer close(doneCh)
+
+		start := time.Now()
+		ok := tracker.WaitForSession(ctx, connectionId, testWaitDuration)
+		doneDuration = time.Since(start)
+		select {
+		case <-ctx.Done():
+		case doneCh <- ok:
+		}
+	}()
+
+	<-time.After(testWaitDuration / 2)
+	done()
+
+	select {
+	case result, ok := <-doneCh:
+		require.True(t, ok)
+		require.True(t, result)
+		require.NotZero(t, doneDuration)
+		require.Less(t, doneDuration, testWaitDuration)
+		require.False(t, tracker.SomeoneIsWaiting(connectionId))
+	case <-time.After(4 * testWaitDuration):
+		t.Fatal("timeout")
+	}
+}
+
+func TestSessionTracker_WaitForSessionExitsAndReturnsTrueIfSessionExistsButTerminatesAfterGracePeriod_WaitFirst(t *testing.T) {
+	t.Parallel()
+
+	tracker := NewSessionTracker()
+	ctx := fixtures.TestContext(t)
+	connectionId := fixtures.SomeConnectionId()
+
+	doneCh := make(chan bool)
+	var doneDuration time.Duration
+
+	go func() {
+		defer close(doneCh)
+
+		start := time.Now()
+		ok := tracker.WaitForSession(ctx, connectionId, testWaitDuration)
+		doneDuration = time.Since(start)
+		select {
+		case <-ctx.Done():
+		case doneCh <- ok:
+		}
+	}()
+
+	go func() {
+		for {
+			if tracker.SomeoneIsWaiting(connectionId) {
+				break
+			}
+			<-time.After(testWaitDuration / 100)
+		}
+
+		done, err := tracker.OpenSession(connectionId)
 		require.NoError(t, err)
+
+		<-time.After(2 * testWaitDuration)
+		done()
+	}()
+
+	select {
+	case result, ok := <-doneCh:
+		require.True(t, ok)
+		require.True(t, result)
+		require.NotZero(t, doneDuration)
+		require.Greater(t, doneDuration, 2*testWaitDuration)
+	case <-time.After(4 * testWaitDuration):
+		t.Fatal("timeout")
+	}
+}
+
+func TestSessionTracker_WaitForSessionExitsAndReturnsFalseIfSessionIsNeverCreated(t *testing.T) {
+	t.Parallel()
+
+	tracker := NewSessionTracker()
+	ctx := fixtures.TestContext(t)
+	connectionId := fixtures.SomeConnectionId()
+
+	start := time.Now()
+	ok := tracker.WaitForSession(ctx, connectionId, testWaitDuration)
+	require.Greater(t, time.Since(start), testWaitDuration)
+	require.False(t, ok)
+}
+
+func TestSessionTracker_WaitForSessionExitsAndReturnsTrueIfSessionExistsButTerminatesBeforeGracePeriod_WaitFirst(t *testing.T) {
+	t.Parallel()
+
+	tracker := NewSessionTracker()
+	ctx := fixtures.TestContext(t)
+	connectionId := fixtures.SomeConnectionId()
+
+	doneCh := make(chan bool)
+	var doneDuration time.Duration
+
+	go func() {
+		defer close(doneCh)
+
+		start := time.Now()
+		ok := tracker.WaitForSession(ctx, connectionId, testWaitDuration)
+		doneDuration = time.Since(start)
+		select {
+		case <-ctx.Done():
+		case doneCh <- ok:
+		}
+	}()
+
+	go func() {
+		for {
+			if tracker.SomeoneIsWaiting(connectionId) {
+				break
+			}
+			<-time.After(testWaitDuration / 100)
+		}
+
+		done, err := tracker.OpenSession(connectionId)
+		require.NoError(t, err)
+
+		<-time.After(testWaitDuration / 2)
+		done()
+	}()
+
+	select {
+	case result, ok := <-doneCh:
+		require.True(t, ok)
+		require.True(t, result)
+		require.NotZero(t, doneDuration)
+		require.Less(t, doneDuration, testWaitDuration)
 	case <-time.After(4 * testWaitDuration):
 		t.Fatal("timeout")
 	}
@@ -75,9 +235,8 @@ func TestSessionTracker_WaitForSessionBlocksIfSessionExists(t *testing.T) {
 	go func() {
 		defer close(doneCh)
 
-		if err := tracker.WaitForSession(ctx, connectionId, testWaitDuration); err != nil {
-			panic(err)
-		}
+		ok := tracker.WaitForSession(ctx, connectionId, testWaitDuration)
+		t.Log(ok)
 	}()
 
 	done, err := tracker.OpenSession(connectionId)

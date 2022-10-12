@@ -1,4 +1,4 @@
-package replication_test
+package gossip_test
 
 import (
 	"testing"
@@ -11,6 +11,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/graph"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/planetary-social/scuttlego/service/domain/replication"
+	"github.com/planetary-social/scuttlego/service/domain/replication/gossip"
 	"github.com/stretchr/testify/require"
 )
 
@@ -73,7 +74,7 @@ func TestManager_TheSamePeerWillBeAskedForAFeedAgainRightAwayIfNotAllMessagesThe
 		select {
 		case task := <-m.Manager.GetFeedsToReplicate(ctx, peer):
 			require.Equal(t, contact.Who, task.Id)
-			task.OnComplete(replication.TaskResultHasMoreMessages)
+			task.OnComplete(gossip.TaskResultHasMoreMessages)
 		case <-time.After(1 * time.Second):
 			t.Fatal("first peer should have been asked to replicate the feed")
 		}
@@ -85,7 +86,7 @@ func TestManager_TheSamePeerWillBeAskedForAFeedAgainRightAwayIfNotAllMessagesThe
 		select {
 		case task := <-m.Manager.GetFeedsToReplicate(ctx, peer):
 			require.Equal(t, contact.Who, task.Id)
-			task.OnComplete(replication.TaskResultDoesNotHaveMoreMessages)
+			task.OnComplete(gossip.TaskResultDoesNotHaveMoreMessages)
 		case <-time.After(1 * time.Second):
 			t.Fatal("second peer should have been asked to replicate the feed")
 		}
@@ -118,7 +119,7 @@ func TestManager_TheSamePeerWillNotBeAskedForAFeedAgainRightAwayIfAllMessagesThe
 		select {
 		case task := <-m.Manager.GetFeedsToReplicate(ctx, peer1):
 			require.Equal(t, contact.Who, task.Id)
-			task.OnComplete(replication.TaskResultDoesNotHaveMoreMessages)
+			task.OnComplete(gossip.TaskResultDoesNotHaveMoreMessages)
 		case <-time.After(1 * time.Second):
 			t.Fatal("first peer should have been asked to replicate the feed")
 		}
@@ -130,7 +131,7 @@ func TestManager_TheSamePeerWillNotBeAskedForAFeedAgainRightAwayIfAllMessagesThe
 		select {
 		case task := <-m.Manager.GetFeedsToReplicate(ctx, peer2):
 			require.Equal(t, contact.Who, task.Id)
-			task.OnComplete(replication.TaskResultDoesNotHaveMoreMessages)
+			task.OnComplete(gossip.TaskResultDoesNotHaveMoreMessages)
 		case <-time.After(1 * time.Second):
 			t.Fatal("second peer should have been asked to replicate the feed")
 		}
@@ -229,7 +230,7 @@ func TestManager_SequenceIsDeterminedBasedOnStorageStateAndMessageBufferState(t 
 					require.True(t, ok)
 					require.Equal(t, *testCase.ExpectedSequence, seq)
 				}
-				task.OnComplete(replication.TaskResultDoesNotHaveMoreMessages)
+				task.OnComplete(gossip.TaskResultDoesNotHaveMoreMessages)
 			case <-time.After(1 * time.Second):
 				t.Fatal("peer should have been asked to replicate the feed")
 			}
@@ -239,7 +240,7 @@ func TestManager_SequenceIsDeterminedBasedOnStorageStateAndMessageBufferState(t 
 }
 
 type testManager struct {
-	Manager       *replication.Manager
+	Manager       *gossip.Manager
 	Storage       *storageMock
 	MessageBuffer *messageBufferMock
 }
@@ -248,7 +249,7 @@ func newTestManager() testManager {
 	logger := logging.NewDevNullLogger()
 	storage := newStorageMock()
 	buffer := newMessageBufferMock()
-	manager := replication.NewManager(logger, storage, buffer)
+	manager := gossip.NewManager(logger, storage, buffer)
 
 	return testManager{
 		Manager:       manager,

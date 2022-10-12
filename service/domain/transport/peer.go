@@ -16,6 +16,10 @@ type Connection interface {
 	PerformRequest(ctx context.Context, req *rpc.Request) (*rpc.ResponseStream, error)
 	Context() context.Context
 	Close() error
+
+	// WasInitiatedByRemote returns true if this is a connection that was
+	// initiated by the remote peer.
+	WasInitiatedByRemote() bool
 }
 
 // Peer exists just for the purpose of keeping track of a connection together

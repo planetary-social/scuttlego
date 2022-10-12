@@ -230,7 +230,10 @@ var replicatorSet = wire.NewSet(
 	wire.Bind(new(ebt.ContactsStorage), new(*replication.ContactsCache)),
 
 	ebt.NewSessionTracker,
+	wire.Bind(new(ebt.Tracker), new(*ebt.SessionTracker)),
+
 	ebt.NewSessionRunner,
+	wire.Bind(new(ebt.Runner), new(*ebt.SessionRunner)),
 
 	replication.NewNegotiator,
 	wire.Bind(new(domain.MessageReplicator), new(*replication.Negotiator)),

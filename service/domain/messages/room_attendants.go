@@ -29,7 +29,7 @@ type RoomAttendantsResponseState struct {
 }
 
 func NewRoomAttendantsResponseStateFromBytes(b []byte) (RoomAttendantsResponseState, error) {
-	var transport roomAttendantsResponseSuccessfulTransport
+	var transport roomAttendantsResponseStateTransport
 	if err := json.Unmarshal(b, &transport); err != nil {
 		return RoomAttendantsResponseState{}, errors.Wrap(err, "json unmarshal failed")
 	}
@@ -93,7 +93,7 @@ func (r RoomAttendantsResponseJoinedOrLeft) Id() refs.Identity {
 	return r.id
 }
 
-type roomAttendantsResponseSuccessfulTransport struct {
+type roomAttendantsResponseStateTransport struct {
 	Type string   `json:"type"`
 	Ids  []string `json:"ids"`
 }

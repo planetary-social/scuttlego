@@ -168,6 +168,30 @@ func (b FeedRepository) DeleteFeed(ref refs.Feed) error {
 	return nil
 }
 
+func (b FeedRepository) GetMessage(feed refs.Feed, sequence message.Sequence) (message.Message, error) {
+	bucket, err := b.getFeedBucket(feed)
+	if err != nil {
+		return message.Message{}, errors.Wrap(err, "could not get the bucket")
+	}
+
+	if bucket == nil {
+		return message.Message{}, errors.New("bucket is nil")
+	}
+
+	key := messageKey(sequence)
+	messageRefAsBytes := bucket.Get(key)
+	if messageRefAsBytes == nil {
+		return message.Message{}, errors.New("message ref not found")
+	}
+
+	msgId, err := refs.NewMessage(string(messageRefAsBytes))
+	if err != nil {
+		return message.Message{}, errors.Wrap(err, "failed to create a message ref")
+	}
+
+	return b.messageRepository.Get(msgId)
+}
+
 func (b FeedRepository) removeMessageData(ref refs.Message) error {
 	if err := b.messageRepository.Delete(ref); err != nil {
 		return errors.Wrap(err, "failed to remove from message repository")

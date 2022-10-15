@@ -168,6 +168,7 @@ func BuildTestQueries(t *testing.T) (TestQueries, error) {
 	if err != nil {
 		return TestQueries{}, err
 	}
+	getMessageBySequenceHandler := queries.NewGetMessageBySequenceHandler(feedRepositoryMock)
 	appQueries := app.Queries{
 		CreateHistoryStream:  createHistoryStreamHandler,
 		ReceiveLog:           receiveLogHandler,
@@ -176,6 +177,7 @@ func BuildTestQueries(t *testing.T) (TestQueries, error) {
 		GetBlob:              getBlobHandler,
 		BlobDownloadedEvents: blobDownloadedEventsHandler,
 		RoomsListAliases:     roomsListAliasesHandler,
+		GetMessageBySequence: getMessageBySequenceHandler,
 	}
 	testQueries := TestQueries{
 		Queries:              appQueries,
@@ -377,6 +379,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	if err != nil {
 		return Service{}, err
 	}
+	getMessageBySequenceHandler := queries.NewGetMessageBySequenceHandler(readFeedRepository)
 	appQueries := app.Queries{
 		CreateHistoryStream:  createHistoryStreamHandler,
 		ReceiveLog:           receiveLogHandler,
@@ -385,6 +388,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 		GetBlob:              getBlobHandler,
 		BlobDownloadedEvents: blobDownloadedEventsHandler,
 		RoomsListAliases:     roomsListAliasesHandler,
+		GetMessageBySequence: getMessageBySequenceHandler,
 	}
 	application := app.Application{
 		Commands: appCommands,

@@ -11,10 +11,18 @@ type FeedRepositoryMockGetMessagesCall struct {
 	Limit *int
 }
 
+type FeedRepositoryMockGetMessageCall struct {
+	Feed refs.Feed
+	Seq  message.Sequence
+}
+
 type FeedRepositoryMock struct {
 	GetMessagesCalls       []FeedRepositoryMockGetMessagesCall
 	GetMessagesReturnValue []message.Message
 	GetMessagesReturnErr   error
+
+	GetMessageCalls       []FeedRepositoryMockGetMessageCall
+	GetMessageReturnValue message.Message
 
 	CountReturnValue int
 }
@@ -30,4 +38,9 @@ func (m *FeedRepositoryMock) Count() (int, error) {
 func (m *FeedRepositoryMock) GetMessages(id refs.Feed, seq *message.Sequence, limit *int) ([]message.Message, error) {
 	m.GetMessagesCalls = append(m.GetMessagesCalls, FeedRepositoryMockGetMessagesCall{Id: id, Seq: seq, Limit: limit})
 	return m.GetMessagesReturnValue, m.GetMessagesReturnErr
+}
+
+func (m *FeedRepositoryMock) GetMessage(feed refs.Feed, sequence message.Sequence) (message.Message, error) {
+	m.GetMessageCalls = append(m.GetMessageCalls, FeedRepositoryMockGetMessageCall{Feed: feed, Seq: sequence})
+	return m.GetMessageReturnValue, nil
 }

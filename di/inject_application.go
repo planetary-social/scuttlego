@@ -54,17 +54,17 @@ var commandsSet = wire.NewSet(
 var queriesSet = wire.NewSet(
 	wire.Struct(new(app.Queries), "*"),
 
-	queries.NewCreateHistoryStreamHandler,
-	wire.Bind(new(portsrpc.CreateHistoryStreamQueryHandler), new(*queries.CreateHistoryStreamHandler)),
-	wire.Bind(new(ebtadapters.CreateHistoryStreamHandler), new(*queries.CreateHistoryStreamHandler)),
-
 	queries.NewReceiveLogHandler,
 	queries.NewPublishedLogHandler,
 	queries.NewStatusHandler,
 	queries.NewBlobDownloadedEventsHandler,
+	queries.NewRoomsListAliasesHandler,
+	queries.NewGetMessageBySequenceHandler,
+
+	queries.NewCreateHistoryStreamHandler,
+	wire.Bind(new(portsrpc.CreateHistoryStreamQueryHandler), new(*queries.CreateHistoryStreamHandler)),
+	wire.Bind(new(ebtadapters.CreateHistoryStreamHandler), new(*queries.CreateHistoryStreamHandler)),
 
 	queries.NewGetBlobHandler,
 	wire.Bind(new(portsrpc.GetBlobQueryHandler), new(*queries.GetBlobHandler)),
-
-	queries.NewRoomsListAliasesHandler,
 )

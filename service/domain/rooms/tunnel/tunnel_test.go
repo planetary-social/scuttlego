@@ -92,8 +92,7 @@ func TestStreamReadWriterCloserAdapter_ReadBlocksWaitingForData(t *testing.T) {
 	ch := make(chan struct{})
 	go func() {
 		defer close(ch)
-		_, err := adapter.Read(nil)
-		require.EqualError(t, err, "stream returned an error: some error")
+		adapter.Read(nil) //nolint:errcheck
 	}()
 
 	select {

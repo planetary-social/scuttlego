@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/di"
 	"github.com/planetary-social/scuttlego/fixtures"
 	"github.com/planetary-social/scuttlego/service/app/commands"
@@ -40,10 +39,6 @@ func TestRoomsAliasRegisterHandler(t *testing.T) {
 				{
 					Value: rpc.NewResponse([]byte(expectedAliasString)),
 					Err:   nil,
-				},
-				{
-					Value: nil,
-					Err:   errors.New("closed"),
 				},
 			}
 		},

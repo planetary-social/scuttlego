@@ -12,6 +12,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/blobs"
 	"github.com/planetary-social/scuttlego/service/domain/blobs/replication"
 	"github.com/planetary-social/scuttlego/service/domain/messages"
+	domainmocks "github.com/planetary-social/scuttlego/service/domain/mocks"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/planetary-social/scuttlego/service/domain/transport"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
@@ -53,7 +54,7 @@ func TestManagerTriggersDownloaderAfterReceivingHas(t *testing.T) {
 
 	ch := make(chan messages.BlobWithSizeOrWantDistance)
 
-	peer := transport.NewPeer(fixtures.SomePublicIdentity(), nil)
+	peer := transport.MustNewPeer(fixtures.SomePublicIdentity(), domainmocks.NewConnectionMock(ctx))
 
 	err := m.Manager.HandleOutgoingCreateWantsRequest(ctx, ch, peer)
 	require.NoError(t, err)

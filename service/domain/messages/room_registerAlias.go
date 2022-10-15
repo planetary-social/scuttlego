@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 
 	"github.com/boreq/errors"
-	"github.com/planetary-social/scuttlego/service/domain/rooms"
+	"github.com/planetary-social/scuttlego/service/domain/rooms/aliases"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 )
 
@@ -30,13 +30,13 @@ func NewRoomRegisterAlias(arguments RoomRegisterAliasArguments) (*rpc.Request, e
 }
 
 type RoomRegisterAliasArguments struct {
-	alias     rooms.Alias
-	signature rooms.RegistrationSignature
+	alias     aliases.Alias
+	signature aliases.RegistrationSignature
 }
 
 func NewRoomRegisterAliasArguments(
-	alias rooms.Alias,
-	signature rooms.RegistrationSignature,
+	alias aliases.Alias,
+	signature aliases.RegistrationSignature,
 ) (RoomRegisterAliasArguments, error) {
 	if alias.IsZero() {
 		return RoomRegisterAliasArguments{}, errors.New("zero value of alias")
@@ -60,17 +60,17 @@ func (i RoomRegisterAliasArguments) MarshalJSON() ([]byte, error) {
 }
 
 type RoomRegisterAliasResponse struct {
-	url rooms.AliasEndpointURL
+	url aliases.AliasEndpointURL
 }
 
 func NewRoomRegisterAliasResponseFromBytes(b []byte) (RoomRegisterAliasResponse, error) {
-	url, err := rooms.NewAliasEndpointURL(string(b))
+	url, err := aliases.NewAliasEndpointURL(string(b))
 	if err != nil {
 		return RoomRegisterAliasResponse{}, errors.Wrap(err, "could not create an endpoint url")
 	}
 	return RoomRegisterAliasResponse{url: url}, nil
 }
 
-func (r RoomRegisterAliasResponse) AliasEndpointURL() rooms.AliasEndpointURL {
+func (r RoomRegisterAliasResponse) AliasEndpointURL() aliases.AliasEndpointURL {
 	return r.url
 }

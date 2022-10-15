@@ -1,4 +1,4 @@
-package rooms
+package aliases
 
 import (
 	"crypto/ed25519"
@@ -146,6 +146,14 @@ func NewAliasEndpointURL(s string) (AliasEndpointURL, error) {
 		return AliasEndpointURL{}, errors.New("empty string")
 	}
 	return AliasEndpointURL{s: s}, nil
+}
+
+func MustNewAliasEndpointURL(s string) AliasEndpointURL {
+	v, err := NewAliasEndpointURL(s)
+	if err != nil {
+		panic(err)
+	}
+	return v
 }
 
 func (a AliasEndpointURL) String() string {

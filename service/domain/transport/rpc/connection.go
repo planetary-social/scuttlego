@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/logging"
@@ -26,6 +27,7 @@ type Connection struct {
 	requestStreams  *RequestStreams
 
 	logger logging.Logger
+	id     ConnectionId
 }
 
 // NewConnection is the only way of creating a new Connection, zero value is invalid. Terminating the provided context
@@ -50,7 +52,8 @@ func NewConnection(
 		raw:                  raw,
 		responseStreams:      NewResponseStreams(raw, logger),
 		requestStreams:       NewRequestStreams(ctx, raw, handler, logger),
-		logger:               logger.New("connection"),
+		logger:               logger.WithField("id", id).New("connection"),
+		id:                   id,
 	}
 
 	go func() {
@@ -87,6 +90,10 @@ func (c *Connection) Close() error {
 
 func (c *Connection) WasInitiatedByRemote() bool {
 	return c.wasInitiatedByRemote
+}
+
+func (c *Connection) String() string {
+	return fmt.Sprintf("<id=%s initiatedByRemote=%t>", c.id, c.wasInitiatedByRemote)
 }
 
 func (c *Connection) readLoop() {

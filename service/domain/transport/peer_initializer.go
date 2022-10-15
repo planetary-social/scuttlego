@@ -69,7 +69,12 @@ func (i PeerInitializer) initializePeer(ctx context.Context, boxStream *boxstrea
 		return Peer{}, errors.Wrap(err, "failed to establish an RPC connection")
 	}
 
-	return NewPeer(boxStream.Remote(), rpcConn), nil
+	peer, err := NewPeer(boxStream.Remote(), rpcConn)
+	if err != nil {
+		return Peer{}, errors.Wrap(err, "error creating a peer")
+	}
+
+	return peer, nil
 }
 
 func (i PeerInitializer) peerLogger(boxStream *boxstream.Stream) (logging.Logger, error) {

@@ -1,4 +1,4 @@
-package rooms_test
+package aliases_test
 
 import (
 	"strings"
@@ -7,7 +7,7 @@ import (
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/fixtures"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
-	"github.com/planetary-social/scuttlego/service/domain/rooms"
+	"github.com/planetary-social/scuttlego/service/domain/rooms/aliases"
 	"github.com/stretchr/testify/require"
 )
 
@@ -36,7 +36,7 @@ func TestNewAlias(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.Alias, func(t *testing.T) {
-			alias, err := rooms.NewAlias(testCase.Alias)
+			alias, err := aliases.NewAlias(testCase.Alias)
 			if testCase.ExpectedError == nil {
 				require.NoError(t, err)
 				require.Equal(t, testCase.Alias, alias.String())
@@ -49,7 +49,7 @@ func TestNewAlias(t *testing.T) {
 }
 
 func TestRegistrationMessage_ProducesExpectedMessageString(t *testing.T) {
-	alias, err := rooms.NewAlias("somealias")
+	alias, err := aliases.NewAlias("somealias")
 	require.NoError(t, err)
 
 	user, err := refs.NewIdentity("@gYVa2GgdDYbR6R4AFnk5y2aU0sQirNIIoAcpOUh/aZk=.ed25519")
@@ -58,7 +58,7 @@ func TestRegistrationMessage_ProducesExpectedMessageString(t *testing.T) {
 	room, err := refs.NewIdentity("@Uv38ByGCZU8WP18PmmIdcpVmx00QA3xNe7sEB9Hixkk=.ed25519")
 	require.NoError(t, err)
 
-	message, err := rooms.NewRegistrationMessage(alias, user, room)
+	message, err := aliases.NewRegistrationMessage(alias, user, room)
 	require.NoError(t, err)
 
 	require.Equal(t,
@@ -70,24 +70,24 @@ func TestRegistrationMessage_ProducesExpectedMessageString(t *testing.T) {
 func TestNewRegistrationSignature_PrivateIdentityMustMatchUserFromTheMessage(t *testing.T) {
 	identity := fixtures.SomePrivateIdentity()
 
-	message, err := rooms.NewRegistrationMessage(fixtures.SomeAlias(), fixtures.SomeRefIdentity(), fixtures.SomeRefIdentity())
+	message, err := aliases.NewRegistrationMessage(fixtures.SomeAlias(), fixtures.SomeRefIdentity(), fixtures.SomeRefIdentity())
 	require.NoError(t, err)
 
-	_, err = rooms.NewRegistrationSignature(message, identity)
+	_, err = aliases.NewRegistrationSignature(message, identity)
 	require.EqualError(t, err, "private identity doesn't match user identity from the message")
 }
 
 func TestRegistrationSignature_CreatesNonZeroSignatures(t *testing.T) {
 	identity := fixtures.SomePrivateIdentity()
 
-	message, err := rooms.NewRegistrationMessage(
+	message, err := aliases.NewRegistrationMessage(
 		fixtures.SomeAlias(),
 		refs.MustNewIdentityFromPublic(identity.Public()),
 		fixtures.SomeRefIdentity(),
 	)
 	require.NoError(t, err)
 
-	signature, err := rooms.NewRegistrationSignature(message, identity)
+	signature, err := aliases.NewRegistrationSignature(message, identity)
 	require.NoError(t, err)
 	require.NotEmpty(t, signature.Bytes())
 	require.False(t, signature.IsZero())
@@ -118,7 +118,7 @@ func TestNewAliasEndpointURL(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.String, func(t *testing.T) {
-			url, err := rooms.NewAliasEndpointURL(testCase.String)
+			url, err := aliases.NewAliasEndpointURL(testCase.String)
 			if testCase.ExpectedError == nil {
 				require.NoError(t, err)
 				require.Equal(t, testCase.String, url.String())

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/planetary-social/scuttlego/fixtures"
+	"github.com/planetary-social/scuttlego/service/domain/mocks"
 	"github.com/planetary-social/scuttlego/service/domain/replication"
 	"github.com/planetary-social/scuttlego/service/domain/transport"
 	"github.com/stretchr/testify/require"
@@ -66,7 +67,8 @@ func TestNegotiator(t *testing.T) {
 			chsReplicator.ReturnError = testCase.ChsError
 
 			ctx := fixtures.TestContext(t)
-			peer := transport.NewPeer(fixtures.SomePublicIdentity(), nil)
+			conn := mocks.NewConnectionMock(ctx)
+			peer := transport.MustNewPeer(fixtures.SomePublicIdentity(), conn)
 
 			err := negotiator.Replicate(ctx, peer)
 			if testCase.ExpectedError != nil {

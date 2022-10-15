@@ -12,17 +12,11 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/identity"
 	"github.com/planetary-social/scuttlego/service/domain/invites"
 	"github.com/planetary-social/scuttlego/service/domain/messages"
-	"github.com/planetary-social/scuttlego/service/domain/network"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/planetary-social/scuttlego/service/domain/transport"
 	"github.com/planetary-social/scuttlego/service/domain/transport/boxstream"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 )
-
-type Dialer interface {
-	DialWithInitializer(ctx context.Context, initializer network.ClientPeerInitializer, remote identity.Public, addr network.Address) (transport.Peer, error)
-	Dial(ctx context.Context, remote identity.Public, address network.Address) (transport.Peer, error)
-}
 
 type RedeemInvite struct {
 	Invite invites.Invite
@@ -36,6 +30,7 @@ type RedeemInviteHandler struct {
 	requestHandler        rpc.RequestHandler
 	marshaler             formats.Marshaler
 	connectionIdGenerator *rpc.ConnectionIdGenerator
+	currentTimeProvider   CurrentTimeProvider
 	logger                logging.Logger
 }
 
@@ -47,6 +42,7 @@ func NewRedeemInviteHandler(
 	requestHandler rpc.RequestHandler,
 	marshaler formats.Marshaler,
 	connectionIdGenerator *rpc.ConnectionIdGenerator,
+	currentTimeProvider CurrentTimeProvider,
 	logger logging.Logger,
 ) *RedeemInviteHandler {
 	return &RedeemInviteHandler{
@@ -57,6 +53,7 @@ func NewRedeemInviteHandler(
 		requestHandler:        requestHandler,
 		marshaler:             marshaler,
 		connectionIdGenerator: connectionIdGenerator,
+		currentTimeProvider:   currentTimeProvider,
 		logger:                logger.New("follow_handler"),
 	}
 }
@@ -150,7 +147,7 @@ func (h *RedeemInviteHandler) dial(ctx context.Context, cmd RedeemInvite) (trans
 		return transport.Peer{}, errors.Wrap(err, "could not create a private identity")
 	}
 
-	handshaker, err := boxstream.NewHandshaker(local, h.networkKey)
+	handshaker, err := boxstream.NewHandshaker(local, h.networkKey, h.currentTimeProvider)
 	if err != nil {
 		return transport.Peer{}, errors.Wrap(err, "could not create a handshaker")
 	}

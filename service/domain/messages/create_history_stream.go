@@ -11,8 +11,10 @@ import (
 )
 
 var (
-	CreateHistoryStreamProcedureName = rpc.MustNewProcedureName([]string{"createHistoryStream"})
-	CreateHistoryStreamProcedure     = rpc.MustNewProcedure(CreateHistoryStreamProcedureName, rpc.ProcedureTypeSource)
+	CreateHistoryStreamProcedure = rpc.MustNewProcedure(
+		rpc.MustNewProcedureName([]string{"createHistoryStream"}),
+		rpc.ProcedureTypeSource,
+	)
 )
 
 func NewCreateHistoryStream(arguments CreateHistoryStreamArguments) (*rpc.Request, error) {

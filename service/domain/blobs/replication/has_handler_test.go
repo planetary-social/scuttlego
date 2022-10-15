@@ -12,6 +12,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/app/queries"
 	"github.com/planetary-social/scuttlego/service/domain/blobs"
 	"github.com/planetary-social/scuttlego/service/domain/blobs/replication"
+	domainMocks "github.com/planetary-social/scuttlego/service/domain/mocks"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/planetary-social/scuttlego/service/domain/transport"
 	"github.com/stretchr/testify/assert"
@@ -71,7 +72,7 @@ func TestHasHandlerTriggersDownloader(t *testing.T) {
 			h := newTestHasHandler()
 
 			ctx := fixtures.TestContext(t)
-			peer := transport.NewPeer(fixtures.SomePublicIdentity(), nil)
+			peer := transport.MustNewPeer(fixtures.SomePublicIdentity(), domainMocks.NewConnectionMock(ctx))
 			blob := fixtures.SomeRefBlob()
 
 			if testCase.InWantList {
@@ -133,7 +134,7 @@ func TestHasHandlerRemovesElementFromWantListIfItIsAlreadyInStorage(t *testing.T
 	h := newTestHasHandler()
 
 	ctx := fixtures.TestContext(t)
-	peer := transport.NewPeer(fixtures.SomePublicIdentity(), nil)
+	peer := transport.MustNewPeer(fixtures.SomePublicIdentity(), domainMocks.NewConnectionMock(ctx))
 	blob := fixtures.SomeRefBlob()
 
 	h.WantList.AddBlob(blob)

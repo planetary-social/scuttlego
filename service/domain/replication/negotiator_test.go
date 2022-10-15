@@ -2,10 +2,10 @@ package replication_test
 
 import (
 	"context"
-	"github.com/planetary-social/scuttlego/service/domain/mocks"
 	"testing"
 
 	"github.com/planetary-social/scuttlego/fixtures"
+	"github.com/planetary-social/scuttlego/service/domain/mocks"
 	"github.com/planetary-social/scuttlego/service/domain/replication"
 	"github.com/planetary-social/scuttlego/service/domain/transport"
 	"github.com/stretchr/testify/require"

@@ -72,7 +72,7 @@ func TestDialer_DialViaRoomPerformsCorrectRequestsAndCallsInitializerWithCorrect
 
 func TestStreamReadWriterCloserAdapter_CloseCallsCancel(t *testing.T) {
 	ctx := fixtures.TestContext(t)
-	cancel := cancelFuncMock{}
+	cancel := newCancelFuncMock()
 
 	stream := newResponseStreamMock(ctx, nil)
 
@@ -85,7 +85,7 @@ func TestStreamReadWriterCloserAdapter_CloseCallsCancel(t *testing.T) {
 
 func TestStreamReadWriterCloserAdapter_ReadBlocksWaitingForData(t *testing.T) {
 	ctx := fixtures.TestContext(t)
-	cancel := cancelFuncMock{}
+	cancel := newCancelFuncMock()
 	stream := newResponseStreamMock(ctx, nil)
 	adapter := tunnel.NewStreamReadWriterCloserAdapter(stream, cancel.Cancel)
 
@@ -106,7 +106,7 @@ func TestStreamReadWriterCloserAdapter_ReadBlocksWaitingForData(t *testing.T) {
 
 func TestStreamReadWriterCloserAdapter_ReadPropagatesStreamErrors(t *testing.T) {
 	ctx := fixtures.TestContext(t)
-	cancel := cancelFuncMock{}
+	cancel := newCancelFuncMock()
 
 	stream := newResponseStreamMock(ctx, []rpc.ResponseWithError{
 		{
@@ -123,7 +123,7 @@ func TestStreamReadWriterCloserAdapter_ReadPropagatesStreamErrors(t *testing.T) 
 
 func TestStreamReadWriterCloserAdapter_SmallMessagesAreRetrievedInOneRead(t *testing.T) {
 	ctx := fixtures.TestContext(t)
-	cancel := cancelFuncMock{}
+	cancel := newCancelFuncMock()
 
 	const bufSize = 100
 	msg := bytes.Repeat([]byte("a"), bufSize/2)
@@ -147,7 +147,7 @@ func TestStreamReadWriterCloserAdapter_SmallMessagesAreRetrievedInOneRead(t *tes
 
 func TestStreamReadWriterCloserAdapter_LargeMessagesAreRetrievedOverMultipleReads(t *testing.T) {
 	ctx := fixtures.TestContext(t)
-	cancel := cancelFuncMock{}
+	cancel := newCancelFuncMock()
 
 	const bufSize = 100
 
@@ -182,7 +182,7 @@ func TestStreamReadWriterCloserAdapter_LargeMessagesAreRetrievedOverMultipleRead
 
 func TestStreamReadWriterCloserAdapter_ReadWhenChannelIsClosedReturnsAnError(t *testing.T) {
 	ctx := fixtures.TestContext(t)
-	cancel := cancelFuncMock{}
+	cancel := newCancelFuncMock()
 
 	streamCtx, streamCtxCancel := context.WithCancel(ctx)
 	streamCtxCancel()
@@ -196,7 +196,7 @@ func TestStreamReadWriterCloserAdapter_ReadWhenChannelIsClosedReturnsAnError(t *
 
 func TestStreamReadWriterCloserAdapter_WriteCallsWriteMessage(t *testing.T) {
 	ctx := fixtures.TestContext(t)
-	cancel := cancelFuncMock{}
+	cancel := newCancelFuncMock()
 	stream := newResponseStreamMock(ctx, nil)
 	adapter := tunnel.NewStreamReadWriterCloserAdapter(stream, cancel.Cancel)
 

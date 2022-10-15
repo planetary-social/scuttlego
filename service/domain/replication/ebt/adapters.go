@@ -13,10 +13,10 @@ import (
 )
 
 type OutgoingStreamAdapter struct {
-	stream *rpc.ResponseStream
+	stream rpc.ResponseStream
 }
 
-func NewOutgoingStreamAdapter(stream *rpc.ResponseStream) *OutgoingStreamAdapter {
+func NewOutgoingStreamAdapter(stream rpc.ResponseStream) *OutgoingStreamAdapter {
 	return &OutgoingStreamAdapter{stream: stream}
 }
 

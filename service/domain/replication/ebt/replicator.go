@@ -114,7 +114,7 @@ func (r Replicator) HandleIncoming(ctx context.Context, version int, format mess
 	return r.runner.HandleStream(ctx, stream)
 }
 
-func (r Replicator) openEbtStream(ctx context.Context, peer transport.Peer) (*rpc.ResponseStream, error) {
+func (r Replicator) openEbtStream(ctx context.Context, peer transport.Peer) (rpc.ResponseStream, error) {
 	args, err := messages.NewEbtReplicateArguments(ebtReplicateVersion, ebtReplicateFormat)
 	if err != nil {
 		return nil, errors.Wrap(err, "error creating arguments")

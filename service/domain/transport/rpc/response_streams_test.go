@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/fixtures"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/transport"
@@ -110,37 +111,63 @@ type expectedFlagsAndRequestNumber struct {
 	RequestNumber int
 }
 
-func TestResponseStream_RequestNumberMustBePositive(t *testing.T) {
-	ctx := fixtures.TestContext(t)
-	sender := NewSenderMock()
+func TestResponseStreams_DoesNotAcceptProcedureOfTypeUnknown(t *testing.T) {
+	testCases := []struct {
+		Name          string
+		ProcedureType rpc.ProcedureType
+		ExpectedError error
+	}{
+		{
+			Name:          "unknown",
+			ProcedureType: rpc.ProcedureTypeUnknown,
+			ExpectedError: errors.New("could not marshal a request: could not marshal the request body: could not encode the procedure type: unknown procedure type {s:unknown}"),
+		},
+		{
+			Name:          "async",
+			ProcedureType: rpc.ProcedureTypeAsync,
+			ExpectedError: nil,
+		},
+		{
+			Name:          "source",
+			ProcedureType: rpc.ProcedureTypeSource,
+			ExpectedError: nil,
+		},
+		{
+			Name:          "duplex",
+			ProcedureType: rpc.ProcedureTypeDuplex,
+			ExpectedError: nil,
+		},
+	}
 
-	t.Run("positive", func(t *testing.T) {
-		_, err := rpc.NewResponseStream(ctx, 1, fixtures.SomeProcedureType(), sender)
-		require.NoError(t, err)
-	})
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			ctx := fixtures.TestContext(t)
+			sender := NewSenderMock()
+			logger := fixtures.TestLogger(t)
 
-	t.Run("zero", func(t *testing.T) {
-		_, err := rpc.NewResponseStream(ctx, 0, fixtures.SomeProcedureType(), sender)
-		require.EqualError(t, err, "number must be positive")
-	})
+			streams := rpc.NewResponseStreams(sender, logger)
 
-	t.Run("negative", func(t *testing.T) {
-		_, err := rpc.NewResponseStream(ctx, -1, fixtures.SomeProcedureType(), sender)
-		require.EqualError(t, err, "number must be positive")
-	})
+			_, err := streams.Open(ctx,
+				rpc.MustNewRequest(
+					fixtures.SomeProcedureName(),
+					testCase.ProcedureType,
+					[]byte("{}"),
+				))
+			if testCase.ExpectedError != nil {
+				require.EqualError(t, err, testCase.ExpectedError.Error())
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
 }
 
-func TestResponseStream_WriteMessageWorksOnlyForDuplexStreams(t *testing.T) {
+func TestResponseStreams_ReturnsImplementationForWhichWriteMessageWorksOnlyForDuplexStreams(t *testing.T) {
 	testCases := []struct {
 		Name          string
 		ProcedureType rpc.ProcedureType
 		ExpectedError bool
 	}{
-		{
-			Name:          "unknown",
-			ProcedureType: rpc.ProcedureTypeUnknown,
-			ExpectedError: true,
-		},
 		{
 			Name:          "async",
 			ProcedureType: rpc.ProcedureTypeAsync,
@@ -162,8 +189,16 @@ func TestResponseStream_WriteMessageWorksOnlyForDuplexStreams(t *testing.T) {
 		t.Run(testCase.Name, func(t *testing.T) {
 			ctx := fixtures.TestContext(t)
 			sender := NewSenderMock()
+			logger := fixtures.TestLogger(t)
 
-			stream, err := rpc.NewResponseStream(ctx, fixtures.SomePositiveInt(), testCase.ProcedureType, sender)
+			streams := rpc.NewResponseStreams(sender, logger)
+
+			stream, err := streams.Open(ctx,
+				rpc.MustNewRequest(
+					fixtures.SomeProcedureName(),
+					testCase.ProcedureType,
+					[]byte("{}"),
+				))
 			require.NoError(t, err)
 
 			err = stream.WriteMessage(fixtures.SomeBytes())

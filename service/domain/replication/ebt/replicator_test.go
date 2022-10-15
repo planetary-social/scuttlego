@@ -129,7 +129,7 @@ func newConnectionMock(wasInitiatedByRemote bool) *connectionMock {
 	return &connectionMock{wasInitiatedByRemote: wasInitiatedByRemote}
 }
 
-func (c *connectionMock) PerformRequest(ctx context.Context, req *rpc.Request) (*rpc.ResponseStream, error) {
+func (c *connectionMock) PerformRequest(ctx context.Context, req *rpc.Request) (rpc.ResponseStream, error) {
 	c.PerformRequestCalls = append(c.PerformRequestCalls, req)
 	return nil, nil
 }

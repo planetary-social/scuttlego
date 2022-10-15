@@ -66,7 +66,7 @@ func NewConnection(
 	return conn, nil
 }
 
-func (c *Connection) PerformRequest(ctx context.Context, req *Request) (*ResponseStream, error) {
+func (c *Connection) PerformRequest(ctx context.Context, req *Request) (ResponseStream, error) {
 	stream, err := c.responseStreams.Open(ctx, req)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to open a response stream")

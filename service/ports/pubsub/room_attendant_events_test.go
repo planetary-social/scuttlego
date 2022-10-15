@@ -28,7 +28,7 @@ func TestRoomAttendantEventSubscriber_ReceivesEventsAndCallsTheCommandHandler(t 
 		handler,
 		logger,
 	)
-	go subscriber.Run(ctx)
+	go subscriber.Run(ctx) //nolint:errcheck
 
 	portal := transport.MustNewPeer(fixtures.SomePublicIdentity(), mocks.NewConnectionMock(ctx))
 	event, err := rooms.NewRoomAttendantsEvent(rooms.RoomAttendantsEventTypeJoined, fixtures.SomeRefIdentity())

@@ -6,6 +6,7 @@ import (
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/service/app/commands"
 	"github.com/planetary-social/scuttlego/service/domain/messages"
+	"github.com/planetary-social/scuttlego/service/domain/replication/ebt"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/mux"
 )
@@ -35,7 +36,9 @@ func (h HandlerEbtReplicate) Handle(ctx context.Context, s mux.Stream, req *rpc.
 		return errors.Wrap(err, "error parsing arguments")
 	}
 
-	cmd, err := commands.NewHandleIncomingEbtReplicate(args.Version(), args.Format(), nil)
+	stream := ebt.NewIncomingStreamAdapter(s)
+
+	cmd, err := commands.NewHandleIncomingEbtReplicate(args.Version(), args.Format(), stream)
 	if err != nil {
 		return errors.Wrap(err, "error creating the command")
 	}

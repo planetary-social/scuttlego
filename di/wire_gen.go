@@ -18,6 +18,7 @@ import (
 	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/adapters"
 	"github.com/planetary-social/scuttlego/service/adapters/bolt"
+	ebt2 "github.com/planetary-social/scuttlego/service/adapters/ebt"
 	"github.com/planetary-social/scuttlego/service/adapters/mocks"
 	"github.com/planetary-social/scuttlego/service/adapters/pubsub"
 	"github.com/planetary-social/scuttlego/service/app"
@@ -263,18 +264,22 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	publishRawHandler := commands.NewPublishRawHandler(transactionProvider, private, logger)
 	peerManagerConfig := extractPeerManagerConfigFromConfig(config)
 	sessionTracker := ebt.NewSessionTracker()
-	sessionRunner := ebt.NewSessionRunner()
-	replicator := ebt.NewReplicator(sessionTracker, sessionRunner, logger)
 	messageHMAC := extractMessageHMACFromConfig(config)
-	txRepositoriesFactory := newTxRepositoriesFactory(public, logger, messageHMAC)
-	readContactsRepository := bolt.NewReadContactsRepository(db, txRepositoriesFactory)
-	contactsCache := replication.NewContactsCache(readContactsRepository)
-	messageBuffer := commands.NewMessageBuffer(transactionProvider, logger)
-	manager := gossip.NewManager(logger, contactsCache, messageBuffer)
 	scuttlebutt := formats.NewScuttlebutt(marshaler, messageHMAC)
 	v := newFormats(scuttlebutt)
 	rawMessageIdentifier := formats.NewRawMessageIdentifier(v)
+	messageBuffer := commands.NewMessageBuffer(transactionProvider, logger)
 	rawMessageHandler := commands.NewRawMessageHandler(rawMessageIdentifier, messageBuffer, logger)
+	txRepositoriesFactory := newTxRepositoriesFactory(public, logger, messageHMAC)
+	readContactsRepository := bolt.NewReadContactsRepository(db, txRepositoriesFactory)
+	contactsCache := replication.NewContactsCache(readContactsRepository)
+	readFeedRepository := bolt.NewReadFeedRepository(db, txRepositoriesFactory)
+	messagePubSub := pubsub.NewMessagePubSub()
+	createHistoryStreamHandler := queries.NewCreateHistoryStreamHandler(readFeedRepository, messagePubSub, logger)
+	createHistoryStreamHandlerAdapter := ebt2.NewCreateHistoryStreamHandlerAdapter(createHistoryStreamHandler)
+	sessionRunner := ebt.NewSessionRunner(logger, rawMessageHandler, contactsCache, createHistoryStreamHandlerAdapter)
+	replicator := ebt.NewReplicator(sessionTracker, sessionRunner, logger)
+	manager := gossip.NewManager(logger, contactsCache, messageBuffer)
 	gossipReplicator, err := gossip.NewGossipReplicator(manager, rawMessageHandler, logger)
 	if err != nil {
 		return Service{}, err
@@ -315,9 +320,6 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 		AddToBanList:             addToBanListHandler,
 		RemoveFromBanList:        removeFromBanListHandler,
 	}
-	readFeedRepository := bolt.NewReadFeedRepository(db, txRepositoriesFactory)
-	messagePubSub := pubsub.NewMessagePubSub()
-	createHistoryStreamHandler := queries.NewCreateHistoryStreamHandler(readFeedRepository, messagePubSub, logger)
 	readReceiveLogRepository := bolt.NewReadReceiveLogRepository(db, txRepositoriesFactory)
 	receiveLogHandler := queries.NewReceiveLogHandler(readReceiveLogRepository)
 	publishedLogHandler, err := queries.NewPublishedLogHandler(readFeedRepository, readReceiveLogRepository, public)

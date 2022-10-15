@@ -70,12 +70,12 @@ func (r Replicator) Replicate(ctx context.Context, peer transport.Peer) error {
 		}
 		defer done()
 
-		_, err = r.openEbtStream(ctx, peer)
+		rs, err := r.openEbtStream(ctx, peer)
 		if err != nil {
 			return errors.Wrap(err, "error starting the ebt session")
 		}
 
-		return r.runner.HandleStream(ctx, nil)
+		return r.runner.HandleStream(ctx, NewOutgoingStreamAdapter(rs))
 	}
 
 	logger.Debug("waiting for an EBT session")

@@ -34,6 +34,8 @@ func TestRoomAttendantEventSubscriber_ReceivesEventsAndCallsTheCommandHandler(t 
 	event, err := rooms.NewRoomAttendantsEvent(rooms.RoomAttendantsEventTypeJoined, fixtures.SomeRefIdentity())
 	require.NoError(t, err)
 
+	<-time.After(100 * time.Millisecond)
+
 	err = ps.PublishAttendantEvent(portal, event)
 	require.NoError(t, err)
 
@@ -43,7 +45,7 @@ func TestRoomAttendantEventSubscriber_ReceivesEventsAndCallsTheCommandHandler(t 
 	require.Eventually(t,
 		func() bool {
 			return assert.ObjectsAreEqual([]commands.ProcessRoomAttendantEvent{cmd}, handler.Calls())
-		}, 1*time.Second, 10*time.Millisecond)
+		}, 1*time.Second, 100*time.Millisecond)
 }
 
 type processRoomAttendantEventHandlerMock struct {

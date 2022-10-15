@@ -20,6 +20,14 @@ func TestMappingPostUnmarshal(t *testing.T) {
 		ExpectedPost msgcontents.Post
 	}{
 		{
+			Name: "no_mentions",
+			Content: `{
+				"type": "post",
+				"text": "YES WE CAN! :heart: :smiley_cat:"
+			}`,
+			ExpectedPost: postWithoutBlobs,
+		},
+		{
 			Name: "complex",
 			Content: `{
 				"type": "post",
@@ -52,6 +60,17 @@ func TestMappingPostUnmarshal(t *testing.T) {
 				]
 			}`,
 			ExpectedPost: postWithoutBlobs,
+		},
+		{
+			Name: "mentions_which_are_a_map",
+			Content: `{
+				"type": "post",
+				"text": "a new photo from #dweb-camp 2022! ![photo.bmp](&O0h21NiGLLmjCF1kD2xWllvPExwe6t5P+F7YK3HAX4g=.sha256)",
+				"mentions": {
+					"0":{"name":"photo.bmp","type": "image/bmp"}
+				}
+			}`,
+			ExpectedPost: postWithoutBlobs, // todo probably actually scan the markdown
 		},
 	}
 

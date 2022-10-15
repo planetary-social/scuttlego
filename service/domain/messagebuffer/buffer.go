@@ -82,19 +82,17 @@ func (m *FeedMessages) ConsecutiveSliceStartingWith(seq *message.Sequence) []mes
 			continue
 		}
 
-		if len(result) == 0 {
+		if l := len(result); l == 0 {
 			if seq == nil {
 				if !v.Msg.Sequence().IsFirst() {
-					return nil
+					break
 				}
 			} else {
 				if !seq.ComesDirectlyBefore(v.Msg.Sequence()) {
-					return nil
+					break
 				}
 			}
-		}
-
-		if l := len(result); l > 0 {
+		} else {
 			if !result[l-1].Sequence().ComesDirectlyBefore(v.Msg.Sequence()) {
 				break
 			}

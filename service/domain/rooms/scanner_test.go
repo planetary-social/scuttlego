@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestScanner_RunSimplyExistsIfTunnelingIsNotSupported(t *testing.T) {
+func TestScanner_RunSimplyExitsIfTunnelingIsNotSupported(t *testing.T) {
 	ts := newTestScanner(t)
 
 	ts.MetadataGetter.GetMetadataValue = messages.NewRoomMetadataResponse(

@@ -85,7 +85,10 @@ func TestFeedMessages_RemoveOlderThanRemovesMessages(t *testing.T) {
 func TestFeedMessages_LeaveOnlyAfterDoesNothingWhenEmpty(t *testing.T) {
 	feed := fixtures.SomeRefFeed()
 	v := messagebuffer.NewFeedMessages(feed)
+
+	require.Equal(t, 0, v.Len())
 	v.LeaveOnlyAfter(message.MustNewSequence(2))
+	require.Equal(t, 0, v.Len())
 }
 
 func TestFeedMessages_LeaveOnlyAfterDoesNotBreakWhenLastMessageIsBeingRemoved(t *testing.T) {

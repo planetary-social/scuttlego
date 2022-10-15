@@ -2,6 +2,7 @@ package replication_test
 
 import (
 	"context"
+	"github.com/planetary-social/scuttlego/service/domain/mocks"
 	"testing"
 
 	"github.com/planetary-social/scuttlego/fixtures"
@@ -66,7 +67,8 @@ func TestNegotiator(t *testing.T) {
 			chsReplicator.ReturnError = testCase.ChsError
 
 			ctx := fixtures.TestContext(t)
-			peer := transport.NewPeer(fixtures.SomePublicIdentity(), nil)
+			conn := mocks.NewConnectionMock(ctx)
+			peer := transport.MustNewPeer(fixtures.SomePublicIdentity(), conn)
 
 			err := negotiator.Replicate(ctx, peer)
 			if testCase.ExpectedError != nil {

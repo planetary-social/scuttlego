@@ -96,6 +96,7 @@ func BuildTestAdapters(*bbolt.DB) (TestAdapters, error) {
 
 type TestCommands struct {
 	RoomsAliasRegister *commands.RoomsAliasRegisterHandler
+	RoomsAliasRevoke   *commands.RoomsAliasRevokeHandler
 
 	Dialer *mocks.DialerMock
 }

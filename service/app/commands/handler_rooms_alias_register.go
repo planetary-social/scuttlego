@@ -131,7 +131,7 @@ func (h *RoomsAliasRegisterHandler) registerAlias(ctx context.Context, cmd Rooms
 		return nil, errors.New("channel closed")
 	}
 
-	if response.Err != nil {
+	if err := response.Err; err != nil {
 		return nil, errors.Wrap(err, "received an error")
 	}
 

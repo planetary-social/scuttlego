@@ -28,6 +28,7 @@ type Commands struct {
 	RemoveFromBanList *commands.RemoveFromBanListHandler
 
 	RoomsAliasRegister *commands.RoomsAliasRegisterHandler
+	RoomsAliasRevoke   *commands.RoomsAliasRevokeHandler
 }
 
 type Queries struct {

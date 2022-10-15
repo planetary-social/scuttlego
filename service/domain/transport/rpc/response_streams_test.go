@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestResponseStreams_CancellingContextReleasesChannel(t *testing.T) {
+func TestResponseStreams_RemoteTerminationReturnsErrRemoteEnd(t *testing.T) {
 	sender := NewSenderMock()
 	logger := fixtures.SomeLogger()
 	ctx := fixtures.TestContext(t)
@@ -30,21 +30,86 @@ func TestResponseStreams_CancellingContextReleasesChannel(t *testing.T) {
 		err := streams.HandleIncomingResponse(response)
 		require.NoError(t, err)
 
-		termination := createTermination(sender.calls[0])
+		termination := createCleanTermination(sender.calls[0])
 		err = streams.HandleIncomingResponse(termination)
 		require.NoError(t, err)
 	}()
 
 	select {
-	case resp := <-stream.Channel():
+	case resp, ok := <-stream.Channel():
+		require.True(t, ok)
 		require.NoError(t, resp.Err)
 	case <-time.After(5 * time.Second):
 		t.Fatal("first response was not received")
 	}
 
 	select {
-	case resp := <-stream.Channel():
-		require.ErrorIs(t, resp.Err, rpc.ErrEndOrErr)
+	case resp, ok := <-stream.Channel():
+		require.True(t, ok)
+		require.ErrorIs(t, resp.Err, rpc.ErrRemoteEnd)
+	case <-time.After(5 * time.Second):
+		t.Fatal("channel was not released")
+	}
+}
+
+func TestResponseStreams_RemoteTerminationWithAnErrorReturnsErrRemoteError(t *testing.T) {
+	sender := NewSenderMock()
+	logger := fixtures.SomeLogger()
+	ctx := fixtures.TestContext(t)
+	req := someRequest()
+
+	streams := rpc.NewResponseStreams(sender, logger)
+
+	stream, err := streams.Open(ctx, req)
+	require.NoError(t, err)
+
+	require.Len(t, sender.calls, 1, "opening the stream should send a request")
+
+	go func() {
+		response := createResponse(sender.calls[0])
+		err := streams.HandleIncomingResponse(response)
+		require.NoError(t, err)
+
+		termination := createErrorTermination(sender.calls[0])
+		err = streams.HandleIncomingResponse(termination)
+		require.NoError(t, err)
+	}()
+
+	select {
+	case resp, ok := <-stream.Channel():
+		require.True(t, ok)
+		require.NoError(t, resp.Err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("first response was not received")
+	}
+
+	select {
+	case resp, ok := <-stream.Channel():
+		require.True(t, ok)
+		require.ErrorIs(t, resp.Err, rpc.ErrRemoteError)
+	case <-time.After(5 * time.Second):
+		t.Fatal("channel was not released")
+	}
+}
+
+func TestResponseStreams_ContextTerminationClosesTheChannel(t *testing.T) {
+	sender := NewSenderMock()
+	logger := fixtures.SomeLogger()
+	ctx, cancel := context.WithCancel(fixtures.TestContext(t))
+	req := someRequest()
+
+	streams := rpc.NewResponseStreams(sender, logger)
+
+	stream, err := streams.Open(ctx, req)
+	require.NoError(t, err)
+
+	require.Len(t, sender.calls, 1, "opening the stream should send a request")
+
+	cancel()
+
+	select {
+	case _, ok := <-stream.Channel():
+		require.False(t, ok)
 	case <-time.After(5 * time.Second):
 		t.Fatal("channel was not released")
 	}
@@ -244,7 +309,25 @@ func createResponse(req *transport.Message) *transport.Message {
 	return &msg
 }
 
-func createTermination(req *transport.Message) *transport.Message {
+func createCleanTermination(req *transport.Message) *transport.Message {
+	header, err := transport.NewMessageHeader(
+		transport.MustNewMessageHeaderFlags(fixtures.SomeBool(), true, fixtures.SomeMessageBodyType()),
+		4,
+		int32(-req.Header.RequestNumber()),
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	msg, err := transport.NewMessage(header, []byte("true"))
+	if err != nil {
+		panic(err)
+	}
+
+	return &msg
+}
+
+func createErrorTermination(req *transport.Message) *transport.Message {
 	header, err := transport.NewMessageHeader(
 		transport.MustNewMessageHeaderFlags(fixtures.SomeBool(), true, fixtures.SomeMessageBodyType()),
 		0,

@@ -35,20 +35,21 @@ func (a *PeerRPCAdapter) GetMetadata(ctx context.Context, peer transport.Peer) (
 		return messages.RoomMetadataResponse{}, errors.Wrap(err, "could not perform a request")
 	}
 
-	for v := range stream.Channel() {
-		if err := v.Err; err != nil {
-			return messages.RoomMetadataResponse{}, errors.Wrap(err, "received an error")
-		}
-
-		metadataResponse, err := messages.NewRoomMetadataResponseFromBytes(v.Value.Bytes())
-		if err != nil {
-			return messages.RoomMetadataResponse{}, errors.Wrap(err, "could not parse the response")
-		}
-
-		return metadataResponse, nil
+	v, ok := <-stream.Channel()
+	if !ok {
+		return messages.RoomMetadataResponse{}, errors.New("received no responses")
 	}
 
-	return messages.RoomMetadataResponse{}, errors.New("received no responses")
+	if err := v.Err; err != nil {
+		return messages.RoomMetadataResponse{}, errors.Wrap(err, "received an error")
+	}
+
+	metadataResponse, err := messages.NewRoomMetadataResponseFromBytes(v.Value.Bytes())
+	if err != nil {
+		return messages.RoomMetadataResponse{}, errors.Wrap(err, "could not parse the response")
+	}
+
+	return metadataResponse, nil
 }
 
 func (a *PeerRPCAdapter) GetAttendants(ctx context.Context, peer transport.Peer) (<-chan RoomAttendantsEvent, error) {

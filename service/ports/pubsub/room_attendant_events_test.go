@@ -43,7 +43,7 @@ func TestRoomAttendantEventSubscriber_ReceivesEventsAndCallsTheCommandHandler(t 
 	require.Eventually(t,
 		func() bool {
 			return assert.ObjectsAreEqual([]commands.ProcessRoomAttendantEvent{cmd}, handler.Calls())
-		}, 1*time.Second, 10*time.Millisecond)
+		}, 5*time.Second, 10*time.Millisecond)
 }
 
 type processRoomAttendantEventHandlerMock struct {

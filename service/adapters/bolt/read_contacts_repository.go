@@ -61,5 +61,9 @@ func (b ReadContactsRepository) getFeedState(repository *FeedRepository, feed re
 		}
 		return replication.FeedState{}, errors.Wrap(err, "could not get a feed")
 	}
-	return replication.NewFeedState(f.Sequence())
+	seq, ok := f.Sequence()
+	if !ok {
+		return replication.FeedState{}, errors.New("we got a feed so it can't be empty")
+	}
+	return replication.NewFeedState(seq)
 }

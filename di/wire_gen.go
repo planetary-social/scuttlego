@@ -279,7 +279,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	createHistoryStreamHandlerAdapter := ebt2.NewCreateHistoryStreamHandlerAdapter(createHistoryStreamHandler)
 	sessionRunner := ebt.NewSessionRunner(logger, rawMessageHandler, contactsCache, createHistoryStreamHandlerAdapter)
 	replicator := ebt.NewReplicator(sessionTracker, sessionRunner, logger)
-	manager := gossip.NewManager(logger, contactsCache, messageBuffer)
+	manager := gossip.NewManager(logger, contactsCache)
 	gossipReplicator, err := gossip.NewGossipReplicator(manager, rawMessageHandler, logger)
 	if err != nil {
 		return Service{}, err

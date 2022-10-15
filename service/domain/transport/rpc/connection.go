@@ -8,8 +8,6 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/transport"
 )
 
-var ErrEndOrErr = errors.New("end or error")
-
 type RawConnection interface {
 	Next() (*transport.Message, error)
 	Send(msg *transport.Message) error

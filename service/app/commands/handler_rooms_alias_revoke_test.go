@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRoomsAliasRegisterHandler(t *testing.T) {
+func TestRoomsAliasRevokeHandler_RemoteReturnsUnexpectedData(t *testing.T) {
 	c, err := di.BuildTestCommands(t)
 	require.NoError(t, err)
 
@@ -26,18 +26,17 @@ func TestRoomsAliasRegisterHandler(t *testing.T) {
 	roomAddress := network.NewAddress(fixtures.SomeString())
 
 	alias := fixtures.SomeAlias()
-	expectedAliasString := "https://somealias.example.com"
 
 	connection := mocks.NewConnectionMock(ctx)
 	connection.Mock(
 		func(req *rpc.Request) []rpc.ResponseWithError {
-			require.Equal(t, messages.RoomRegisterAliasProcedure.Typ(), req.Type())
-			require.Equal(t, messages.RoomRegisterAliasProcedure.Name(), req.Name())
+			require.Equal(t, messages.RoomRevokeAliasProcedure.Typ(), req.Type())
+			require.Equal(t, messages.RoomRevokeAliasProcedure.Name(), req.Name())
 			require.Contains(t, string(req.Arguments()), alias.String())
 
 			return []rpc.ResponseWithError{
 				{
-					Value: rpc.NewResponse([]byte(expectedAliasString)),
+					Value: rpc.NewResponse(fixtures.SomeBytes()),
 					Err:   nil,
 				},
 			}
@@ -46,19 +45,18 @@ func TestRoomsAliasRegisterHandler(t *testing.T) {
 
 	c.Dialer.MockPeer(roomIdentityRef.Identity(), roomAddress, connection)
 
-	cmd, err := commands.NewRoomsAliasRegister(
+	cmd, err := commands.NewRoomsAliasRevoke(
 		roomIdentityRef,
 		roomAddress,
 		alias,
 	)
 	require.NoError(t, err)
 
-	aliasURL, err := c.RoomsAliasRegister.Handle(ctx, cmd)
-	require.NoError(t, err)
-	require.Equal(t, expectedAliasString, aliasURL.String())
+	err = c.RoomsAliasRevoke.Handle(ctx, cmd)
+	require.EqualError(t, err, "received an unexpected error value: %!s(<nil>)")
 }
 
-func TestRoomsAliasRegisterHandler_RemoteReturnsAnError(t *testing.T) {
+func TestRoomsAliasRevokeHandler_RemoteTerminatesWithAnError(t *testing.T) {
 	c, err := di.BuildTestCommands(t)
 	require.NoError(t, err)
 
@@ -73,8 +71,49 @@ func TestRoomsAliasRegisterHandler_RemoteReturnsAnError(t *testing.T) {
 	connection := mocks.NewConnectionMock(ctx)
 	connection.Mock(
 		func(req *rpc.Request) []rpc.ResponseWithError {
-			require.Equal(t, messages.RoomRegisterAliasProcedure.Typ(), req.Type())
-			require.Equal(t, messages.RoomRegisterAliasProcedure.Name(), req.Name())
+			require.Equal(t, messages.RoomRevokeAliasProcedure.Typ(), req.Type())
+			require.Equal(t, messages.RoomRevokeAliasProcedure.Name(), req.Name())
+			require.Contains(t, string(req.Arguments()), alias.String())
+
+			return []rpc.ResponseWithError{
+				{
+					Value: nil,
+					Err:   rpc.ErrRemoteError,
+				},
+			}
+		},
+	)
+
+	c.Dialer.MockPeer(roomIdentityRef.Identity(), roomAddress, connection)
+
+	cmd, err := commands.NewRoomsAliasRevoke(
+		roomIdentityRef,
+		roomAddress,
+		alias,
+	)
+	require.NoError(t, err)
+
+	err = c.RoomsAliasRevoke.Handle(ctx, cmd)
+	require.EqualError(t, err, "received an unexpected error value: remote error")
+}
+
+func TestRoomsAliasRevokeHandler_RemoteTerminatesCleanly(t *testing.T) {
+	c, err := di.BuildTestCommands(t)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithTimeout(fixtures.TestContext(t), 5*time.Second)
+	defer cancel()
+
+	roomIdentityRef := fixtures.SomeRefIdentity()
+	roomAddress := network.NewAddress(fixtures.SomeString())
+
+	alias := fixtures.SomeAlias()
+
+	connection := mocks.NewConnectionMock(ctx)
+	connection.Mock(
+		func(req *rpc.Request) []rpc.ResponseWithError {
+			require.Equal(t, messages.RoomRevokeAliasProcedure.Typ(), req.Type())
+			require.Equal(t, messages.RoomRevokeAliasProcedure.Name(), req.Name())
 			require.Contains(t, string(req.Arguments()), alias.String())
 
 			return []rpc.ResponseWithError{
@@ -88,13 +127,13 @@ func TestRoomsAliasRegisterHandler_RemoteReturnsAnError(t *testing.T) {
 
 	c.Dialer.MockPeer(roomIdentityRef.Identity(), roomAddress, connection)
 
-	cmd, err := commands.NewRoomsAliasRegister(
+	cmd, err := commands.NewRoomsAliasRevoke(
 		roomIdentityRef,
 		roomAddress,
 		alias,
 	)
 	require.NoError(t, err)
 
-	_, err = c.RoomsAliasRegister.Handle(ctx, cmd)
-	require.EqualError(t, err, "could not contact the pub and redeem the invite: received an error: remote end")
+	err = c.RoomsAliasRevoke.Handle(ctx, cmd)
+	require.NoError(t, err)
 }

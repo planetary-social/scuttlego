@@ -156,6 +156,11 @@ func BuildTestQueries(t *testing.T) (TestQueries, error) {
 	}
 	blobDownloadedPubSubMock := mocks.NewBlobDownloadedPubSubMock()
 	blobDownloadedEventsHandler := queries.NewBlobDownloadedEventsHandler(blobDownloadedPubSubMock)
+	dialerMock := mocks.NewDialerMock()
+	roomsListAliasesHandler, err := queries.NewRoomsListAliasesHandler(dialerMock, public)
+	if err != nil {
+		return TestQueries{}, err
+	}
 	appQueries := app.Queries{
 		CreateHistoryStream:  createHistoryStreamHandler,
 		ReceiveLog:           receiveLogHandler,
@@ -163,6 +168,7 @@ func BuildTestQueries(t *testing.T) (TestQueries, error) {
 		Status:               statusHandler,
 		GetBlob:              getBlobHandler,
 		BlobDownloadedEvents: blobDownloadedEventsHandler,
+		RoomsListAliases:     roomsListAliasesHandler,
 	}
 	testQueries := TestQueries{
 		Queries:              appQueries,
@@ -172,6 +178,7 @@ func BuildTestQueries(t *testing.T) (TestQueries, error) {
 		PeerManager:          peerManagerMock,
 		BlobStorage:          blobStorageMock,
 		ReceiveLogRepository: receiveLogRepositoryMock,
+		Dialer:               dialerMock,
 		LocalIdentity:        public,
 	}
 	return testQueries, nil
@@ -353,6 +360,10 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 		return Service{}, err
 	}
 	blobDownloadedEventsHandler := queries.NewBlobDownloadedEventsHandler(blobDownloadedPubSub)
+	roomsListAliasesHandler, err := queries.NewRoomsListAliasesHandler(dialer, public)
+	if err != nil {
+		return Service{}, err
+	}
 	appQueries := app.Queries{
 		CreateHistoryStream:  createHistoryStreamHandler,
 		ReceiveLog:           receiveLogHandler,
@@ -360,6 +371,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 		Status:               statusHandler,
 		GetBlob:              getBlobHandler,
 		BlobDownloadedEvents: blobDownloadedEventsHandler,
+		RoomsListAliases:     roomsListAliasesHandler,
 	}
 	application := app.Application{
 		Commands: appCommands,
@@ -433,6 +445,7 @@ type TestQueries struct {
 	PeerManager          *mocks.PeerManagerMock
 	BlobStorage          *mocks.BlobStorageMock
 	ReceiveLogRepository *mocks.ReceiveLogRepositoryMock
+	Dialer               *mocks.DialerMock
 
 	LocalIdentity identity.Public
 }

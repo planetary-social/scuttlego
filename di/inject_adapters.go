@@ -17,6 +17,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/identity"
 	"github.com/planetary-social/scuttlego/service/domain/replication"
 	"github.com/planetary-social/scuttlego/service/domain/replication/ebt"
+	"github.com/planetary-social/scuttlego/service/domain/transport/boxstream"
 	"go.etcd.io/bbolt"
 )
 
@@ -98,6 +99,7 @@ func newFilesystemStorage(logger logging.Logger, config Config) (*blobs.Filesyst
 var adaptersSet = wire.NewSet(
 	adapters.NewCurrentTimeProvider,
 	wire.Bind(new(commands.CurrentTimeProvider), new(*adapters.CurrentTimeProvider)),
+	wire.Bind(new(boxstream.CurrentTimeProvider), new(*adapters.CurrentTimeProvider)),
 
 	adapters.NewBanListHasher,
 	wire.Bind(new(bolt.BanListHasher), new(*adapters.BanListHasher)),

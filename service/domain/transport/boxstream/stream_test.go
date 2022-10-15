@@ -49,10 +49,10 @@ func newStreams(t *testing.T) (*boxstream.Stream, *boxstream.Stream) {
 	twoToOneReader, twoToOneWriter := io.Pipe()
 
 	identity1 := fixtures.SomePublicIdentity()
-	conn1 := newMockConnection(twoToOneReader, oneToTwoWriter)
+	conn1 := newMockReadWriteCloser(twoToOneReader, oneToTwoWriter)
 
 	identity2 := fixtures.SomePublicIdentity()
-	conn2 := newMockConnection(oneToTwoReader, twoToOneWriter)
+	conn2 := newMockReadWriteCloser(oneToTwoReader, twoToOneWriter)
 
 	stream1, err := boxstream.NewStream(conn1, boxstream.HandshakeResult{
 		Remote:      identity2,

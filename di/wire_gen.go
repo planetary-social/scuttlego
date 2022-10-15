@@ -265,7 +265,8 @@ var (
 // e.g. established connections.
 func BuildService(contextContext context.Context, private identity.Private, config Config) (Service, error) {
 	networkKey := extractNetworkKeyFromConfig(config)
-	handshaker, err := boxstream.NewHandshaker(private, networkKey)
+	currentTimeProvider := adapters.NewCurrentTimeProvider()
+	handshaker, err := boxstream.NewHandshaker(private, networkKey, currentTimeProvider)
 	if err != nil {
 		return Service{}, err
 	}
@@ -289,7 +290,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	if err != nil {
 		return Service{}, err
 	}
-	redeemInviteHandler := commands.NewRedeemInviteHandler(dialer, transactionProvider, networkKey, private, requestPubSub, marshaler, connectionIdGenerator, logger)
+	redeemInviteHandler := commands.NewRedeemInviteHandler(dialer, transactionProvider, networkKey, private, requestPubSub, marshaler, connectionIdGenerator, currentTimeProvider, logger)
 	followHandler := commands.NewFollowHandler(transactionProvider, private, marshaler, logger)
 	publishRawHandler := commands.NewPublishRawHandler(transactionProvider, private, logger)
 	peerManagerConfig := extractPeerManagerConfigFromConfig(config)
@@ -335,7 +336,6 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	acceptNewPeerHandler := commands.NewAcceptNewPeerHandler(peerManager)
 	processNewLocalDiscoveryHandler := commands.NewProcessNewLocalDiscoveryHandler(peerManager)
 	createWantsHandler := commands.NewCreateWantsHandler(replicationManager)
-	currentTimeProvider := adapters.NewCurrentTimeProvider()
 	downloadBlobHandler := commands.NewDownloadBlobHandler(transactionProvider, currentTimeProvider)
 	createBlobHandler := commands.NewCreateBlobHandler(filesystemStorage)
 	addToBanListHandler := commands.NewAddToBanListHandler(transactionProvider)

@@ -30,6 +30,7 @@ type RedeemInviteHandler struct {
 	requestHandler        rpc.RequestHandler
 	marshaler             formats.Marshaler
 	connectionIdGenerator *rpc.ConnectionIdGenerator
+	currentTimeProvider   CurrentTimeProvider
 	logger                logging.Logger
 }
 
@@ -41,6 +42,7 @@ func NewRedeemInviteHandler(
 	requestHandler rpc.RequestHandler,
 	marshaler formats.Marshaler,
 	connectionIdGenerator *rpc.ConnectionIdGenerator,
+	currentTimeProvider CurrentTimeProvider,
 	logger logging.Logger,
 ) *RedeemInviteHandler {
 	return &RedeemInviteHandler{
@@ -51,6 +53,7 @@ func NewRedeemInviteHandler(
 		requestHandler:        requestHandler,
 		marshaler:             marshaler,
 		connectionIdGenerator: connectionIdGenerator,
+		currentTimeProvider:   currentTimeProvider,
 		logger:                logger.New("follow_handler"),
 	}
 }
@@ -144,7 +147,7 @@ func (h *RedeemInviteHandler) dial(ctx context.Context, cmd RedeemInvite) (trans
 		return transport.Peer{}, errors.Wrap(err, "could not create a private identity")
 	}
 
-	handshaker, err := boxstream.NewHandshaker(local, h.networkKey)
+	handshaker, err := boxstream.NewHandshaker(local, h.networkKey, h.currentTimeProvider)
 	if err != nil {
 		return transport.Peer{}, errors.Wrap(err, "could not create a handshaker")
 	}

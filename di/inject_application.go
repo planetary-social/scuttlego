@@ -42,6 +42,8 @@ var commandsSet = wire.NewSet(
 
 	commands.NewHandleIncomingEbtReplicateHandler,
 	wire.Bind(new(portsrpc.EbtReplicateCommandHandler), new(*commands.HandleIncomingEbtReplicateHandler)),
+
+	commands.NewRoomsAliasRegisterHandler,
 )
 
 var queriesSet = wire.NewSet(

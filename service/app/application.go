@@ -26,6 +26,8 @@ type Commands struct {
 
 	AddToBanList      *commands.AddToBanListHandler
 	RemoveFromBanList *commands.RemoveFromBanListHandler
+
+	RoomsAliasRegister *commands.RoomsAliasRegisterHandler
 }
 
 type Queries struct {

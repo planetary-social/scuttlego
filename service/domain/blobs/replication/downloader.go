@@ -64,7 +64,7 @@ func (d *BlobsGetDownloader) Download(ctx context.Context, peer transport.Peer, 
 	return nil
 }
 
-func (d *BlobsGetDownloader) copyBlobContent(pipeWriter *io.PipeWriter, rs *rpc.ResponseStream) error {
+func (d *BlobsGetDownloader) copyBlobContent(pipeWriter *io.PipeWriter, rs rpc.ResponseStream) error {
 	for chunk := range rs.Channel() {
 		if err := chunk.Err; err != nil {
 			if errors.Is(err, rpc.ErrEndOrErr) {

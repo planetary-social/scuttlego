@@ -94,6 +94,27 @@ func BuildTestAdapters(*bbolt.DB) (TestAdapters, error) {
 	return TestAdapters{}, nil
 }
 
+type TestCommands struct {
+	RoomsAliasRegister *commands.RoomsAliasRegisterHandler
+
+	Dialer *mocks.DialerMock
+}
+
+func BuildTestCommands(*testing.T) (TestCommands, error) {
+	wire.Build(
+		applicationSet,
+
+		mocks.NewDialerMock,
+		wire.Bind(new(commands.Dialer), new(*mocks.DialerMock)),
+
+		identity.NewPrivate,
+
+		wire.Struct(new(TestCommands), "*"),
+	)
+
+	return TestCommands{}, nil
+}
+
 type TestQueries struct {
 	Queries app.Queries
 

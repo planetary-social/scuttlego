@@ -70,7 +70,7 @@ func encodeProcedureType(t ProcedureType) (string, error) {
 	case ProcedureTypeAsync:
 		return transportStringForProcedureTypeAsync, nil
 	default:
-		return "", fmt.Errorf("unknown procedure type %T", t)
+		return "", fmt.Errorf("unknown procedure type %+v", t)
 	}
 }
 

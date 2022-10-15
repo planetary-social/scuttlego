@@ -113,6 +113,20 @@ func BuildTestAdapters(db *bbolt.DB) (TestAdapters, error) {
 	return testAdapters, nil
 }
 
+func BuildTestCommands(t *testing.T) (TestCommands, error) {
+	dialerMock := mocks.NewDialerMock()
+	private, err := identity.NewPrivate()
+	if err != nil {
+		return TestCommands{}, err
+	}
+	roomsAliasRegisterHandler := commands.NewRoomsAliasRegisterHandler(dialerMock, private)
+	testCommands := TestCommands{
+		RoomsAliasRegister: roomsAliasRegisterHandler,
+		Dialer:             dialerMock,
+	}
+	return testCommands, nil
+}
+
 func BuildTestQueries(t *testing.T) (TestQueries, error) {
 	feedRepositoryMock := mocks.NewFeedRepositoryMock()
 	messagePubSub := pubsub.NewMessagePubSub()
@@ -306,6 +320,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	createBlobHandler := commands.NewCreateBlobHandler(filesystemStorage)
 	addToBanListHandler := commands.NewAddToBanListHandler(transactionProvider)
 	removeFromBanListHandler := commands.NewRemoveFromBanListHandler(transactionProvider)
+	roomsAliasRegisterHandler := commands.NewRoomsAliasRegisterHandler(dialer, private)
 	appCommands := app.Commands{
 		RedeemInvite:             redeemInviteHandler,
 		Follow:                   followHandler,
@@ -319,6 +334,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 		CreateBlob:               createBlobHandler,
 		AddToBanList:             addToBanListHandler,
 		RemoveFromBanList:        removeFromBanListHandler,
+		RoomsAliasRegister:       roomsAliasRegisterHandler,
 	}
 	readReceiveLogRepository := bolt.NewReadReceiveLogRepository(db, txRepositoriesFactory)
 	receiveLogHandler := queries.NewReceiveLogHandler(readReceiveLogRepository)
@@ -395,6 +411,12 @@ type TestAdapters struct {
 	MessageRepository *bolt.ReadMessageRepository
 	FeedRepository    *bolt.ReadFeedRepository
 	ReceiveLog        *bolt.ReadReceiveLogRepository
+}
+
+type TestCommands struct {
+	RoomsAliasRegister *commands.RoomsAliasRegisterHandler
+
+	Dialer *mocks.DialerMock
 }
 
 type TestQueries struct {

@@ -21,7 +21,7 @@ func TestReplicator_ReplicateCallsWaitForSessionIfConnectionWasInitiatedByRemote
 	ctx := fixtures.TestContext(t)
 	ctx = rpc.PutConnectionIdInContext(ctx, connectionId)
 	connThatWasInitiatedByRemote := newConnectionMock(true)
-	peer := transport.NewPeer(fixtures.SomePublicIdentity(), connThatWasInitiatedByRemote)
+	peer := transport.MustNewPeer(fixtures.SomePublicIdentity(), connThatWasInitiatedByRemote)
 
 	tr.Tracker.WaitForSessionResult = true
 
@@ -42,7 +42,7 @@ func TestReplicator_ReplicateInitiatesTheSessionIfConnectionWasNotInitiatedByRem
 	ctx := fixtures.TestContext(t)
 	ctx = rpc.PutConnectionIdInContext(ctx, connectionId)
 	connectionThatWasNotInitiatedByRemote := newConnectionMock(false)
-	peer := transport.NewPeer(fixtures.SomePublicIdentity(), connectionThatWasNotInitiatedByRemote)
+	peer := transport.MustNewPeer(fixtures.SomePublicIdentity(), connectionThatWasNotInitiatedByRemote)
 
 	err := tr.Replicator.Replicate(ctx, peer)
 	require.NoError(t, err)
@@ -66,7 +66,7 @@ func TestReplicator_ReplicateReturnsAnErrorAndDoesNotWaitIfOpenSessionReturnsAnE
 	ctx := fixtures.TestContext(t)
 	ctx = rpc.PutConnectionIdInContext(ctx, connectionId)
 	conn := newConnectionMock(false)
-	peer := transport.NewPeer(fixtures.SomePublicIdentity(), conn)
+	peer := transport.MustNewPeer(fixtures.SomePublicIdentity(), conn)
 
 	tr.Tracker.OpenSessionError = fixtures.SomeError()
 
@@ -87,7 +87,7 @@ func TestReplicator_ReplicateReturnsErrPeerDoesNotSupportEbtIfRemoteNeverOpensAS
 	ctx := fixtures.TestContext(t)
 	ctx = rpc.PutConnectionIdInContext(ctx, connectionId)
 	conn := newConnectionMock(true)
-	peer := transport.NewPeer(fixtures.SomePublicIdentity(), conn)
+	peer := transport.MustNewPeer(fixtures.SomePublicIdentity(), conn)
 
 	tr.Tracker.WaitForSessionResult = false
 

@@ -5,7 +5,7 @@ import (
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
-	"github.com/planetary-social/scuttlego/service/domain/rooms"
+	"github.com/planetary-social/scuttlego/service/domain/rooms/aliases"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 )
 
@@ -52,27 +52,27 @@ func (i RoomListAliasesArguments) MarshalJSON() ([]byte, error) {
 }
 
 type RoomListAliasesResponse struct {
-	aliases []rooms.Alias
+	aliases []aliases.Alias
 }
 
-func NewRoomsListAliasesResponse(b []byte) (RoomListAliasesResponse, error) {
+func NewRoomListAliasesResponseFromBytes(b []byte) (RoomListAliasesResponse, error) {
 	var aliasesAsStrings []string
 	if err := json.Unmarshal(b, &aliasesAsStrings); err != nil {
 		return RoomListAliasesResponse{}, errors.Wrap(err, "json unmarshal failed")
 	}
 
-	var aliases []rooms.Alias
+	var aliasesSlice []aliases.Alias
 	for _, aliasString := range aliasesAsStrings {
-		alias, err := rooms.NewAlias(aliasString)
+		alias, err := aliases.NewAlias(aliasString)
 		if err != nil {
 			return RoomListAliasesResponse{}, errors.Wrap(err, "error creating an alias")
 		}
-		aliases = append(aliases, alias)
+		aliasesSlice = append(aliasesSlice, alias)
 	}
 
-	return RoomListAliasesResponse{aliases: aliases}, nil
+	return RoomListAliasesResponse{aliases: aliasesSlice}, nil
 }
 
-func (r RoomListAliasesResponse) Aliases() []rooms.Alias {
+func (r RoomListAliasesResponse) Aliases() []aliases.Alias {
 	return r.aliases
 }

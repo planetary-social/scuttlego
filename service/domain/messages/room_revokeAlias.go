@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/boreq/errors"
-	"github.com/planetary-social/scuttlego/service/domain/rooms"
+	"github.com/planetary-social/scuttlego/service/domain/rooms/aliases"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 )
 
@@ -29,11 +29,11 @@ func NewRoomRevokeAlias(arguments RoomRevokeAliasArguments) (*rpc.Request, error
 }
 
 type RoomRevokeAliasArguments struct {
-	alias rooms.Alias
+	alias aliases.Alias
 }
 
 func NewRoomRevokeAliasArguments(
-	alias rooms.Alias,
+	alias aliases.Alias,
 ) (RoomRevokeAliasArguments, error) {
 	if alias.IsZero() {
 		return RoomRevokeAliasArguments{}, errors.New("zero value of alias")

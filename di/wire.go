@@ -24,15 +24,13 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/feeds/formats"
 	"github.com/planetary-social/scuttlego/service/domain/graph"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
-	"github.com/planetary-social/scuttlego/service/domain/network"
+	domainmocks "github.com/planetary-social/scuttlego/service/domain/mocks"
 	"github.com/planetary-social/scuttlego/service/domain/network/local"
 	"github.com/planetary-social/scuttlego/service/domain/replication"
 	"github.com/planetary-social/scuttlego/service/domain/replication/ebt"
 	"github.com/planetary-social/scuttlego/service/domain/replication/gossip"
-	domaintransport "github.com/planetary-social/scuttlego/service/domain/transport"
-	"github.com/planetary-social/scuttlego/service/domain/transport/boxstream"
-	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
-	portsnetwork "github.com/planetary-social/scuttlego/service/ports/network"
+	"github.com/planetary-social/scuttlego/service/domain/rooms"
+	"github.com/planetary-social/scuttlego/service/domain/rooms/tunnel"
 	"go.etcd.io/bbolt"
 )
 
@@ -95,10 +93,12 @@ func BuildTestAdapters(*bbolt.DB) (TestAdapters, error) {
 }
 
 type TestCommands struct {
-	RoomsAliasRegister *commands.RoomsAliasRegisterHandler
-	RoomsAliasRevoke   *commands.RoomsAliasRevokeHandler
+	RoomsAliasRegister        *commands.RoomsAliasRegisterHandler
+	RoomsAliasRevoke          *commands.RoomsAliasRevokeHandler
+	ProcessRoomAttendantEvent *commands.ProcessRoomAttendantEventHandler
 
-	Dialer *mocks.DialerMock
+	PeerManager *domainmocks.PeerManagerMock
+	Dialer      *mocks.DialerMock
 }
 
 func BuildTestCommands(*testing.T) (TestCommands, error) {
@@ -107,6 +107,9 @@ func BuildTestCommands(*testing.T) (TestCommands, error) {
 
 		mocks.NewDialerMock,
 		wire.Bind(new(commands.Dialer), new(*mocks.DialerMock)),
+
+		domainmocks.NewPeerManagerMock,
+		wire.Bind(new(commands.PeerManager), new(*domainmocks.PeerManagerMock)),
 
 		identity.NewPrivate,
 
@@ -122,7 +125,7 @@ type TestQueries struct {
 	FeedRepository       *mocks.FeedRepositoryMock
 	MessagePubSub        *mocks.MessagePubSubMock
 	MessageRepository    *mocks.MessageRepositoryMock
-	PeerManager          *mocks.PeerManagerMock
+	PeerManager          *domainmocks.PeerManagerMock
 	BlobStorage          *mocks.BlobStorageMock
 	ReceiveLogRepository *mocks.ReceiveLogRepositoryMock
 	Dialer               *mocks.DialerMock
@@ -139,8 +142,8 @@ func BuildTestQueries(*testing.T) (TestQueries, error) {
 		mocks.NewMessagePubSubMock,
 		wire.Bind(new(queries.MessageSubscriber), new(*mocks.MessagePubSubMock)),
 
-		mocks.NewPeerManagerMock,
-		wire.Bind(new(queries.PeerManager), new(*mocks.PeerManagerMock)),
+		domainmocks.NewPeerManagerMock,
+		wire.Bind(new(queries.PeerManager), new(*domainmocks.PeerManagerMock)),
 
 		identity.NewPrivate,
 		privateIdentityToPublicIdentity,
@@ -197,21 +200,6 @@ func BuildService(context.Context, identity.Private, Config) (Service, error) {
 	wire.Build(
 		NewService,
 
-		extractFromConfigSet,
-
-		boxstream.NewHandshaker,
-
-		domaintransport.NewPeerInitializer,
-		wire.Bind(new(portsnetwork.ServerPeerInitializer), new(*domaintransport.PeerInitializer)),
-		wire.Bind(new(network.ClientPeerInitializer), new(*domaintransport.PeerInitializer)),
-
-		rpc.NewConnectionIdGenerator,
-
-		network.NewDialer,
-		wire.Bind(new(commands.Dialer), new(*network.Dialer)),
-		wire.Bind(new(queries.Dialer), new(*network.Dialer)),
-		wire.Bind(new(domain.Dialer), new(*network.Dialer)),
-
 		domain.NewPeerManager,
 		wire.Bind(new(commands.NewPeerHandler), new(*domain.PeerManager)),
 		wire.Bind(new(commands.PeerManager), new(*domain.PeerManager)),
@@ -221,10 +209,22 @@ func BuildService(context.Context, identity.Private, Config) (Service, error) {
 		wire.Bind(new(commands.TransactionProvider), new(*bolt.TransactionProvider)),
 		newAdaptersFactory,
 
+		newBolt,
+
 		newAdvertiser,
 		privateIdentityToPublicIdentity,
 
 		commands.NewMessageBuffer,
+
+		rooms.NewScanner,
+		wire.Bind(new(domain.RoomScanner), new(*rooms.Scanner)),
+
+		rooms.NewPeerRPCAdapter,
+		wire.Bind(new(rooms.MetadataGetter), new(*rooms.PeerRPCAdapter)),
+		wire.Bind(new(rooms.AttendantsGetter), new(*rooms.PeerRPCAdapter)),
+
+		tunnel.NewDialer,
+		wire.Bind(new(domain.RoomDialer), new(*tunnel.Dialer)),
 
 		portsSet,
 		applicationSet,
@@ -235,8 +235,8 @@ func BuildService(context.Context, identity.Private, Config) (Service, error) {
 		boltAdaptersSet,
 		blobsAdaptersSet,
 		adaptersSet,
-
-		newBolt,
+		extractFromConfigSet,
+		networkingSet,
 	)
 	return Service{}, nil
 }

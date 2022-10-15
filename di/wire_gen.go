@@ -30,11 +30,14 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/feeds/formats"
 	"github.com/planetary-social/scuttlego/service/domain/graph"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
+	mocks2 "github.com/planetary-social/scuttlego/service/domain/mocks"
 	"github.com/planetary-social/scuttlego/service/domain/network"
 	"github.com/planetary-social/scuttlego/service/domain/network/local"
 	"github.com/planetary-social/scuttlego/service/domain/replication"
 	"github.com/planetary-social/scuttlego/service/domain/replication/ebt"
 	"github.com/planetary-social/scuttlego/service/domain/replication/gossip"
+	"github.com/planetary-social/scuttlego/service/domain/rooms"
+	"github.com/planetary-social/scuttlego/service/domain/rooms/tunnel"
 	transport2 "github.com/planetary-social/scuttlego/service/domain/transport"
 	"github.com/planetary-social/scuttlego/service/domain/transport/boxstream"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
@@ -121,10 +124,14 @@ func BuildTestCommands(t *testing.T) (TestCommands, error) {
 	}
 	roomsAliasRegisterHandler := commands.NewRoomsAliasRegisterHandler(dialerMock, private)
 	roomsAliasRevokeHandler := commands.NewRoomsAliasRevokeHandler(dialerMock)
+	peerManagerMock := mocks2.NewPeerManagerMock()
+	processRoomAttendantEventHandler := commands.NewProcessRoomAttendantEventHandler(peerManagerMock)
 	testCommands := TestCommands{
-		RoomsAliasRegister: roomsAliasRegisterHandler,
-		RoomsAliasRevoke:   roomsAliasRevokeHandler,
-		Dialer:             dialerMock,
+		RoomsAliasRegister:        roomsAliasRegisterHandler,
+		RoomsAliasRevoke:          roomsAliasRevokeHandler,
+		ProcessRoomAttendantEvent: processRoomAttendantEventHandler,
+		PeerManager:               peerManagerMock,
+		Dialer:                    dialerMock,
 	}
 	return testCommands, nil
 }
@@ -147,7 +154,7 @@ func BuildTestQueries(t *testing.T) (TestQueries, error) {
 		return TestQueries{}, err
 	}
 	messageRepositoryMock := mocks.NewMessageRepositoryMock()
-	peerManagerMock := mocks.NewPeerManagerMock()
+	peerManagerMock := mocks2.NewPeerManagerMock()
 	statusHandler := queries.NewStatusHandler(messageRepositoryMock, feedRepositoryMock, peerManagerMock)
 	blobStorageMock := mocks.NewBlobStorageMock()
 	getBlobHandler, err := queries.NewGetBlobHandler(blobStorageMock)
@@ -258,7 +265,8 @@ var (
 // e.g. established connections.
 func BuildService(contextContext context.Context, private identity.Private, config Config) (Service, error) {
 	networkKey := extractNetworkKeyFromConfig(config)
-	handshaker, err := boxstream.NewHandshaker(private, networkKey)
+	currentTimeProvider := adapters.NewCurrentTimeProvider()
+	handshaker, err := boxstream.NewHandshaker(private, networkKey, currentTimeProvider)
 	if err != nil {
 		return Service{}, err
 	}
@@ -282,10 +290,11 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	if err != nil {
 		return Service{}, err
 	}
-	redeemInviteHandler := commands.NewRedeemInviteHandler(dialer, transactionProvider, networkKey, private, requestPubSub, marshaler, connectionIdGenerator, logger)
+	redeemInviteHandler := commands.NewRedeemInviteHandler(dialer, transactionProvider, networkKey, private, requestPubSub, marshaler, connectionIdGenerator, currentTimeProvider, logger)
 	followHandler := commands.NewFollowHandler(transactionProvider, private, marshaler, logger)
 	publishRawHandler := commands.NewPublishRawHandler(transactionProvider, private, logger)
 	peerManagerConfig := extractPeerManagerConfigFromConfig(config)
+	tunnelDialer := tunnel.NewDialer(peerInitializer)
 	sessionTracker := ebt.NewSessionTracker()
 	messageHMAC := extractMessageHMACFromConfig(config)
 	scuttlebutt := formats.NewScuttlebutt(marshaler, messageHMAC)
@@ -318,34 +327,38 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	hasHandler := replication2.NewHasHandler(filesystemStorage, readWantListRepository, blobsGetDownloader, blobDownloadedPubSub, logger)
 	replicationManager := replication2.NewManager(readWantListRepository, filesystemStorage, hasHandler, logger)
 	replicationReplicator := replication2.NewReplicator(replicationManager)
-	peerManager := domain.NewPeerManager(contextContext, peerManagerConfig, negotiator, replicationReplicator, dialer, logger)
+	peerRPCAdapter := rooms.NewPeerRPCAdapter(logger)
+	roomAttendantEventPubSub := pubsub.NewRoomAttendantEventPubSub()
+	scanner := rooms.NewScanner(peerRPCAdapter, peerRPCAdapter, roomAttendantEventPubSub, logger)
+	peerManager := domain.NewPeerManager(contextContext, peerManagerConfig, dialer, tunnelDialer, negotiator, replicationReplicator, scanner, logger)
 	connectHandler := commands.NewConnectHandler(peerManager, logger)
 	establishNewConnectionsHandler := commands.NewEstablishNewConnectionsHandler(peerManager)
 	acceptNewPeerHandler := commands.NewAcceptNewPeerHandler(peerManager)
 	processNewLocalDiscoveryHandler := commands.NewProcessNewLocalDiscoveryHandler(peerManager)
 	createWantsHandler := commands.NewCreateWantsHandler(replicationManager)
-	currentTimeProvider := adapters.NewCurrentTimeProvider()
 	downloadBlobHandler := commands.NewDownloadBlobHandler(transactionProvider, currentTimeProvider)
 	createBlobHandler := commands.NewCreateBlobHandler(filesystemStorage)
 	addToBanListHandler := commands.NewAddToBanListHandler(transactionProvider)
 	removeFromBanListHandler := commands.NewRemoveFromBanListHandler(transactionProvider)
 	roomsAliasRegisterHandler := commands.NewRoomsAliasRegisterHandler(dialer, private)
 	roomsAliasRevokeHandler := commands.NewRoomsAliasRevokeHandler(dialer)
+	processRoomAttendantEventHandler := commands.NewProcessRoomAttendantEventHandler(peerManager)
 	appCommands := app.Commands{
-		RedeemInvite:             redeemInviteHandler,
-		Follow:                   followHandler,
-		PublishRaw:               publishRawHandler,
-		Connect:                  connectHandler,
-		EstablishNewConnections:  establishNewConnectionsHandler,
-		AcceptNewPeer:            acceptNewPeerHandler,
-		ProcessNewLocalDiscovery: processNewLocalDiscoveryHandler,
-		CreateWants:              createWantsHandler,
-		DownloadBlob:             downloadBlobHandler,
-		CreateBlob:               createBlobHandler,
-		AddToBanList:             addToBanListHandler,
-		RemoveFromBanList:        removeFromBanListHandler,
-		RoomsAliasRegister:       roomsAliasRegisterHandler,
-		RoomsAliasRevoke:         roomsAliasRevokeHandler,
+		RedeemInvite:              redeemInviteHandler,
+		Follow:                    followHandler,
+		PublishRaw:                publishRawHandler,
+		Connect:                   connectHandler,
+		EstablishNewConnections:   establishNewConnectionsHandler,
+		AcceptNewPeer:             acceptNewPeerHandler,
+		ProcessNewLocalDiscovery:  processNewLocalDiscoveryHandler,
+		CreateWants:               createWantsHandler,
+		DownloadBlob:              downloadBlobHandler,
+		CreateBlob:                createBlobHandler,
+		AddToBanList:              addToBanListHandler,
+		RemoveFromBanList:         removeFromBanListHandler,
+		RoomsAliasRegister:        roomsAliasRegisterHandler,
+		RoomsAliasRevoke:          roomsAliasRevokeHandler,
+		ProcessRoomAttendantEvent: processRoomAttendantEventHandler,
 	}
 	readReceiveLogRepository := bolt.NewReadReceiveLogRepository(db, txRepositoriesFactory)
 	receiveLogHandler := queries.NewReceiveLogHandler(readReceiveLogRepository)
@@ -399,11 +412,12 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 		return Service{}, err
 	}
 	requestSubscriber := pubsub2.NewRequestSubscriber(requestPubSub, muxMux)
+	roomAttendantEventSubscriber := pubsub2.NewRoomAttendantEventSubscriber(roomAttendantEventPubSub, processRoomAttendantEventHandler, logger)
 	advertiser, err := newAdvertiser(public, config)
 	if err != nil {
 		return Service{}, err
 	}
-	service := NewService(application, listener, networkDiscoverer, connectionEstablisher, requestSubscriber, advertiser, messageBuffer, createHistoryStreamHandler)
+	service := NewService(application, listener, networkDiscoverer, connectionEstablisher, requestSubscriber, roomAttendantEventSubscriber, advertiser, messageBuffer, createHistoryStreamHandler)
 	return service, nil
 }
 
@@ -430,10 +444,12 @@ type TestAdapters struct {
 }
 
 type TestCommands struct {
-	RoomsAliasRegister *commands.RoomsAliasRegisterHandler
-	RoomsAliasRevoke   *commands.RoomsAliasRevokeHandler
+	RoomsAliasRegister        *commands.RoomsAliasRegisterHandler
+	RoomsAliasRevoke          *commands.RoomsAliasRevokeHandler
+	ProcessRoomAttendantEvent *commands.ProcessRoomAttendantEventHandler
 
-	Dialer *mocks.DialerMock
+	PeerManager *mocks2.PeerManagerMock
+	Dialer      *mocks.DialerMock
 }
 
 type TestQueries struct {
@@ -442,7 +458,7 @@ type TestQueries struct {
 	FeedRepository       *mocks.FeedRepositoryMock
 	MessagePubSub        *mocks.MessagePubSubMock
 	MessageRepository    *mocks.MessageRepositoryMock
-	PeerManager          *mocks.PeerManagerMock
+	PeerManager          *mocks2.PeerManagerMock
 	BlobStorage          *mocks.BlobStorageMock
 	ReceiveLogRepository *mocks.ReceiveLogRepositoryMock
 	Dialer               *mocks.DialerMock

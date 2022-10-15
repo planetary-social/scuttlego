@@ -11,6 +11,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/blobs"
 	"github.com/planetary-social/scuttlego/service/domain/blobs/replication"
 	"github.com/planetary-social/scuttlego/service/domain/messages"
+	domainmocks "github.com/planetary-social/scuttlego/service/domain/mocks"
 	"github.com/planetary-social/scuttlego/service/domain/transport"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -21,7 +22,7 @@ func TestRepliesToWantsWithHas(t *testing.T) {
 
 	ctx := fixtures.TestContext(t)
 	outgoingCh := make(chan messages.BlobWithSizeOrWantDistance)
-	peer := transport.NewPeer(fixtures.SomePublicIdentity(), nil)
+	peer := transport.MustNewPeer(fixtures.SomePublicIdentity(), domainmocks.NewConnectionMock(ctx))
 	p.WantsProcess.AddOutgoing(ctx, outgoingCh, peer)
 
 	incomingCh := make(chan messages.BlobWithSizeOrWantDistance)
@@ -52,7 +53,7 @@ func TestRepliesToWantsWithHasIfIncomingChannelConnectedLater(t *testing.T) {
 
 	ctx := fixtures.TestContext(t)
 	outgoingCh := make(chan messages.BlobWithSizeOrWantDistance)
-	peer := transport.NewPeer(fixtures.SomePublicIdentity(), nil)
+	peer := transport.MustNewPeer(fixtures.SomePublicIdentity(), domainmocks.NewConnectionMock(ctx))
 	p.WantsProcess.AddOutgoing(ctx, outgoingCh, peer)
 
 	blobId := fixtures.SomeRefBlob()
@@ -82,7 +83,7 @@ func TestPassesHasToDownloader(t *testing.T) {
 	defer cancel()
 
 	outgoingCh := make(chan messages.BlobWithSizeOrWantDistance)
-	peer := transport.NewPeer(fixtures.SomePublicIdentity(), nil)
+	peer := transport.MustNewPeer(fixtures.SomePublicIdentity(), domainmocks.NewConnectionMock(ctx))
 	p.WantsProcess.AddOutgoing(ctx, outgoingCh, peer)
 
 	blobId := fixtures.SomeRefBlob()

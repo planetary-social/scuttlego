@@ -2,21 +2,39 @@ package boxstream
 
 import (
 	"io"
+	"time"
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
 	"go.cryptoscope.co/secretstream/secrethandshake"
 )
 
+const (
+	handshakeTimeout = 15 * time.Second
+)
+
+type CurrentTimeProvider interface {
+	Get() time.Time
+}
+
+type SetDeadliner interface {
+	SetDeadline(t time.Time) error
+}
+
 // Handshaker performs the Secret Handshake using the provided ReadWriteCloser.
 type Handshaker struct {
-	local      identity.Private
-	networkKey NetworkKey
+	local               identity.Private
+	networkKey          NetworkKey
+	currentTimeProvider CurrentTimeProvider
 }
 
 // NewHandshaker creates a new handshaker which uses the provided local private
 // identity when performing secret handshakes.
-func NewHandshaker(local identity.Private, networkKey NetworkKey) (Handshaker, error) {
+func NewHandshaker(
+	local identity.Private,
+	networkKey NetworkKey,
+	currentTimeProvider CurrentTimeProvider,
+) (Handshaker, error) {
 	if local.IsZero() {
 		return Handshaker{}, errors.New("zero value of private identity")
 	}
@@ -26,8 +44,9 @@ func NewHandshaker(local identity.Private, networkKey NetworkKey) (Handshaker, e
 	}
 
 	return Handshaker{
-		local:      local,
-		networkKey: networkKey,
+		local:               local,
+		networkKey:          networkKey,
+		currentTimeProvider: currentTimeProvider,
 	}, nil
 }
 
@@ -35,6 +54,12 @@ func NewHandshaker(local identity.Private, networkKey NetworkKey) (Handshaker, e
 // remote peer and the provided ReadWriteCloser. This should be used when
 // initiating a connection with a remote peer.
 func (h Handshaker) OpenClientStream(rw io.ReadWriteCloser, remote identity.Public) (*Stream, error) {
+	if v, ok := rw.(SetDeadliner); ok {
+		if err := v.SetDeadline(h.currentTimeProvider.Get().Add(handshakeTimeout)); err != nil {
+			return nil, errors.Wrap(err, "failed to set a deadline")
+		}
+	}
+
 	if remote.IsZero() {
 		return nil, errors.New("zero value of remote identity")
 	}
@@ -47,6 +72,12 @@ func (h Handshaker) OpenClientStream(rw io.ReadWriteCloser, remote identity.Publ
 	err = secrethandshake.Client(state, rw)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not perform the client handshake")
+	}
+
+	if v, ok := rw.(SetDeadliner); ok {
+		if err := v.SetDeadline(time.Time{}); err != nil {
+			return nil, errors.Wrap(err, "failed to reset a deadline")
+		}
 	}
 
 	return h.createStream(rw, state)

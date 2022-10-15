@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"time"
 
 	"github.com/boreq/errors"
@@ -23,6 +24,11 @@ type PeerManager interface {
 	// request under specific circumstances e.g. it may avoid establishing
 	// duplicate connections to a single identity.
 	Connect(remote identity.Public, address network.Address) error
+
+	// ConnectViaRoom instructs the peer manager that it should establish
+	// communications with the specified node using a room as a relay. Behaves
+	// like Connect.
+	ConnectViaRoom(portal transport.Peer, target identity.Public) error
 
 	// EstablishNewConnections instructs the peer manager that it is time to
 	// establish new connections so that the specific connections quotas are
@@ -105,3 +111,8 @@ type BanListRepository interface {
 }
 
 var ErrBanListMappingNotFound = errors.New("ban list mapping not found")
+
+type Dialer interface {
+	DialWithInitializer(ctx context.Context, initializer network.ClientPeerInitializer, remote identity.Public, addr network.Address) (transport.Peer, error)
+	Dial(ctx context.Context, remote identity.Public, address network.Address) (transport.Peer, error)
+}

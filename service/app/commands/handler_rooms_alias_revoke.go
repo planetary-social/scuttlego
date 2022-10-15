@@ -9,20 +9,20 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/messages"
 	"github.com/planetary-social/scuttlego/service/domain/network"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
-	"github.com/planetary-social/scuttlego/service/domain/rooms"
+	"github.com/planetary-social/scuttlego/service/domain/rooms/aliases"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 )
 
 type RoomsAliasRevoke struct {
 	room    refs.Identity
 	address network.Address
-	alias   rooms.Alias
+	alias   aliases.Alias
 }
 
 func NewRoomsAliasRevoke(
 	room refs.Identity,
 	address network.Address,
-	alias rooms.Alias,
+	alias aliases.Alias,
 ) (RoomsAliasRevoke, error) {
 	if room.IsZero() {
 		return RoomsAliasRevoke{}, errors.New("zero value of room")
@@ -51,7 +51,7 @@ func (r RoomsAliasRevoke) Address() network.Address {
 	return r.address
 }
 
-func (r RoomsAliasRevoke) Alias() rooms.Alias {
+func (r RoomsAliasRevoke) Alias() aliases.Alias {
 	return r.alias
 }
 
@@ -107,7 +107,7 @@ func (h *RoomsAliasRevokeHandler) Handle(ctx context.Context, cmd RoomsAliasRevo
 }
 
 func (h *RoomsAliasRevokeHandler) createRequest(
-	alias rooms.Alias,
+	alias aliases.Alias,
 ) (*rpc.Request, error) {
 	args, err := messages.NewRoomRevokeAliasArguments(alias)
 	if err != nil {

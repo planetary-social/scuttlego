@@ -9,20 +9,20 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/messages"
 	"github.com/planetary-social/scuttlego/service/domain/network"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
-	"github.com/planetary-social/scuttlego/service/domain/rooms"
+	"github.com/planetary-social/scuttlego/service/domain/rooms/aliases"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 )
 
 type RoomsAliasRegister struct {
 	room    refs.Identity
 	address network.Address
-	alias   rooms.Alias
+	alias   aliases.Alias
 }
 
 func NewRoomsAliasRegister(
 	room refs.Identity,
 	address network.Address,
-	alias rooms.Alias,
+	alias aliases.Alias,
 ) (RoomsAliasRegister, error) {
 	if room.IsZero() {
 		return RoomsAliasRegister{}, errors.New("zero value of room")
@@ -51,7 +51,7 @@ func (r RoomsAliasRegister) Address() network.Address {
 	return r.address
 }
 
-func (r RoomsAliasRegister) Alias() rooms.Alias {
+func (r RoomsAliasRegister) Alias() aliases.Alias {
 	return r.alias
 }
 
@@ -74,40 +74,40 @@ func NewRoomsAliasRegisterHandler(
 	}
 }
 
-func (h *RoomsAliasRegisterHandler) Handle(ctx context.Context, cmd RoomsAliasRegister) (rooms.AliasEndpointURL, error) {
+func (h *RoomsAliasRegisterHandler) Handle(ctx context.Context, cmd RoomsAliasRegister) (aliases.AliasEndpointURL, error) {
 	if cmd.IsZero() {
-		return rooms.AliasEndpointURL{}, errors.New("zero value of command")
+		return aliases.AliasEndpointURL{}, errors.New("zero value of command")
 	}
 
 	user, err := refs.NewIdentityFromPublic(h.local.Public())
 	if err != nil {
-		return rooms.AliasEndpointURL{}, errors.Wrap(err, "failed to create user ref")
+		return aliases.AliasEndpointURL{}, errors.Wrap(err, "failed to create user ref")
 	}
 
-	msg, err := rooms.NewRegistrationMessage(cmd.Alias(), user, cmd.Room())
+	msg, err := aliases.NewRegistrationMessage(cmd.Alias(), user, cmd.Room())
 	if err != nil {
-		return rooms.AliasEndpointURL{}, errors.Wrap(err, "error creating a registration")
+		return aliases.AliasEndpointURL{}, errors.Wrap(err, "error creating a registration")
 	}
 
-	signature, err := rooms.NewRegistrationSignature(msg, h.local)
+	signature, err := aliases.NewRegistrationSignature(msg, h.local)
 	if err != nil {
-		return rooms.AliasEndpointURL{}, errors.Wrap(err, "error creating a signature")
+		return aliases.AliasEndpointURL{}, errors.Wrap(err, "error creating a signature")
 	}
 
 	response, err := h.registerAlias(ctx, cmd, signature)
 	if err != nil {
-		return rooms.AliasEndpointURL{}, errors.Wrap(err, "could not contact the pub and redeem the invite")
+		return aliases.AliasEndpointURL{}, errors.Wrap(err, "could not contact the pub and redeem the invite")
 	}
 
 	registerAliasResponse, err := messages.NewRoomRegisterAliasResponseFromBytes(response.Bytes())
 	if err != nil {
-		return rooms.AliasEndpointURL{}, errors.Wrap(err, "error creating the response")
+		return aliases.AliasEndpointURL{}, errors.Wrap(err, "error creating the response")
 	}
 
 	return registerAliasResponse.AliasEndpointURL(), nil
 }
 
-func (h *RoomsAliasRegisterHandler) registerAlias(ctx context.Context, cmd RoomsAliasRegister, signature rooms.RegistrationSignature) (*rpc.Response, error) {
+func (h *RoomsAliasRegisterHandler) registerAlias(ctx context.Context, cmd RoomsAliasRegister, signature aliases.RegistrationSignature) (*rpc.Response, error) {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
@@ -139,8 +139,8 @@ func (h *RoomsAliasRegisterHandler) registerAlias(ctx context.Context, cmd Rooms
 }
 
 func (h *RoomsAliasRegisterHandler) createRequest(
-	alias rooms.Alias,
-	signature rooms.RegistrationSignature,
+	alias aliases.Alias,
+	signature aliases.RegistrationSignature,
 ) (*rpc.Request, error) {
 	args, err := messages.NewRoomRegisterAliasArguments(alias, signature)
 	if err != nil {

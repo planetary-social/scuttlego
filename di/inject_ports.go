@@ -27,6 +27,8 @@ var portsSet = wire.NewSet(
 
 	portspubsub.NewRequestSubscriber,
 
+	portspubsub.NewRoomAttendantEventSubscriber,
+
 	local.NewDiscoverer,
 	portsnetwork.NewDiscoverer,
 	portsnetwork.NewConnectionEstablisher,

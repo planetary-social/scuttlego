@@ -37,7 +37,7 @@ func NewNegotiator(
 	chsReplicator CreateHistoryStreamReplicator,
 ) *Negotiator {
 	return &Negotiator{
-		logger:        logger,
+		logger:        logger.New("replication_negotiator"),
 		ebtReplicator: ebtReplicator,
 		chsReplicator: chsReplicator,
 	}

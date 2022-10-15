@@ -9,7 +9,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/messages"
 	"github.com/planetary-social/scuttlego/service/domain/network"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
-	"github.com/planetary-social/scuttlego/service/domain/rooms"
+	"github.com/planetary-social/scuttlego/service/domain/rooms/aliases"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 )
 
@@ -68,7 +68,7 @@ func NewRoomsListAliasesHandler(
 	}, nil
 }
 
-func (h *RoomsListAliasesHandler) Handle(ctx context.Context, query RoomsListAliases) ([]rooms.Alias, error) {
+func (h *RoomsListAliasesHandler) Handle(ctx context.Context, query RoomsListAliases) ([]aliases.Alias, error) {
 	if query.IsZero() {
 		return nil, errors.New("zero value of command")
 	}
@@ -100,7 +100,7 @@ func (h *RoomsListAliasesHandler) Handle(ctx context.Context, query RoomsListAli
 		return nil, errors.Wrap(err, "received an error")
 	}
 
-	listAliasesResponse, err := messages.NewRoomsListAliasesResponse(response.Value.Bytes())
+	listAliasesResponse, err := messages.NewRoomListAliasesResponseFromBytes(response.Value.Bytes())
 	if err != nil {
 		return nil, errors.Wrap(err, "error creating the response")
 	}

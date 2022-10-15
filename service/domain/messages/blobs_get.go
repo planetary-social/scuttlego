@@ -11,8 +11,10 @@ import (
 )
 
 var (
-	BlobsGetProcedureName = rpc.MustNewProcedureName([]string{"blobs", "get"})
-	BlobsGetProcedure     = rpc.MustNewProcedure(BlobsGetProcedureName, rpc.ProcedureTypeSource)
+	BlobsGetProcedure = rpc.MustNewProcedure(
+		rpc.MustNewProcedureName([]string{"blobs", "get"}),
+		rpc.ProcedureTypeSource,
+	)
 )
 
 func NewBlobsGet(arguments BlobsGetArguments) (*rpc.Request, error) {

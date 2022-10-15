@@ -4,11 +4,16 @@ import (
 	"context"
 	"io"
 	"net"
+	"time"
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
 	"github.com/planetary-social/scuttlego/service/domain/transport"
+)
+
+const (
+	dialTimeout = 15 * time.Second
 )
 
 type ClientPeerInitializer interface {
@@ -30,7 +35,11 @@ func NewDialer(initializer ClientPeerInitializer, logger logging.Logger) (*Diale
 }
 
 func (d Dialer) DialWithInitializer(ctx context.Context, initializer ClientPeerInitializer, remote identity.Public, addr Address) (transport.Peer, error) {
-	conn, err := net.Dial("tcp", addr.String())
+	dialer := net.Dialer{
+		Timeout: dialTimeout,
+	}
+
+	conn, err := dialer.Dial("tcp", addr.String())
 	if err != nil {
 		return transport.Peer{}, errors.Wrap(err, "could not dial")
 	}

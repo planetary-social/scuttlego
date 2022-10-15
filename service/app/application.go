@@ -38,4 +38,5 @@ type Queries struct {
 	Status               *queries.StatusHandler
 	GetBlob              *queries.GetBlobHandler
 	BlobDownloadedEvents *queries.BlobDownloadedEventsHandler
+	RoomsListAliases     *queries.RoomsListAliasesHandler
 }

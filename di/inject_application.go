@@ -61,4 +61,6 @@ var queriesSet = wire.NewSet(
 
 	queries.NewGetBlobHandler,
 	wire.Bind(new(portsrpc.GetBlobQueryHandler), new(*queries.GetBlobHandler)),
+
+	queries.NewRoomsListAliasesHandler,
 )

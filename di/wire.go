@@ -125,6 +125,7 @@ type TestQueries struct {
 	PeerManager          *mocks.PeerManagerMock
 	BlobStorage          *mocks.BlobStorageMock
 	ReceiveLogRepository *mocks.ReceiveLogRepositoryMock
+	Dialer               *mocks.DialerMock
 
 	LocalIdentity identity.Public
 }
@@ -149,6 +150,9 @@ func BuildTestQueries(*testing.T) (TestQueries, error) {
 
 		mocks.NewBlobDownloadedPubSubMock,
 		wire.Bind(new(queries.BlobDownloadedSubscriber), new(*mocks.BlobDownloadedPubSubMock)),
+
+		mocks.NewDialerMock,
+		wire.Bind(new(queries.Dialer), new(*mocks.DialerMock)),
 
 		wire.Struct(new(TestQueries), "*"),
 
@@ -205,6 +209,7 @@ func BuildService(context.Context, identity.Private, Config) (Service, error) {
 
 		network.NewDialer,
 		wire.Bind(new(commands.Dialer), new(*network.Dialer)),
+		wire.Bind(new(queries.Dialer), new(*network.Dialer)),
 		wire.Bind(new(domain.Dialer), new(*network.Dialer)),
 
 		domain.NewPeerManager,

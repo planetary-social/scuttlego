@@ -16,6 +16,7 @@ func TestReadFeedRepository_GetMessage(t *testing.T) {
 
 	feedRef := fixtures.SomeRefFeed()
 	sequence := message.NewFirstSequence()
+	msg := fixtures.SomeMessage(sequence, feedRef)
 
 	adapters, err := di.BuildTestAdapters(db)
 	require.NoError(t, err)
@@ -23,8 +24,6 @@ func TestReadFeedRepository_GetMessage(t *testing.T) {
 	err = db.Update(func(tx *bbolt.Tx) error {
 		txadapters, err := di.BuildTxTestAdapters(tx)
 		require.NoError(t, err)
-
-		msg := fixtures.SomeMessage(sequence, feedRef)
 
 		txadapters.BanListHasher.Mock(feedRef, fixtures.SomeBanListHash())
 
@@ -34,8 +33,11 @@ func TestReadFeedRepository_GetMessage(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	_, err = adapters.FeedRepository.GetMessage(feedRef, sequence)
+	retrievedMsg, err := adapters.FeedRepository.GetMessage(feedRef, sequence)
 	require.NoError(t, err)
+
+	// todo returned message will not match the saved message due to the way fixtures.SomeMessage works, this should be fixed
+	require.Equal(t, msg.Raw(), retrievedMsg.Raw())
 }
 
 func TestReadFeedRepository_Count(t *testing.T) {

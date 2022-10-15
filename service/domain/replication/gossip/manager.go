@@ -8,7 +8,6 @@ import (
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/logging"
-	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/planetary-social/scuttlego/service/domain/replication"
@@ -81,10 +80,6 @@ type ReplicationManager interface {
 	GetFeedsToReplicate(ctx context.Context, remote identity.Public) <-chan ReplicateFeedTask
 }
 
-type MessageBuffer interface {
-	Sequence(feed refs.Feed) (message.Sequence, bool)
-}
-
 // Manager distributes replication tasks to replicators. Replicators consume
 // those tasks to run replication processes on connected peers.
 //
@@ -98,7 +93,6 @@ type MessageBuffer interface {
 // that feed again. Backoff time is increased for feeds which are further away.
 type Manager struct {
 	storage ContactsStorage
-	buffer  MessageBuffer
 	logger  logging.Logger
 
 	activeTasks *activeTasksSet
@@ -106,10 +100,9 @@ type Manager struct {
 	lock        sync.Mutex // locks activeTasks and peerState
 }
 
-func NewManager(logger logging.Logger, storage ContactsStorage, buffer MessageBuffer) *Manager {
+func NewManager(logger logging.Logger, storage ContactsStorage) *Manager {
 	return &Manager{
 		storage:     storage,
-		buffer:      buffer,
 		logger:      logger.New("manager"),
 		activeTasks: newActiveTasksSet(),
 		peerState:   make(peerMap),
@@ -155,15 +148,10 @@ func (m *Manager) sendFeedToReplicate(ctx context.Context, ch chan ReplicateFeed
 			return errors.Wrap(err, "failed to start replication")
 		}
 
-		state, err := m.bufferState(contact)
-		if err != nil {
-			return errors.Wrap(err, "error determining feed state")
-		}
-
 		if shouldSendTask {
 			task := ReplicateFeedTask{
 				Id:    contact.Who,
-				State: state,
+				State: contact.FeedState,
 				Ctx:   ctx,
 				OnComplete: func(result TaskResult) {
 					m.finishReplication(remote, contact, result)
@@ -188,29 +176,6 @@ func (m *Manager) sendFeedToReplicate(ctx context.Context, ch chan ReplicateFeed
 		return ctx.Err()
 	case <-time.After(delayIfNoFeedsToReplicate):
 		return nil
-	}
-}
-
-func (m *Manager) bufferState(contact replication.Contact) (replication.FeedState, error) {
-	bufferSequence, inBuffer := m.buffer.Sequence(contact.Who)
-	storageSequence, inStorage := contact.FeedState.Sequence()
-
-	if !inBuffer && !inStorage {
-		return replication.NewEmptyFeedState(), nil
-	}
-
-	if inBuffer && !inStorage {
-		return replication.NewFeedState(bufferSequence)
-	}
-
-	if !inBuffer && inStorage {
-		return replication.NewFeedState(storageSequence)
-	}
-
-	if bufferSequence.ComesAfter(storageSequence) {
-		return replication.NewFeedState(bufferSequence)
-	} else {
-		return replication.NewFeedState(storageSequence)
 	}
 }
 

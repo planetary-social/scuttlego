@@ -206,6 +206,7 @@ func (s *Session) handleIncomingMessage(ctx context.Context, incoming IncomingMe
 	msg, ok := incoming.Msg()
 	if ok {
 		if err := s.rawMessageHandler.Handle(msg); err != nil {
+			// todo ban this feed somehow
 			return errors.Wrap(err, "error handling a message")
 		}
 		return nil

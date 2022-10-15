@@ -323,6 +323,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	addToBanListHandler := commands.NewAddToBanListHandler(transactionProvider)
 	removeFromBanListHandler := commands.NewRemoveFromBanListHandler(transactionProvider)
 	roomsAliasRegisterHandler := commands.NewRoomsAliasRegisterHandler(dialer, private)
+	roomsAliasRevokeHandler := commands.NewRoomsAliasRevokeHandler(dialer)
 	appCommands := app.Commands{
 		RedeemInvite:             redeemInviteHandler,
 		Follow:                   followHandler,
@@ -337,6 +338,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 		AddToBanList:             addToBanListHandler,
 		RemoveFromBanList:        removeFromBanListHandler,
 		RoomsAliasRegister:       roomsAliasRegisterHandler,
+		RoomsAliasRevoke:         roomsAliasRevokeHandler,
 	}
 	readReceiveLogRepository := bolt.NewReadReceiveLogRepository(db, txRepositoriesFactory)
 	receiveLogHandler := queries.NewReceiveLogHandler(readReceiveLogRepository)

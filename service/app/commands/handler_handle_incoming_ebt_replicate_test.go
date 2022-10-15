@@ -1,10 +1,14 @@
 package commands_test
 
 import (
+	"context"
 	"testing"
 
+	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/service/app/commands"
+	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/messages"
+	"github.com/planetary-social/scuttlego/service/domain/replication/ebt"
 	"github.com/stretchr/testify/require"
 )
 
@@ -26,4 +30,18 @@ type mockStream struct {
 
 func newMockStream() *mockStream {
 	return &mockStream{}
+}
+
+func (m mockStream) IncomingMessages(ctx context.Context) <-chan ebt.IncomingMessage {
+	ch := make(chan ebt.IncomingMessage)
+	close(ch)
+	return ch
+}
+
+func (m mockStream) SendNotes(notes messages.EbtReplicateNotes) error {
+	return errors.New("not implemented")
+}
+
+func (m mockStream) SendMessage(msg *message.Message) error {
+	return errors.New("not implemented")
 }

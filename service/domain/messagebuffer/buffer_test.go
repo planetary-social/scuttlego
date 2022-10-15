@@ -96,10 +96,14 @@ func TestFeedMessages_LeaveOnlyAfterDoesNotBreakWhenLastMessageIsBeingRemoved(t 
 
 	v := messagebuffer.NewFeedMessages(feed)
 
-	err := v.Add(fixtures.SomeTime(), fixtures.SomeMessage(message.MustNewSequence(1), feed))
+	sequence1 := message.MustNewSequence(1)
+	sequence2 := message.MustNewSequence(10)
+	require.GreaterOrEqual(t, sequence1.Int(), sequence1.Int())
+
+	err := v.Add(fixtures.SomeTime(), fixtures.SomeMessage(sequence1, feed))
 	require.NoError(t, err)
 
-	v.LeaveOnlyAfter(message.MustNewSequence(1))
+	v.LeaveOnlyAfter(sequence2)
 	require.Equal(t, 0, v.Len())
 }
 

@@ -62,7 +62,7 @@ func TestRequestStream_WriteMessageCallsMessageSender(t *testing.T) {
 		[]*transport.Message{
 			&expectedMessage,
 		},
-		sender.calls,
+		sender.SendCalls(),
 	)
 
 }
@@ -136,7 +136,7 @@ func TestRequestStream_CloseWithError(t *testing.T) {
 				[]*transport.Message{
 					&expectedMessage,
 				},
-				sender.calls,
+				sender.SendCalls(),
 			)
 		})
 	}
@@ -157,7 +157,7 @@ func TestRequestStream_CloseWithErrorReturnsAnErrorWhenCalledForTheSecondTime(t 
 	err = stream.CloseWithError(nil)
 	require.EqualError(t, err, "already sent close stream")
 
-	require.Len(t, sender.calls, 1)
+	require.Len(t, sender.SendCalls(), 1)
 }
 
 func TestRequestStream_HandleNewMessageReturnsAnErrorForProceduresThatAreNotDuplex(t *testing.T) {
@@ -318,6 +318,7 @@ func TestRequestStream_IncomingMessagesReceivesIncomingMessages(t *testing.T) {
 	require.NoError(t, err)
 
 	var incomingMessages []rpc.IncomingMessage
+
 	doneCh := make(chan struct{})
 
 	go func() {

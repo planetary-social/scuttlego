@@ -2,6 +2,7 @@ package ebt_test
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -104,12 +105,12 @@ func TestSession_NotesWithReceiveAndReplicateSetToTrueCallRequestedFeedsRequest(
 
 	require.Eventually(t,
 		func() bool {
-			return len(s.FeedRequester.RequestCalls) == 1
+			return len(s.FeedRequester.RequestCalls()) == 1
 		},
 		time.Second, 10*time.Millisecond,
 	)
-	require.Equal(t, message.MustNewSequence(1), *s.FeedRequester.RequestCalls[0].Seq)
-	require.Equal(t, ref, s.FeedRequester.RequestCalls[0].Ref)
+	require.Equal(t, message.MustNewSequence(1), *s.FeedRequester.RequestCalls()[0].Seq)
+	require.Equal(t, ref, s.FeedRequester.RequestCalls()[0].Ref)
 }
 
 func TestSession_NotesWithReceiveOrReplicateSetToFalseCallRequestedFeedsCancel(t *testing.T) {
@@ -164,11 +165,11 @@ func TestSession_NotesWithReceiveOrReplicateSetToFalseCallRequestedFeedsCancel(t
 
 			require.Eventually(t,
 				func() bool {
-					return len(s.FeedRequester.CancelCalls) == 1
+					return len(s.FeedRequester.CancelCalls()) == 1
 				},
 				time.Second, 10*time.Millisecond,
 			)
-			require.Equal(t, ref, s.FeedRequester.CancelCalls[0].Ref)
+			require.Equal(t, ref, s.FeedRequester.CancelCalls()[0].Ref)
 		})
 	}
 }
@@ -264,8 +265,9 @@ func (c contactsStorage) GetContacts() ([]replication.Contact, error) {
 }
 
 type feedRequesterMock struct {
-	RequestCalls []feedRequesterRequestCall
-	CancelCalls  []feedRequesterCancelCall
+	requestCalls []feedRequesterRequestCall
+	cancelCalls  []feedRequesterCancelCall
+	lock         sync.Mutex
 }
 
 func newFeedRequesterMock() *feedRequesterMock {
@@ -273,7 +275,9 @@ func newFeedRequesterMock() *feedRequesterMock {
 }
 
 func (f *feedRequesterMock) Request(ctx context.Context, ref refs.Feed, seq *message.Sequence) {
-	f.RequestCalls = append(f.RequestCalls, feedRequesterRequestCall{
+	f.lock.Lock()
+	defer f.lock.Unlock()
+	f.requestCalls = append(f.requestCalls, feedRequesterRequestCall{
 		Ctx: ctx,
 		Ref: ref,
 		Seq: seq,
@@ -281,9 +285,29 @@ func (f *feedRequesterMock) Request(ctx context.Context, ref refs.Feed, seq *mes
 }
 
 func (f *feedRequesterMock) Cancel(ref refs.Feed) {
-	f.CancelCalls = append(f.CancelCalls, feedRequesterCancelCall{
+	f.lock.Lock()
+	defer f.lock.Unlock()
+	f.cancelCalls = append(f.cancelCalls, feedRequesterCancelCall{
 		Ref: ref,
 	})
+}
+
+func (f *feedRequesterMock) RequestCalls() []feedRequesterRequestCall {
+	f.lock.Lock()
+	defer f.lock.Unlock()
+
+	tmp := make([]feedRequesterRequestCall, len(f.requestCalls))
+	copy(tmp, f.requestCalls)
+	return tmp
+}
+
+func (f *feedRequesterMock) CancelCalls() []feedRequesterCancelCall {
+	f.lock.Lock()
+	defer f.lock.Unlock()
+
+	tmp := make([]feedRequesterCancelCall, len(f.cancelCalls))
+	copy(tmp, f.cancelCalls)
+	return tmp
 }
 
 type feedRequesterRequestCall struct {

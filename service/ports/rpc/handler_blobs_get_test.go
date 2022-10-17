@@ -116,15 +116,17 @@ func TestIfHandlerReturnsErrorNoMessagesAreSent(t *testing.T) {
 	err := h.Handle(ctx, s, req)
 	require.Error(t, err)
 
-	require.Empty(t, s.WrittenMessages)
+	require.Empty(t, s.WrittenMessages())
 }
 
 func TestSmallBlobIsWrittenToResponseWriter(t *testing.T) {
 	queryHandler := newGetBlobQueryHandlerMock()
 	h := rpc.NewHandlerBlobsGet(queryHandler)
 
+	mockData := []byte("some-fake-blob-data")
+
 	id := fixtures.SomeRefBlob()
-	queryHandler.MockBlob(id, []byte("test"))
+	queryHandler.MockBlob(id, mockData)
 
 	ctx := fixtures.TestContext(t)
 	s := mocks.NewMockCloserStream()
@@ -133,8 +135,12 @@ func TestSmallBlobIsWrittenToResponseWriter(t *testing.T) {
 	err := h.Handle(ctx, s, req)
 	require.NoError(t, err)
 
-	require.Len(t, s.WrittenMessages, 1)
-	require.Equal(t, []byte("test"), s.WrittenMessages[0])
+	require.Equal(t,
+		[][]byte{
+			mockData,
+		},
+		s.WrittenMessages(),
+	)
 
 	queryHandler.RequireThereAreNoOpenReadClosers(t)
 }
@@ -162,10 +168,14 @@ func TestLargeBlobIsWrittenToResponseWriter(t *testing.T) {
 	err := h.Handle(ctx, s, req)
 	require.NoError(t, err)
 
-	require.Len(t, s.WrittenMessages, 3)
-	require.Equal(t, payloadInFirstMessage, s.WrittenMessages[0])
-	require.Equal(t, payloadInSecondMessage, s.WrittenMessages[1])
-	require.Equal(t, payloadInThirdMessage, s.WrittenMessages[2])
+	require.Equal(t,
+		[][]byte{
+			payloadInFirstMessage,
+			payloadInSecondMessage,
+			payloadInThirdMessage,
+		},
+		s.WrittenMessages(),
+	)
 
 	queryHandler.RequireThereAreNoOpenReadClosers(t)
 }

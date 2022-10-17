@@ -180,7 +180,7 @@ func TestNewMux_HandlerDoesNotBlock(t *testing.T) {
 	require.Eventually(
 		t,
 		func() bool {
-			return len(s.WrittenMessages) > 0
+			return len(s.WrittenMessages()) > 0
 		},
 		delay, 10*time.Millisecond,
 	)
@@ -223,7 +223,7 @@ func TestNewMux_SynchronousHandlerBlocks(t *testing.T) {
 	require.Eventually(
 		t,
 		func() bool {
-			return len(s.WrittenMessages) > 0
+			return len(s.WrittenMessages()) > 0
 		},
 		delay, 10*time.Millisecond,
 	)

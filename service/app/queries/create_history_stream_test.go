@@ -2,6 +2,7 @@ package queries_test
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -26,7 +27,7 @@ func TestCreateHistoryStream_SubscribesToNewMessagesToProcessThem(t *testing.T) 
 	a := makeQueriesAndRunCreateHistoryStreamHandler(t, ctx)
 
 	require.Eventually(t, func() bool {
-		return a.MessagePubSub.CallsCount == 1
+		return a.MessagePubSub.SubscribeToNewMessagesCallsCount() == 1
 	}, createHistoryStreamTestDelay, 10*time.Millisecond)
 }
 
@@ -50,11 +51,11 @@ func TestCreateHistoryStream_IfOldAndLiveAreNotSetNothingIsWrittenAndStreamIsClo
 	a.Queries.CreateHistoryStream.Handle(ctx, query)
 
 	require.Eventually(t, func() bool {
-		return assert.ObjectsAreEqual([]error{nil}, rw.WrittenErrors)
+		return assert.ObjectsAreEqual([]error{nil}, rw.WrittenErrors())
 	}, createHistoryStreamTestDelay, 10*time.Millisecond)
 
-	require.Empty(t, a.FeedRepository.GetMessagesCalls, "since old is not specified repository shouldn't have been called")
-	require.Empty(t, rw.WrittenMessages)
+	require.Empty(t, a.FeedRepository.GetMessagesCalls(), "since old is not specified repository shouldn't have been called")
+	require.Empty(t, rw.WrittenMessages())
 }
 
 func TestCreateHistoryStream_IfOldIsSetAndThereAreNoOldMessagesNothingIsWrittenAndStreamIsClosed(t *testing.T) {
@@ -77,11 +78,11 @@ func TestCreateHistoryStream_IfOldIsSetAndThereAreNoOldMessagesNothingIsWrittenA
 	a.Queries.CreateHistoryStream.Handle(ctx, query)
 
 	require.Eventually(t, func() bool {
-		return assert.ObjectsAreEqual([]error{nil}, rw.WrittenErrors)
+		return assert.ObjectsAreEqual([]error{nil}, rw.WrittenErrors())
 	}, createHistoryStreamTestDelay, 10*time.Millisecond)
 
-	require.NotEmpty(t, a.FeedRepository.GetMessagesCalls)
-	require.Empty(t, rw.WrittenMessages)
+	require.NotEmpty(t, a.FeedRepository.GetMessagesCalls())
+	require.Empty(t, rw.WrittenMessages())
 }
 
 func TestCreateHistoryStream_IfRepositoryReturnsAnErrorStreamIsClosed(t *testing.T) {
@@ -110,12 +111,12 @@ func TestCreateHistoryStream_IfRepositoryReturnsAnErrorStreamIsClosed(t *testing
 	// returned as it is impossible to check if something never happens
 
 	require.Eventually(t, func() bool {
-		if l := len(rw.WrittenErrors); l != 1 {
+		if l := len(rw.WrittenErrors()); l != 1 {
 			t.Logf("length of written errors: %d", l)
 			return false
 		}
 
-		if err := rw.WrittenErrors[0]; err.Error() != "could not retrieve messages: forced error" {
+		if err := rw.WrittenErrors()[0]; err.Error() != "could not retrieve messages: forced error" {
 			t.Logf("incorrect error: %s", err.Error())
 			return false
 		}
@@ -123,8 +124,8 @@ func TestCreateHistoryStream_IfRepositoryReturnsAnErrorStreamIsClosed(t *testing
 		return true
 	}, createHistoryStreamTestDelay, 10*time.Millisecond)
 
-	require.NotEmpty(t, a.FeedRepository.GetMessagesCalls)
-	require.Empty(t, rw.WrittenMessages)
+	require.NotEmpty(t, a.FeedRepository.GetMessagesCalls())
+	require.Empty(t, rw.WrittenMessages())
 }
 
 func TestCreateHistoryStream_ArgumentsAreCorrectlyPassedToRepository(t *testing.T) {
@@ -166,7 +167,8 @@ func TestCreateHistoryStream_ArgumentsAreCorrectlyPassedToRepository(t *testing.
 		},
 	}
 
-	for _, testCase := range testCases {
+	for i := range testCases {
+		testCase := testCases[i]
 		t.Run(testCase.Name, func(t *testing.T) {
 			t.Parallel()
 
@@ -195,7 +197,7 @@ func TestCreateHistoryStream_ArgumentsAreCorrectlyPassedToRepository(t *testing.
 			a.Queries.CreateHistoryStream.Handle(ctx, query)
 
 			require.Eventually(t, func() bool {
-				return assert.ObjectsAreEqual(testCase.ExpectedCalls, a.FeedRepository.GetMessagesCalls)
+				return assert.ObjectsAreEqual(testCase.ExpectedCalls, a.FeedRepository.GetMessagesCalls())
 			}, createHistoryStreamTestDelay, 10*time.Millisecond)
 		})
 	}
@@ -231,11 +233,11 @@ func TestCreateHistoryStream_OldMessagesReturnedByRepositoryAreCorrectlySentAndS
 	a.Queries.CreateHistoryStream.Handle(ctx, query)
 
 	require.Eventually(t, func() bool {
-		return assert.ObjectsAreEqual([]error{nil}, rw.WrittenErrors)
+		return assert.ObjectsAreEqual([]error{nil}, rw.WrittenErrors())
 	}, createHistoryStreamTestDelay, 10*time.Millisecond)
 
 	require.Eventually(t, func() bool {
-		return assert.ObjectsAreEqual(expectedMessages, rw.WrittenMessages)
+		return assert.ObjectsAreEqual(expectedMessages, rw.WrittenMessages())
 	}, createHistoryStreamTestDelay, 10*time.Millisecond)
 }
 
@@ -258,6 +260,7 @@ func TestCreateHistoryStream_MessagesAreNotRepeatedIfTheyWereAlreadySent(t *test
 		PubSub     []message.Message
 
 		ExpectedMessages []message.Message
+		ExpectedErrors   []error
 	}{
 		{
 			Name:  "only_repository",
@@ -272,6 +275,7 @@ func TestCreateHistoryStream_MessagesAreNotRepeatedIfTheyWereAlreadySent(t *test
 				msg1,
 				msg2,
 			},
+			ExpectedErrors: nil,
 		},
 		{
 			Name:       "only_pubsub",
@@ -286,6 +290,7 @@ func TestCreateHistoryStream_MessagesAreNotRepeatedIfTheyWereAlreadySent(t *test
 				msg1,
 				msg2,
 			},
+			ExpectedErrors: nil,
 		},
 		{
 			Name:  "pubsub_and_repository",
@@ -301,6 +306,7 @@ func TestCreateHistoryStream_MessagesAreNotRepeatedIfTheyWereAlreadySent(t *test
 				msg1,
 				msg2,
 			},
+			ExpectedErrors: nil,
 		},
 		{
 			Name:  "pubsub_and_repository_with_overlapping_messages",
@@ -319,6 +325,7 @@ func TestCreateHistoryStream_MessagesAreNotRepeatedIfTheyWereAlreadySent(t *test
 				msg2,
 				msg3,
 			},
+			ExpectedErrors: nil,
 		},
 		{
 			Name:  "repository_should_enforce_sequence_by_itself",
@@ -335,6 +342,7 @@ func TestCreateHistoryStream_MessagesAreNotRepeatedIfTheyWereAlreadySent(t *test
 				msg2,
 				msg3,
 			},
+			ExpectedErrors: nil,
 		},
 		{
 			Name:  "earlier_messages_from_pubsub_should_be_omitted_if_repository_returned_something",
@@ -352,6 +360,7 @@ func TestCreateHistoryStream_MessagesAreNotRepeatedIfTheyWereAlreadySent(t *test
 				msg2,
 				msg3,
 			},
+			ExpectedErrors: nil,
 		},
 		{
 			Name:       "earlier_messages_from_pubsub_should_be_omitted_if_repository_returned_nothing",
@@ -367,6 +376,7 @@ func TestCreateHistoryStream_MessagesAreNotRepeatedIfTheyWereAlreadySent(t *test
 				msg2,
 				msg3,
 			},
+			ExpectedErrors: nil,
 		},
 		{
 			Name:  "repository_should_enforce_limit_by_itself",
@@ -382,6 +392,7 @@ func TestCreateHistoryStream_MessagesAreNotRepeatedIfTheyWereAlreadySent(t *test
 				msg2,
 				msg3,
 			},
+			ExpectedErrors: []error{nil},
 		},
 		{
 			Name:  "if_repository_exhausted_the_limit_then_live_should_do_nothing",
@@ -397,6 +408,7 @@ func TestCreateHistoryStream_MessagesAreNotRepeatedIfTheyWereAlreadySent(t *test
 				msg1,
 				msg2,
 			},
+			ExpectedErrors: []error{nil},
 		},
 		{
 			Name:  "repository_should_count_towards_the_limit",
@@ -412,6 +424,7 @@ func TestCreateHistoryStream_MessagesAreNotRepeatedIfTheyWereAlreadySent(t *test
 				msg1,
 				msg2,
 			},
+			ExpectedErrors: []error{nil},
 		},
 		{
 			Name:       "live_should_keep_track_of_the_limit",
@@ -426,6 +439,7 @@ func TestCreateHistoryStream_MessagesAreNotRepeatedIfTheyWereAlreadySent(t *test
 				msg1,
 				msg2,
 			},
+			ExpectedErrors: []error{nil},
 		},
 		{
 			Name:  "if_repository_returns_messages_out_of_order_we_do_not_check_it",
@@ -442,6 +456,7 @@ func TestCreateHistoryStream_MessagesAreNotRepeatedIfTheyWereAlreadySent(t *test
 				msg2,
 				msg1,
 			},
+			ExpectedErrors: nil,
 		},
 		{
 			Name:       "pubsub_is_not_required_to_handle_messages_out_of_order",
@@ -456,10 +471,12 @@ func TestCreateHistoryStream_MessagesAreNotRepeatedIfTheyWereAlreadySent(t *test
 			ExpectedMessages: []message.Message{
 				msg3,
 			},
+			ExpectedErrors: nil,
 		},
 	}
 
-	for _, testCase := range testCases {
+	for i := range testCases {
+		testCase := testCases[i]
 		t.Run(testCase.Name, func(t *testing.T) {
 			t.Parallel()
 
@@ -489,8 +506,12 @@ func TestCreateHistoryStream_MessagesAreNotRepeatedIfTheyWereAlreadySent(t *test
 
 			<-time.After(createHistoryStreamTestDelay)
 
-			require.Equal(t, testCase.ExpectedMessages, rw.WrittenMessages)
-			require.Empty(t, rw.WrittenErrors)
+			require.Equal(t, testCase.ExpectedMessages, rw.WrittenMessages())
+			if len(testCase.ExpectedErrors) == 0 {
+				require.Empty(t, rw.WrittenErrors())
+			} else {
+				require.Equal(t, testCase.ExpectedErrors, rw.WrittenErrors())
+			}
 		})
 	}
 }
@@ -530,8 +551,8 @@ func TestCreateHistoryStream_IfLimitIsReachedBySendingLiveMessagesNoMoreMessages
 
 	<-time.After(createHistoryStreamTestDelay)
 
-	require.Len(t, rw.WrittenMessages, limit)
-	require.Equal(t, []error{nil}, rw.WrittenErrors, "should have closed the stream")
+	require.Len(t, rw.WrittenMessages(), limit)
+	require.Equal(t, []error{nil}, rw.WrittenErrors(), "should have closed the stream")
 }
 
 func TestCreateHistoryStream_IfLimitIsReachedBySendingOldMessagesTheStreamIsClosedInsteadOfGoingIntoLiveMode(t *testing.T) {
@@ -564,8 +585,8 @@ func TestCreateHistoryStream_IfLimitIsReachedBySendingOldMessagesTheStreamIsClos
 
 	<-time.After(createHistoryStreamTestDelay)
 
-	require.Len(t, rw.WrittenMessages, limit)
-	require.Equal(t, []error{nil}, rw.WrittenErrors, "should have closed the stream")
+	require.Len(t, rw.WrittenMessages(), limit)
+	require.Equal(t, []error{nil}, rw.WrittenErrors(), "should have closed the stream")
 }
 
 func TestCreateHistoryStream_ErrorInOnLiveMessageClosesTheStreamWithAnError(t *testing.T) {
@@ -600,9 +621,9 @@ func TestCreateHistoryStream_ErrorInOnLiveMessageClosesTheStreamWithAnError(t *t
 
 	<-time.After(createHistoryStreamTestDelay)
 
-	require.Empty(t, rw.WrittenMessages)
-	require.Len(t, rw.WrittenErrors, 1)
-	require.EqualError(t, rw.WrittenErrors[0], "failed to write message: forced error")
+	require.Empty(t, rw.WrittenMessages())
+	require.Len(t, rw.WrittenErrors(), 1)
+	require.EqualError(t, rw.WrittenErrors()[0], "failed to write message: forced error")
 }
 
 func TestLiveHistoryStreams_StreamsWhichAreClosedAreClosedAndCleanedUp(t *testing.T) {
@@ -639,19 +660,19 @@ func TestLiveHistoryStreams_StreamsWhichAreClosedAreClosedAndCleanedUp(t *testin
 	cancel1()
 	streams.CleanupClosedStreams()
 
-	require.Empty(t, rw1.WrittenMessages)
-	require.Empty(t, rw2.WrittenMessages)
-	require.Equal(t, []error{nil}, rw1.WrittenErrors)
-	require.Empty(t, rw2.WrittenErrors)
+	require.Empty(t, rw1.WrittenMessages())
+	require.Empty(t, rw2.WrittenMessages())
+	require.Equal(t, []error{nil}, rw1.WrittenErrors())
+	require.Empty(t, rw2.WrittenErrors())
 	require.Equal(t, 1, streams.Len())
 
 	cancel2()
 	streams.CleanupClosedStreams()
 
-	require.Empty(t, rw1.WrittenMessages)
-	require.Empty(t, rw2.WrittenMessages)
-	require.Equal(t, []error{nil}, rw1.WrittenErrors)
-	require.Equal(t, []error{nil}, rw2.WrittenErrors)
+	require.Empty(t, rw1.WrittenMessages())
+	require.Empty(t, rw2.WrittenMessages())
+	require.Equal(t, []error{nil}, rw1.WrittenErrors())
+	require.Equal(t, []error{nil}, rw2.WrittenErrors())
 	require.Equal(t, 0, streams.Len())
 }
 
@@ -697,8 +718,9 @@ func makeQueriesAndRunCreateHistoryStreamHandler(t *testing.T, ctx context.Conte
 }
 
 type createHistoryStreamResponseWriterMock struct {
-	WrittenMessages []message.Message
-	WrittenErrors   []error
+	writtenMessages []message.Message
+	writtenErrors   []error
+	lock            sync.Mutex
 
 	WriteMessageErrorToReturn error
 }
@@ -708,14 +730,38 @@ func newCreateHistoryStreamResponseWriterMock() *createHistoryStreamResponseWrit
 }
 
 func (c *createHistoryStreamResponseWriterMock) WriteMessage(msg message.Message) error {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
 	if c.WriteMessageErrorToReturn != nil {
 		return c.WriteMessageErrorToReturn
 	}
-	c.WrittenMessages = append(c.WrittenMessages, msg)
+	c.writtenMessages = append(c.writtenMessages, msg)
 	return nil
 }
 
 func (c *createHistoryStreamResponseWriterMock) CloseWithError(err error) error {
-	c.WrittenErrors = append(c.WrittenErrors, err)
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	c.writtenErrors = append(c.writtenErrors, err)
 	return nil
+}
+
+func (c *createHistoryStreamResponseWriterMock) WrittenMessages() []message.Message {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	tmp := make([]message.Message, len(c.writtenMessages))
+	copy(tmp, c.writtenMessages)
+	return tmp
+}
+
+func (c *createHistoryStreamResponseWriterMock) WrittenErrors() []error {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	tmp := make([]error, len(c.writtenErrors))
+	copy(tmp, c.writtenErrors)
+	return tmp
 }

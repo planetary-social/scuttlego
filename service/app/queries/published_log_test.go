@@ -35,7 +35,7 @@ func TestPublishedLog_NilStartSeqIsNotUsedToDetermineMessageSequence(t *testing.
 				Limit: nil,
 			},
 		},
-		app.FeedRepository.GetMessagesCalls,
+		app.FeedRepository.GetMessagesCalls(),
 	)
 }
 
@@ -68,7 +68,7 @@ func TestPublishedLog_NotNilStartSeqIsUsedToDetermineMessageSequence(t *testing.
 				Limit: nil,
 			},
 		},
-		app.FeedRepository.GetMessagesCalls,
+		app.FeedRepository.GetMessagesCalls(),
 	)
 }
 

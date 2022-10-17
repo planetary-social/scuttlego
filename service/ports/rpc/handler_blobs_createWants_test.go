@@ -41,7 +41,7 @@ func TestCreateWantsHandlerSendsValuesReturnedByCreateWantsCommand(t *testing.T)
 
 	require.Eventually(t,
 		func() bool {
-			for i, msg := range s.WrittenMessages {
+			for i, msg := range s.WrittenMessages() {
 				t.Log(i, string(msg))
 			}
 			return assert.ObjectsAreEqual(
@@ -49,7 +49,7 @@ func TestCreateWantsHandlerSendsValuesReturnedByCreateWantsCommand(t *testing.T)
 					[]byte(`{"\u0026Uv38ByGCZU8WP18PmmIdcpVmx00QA3xNe7sEB9Hixkk=.sha256":123}`),
 					[]byte(`{"\u0026gYVaHgAWeTnLZpTSxCKs0gigByk5SH9pmeudGKRHhAQ=.sha256":-1}`),
 				},
-				s.WrittenMessages,
+				s.WrittenMessages(),
 			)
 		},
 		1*time.Second,

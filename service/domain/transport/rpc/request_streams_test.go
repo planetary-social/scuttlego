@@ -162,7 +162,7 @@ func TestRequestStreams_ClosingContextTerminatesCreatedRequestStreams(t *testing
 	// a not very reliable way of documenting that if the handler doesn't close
 	// the stream then the close message will not be sent
 	<-time.After(timeout)
-	require.Len(t, sender.calls, 0)
+	require.Len(t, sender.SendCalls(), 0)
 }
 
 func TestRequestStreams_RemoteCanCloseRequestStreams(t *testing.T) {

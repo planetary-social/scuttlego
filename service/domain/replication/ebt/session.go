@@ -94,8 +94,8 @@ func NewSessionRunner(
 func (s *SessionRunner) HandleStream(ctx context.Context, stream Stream) error {
 	rf := NewRequestedFeeds(s.streamer, stream)
 	session := NewSession(ctx, stream, s.logger, s.rawMessageHandler, s.contactsStorage, rf)
-	go session.HandleIncomingMessages()
-	return session.SendNotesLoop()
+	go session.SendNotesLoop()
+	return session.HandleIncomingMessagesLoop()
 }
 
 type FeedRequester interface {
@@ -143,17 +143,19 @@ func NewSession(
 	}
 }
 
-func (s *Session) HandleIncomingMessages() {
+func (s *Session) HandleIncomingMessagesLoop() error {
 	defer s.cancel()
 
 	for incoming := range s.stream.IncomingMessages(s.ctx) {
 		if err := s.handleIncomingMessage(s.ctx, incoming); err != nil {
-			s.logger.WithError(err).Debug("error processing incoming message")
+			return errors.Wrap(err, "error handling incoming message")
 		}
 	}
+
+	return nil
 }
 
-func (s *Session) SendNotesLoop() error {
+func (s *Session) SendNotesLoop() {
 	for {
 		if err := s.SendNotes(); err != nil {
 			s.logger.WithError(err).Debug("error sending our notes")
@@ -163,7 +165,7 @@ func (s *Session) SendNotesLoop() error {
 		case <-time.After(10 * time.Second):
 			continue
 		case <-s.ctx.Done():
-			return s.ctx.Err()
+			return
 		}
 	}
 }
@@ -207,7 +209,8 @@ func (s *Session) handleIncomingMessage(ctx context.Context, incoming IncomingMe
 	if ok {
 		if err := s.rawMessageHandler.Handle(msg); err != nil {
 			// todo ban this feed somehow
-			return errors.Wrap(err, "error handling a message")
+			s.logger.WithError(err).Debug("error handling a raw message")
+			return nil
 		}
 		return nil
 	}

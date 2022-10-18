@@ -102,6 +102,18 @@ func (n ProcedureName) IsZero() bool {
 	return len(n.name) == 0
 }
 
+func (n ProcedureName) Equal(o ProcedureName) bool {
+	if len(o.name) != len(n.name) {
+		return false
+	}
+	for i := range n.name {
+		if n.name[i] != o.name[i] {
+			return false
+		}
+	}
+	return true
+}
+
 func (n ProcedureName) String() string {
 	return strings.Join(n.name, ".")
 }

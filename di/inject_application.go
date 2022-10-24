@@ -25,6 +25,7 @@ var commandsSet = wire.NewSet(
 	commands.NewRedeemInviteHandler,
 	commands.NewFollowHandler,
 	commands.NewConnectHandler,
+	commands.NewDisconnectAllHandler,
 	commands.NewAcceptNewPeerHandler,
 	commands.NewProcessNewLocalDiscoveryHandler,
 	commands.NewPublishRawHandler,

@@ -16,6 +16,7 @@ type Commands struct {
 	PublishRaw   *commands.PublishRawHandler
 
 	Connect                  *commands.ConnectHandler
+	DisconnectAll            *commands.DisconnectAllHandler
 	EstablishNewConnections  *commands.EstablishNewConnectionsHandler
 	AcceptNewPeer            *commands.AcceptNewPeerHandler
 	ProcessNewLocalDiscovery *commands.ProcessNewLocalDiscoveryHandler

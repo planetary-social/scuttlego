@@ -96,6 +96,7 @@ type TestCommands struct {
 	RoomsAliasRegister        *commands.RoomsAliasRegisterHandler
 	RoomsAliasRevoke          *commands.RoomsAliasRevokeHandler
 	ProcessRoomAttendantEvent *commands.ProcessRoomAttendantEventHandler
+	DisconnectAll             *commands.DisconnectAllHandler
 
 	PeerManager *domainmocks.PeerManagerMock
 	Dialer      *mocks.DialerMock

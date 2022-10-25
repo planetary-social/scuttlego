@@ -149,7 +149,7 @@ func TestHasHandlerRemovesElementFromWantListIfItIsAlreadyInStorage(t *testing.T
 
 type testHasHandler struct {
 	HasHandler *replication.HasHandler
-	WantList   *mocks.WantListRepositoryMock
+	WantList   *mocks.BlobWantListRepositoryMock
 	Downloader *downloaderMock
 	Storage    *mocks.BlobStorageMock
 	Publisher  *publisherMock
@@ -157,7 +157,7 @@ type testHasHandler struct {
 
 func newTestHasHandler() testHasHandler {
 	storage := mocks.NewBlobStorageMock()
-	wantList := mocks.NewWantListRepositoryMock()
+	wantList := mocks.NewBlobWantListRepositoryMock()
 	downloader := newDownloaderMock()
 	publisher := newPublisherMock()
 

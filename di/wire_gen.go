@@ -127,13 +127,23 @@ func BuildTestCommands(t *testing.T) (TestCommands, error) {
 	peerManagerMock := mocks2.NewPeerManagerMock()
 	processRoomAttendantEventHandler := commands.NewProcessRoomAttendantEventHandler(peerManagerMock)
 	disconnectAllHandler := commands.NewDisconnectAllHandler(peerManagerMock)
+	feedWantListRepositoryMock := mocks.NewFeedWantListRepositoryMock()
+	adapters := commands.Adapters{
+		FeedWantList: feedWantListRepositoryMock,
+	}
+	mockTransactionProvider := mocks.NewMockTransactionProvider(adapters)
+	currentTimeProviderMock := mocks.NewCurrentTimeProviderMock()
+	downloadFeedHandler := commands.NewDownloadFeedHandler(mockTransactionProvider, currentTimeProviderMock)
 	testCommands := TestCommands{
 		RoomsAliasRegister:        roomsAliasRegisterHandler,
 		RoomsAliasRevoke:          roomsAliasRevokeHandler,
 		ProcessRoomAttendantEvent: processRoomAttendantEventHandler,
 		DisconnectAll:             disconnectAllHandler,
+		DownloadFeed:              downloadFeedHandler,
 		PeerManager:               peerManagerMock,
 		Dialer:                    dialerMock,
+		FeedWantListRepository:    feedWantListRepositoryMock,
+		CurrentTimeProvider:       currentTimeProviderMock,
 	}
 	return testCommands, nil
 }
@@ -217,11 +227,13 @@ func BuildTransactableAdapters(tx *bbolt.Tx, public identity.Public, config Conf
 	feedRepository := bolt.NewFeedRepository(tx, socialGraphRepository, receiveLogRepository, messageRepository, pubRepository, blobRepository, banListRepository, scuttlebutt)
 	currentTimeProvider := adapters.NewCurrentTimeProvider()
 	wantListRepository := bolt.NewWantListRepository(tx, currentTimeProvider)
+	feedWantListRepositoryMock := mocks.NewFeedWantListRepositoryMock()
 	commandsAdapters := commands.Adapters{
-		Feed:        feedRepository,
-		SocialGraph: socialGraphRepository,
-		WantList:    wantListRepository,
-		BanList:     banListRepository,
+		Feed:         feedRepository,
+		SocialGraph:  socialGraphRepository,
+		BlobWantList: wantListRepository,
+		FeedWantList: feedWantListRepositoryMock,
+		BanList:      banListRepository,
 	}
 	return commandsAdapters, nil
 }
@@ -456,9 +468,12 @@ type TestCommands struct {
 	RoomsAliasRevoke          *commands.RoomsAliasRevokeHandler
 	ProcessRoomAttendantEvent *commands.ProcessRoomAttendantEventHandler
 	DisconnectAll             *commands.DisconnectAllHandler
+	DownloadFeed              *commands.DownloadFeedHandler
 
-	PeerManager *mocks2.PeerManagerMock
-	Dialer      *mocks.DialerMock
+	PeerManager            *mocks2.PeerManagerMock
+	Dialer                 *mocks.DialerMock
+	FeedWantListRepository *mocks.FeedWantListRepositoryMock
+	CurrentTimeProvider    *mocks.CurrentTimeProviderMock
 }
 
 type TestQueries struct {

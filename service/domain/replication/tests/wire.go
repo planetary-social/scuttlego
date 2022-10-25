@@ -17,7 +17,7 @@ type TestReplication struct {
 	Negotiator *replication.Negotiator
 
 	RawMessageHandler  *RawMessageHandlerMock
-	ContactsRepository *ContactsRepositoryMock
+	ContactsRepository *WantedFeedsRepositoryMock
 	MessageStreamer    *MessageStreamerMock
 }
 
@@ -39,9 +39,9 @@ func BuildTestReplication(t *testing.T) (TestReplication, error) {
 		ebt.NewSessionRunner,
 		wire.Bind(new(ebt.Runner), new(*ebt.SessionRunner)),
 
-		replication.NewContactsCache,
-		wire.Bind(new(ebt.ContactsStorage), new(*replication.ContactsCache)),
-		wire.Bind(new(gossip.ContactsStorage), new(*replication.ContactsCache)),
+		replication.NewWantedFeedsCache,
+		wire.Bind(new(ebt.ContactsStorage), new(*replication.WantedFeedsCache)),
+		wire.Bind(new(gossip.ContactsStorage), new(*replication.WantedFeedsCache)),
 
 		gossip.NewManager,
 		wire.Bind(new(gossip.ReplicationManager), new(*gossip.Manager)),
@@ -49,8 +49,8 @@ func BuildTestReplication(t *testing.T) (TestReplication, error) {
 		NewRawMessageHandlerMock,
 		wire.Bind(new(replication.RawMessageHandler), new(*RawMessageHandlerMock)),
 
-		NewContactsRepositoryMock,
-		wire.Bind(new(replication.ContactsRepository), new(*ContactsRepositoryMock)),
+		NewWantedFeedsRepositoryMock,
+		wire.Bind(new(replication.WantedFeedsRepository), new(*WantedFeedsRepositoryMock)),
 
 		NewMessageStreamerMock,
 		wire.Bind(new(ebt.MessageStreamer), new(*MessageStreamerMock)),

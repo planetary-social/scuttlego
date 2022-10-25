@@ -3,6 +3,7 @@ package mocks
 import (
 	"time"
 
+	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 )
 
@@ -20,6 +21,14 @@ func (f *FeedWantListRepositoryMock) Add(id refs.Feed, until time.Time) error {
 		Until: until,
 	})
 	return nil
+}
+
+func (f *FeedWantListRepositoryMock) List() ([]refs.Feed, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (f *FeedWantListRepositoryMock) Contains(id refs.Feed) (bool, error) {
+	return false, errors.New("not implemented")
 }
 
 type FeedWantListRepositoryMockAddCall struct {

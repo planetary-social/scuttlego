@@ -21,12 +21,12 @@ func BuildTestReplication(t *testing.T) (TestReplication, error) {
 	devNullLogger := logging.NewDevNullLogger()
 	sessionTracker := ebt.NewSessionTracker()
 	rawMessageHandlerMock := NewRawMessageHandlerMock()
-	contactsRepositoryMock := NewContactsRepositoryMock()
-	contactsCache := replication.NewContactsCache(contactsRepositoryMock)
+	wantedFeedsRepositoryMock := NewWantedFeedsRepositoryMock()
+	wantedFeedsCache := replication.NewWantedFeedsCache(wantedFeedsRepositoryMock)
 	messageStreamerMock := NewMessageStreamerMock()
-	sessionRunner := ebt.NewSessionRunner(devNullLogger, rawMessageHandlerMock, contactsCache, messageStreamerMock)
+	sessionRunner := ebt.NewSessionRunner(devNullLogger, rawMessageHandlerMock, wantedFeedsCache, messageStreamerMock)
 	replicator := ebt.NewReplicator(sessionTracker, sessionRunner, devNullLogger)
-	manager := gossip.NewManager(devNullLogger, contactsCache)
+	manager := gossip.NewManager(devNullLogger, wantedFeedsCache)
 	gossipReplicator, err := gossip.NewGossipReplicator(manager, rawMessageHandlerMock, devNullLogger)
 	if err != nil {
 		return TestReplication{}, err
@@ -35,7 +35,7 @@ func BuildTestReplication(t *testing.T) (TestReplication, error) {
 	testReplication := TestReplication{
 		Negotiator:         negotiator,
 		RawMessageHandler:  rawMessageHandlerMock,
-		ContactsRepository: contactsRepositoryMock,
+		ContactsRepository: wantedFeedsRepositoryMock,
 		MessageStreamer:    messageStreamerMock,
 	}
 	return testReplication, nil
@@ -47,6 +47,6 @@ type TestReplication struct {
 	Negotiator *replication.Negotiator
 
 	RawMessageHandler  *RawMessageHandlerMock
-	ContactsRepository *ContactsRepositoryMock
+	ContactsRepository *WantedFeedsRepositoryMock
 	MessageStreamer    *MessageStreamerMock
 }

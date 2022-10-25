@@ -102,3 +102,32 @@ func TestFeedWantListRepository_ShorterUntilDoesNotOverwriteLongerUntil(t *testi
 	})
 	require.NoError(t, err)
 }
+
+func TestFeedWantListRepository_Contains(t *testing.T) {
+	db := fixtures.Bolt(t)
+
+	err := db.Update(func(tx *bbolt.Tx) error {
+		txadapters, err := di.BuildTxTestAdapters(tx)
+		require.NoError(t, err)
+
+		until := time.Now()
+		now := until.Add(-fixtures.SomeDuration())
+		txadapters.CurrentTimeProvider.CurrentTime = now
+
+		id := fixtures.SomeRefFeed()
+
+		ok, err := txadapters.FeedWantList.Contains(id)
+		require.NoError(t, err)
+		require.False(t, ok)
+
+		err = txadapters.FeedWantList.Add(id, until)
+		require.NoError(t, err)
+
+		ok, err = txadapters.FeedWantList.Contains(id)
+		require.NoError(t, err)
+		require.True(t, ok)
+
+		return nil
+	})
+	require.NoError(t, err)
+}

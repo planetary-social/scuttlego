@@ -83,6 +83,10 @@ type FeedWantListRepository interface {
 	// Add puts the feed in the want list. The entry is removed after the
 	// specified amount of time.
 	Add(id refs.Feed, until time.Time) error
+
+	List() ([]refs.Feed, error)
+
+	Contains(id refs.Feed) (bool, error)
 }
 
 type CurrentTimeProvider interface {

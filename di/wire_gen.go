@@ -264,6 +264,8 @@ func BuildTxRepositories(tx *bbolt.Tx, public identity.Public, logger logging.Lo
 	feedRepository := bolt.NewFeedRepository(tx, socialGraphRepository, receiveLogRepository, messageRepository, pubRepository, blobRepository, banListRepository, scuttlebutt)
 	currentTimeProvider := adapters.NewCurrentTimeProvider()
 	blobWantListRepository := bolt.NewBlobWantListRepository(tx, currentTimeProvider)
+	feedWantListRepository := bolt.NewFeedWantListRepository(tx, currentTimeProvider)
+	wantedFeedsRepository := bolt.NewWantedFeedsRepository(socialGraphRepository, feedWantListRepository, feedRepository, banListRepository)
 	txRepositories := bolt.TxRepositories{
 		Feed:         feedRepository,
 		Graph:        socialGraphRepository,
@@ -271,6 +273,8 @@ func BuildTxRepositories(tx *bbolt.Tx, public identity.Public, logger logging.Lo
 		Message:      messageRepository,
 		Blob:         blobRepository,
 		BlobWantList: blobWantListRepository,
+		FeedWantList: feedWantListRepository,
+		WantedFeeds:  wantedFeedsRepository,
 	}
 	return txRepositories, nil
 }
@@ -321,15 +325,15 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	messageBuffer := commands.NewMessageBuffer(transactionProvider, logger)
 	rawMessageHandler := commands.NewRawMessageHandler(rawMessageIdentifier, messageBuffer, logger)
 	txRepositoriesFactory := newTxRepositoriesFactory(public, logger, messageHMAC)
-	readContactsRepository := bolt.NewReadContactsRepository(db, txRepositoriesFactory)
-	contactsCache := replication.NewContactsCache(readContactsRepository)
+	readWantedFeedsRepository := bolt.NewReadWantedFeedsRepository(db, txRepositoriesFactory)
+	wantedFeedsCache := replication.NewWantedFeedsCache(readWantedFeedsRepository)
 	readFeedRepository := bolt.NewReadFeedRepository(db, txRepositoriesFactory)
 	messagePubSub := pubsub.NewMessagePubSub()
 	createHistoryStreamHandler := queries.NewCreateHistoryStreamHandler(readFeedRepository, messagePubSub, logger)
 	createHistoryStreamHandlerAdapter := ebt2.NewCreateHistoryStreamHandlerAdapter(createHistoryStreamHandler)
-	sessionRunner := ebt.NewSessionRunner(logger, rawMessageHandler, contactsCache, createHistoryStreamHandlerAdapter)
+	sessionRunner := ebt.NewSessionRunner(logger, rawMessageHandler, wantedFeedsCache, createHistoryStreamHandlerAdapter)
 	replicator := ebt.NewReplicator(sessionTracker, sessionRunner, logger)
-	manager := gossip.NewManager(logger, contactsCache)
+	manager := gossip.NewManager(logger, wantedFeedsCache)
 	gossipReplicator, err := gossip.NewGossipReplicator(manager, rawMessageHandler, logger)
 	if err != nil {
 		return Service{}, err
@@ -493,7 +497,7 @@ type TestQueries struct {
 	LocalIdentity identity.Public
 }
 
-var replicatorSet = wire.NewSet(gossip.NewManager, wire.Bind(new(gossip.ReplicationManager), new(*gossip.Manager)), gossip.NewGossipReplicator, wire.Bind(new(replication.CreateHistoryStreamReplicator), new(*gossip.GossipReplicator)), ebt.NewReplicator, wire.Bind(new(replication.EpidemicBroadcastTreesReplicator), new(ebt.Replicator)), replication.NewContactsCache, wire.Bind(new(gossip.ContactsStorage), new(*replication.ContactsCache)), wire.Bind(new(ebt.ContactsStorage), new(*replication.ContactsCache)), ebt.NewSessionTracker, wire.Bind(new(ebt.Tracker), new(*ebt.SessionTracker)), ebt.NewSessionRunner, wire.Bind(new(ebt.Runner), new(*ebt.SessionRunner)), replication.NewNegotiator, wire.Bind(new(domain.MessageReplicator), new(*replication.Negotiator)))
+var replicatorSet = wire.NewSet(gossip.NewManager, wire.Bind(new(gossip.ReplicationManager), new(*gossip.Manager)), gossip.NewGossipReplicator, wire.Bind(new(replication.CreateHistoryStreamReplicator), new(*gossip.GossipReplicator)), ebt.NewReplicator, wire.Bind(new(replication.EpidemicBroadcastTreesReplicator), new(ebt.Replicator)), replication.NewWantedFeedsCache, wire.Bind(new(gossip.ContactsStorage), new(*replication.WantedFeedsCache)), wire.Bind(new(ebt.ContactsStorage), new(*replication.WantedFeedsCache)), ebt.NewSessionTracker, wire.Bind(new(ebt.Tracker), new(*ebt.SessionTracker)), ebt.NewSessionRunner, wire.Bind(new(ebt.Runner), new(*ebt.SessionRunner)), replication.NewNegotiator, wire.Bind(new(domain.MessageReplicator), new(*replication.Negotiator)))
 
 var blobReplicatorSet = wire.NewSet(replication2.NewManager, wire.Bind(new(replication2.ReplicationManager), new(*replication2.Manager)), wire.Bind(new(commands.BlobReplicationManager), new(*replication2.Manager)), replication2.NewReplicator, wire.Bind(new(domain.BlobReplicator), new(*replication2.Replicator)), replication2.NewBlobsGetDownloader, wire.Bind(new(replication2.Downloader), new(*replication2.BlobsGetDownloader)), replication2.NewHasHandler, wire.Bind(new(replication2.HasBlobHandler), new(*replication2.HasHandler)))
 

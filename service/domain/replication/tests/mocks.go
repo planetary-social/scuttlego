@@ -21,16 +21,16 @@ func (r RawMessageHandlerMock) Handle(msg message.RawMessage) error {
 	panic("implement me")
 }
 
-type ContactsRepositoryMock struct {
-	GetContactsReturnValue []replication.Contact
+type WantedFeedsRepositoryMock struct {
+	GetWantedFeedsReturnValue replication.WantedFeeds
 }
 
-func NewContactsRepositoryMock() *ContactsRepositoryMock {
-	return &ContactsRepositoryMock{}
+func NewWantedFeedsRepositoryMock() *WantedFeedsRepositoryMock {
+	return &WantedFeedsRepositoryMock{}
 }
 
-func (c ContactsRepositoryMock) GetContacts() ([]replication.Contact, error) {
-	return c.GetContactsReturnValue, nil
+func (c WantedFeedsRepositoryMock) GetWantedFeeds() (replication.WantedFeeds, error) {
+	return c.GetWantedFeedsReturnValue, nil
 }
 
 type MessageStreamerMock struct {

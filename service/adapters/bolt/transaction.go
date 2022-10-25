@@ -32,10 +32,10 @@ type TxRepositoriesFactory func(tx *bbolt.Tx) (TxRepositories, error)
 
 // TxRepositories are used by the read repositories.
 type TxRepositories struct {
-	Feed       *FeedRepository
-	Graph      *SocialGraphRepository
-	ReceiveLog *ReceiveLogRepository
-	Message    *MessageRepository
-	Blob       *BlobRepository
-	WantList   *WantListRepository
+	Feed         *FeedRepository
+	Graph        *SocialGraphRepository
+	ReceiveLog   *ReceiveLogRepository
+	Message      *MessageRepository
+	Blob         *BlobRepository
+	BlobWantList *BlobWantListRepository
 }

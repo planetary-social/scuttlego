@@ -10,24 +10,24 @@ import (
 	"go.etcd.io/bbolt"
 )
 
-var bucketWantList = utils.BucketName("want_list")
+var bucketBlobWantList = utils.BucketName("blob_want_list")
 
-type WantListRepository struct {
+type BlobWantListRepository struct {
 	tx                  *bbolt.Tx
 	currentTimeProvider commands.CurrentTimeProvider
 }
 
-func NewWantListRepository(
+func NewBlobWantListRepository(
 	tx *bbolt.Tx,
 	currentTimeProvider commands.CurrentTimeProvider,
-) *WantListRepository {
-	return &WantListRepository{
+) *BlobWantListRepository {
+	return &BlobWantListRepository{
 		tx:                  tx,
 		currentTimeProvider: currentTimeProvider,
 	}
 }
 
-func (r WantListRepository) Add(id refs.Blob, until time.Time) error {
+func (r BlobWantListRepository) Add(id refs.Blob, until time.Time) error {
 	bucket, err := r.createBucket()
 	if err != nil {
 		return errors.Wrap(err, "failed to get the bucket")
@@ -50,7 +50,7 @@ func (r WantListRepository) Add(id refs.Blob, until time.Time) error {
 	return bucket.Put(key, r.toValue(until))
 }
 
-func (r WantListRepository) Contains(id refs.Blob) (bool, error) {
+func (r BlobWantListRepository) Contains(id refs.Blob) (bool, error) {
 	bucket, err := r.getBucket()
 	if err != nil {
 		return false, errors.Wrap(err, "failed to get the bucket")
@@ -79,7 +79,7 @@ func (r WantListRepository) Contains(id refs.Blob) (bool, error) {
 	return true, nil
 }
 
-func (r WantListRepository) Delete(id refs.Blob) error {
+func (r BlobWantListRepository) Delete(id refs.Blob) error {
 	bucket, err := r.getBucket()
 	if err != nil {
 		return errors.Wrap(err, "failed to get the bucket")
@@ -96,7 +96,7 @@ func (r WantListRepository) Delete(id refs.Blob) error {
 	return nil
 }
 
-func (r WantListRepository) List() ([]refs.Blob, error) {
+func (r BlobWantListRepository) List() ([]refs.Blob, error) {
 	var result []refs.Blob
 	var toDelete []refs.Blob
 
@@ -142,32 +142,32 @@ func (r WantListRepository) List() ([]refs.Blob, error) {
 	return result, nil
 }
 
-func (r WantListRepository) toKey(id refs.Blob) []byte {
+func (r BlobWantListRepository) toKey(id refs.Blob) []byte {
 	return []byte(id.String())
 }
 
-func (r WantListRepository) fromKey(key []byte) (refs.Blob, error) {
+func (r BlobWantListRepository) fromKey(key []byte) (refs.Blob, error) {
 	return refs.NewBlob(string(key))
 }
 
-func (r WantListRepository) toValue(t time.Time) []byte {
+func (r BlobWantListRepository) toValue(t time.Time) []byte {
 	return []byte(t.Format(time.RFC3339))
 }
 
-func (r WantListRepository) fromValue(v []byte) (time.Time, error) {
+func (r BlobWantListRepository) fromValue(v []byte) (time.Time, error) {
 	return time.Parse(time.RFC3339, string(v))
 }
 
-func (r WantListRepository) createBucket() (*bbolt.Bucket, error) {
+func (r BlobWantListRepository) createBucket() (*bbolt.Bucket, error) {
 	return utils.CreateBucket(r.tx, r.bucketPath())
 }
 
-func (r WantListRepository) getBucket() (*bbolt.Bucket, error) {
+func (r BlobWantListRepository) getBucket() (*bbolt.Bucket, error) {
 	return utils.GetBucket(r.tx, r.bucketPath())
 }
 
-func (r WantListRepository) bucketPath() []utils.BucketName {
+func (r BlobWantListRepository) bucketPath() []utils.BucketName {
 	return []utils.BucketName{
-		bucketWantList,
+		bucketBlobWantList,
 	}
 }

@@ -10,7 +10,7 @@ import (
 	"go.etcd.io/bbolt"
 )
 
-func TestWantListRepository_ListDoesNotReturnValuesForWhichUntilIsBeforeCurrentTime(t *testing.T) {
+func TestBlobWantListRepository_ListDoesNotReturnValuesForWhichUntilIsBeforeCurrentTime(t *testing.T) {
 	db := fixtures.Bolt(t)
 
 	err := db.Update(func(tx *bbolt.Tx) error {
@@ -47,7 +47,7 @@ func TestWantListRepository_ListDoesNotReturnValuesForWhichUntilIsBeforeCurrentT
 	require.NoError(t, err)
 }
 
-func TestWantListRepository_LongerUntilOverwritesShorterUntil(t *testing.T) {
+func TestBlobWantListRepository_LongerUntilOverwritesShorterUntil(t *testing.T) {
 	db := fixtures.Bolt(t)
 
 	err := db.Update(func(tx *bbolt.Tx) error {
@@ -75,7 +75,7 @@ func TestWantListRepository_LongerUntilOverwritesShorterUntil(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestWantListRepository_ShorterUntilDoesNotOverwriteLongerUntil(t *testing.T) {
+func TestBlobWantListRepository_ShorterUntilDoesNotOverwriteLongerUntil(t *testing.T) {
 	db := fixtures.Bolt(t)
 
 	err := db.Update(func(tx *bbolt.Tx) error {
@@ -103,7 +103,7 @@ func TestWantListRepository_ShorterUntilDoesNotOverwriteLongerUntil(t *testing.T
 	require.NoError(t, err)
 }
 
-func TestWantListRepository_ContainsAndDelete(t *testing.T) {
+func TestBlobWantListRepository_ContainsAndDelete(t *testing.T) {
 	db := fixtures.Bolt(t)
 
 	err := db.Update(func(tx *bbolt.Tx) error {

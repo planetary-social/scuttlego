@@ -48,10 +48,11 @@ type TransactionProvider interface {
 }
 
 type Adapters struct {
-	Feed        FeedRepository
-	SocialGraph SocialGraphRepository
-	WantList    WantListRepository
-	BanList     BanListRepository
+	Feed         FeedRepository
+	SocialGraph  SocialGraphRepository
+	BlobWantList BlobWantListRepository
+	FeedWantList FeedWantListRepository
+	BanList      BanListRepository
 }
 
 type UpdateFeedFn func(feed *feeds.Feed) error
@@ -69,10 +70,19 @@ type SocialGraphRepository interface {
 	GetSocialGraph() (graph.SocialGraph, error)
 }
 
-type WantListRepository interface {
+type BlobWantListRepository interface {
 	// Add puts the blob in the want list. If the blob can't be retrieved before
 	// the specified point of time it will be removed from the want list.
 	Add(id refs.Blob, until time.Time) error
+}
+
+// FeedWantListRepository adds a way to temporarily add feeds to the list of
+// replicated feeds. Those feeds will be replicated even if they are not in the
+// social graph.
+type FeedWantListRepository interface {
+	// Add puts the feed in the want list. The entry is removed after the
+	// specified amount of time.
+	Add(id refs.Feed, until time.Time) error
 }
 
 type CurrentTimeProvider interface {

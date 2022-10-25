@@ -97,9 +97,12 @@ type TestCommands struct {
 	RoomsAliasRevoke          *commands.RoomsAliasRevokeHandler
 	ProcessRoomAttendantEvent *commands.ProcessRoomAttendantEventHandler
 	DisconnectAll             *commands.DisconnectAllHandler
+	DownloadFeed              *commands.DownloadFeedHandler
 
-	PeerManager *domainmocks.PeerManagerMock
-	Dialer      *mocks.DialerMock
+	PeerManager            *domainmocks.PeerManagerMock
+	Dialer                 *mocks.DialerMock
+	FeedWantListRepository *mocks.FeedWantListRepositoryMock
+	CurrentTimeProvider    *mocks.CurrentTimeProviderMock
 }
 
 func BuildTestCommands(*testing.T) (TestCommands, error) {
@@ -113,6 +116,17 @@ func BuildTestCommands(*testing.T) (TestCommands, error) {
 		wire.Bind(new(commands.PeerManager), new(*domainmocks.PeerManagerMock)),
 
 		identity.NewPrivate,
+
+		mocks.NewMockTransactionProvider,
+		wire.Bind(new(commands.TransactionProvider), new(*mocks.MockTransactionProvider)),
+
+		wire.Struct(new(commands.Adapters), "FeedWantList"),
+
+		mocks.NewFeedWantListRepositoryMock,
+		wire.Bind(new(commands.FeedWantListRepository), new(*mocks.FeedWantListRepositoryMock)),
+
+		mocks.NewCurrentTimeProviderMock,
+		wire.Bind(new(commands.CurrentTimeProvider), new(*mocks.CurrentTimeProviderMock)),
 
 		wire.Struct(new(TestCommands), "*"),
 	)

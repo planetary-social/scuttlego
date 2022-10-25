@@ -30,7 +30,7 @@ var txBoltAdaptersSet = wire.NewSet(
 	wire.Bind(new(commands.SocialGraphRepository), new(*bolt.SocialGraphRepository)),
 
 	bolt.NewWantListRepository,
-	wire.Bind(new(commands.WantListRepository), new(*bolt.WantListRepository)),
+	wire.Bind(new(commands.BlobWantListRepository), new(*bolt.WantListRepository)),
 	wire.Bind(new(blobReplication.WantListRepository), new(*bolt.WantListRepository)),
 
 	bolt.NewBanListRepository,
@@ -40,6 +40,9 @@ var txBoltAdaptersSet = wire.NewSet(
 	bolt.NewMessageRepository,
 	bolt.NewPubRepository,
 	bolt.NewBlobRepository,
+
+	mocks.NewFeedWantListRepositoryMock,
+	wire.Bind(new(commands.FeedWantListRepository), new(*mocks.FeedWantListRepositoryMock)), // todo change to real impl
 )
 
 //nolint:unused

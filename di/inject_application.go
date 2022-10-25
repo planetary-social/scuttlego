@@ -50,6 +50,8 @@ var commandsSet = wire.NewSet(
 
 	commands.NewProcessRoomAttendantEventHandler,
 	wire.Bind(new(pubsub.ProcessRoomAttendantEventHandler), new(*commands.ProcessRoomAttendantEventHandler)),
+
+	commands.NewDownloadFeedHandler,
 )
 
 var queriesSet = wire.NewSet(

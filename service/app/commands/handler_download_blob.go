@@ -6,7 +6,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 )
 
-const temporaryWantListDuration = 1 * time.Hour
+const temporaryBlobWantListDuration = 1 * time.Hour
 
 type DownloadBlob struct {
 	Id refs.Blob
@@ -28,8 +28,8 @@ func NewDownloadBlobHandler(
 }
 
 func (h *DownloadBlobHandler) Handle(cmd DownloadBlob) error {
-	until := h.currentTimeProvider.Get().Add(temporaryWantListDuration)
+	until := h.currentTimeProvider.Get().Add(temporaryBlobWantListDuration)
 	return h.transaction.Transact(func(adapters Adapters) error {
-		return adapters.WantList.Add(cmd.Id, until)
+		return adapters.BlobWantList.Add(cmd.Id, until)
 	})
 }

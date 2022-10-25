@@ -77,6 +77,7 @@ func BuildTxTestAdapters(tx *bbolt.Tx) (TxTestAdapters, error) {
 	feedRepository := bolt.NewFeedRepository(tx, socialGraphRepository, receiveLogRepository, messageRepository, pubRepository, blobRepository, banListRepository, scuttlebutt)
 	currentTimeProviderMock := mocks.NewCurrentTimeProviderMock()
 	blobWantListRepository := bolt.NewBlobWantListRepository(tx, currentTimeProviderMock)
+	feedWantListRepository := bolt.NewFeedWantListRepository(tx, currentTimeProviderMock)
 	txTestAdapters := TxTestAdapters{
 		MessageRepository:     messageRepository,
 		FeedRepository:        feedRepository,
@@ -84,7 +85,8 @@ func BuildTxTestAdapters(tx *bbolt.Tx) (TxTestAdapters, error) {
 		SocialGraphRepository: socialGraphRepository,
 		PubRepository:         pubRepository,
 		ReceiveLog:            receiveLogRepository,
-		WantList:              blobWantListRepository,
+		BlobWantList:          blobWantListRepository,
+		FeedWantList:          feedWantListRepository,
 		BanList:               banListRepository,
 		CurrentTimeProvider:   currentTimeProviderMock,
 		BanListHasher:         banListHasherMock,
@@ -227,12 +229,12 @@ func BuildTransactableAdapters(tx *bbolt.Tx, public identity.Public, config Conf
 	feedRepository := bolt.NewFeedRepository(tx, socialGraphRepository, receiveLogRepository, messageRepository, pubRepository, blobRepository, banListRepository, scuttlebutt)
 	currentTimeProvider := adapters.NewCurrentTimeProvider()
 	blobWantListRepository := bolt.NewBlobWantListRepository(tx, currentTimeProvider)
-	feedWantListRepositoryMock := mocks.NewFeedWantListRepositoryMock()
+	feedWantListRepository := bolt.NewFeedWantListRepository(tx, currentTimeProvider)
 	commandsAdapters := commands.Adapters{
 		Feed:         feedRepository,
 		SocialGraph:  socialGraphRepository,
 		BlobWantList: blobWantListRepository,
-		FeedWantList: feedWantListRepositoryMock,
+		FeedWantList: feedWantListRepository,
 		BanList:      banListRepository,
 	}
 	return commandsAdapters, nil
@@ -450,7 +452,8 @@ type TxTestAdapters struct {
 	SocialGraphRepository *bolt.SocialGraphRepository
 	PubRepository         *bolt.PubRepository
 	ReceiveLog            *bolt.ReceiveLogRepository
-	WantList              *bolt.BlobWantListRepository
+	BlobWantList          *bolt.BlobWantListRepository
+	FeedWantList          *bolt.FeedWantListRepository
 	BanList               *bolt.BanListRepository
 
 	CurrentTimeProvider *mocks.CurrentTimeProviderMock

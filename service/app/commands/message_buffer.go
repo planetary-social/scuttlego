@@ -140,7 +140,12 @@ func (m *MessageBuffer) persistTransaction(adapters Adapters) error {
 			return errors.New("feed is banned")
 		}
 
-		if !socialGraph.HasContact(authorRef) {
+		wantListContains, err := adapters.FeedWantList.Contains(feedRef)
+		if err != nil {
+			return errors.Wrap(err, "error checking the want list")
+		}
+
+		if !socialGraph.HasContact(authorRef) && !wantListContains {
 			continue // do nothing as this contact is not in our social graph
 		}
 

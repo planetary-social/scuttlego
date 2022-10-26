@@ -27,13 +27,13 @@ func TestReplicationFallsBackToCreateHistoryStream(t *testing.T) {
 	conn.SetWasInitiatedByRemote(false)
 	peer := transport.MustNewPeer(fixtures.SomePublicIdentity(), conn)
 
-	tr.ContactsRepository.GetContactsReturnValue = []replication.Contact{
+	tr.ContactsRepository.GetWantedFeedsReturnValue = replication.NewWantedFeeds([]replication.Contact{
 		{
 			Who:       fixtures.SomeRefFeed(),
 			Hops:      graph.MustNewHops(fixtures.SomePositiveInt()),
 			FeedState: replication.NewEmptyFeedState(),
 		},
-	}
+	}, nil)
 
 	var requests []*rpc.Request
 	var requestsLock sync.Mutex

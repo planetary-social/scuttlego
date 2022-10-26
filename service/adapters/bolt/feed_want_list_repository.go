@@ -52,3 +52,7 @@ func (r FeedWantListRepository) List() ([]refs.Feed, error) {
 
 	return result, nil
 }
+
+func (r FeedWantListRepository) Contains(id refs.Feed) (bool, error) {
+	return r.repo.Contains(id.String())
+}

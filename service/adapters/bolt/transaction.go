@@ -38,4 +38,6 @@ type TxRepositories struct {
 	Message      *MessageRepository
 	Blob         *BlobRepository
 	BlobWantList *BlobWantListRepository
+	FeedWantList *FeedWantListRepository
+	WantedFeeds  *WantedFeedsRepository
 }

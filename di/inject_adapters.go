@@ -43,6 +43,7 @@ var txBoltAdaptersSet = wire.NewSet(
 	bolt.NewMessageRepository,
 	bolt.NewPubRepository,
 	bolt.NewBlobRepository,
+	bolt.NewWantedFeedsRepository,
 )
 
 //nolint:unused
@@ -50,8 +51,8 @@ var boltAdaptersSet = wire.NewSet(
 	bolt.NewReadFeedRepository,
 	wire.Bind(new(queries.FeedRepository), new(*bolt.ReadFeedRepository)),
 
-	bolt.NewReadContactsRepository,
-	wire.Bind(new(replication.ContactsRepository), new(*bolt.ReadContactsRepository)),
+	bolt.NewReadWantedFeedsRepository,
+	wire.Bind(new(replication.WantedFeedsRepository), new(*bolt.ReadWantedFeedsRepository)),
 
 	bolt.NewReadReceiveLogRepository,
 	wire.Bind(new(queries.ReceiveLogRepository), new(*bolt.ReadReceiveLogRepository)),

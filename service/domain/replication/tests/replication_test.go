@@ -61,16 +61,18 @@ func TestReplicationFallsBackToCreateHistoryStream(t *testing.T) {
 		requestsLock.Lock()
 		defer requestsLock.Unlock()
 
-		var calledEbt, calledChs bool
-		for _, req := range requests {
-			if req.Name().Equal(messages.CreateHistoryStreamProcedure.Name()) {
-				calledChs = true
-			}
-			if req.Name().Equal(messages.EbtReplicateProcedure.Name()) {
-				calledEbt = true
-			}
+		if len(requests) != 2 {
+			return false
 		}
 
-		return calledEbt && calledChs
+		if !requests[0].Name().Equal(messages.EbtReplicateProcedure.Name()) {
+			return false
+		}
+
+		if !requests[1].Name().Equal(messages.CreateHistoryStreamProcedure.Name()) {
+			return false
+		}
+
+		return true
 	}, 1*time.Second, 10*time.Millisecond)
 }

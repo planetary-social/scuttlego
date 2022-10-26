@@ -18,6 +18,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/feeds/content"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
+	"github.com/planetary-social/scuttlego/service/domain/invites"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/planetary-social/scuttlego/service/domain/rooms/aliases"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
@@ -227,6 +228,10 @@ func SomeBanListHash() bans.Hash {
 		panic(err)
 	}
 	return bans.MustNewHash(r)
+}
+
+func SomeInvite() invites.Invite {
+	return invites.MustNewInviteFromString("one.planetary.pub:8008:@CIlwTOK+m6v1hT2zUVOCJvvZq7KE/65ErN6yA2yrURY=.ed25519~KVvak/aZeQJQUrn1imLIvwU+EVTkCzGW8TJWTmK8lOk=")
 }
 
 func randomBase64(bytes int) string {

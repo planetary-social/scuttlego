@@ -9,12 +9,14 @@ import (
 	"github.com/planetary-social/scuttlego/service/adapters/blobs"
 	"github.com/planetary-social/scuttlego/service/adapters/bolt"
 	ebtadapters "github.com/planetary-social/scuttlego/service/adapters/ebt"
+	invitesadapters "github.com/planetary-social/scuttlego/service/adapters/invites"
 	"github.com/planetary-social/scuttlego/service/adapters/mocks"
 	"github.com/planetary-social/scuttlego/service/app/commands"
 	"github.com/planetary-social/scuttlego/service/app/queries"
 	blobReplication "github.com/planetary-social/scuttlego/service/domain/blobs/replication"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/formats"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
+	"github.com/planetary-social/scuttlego/service/domain/invites"
 	"github.com/planetary-social/scuttlego/service/domain/replication"
 	"github.com/planetary-social/scuttlego/service/domain/replication/ebt"
 	"github.com/planetary-social/scuttlego/service/domain/transport/boxstream"
@@ -104,12 +106,16 @@ var adaptersSet = wire.NewSet(
 	adapters.NewCurrentTimeProvider,
 	wire.Bind(new(commands.CurrentTimeProvider), new(*adapters.CurrentTimeProvider)),
 	wire.Bind(new(boxstream.CurrentTimeProvider), new(*adapters.CurrentTimeProvider)),
+	wire.Bind(new(invitesadapters.CurrentTimeProvider), new(*adapters.CurrentTimeProvider)),
 
 	adapters.NewBanListHasher,
 	wire.Bind(new(bolt.BanListHasher), new(*adapters.BanListHasher)),
 
 	ebtadapters.NewCreateHistoryStreamHandlerAdapter,
 	wire.Bind(new(ebt.MessageStreamer), new(*ebtadapters.CreateHistoryStreamHandlerAdapter)),
+
+	invitesadapters.NewInviteDialer,
+	wire.Bind(new(invites.InviteDialer), new(*invitesadapters.InviteDialer)),
 )
 
 //nolint:unused

@@ -19,6 +19,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/adapters"
 	"github.com/planetary-social/scuttlego/service/adapters/bolt"
 	ebt2 "github.com/planetary-social/scuttlego/service/adapters/ebt"
+	"github.com/planetary-social/scuttlego/service/adapters/invites"
 	"github.com/planetary-social/scuttlego/service/adapters/mocks"
 	"github.com/planetary-social/scuttlego/service/adapters/pubsub"
 	"github.com/planetary-social/scuttlego/service/app"
@@ -30,6 +31,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/feeds/formats"
 	"github.com/planetary-social/scuttlego/service/domain/graph"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
+	invites2 "github.com/planetary-social/scuttlego/service/domain/invites"
 	mocks2 "github.com/planetary-social/scuttlego/service/domain/mocks"
 	"github.com/planetary-social/scuttlego/service/domain/network"
 	"github.com/planetary-social/scuttlego/service/domain/network/local"
@@ -136,16 +138,21 @@ func BuildTestCommands(t *testing.T) (TestCommands, error) {
 	mockTransactionProvider := mocks.NewMockTransactionProvider(adapters)
 	currentTimeProviderMock := mocks.NewCurrentTimeProviderMock()
 	downloadFeedHandler := commands.NewDownloadFeedHandler(mockTransactionProvider, currentTimeProviderMock)
+	inviteRedeemerMock := mocks.NewInviteRedeemerMock()
+	logger := fixtures.TestLogger(t)
+	redeemInviteHandler := commands.NewRedeemInviteHandler(inviteRedeemerMock, private, logger)
 	testCommands := TestCommands{
 		RoomsAliasRegister:        roomsAliasRegisterHandler,
 		RoomsAliasRevoke:          roomsAliasRevokeHandler,
 		ProcessRoomAttendantEvent: processRoomAttendantEventHandler,
 		DisconnectAll:             disconnectAllHandler,
 		DownloadFeed:              downloadFeedHandler,
+		RedeemInvite:              redeemInviteHandler,
 		PeerManager:               peerManagerMock,
 		Dialer:                    dialerMock,
 		FeedWantListRepository:    feedWantListRepositoryMock,
 		CurrentTimeProvider:       currentTimeProviderMock,
+		InviteRedeemer:            inviteRedeemerMock,
 	}
 	return testCommands, nil
 }
@@ -300,6 +307,9 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	if err != nil {
 		return Service{}, err
 	}
+	inviteDialer := invites.NewInviteDialer(dialer, networkKey, requestPubSub, connectionIdGenerator, currentTimeProvider, logger)
+	inviteRedeemer := invites2.NewInviteRedeemer(inviteDialer, logger)
+	redeemInviteHandler := commands.NewRedeemInviteHandler(inviteRedeemer, private, logger)
 	db, err := newBolt(config)
 	if err != nil {
 		return Service{}, err
@@ -312,7 +322,6 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	if err != nil {
 		return Service{}, err
 	}
-	redeemInviteHandler := commands.NewRedeemInviteHandler(dialer, transactionProvider, networkKey, private, requestPubSub, marshaler, connectionIdGenerator, currentTimeProvider, logger)
 	followHandler := commands.NewFollowHandler(transactionProvider, private, marshaler, logger)
 	publishRawHandler := commands.NewPublishRawHandler(transactionProvider, private, logger)
 	peerManagerConfig := extractPeerManagerConfigFromConfig(config)
@@ -476,11 +485,13 @@ type TestCommands struct {
 	ProcessRoomAttendantEvent *commands.ProcessRoomAttendantEventHandler
 	DisconnectAll             *commands.DisconnectAllHandler
 	DownloadFeed              *commands.DownloadFeedHandler
+	RedeemInvite              *commands.RedeemInviteHandler
 
 	PeerManager            *mocks2.PeerManagerMock
 	Dialer                 *mocks.DialerMock
 	FeedWantListRepository *mocks.FeedWantListRepositoryMock
 	CurrentTimeProvider    *mocks.CurrentTimeProviderMock
+	InviteRedeemer         *mocks.InviteRedeemerMock
 }
 
 type TestQueries struct {

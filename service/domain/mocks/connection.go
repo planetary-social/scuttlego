@@ -3,14 +3,14 @@ package mocks
 import (
 	"context"
 
-	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/fixtures"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 )
 
 type ConnectionMock struct {
-	ctx    context.Context
-	cancel context.CancelFunc
+	ctx                  context.Context
+	cancel               context.CancelFunc
+	wasInitiatedByRemote bool
 
 	msgFn func(req *rpc.Request) []rpc.ResponseWithError
 }
@@ -18,13 +18,18 @@ type ConnectionMock struct {
 func NewConnectionMock(ctx context.Context) *ConnectionMock {
 	ctx, cancel := context.WithCancel(ctx)
 	return &ConnectionMock{
-		ctx:    ctx,
-		cancel: cancel,
+		ctx:                  ctx,
+		cancel:               cancel,
+		wasInitiatedByRemote: fixtures.SomeBool(),
 	}
 }
 
 func (c *ConnectionMock) WasInitiatedByRemote() bool {
-	return fixtures.SomeBool()
+	return c.wasInitiatedByRemote
+}
+
+func (c *ConnectionMock) SetWasInitiatedByRemote(wasInitiatedByRemote bool) {
+	c.wasInitiatedByRemote = wasInitiatedByRemote
 }
 
 func (c *ConnectionMock) PerformRequest(ctx context.Context, req *rpc.Request) (rpc.ResponseStream, error) {
@@ -70,19 +75,19 @@ func (c *ConnectionMock) Mock(fn func(req *rpc.Request) []rpc.ResponseWithError)
 }
 
 type responseStreamMock struct {
-	ch chan rpc.ResponseWithError
+	chReceive chan rpc.ResponseWithError
 }
 
-func newResponseStreamMock(ch chan rpc.ResponseWithError) *responseStreamMock {
+func newResponseStreamMock(chReceive chan rpc.ResponseWithError) *responseStreamMock {
 	return &responseStreamMock{
-		ch: ch,
+		chReceive: chReceive,
 	}
 }
 
 func (r responseStreamMock) WriteMessage(body []byte) error {
-	return errors.New("not implemented")
+	return nil
 }
 
 func (r responseStreamMock) Channel() <-chan rpc.ResponseWithError {
-	return r.ch
+	return r.chReceive
 }

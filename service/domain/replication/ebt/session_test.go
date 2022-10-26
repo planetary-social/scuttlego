@@ -103,6 +103,11 @@ func TestSession_NotesWithReceiveAndReplicateSetToTrueCallRequestedFeedsRequest(
 		))
 	}()
 
+	go func() {
+		err := s.Session.HandleIncomingMessagesLoop()
+		t.Log(err)
+	}()
+
 	require.Eventually(t,
 		func() bool {
 			return len(s.FeedRequester.RequestCalls()) == 1
@@ -163,6 +168,11 @@ func TestSession_NotesWithReceiveOrReplicateSetToFalseCallRequestedFeedsCancel(t
 				))
 			}()
 
+			go func() {
+				err := s.Session.HandleIncomingMessagesLoop()
+				t.Log(err)
+			}()
+
 			require.Eventually(t,
 				func() bool {
 					return len(s.FeedRequester.CancelCalls()) == 1
@@ -174,13 +184,48 @@ func TestSession_NotesWithReceiveOrReplicateSetToFalseCallRequestedFeedsCancel(t
 	}
 }
 
+func TestSession_ErrorsWhenProcessingRawMessagesDontTerminateTheSession(t *testing.T) {
+	s := newTestSession(t)
+
+	s.RawMessageHandler.HandleError = fixtures.SomeError()
+
+	go func() {
+		s.Stream.ReceiveIncomingMessage(s.Ctx,
+			ebt.NewIncomingMessageWithMesage(
+				fixtures.SomeRawMessage(),
+			),
+		)
+	}()
+
+	ch := make(chan error)
+	go func() {
+		defer close(ch)
+		ch <- s.Session.HandleIncomingMessagesLoop()
+	}()
+
+	require.Eventually(t,
+		func() bool {
+			return len(s.RawMessageHandler.HandleCalls()) > 0
+		},
+		1*time.Second, 10*time.Millisecond,
+	)
+
+	select {
+	case err := <-ch:
+		t.Fatalf("loop returned '%s' instead of continuing to run", err)
+	case <-time.After(1 * time.Second):
+		t.Log("ok")
+	}
+}
+
 type testSession struct {
-	Session         *ebt.Session
-	ContactsStorage *contactsStorage
-	Stream          *mockStream
-	MessageStreamer *messageStreamerMock
-	Ctx             context.Context
-	FeedRequester   *feedRequesterMock
+	Session           *ebt.Session
+	ContactsStorage   *contactsStorage
+	Stream            *mockStream
+	MessageStreamer   *messageStreamerMock
+	Ctx               context.Context
+	FeedRequester     *feedRequesterMock
+	RawMessageHandler *rawMessageHandlerMock
 }
 
 func newTestSession(t *testing.T) testSession {
@@ -189,22 +234,23 @@ func newTestSession(t *testing.T) testSession {
 	stream := newMockStream()
 	contactsStorage := newContactsStorage()
 	fr := newFeedRequesterMock()
+	handler := newRawMessageHandlerMock()
 	session := ebt.NewSession(
 		ctx,
 		stream,
 		logger,
-		nil,
+		handler,
 		contactsStorage,
 		fr,
 	)
-	go session.HandleIncomingMessages()
 
 	return testSession{
-		Session:         session,
-		ContactsStorage: contactsStorage,
-		Stream:          stream,
-		FeedRequester:   fr,
-		Ctx:             ctx,
+		Session:           session,
+		ContactsStorage:   contactsStorage,
+		Stream:            stream,
+		FeedRequester:     fr,
+		RawMessageHandler: handler,
+		Ctx:               ctx,
 	}
 }
 
@@ -318,4 +364,29 @@ type feedRequesterRequestCall struct {
 
 type feedRequesterCancelCall struct {
 	Ref refs.Feed
+}
+
+type rawMessageHandlerMock struct {
+	handleCalls []message.RawMessage
+	HandleError error
+	lock        sync.Mutex
+}
+
+func newRawMessageHandlerMock() *rawMessageHandlerMock {
+	return &rawMessageHandlerMock{}
+}
+
+func (r *rawMessageHandlerMock) Handle(msg message.RawMessage) error {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	r.handleCalls = append(r.handleCalls, msg)
+	return r.HandleError
+}
+
+func (r *rawMessageHandlerMock) HandleCalls() []message.RawMessage {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	tmp := make([]message.RawMessage, len(r.handleCalls))
+	copy(tmp, r.handleCalls)
+	return tmp
 }

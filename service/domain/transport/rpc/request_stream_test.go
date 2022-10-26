@@ -1,6 +1,7 @@
 package rpc_test
 
 import (
+	"sync"
 	"testing"
 	"time"
 
@@ -8,6 +9,7 @@ import (
 	"github.com/planetary-social/scuttlego/fixtures"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/transport"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -305,7 +307,7 @@ func TestRequestStream_IncomingMessagesReturnsClosedChannelIfStreamIsClosed(t *t
 		}, timeout, 10*time.Millisecond)
 }
 
-func TestRequestStream_IncomingMessagesReceivesIncomingMessages(t *testing.T) {
+func TestRequestStream_IncomingMessagesReceivesIncomingMessagesAndThenClosesWhenStreamCloses(t *testing.T) {
 	ctx := fixtures.TestContext(t)
 	sender := NewSenderMock()
 
@@ -318,13 +320,17 @@ func TestRequestStream_IncomingMessagesReceivesIncomingMessages(t *testing.T) {
 	require.NoError(t, err)
 
 	var incomingMessages []rpc.IncomingMessage
+	var incomingMessagesLock sync.Mutex
 
 	doneCh := make(chan struct{})
 
 	go func() {
 		defer close(doneCh)
+
 		for v := range ch {
+			incomingMessagesLock.Lock()
 			incomingMessages = append(incomingMessages, v)
+			incomingMessagesLock.Unlock()
 		}
 	}()
 
@@ -332,6 +338,22 @@ func TestRequestStream_IncomingMessagesReceivesIncomingMessages(t *testing.T) {
 
 	err = stream.HandleNewMessage(msg)
 	require.NoError(t, err)
+
+	require.Eventually(t,
+		func() bool {
+			incomingMessagesLock.Lock()
+			defer incomingMessagesLock.Unlock()
+
+			return assert.ObjectsAreEqual(
+				[]rpc.IncomingMessage{
+					{
+						Body: msg.Body,
+					},
+				},
+				incomingMessages,
+			)
+		},
+		1*time.Second, 10*time.Millisecond)
 
 	err = stream.CloseWithError(nil)
 	require.NoError(t, err)
@@ -342,15 +364,6 @@ func TestRequestStream_IncomingMessagesReceivesIncomingMessages(t *testing.T) {
 	case <-doneCh:
 		t.Log("ok, the channel was closed")
 	}
-
-	require.Equal(t,
-		[]rpc.IncomingMessage{
-			{
-				Body: msg.Body,
-			},
-		},
-		incomingMessages,
-	)
 }
 
 func someDuplexIncomingMessage(t *testing.T, requestNumber int) transport.Message {

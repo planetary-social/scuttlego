@@ -25,17 +25,44 @@ var (
 	// ErrRemoteEnd signals that the remote closed the stream but didn't signal
 	// that an error occurred.
 	ErrRemoteEnd = errors.New("remote end")
-
-	// ErrRemoteError signals that the remote closed the stream with an error.
-	ErrRemoteError = errors.New("remote error")
 )
+
+type RemoteError struct {
+	response []byte
+}
+
+func NewRemoteError(response []byte) error {
+	return &RemoteError{response: response}
+}
+
+func (e RemoteError) Error() string {
+	return "remote returned an error"
+}
+
+func (e RemoteError) Response() []byte {
+	return e.response
+}
+
+func (e RemoteError) As(target interface{}) bool {
+	if v, ok := target.(*RemoteError); ok {
+		*v = e
+		return true
+	}
+	return false
+}
+
+func (e RemoteError) Is(target error) bool {
+	_, ok1 := target.(*RemoteError)
+	_, ok2 := target.(RemoteError)
+	return ok1 || ok2
+}
 
 // todo private fields and constructor
 type ResponseWithError struct {
 	// Value is only set if Err is nil.
 	Value *Response
 
-	// If Err is not nil then it may be one of ErrRemoteEnd, ErrRemoteError or a
+	// If Err is not nil then it may be of ErrRemoteEnd, RemoteError or a
 	// different error.
 	Err error
 }
@@ -240,5 +267,5 @@ func (rs responseStream) guessError(body []byte) error {
 	if bytes.Equal([]byte("true"), body) {
 		return ErrRemoteEnd
 	}
-	return ErrRemoteError
+	return NewRemoteError(body)
 }

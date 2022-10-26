@@ -87,7 +87,7 @@ func TestResponseStreams_RemoteTerminationWithAnErrorReturnsErrRemoteError(t *te
 	select {
 	case resp, ok := <-stream.Channel():
 		require.True(t, ok)
-		require.ErrorIs(t, resp.Err, rpc.ErrRemoteError)
+		require.ErrorIs(t, resp.Err, &rpc.RemoteError{})
 	case <-time.After(5 * time.Second):
 		t.Fatal("channel was not released")
 	}
@@ -275,6 +275,36 @@ func TestResponseStreams_ReturnsImplementationForWhichWriteMessageWorksOnlyForDu
 			}
 		})
 	}
+}
+
+func TestErrRemoteError_Is(t *testing.T) {
+	require.False(t, errors.Is(errors.New("some error"), rpc.RemoteError{}))
+	require.True(t, errors.Is(rpc.NewRemoteError(nil), rpc.RemoteError{}))
+	require.True(t, errors.Is(rpc.NewRemoteError(nil), &rpc.RemoteError{}))
+	require.True(t, errors.Is(errors.Wrap(rpc.NewRemoteError(nil), "wrap"), rpc.RemoteError{}))
+	require.True(t, errors.Is(errors.Wrap(rpc.NewRemoteError(nil), "wrap"), &rpc.RemoteError{}))
+}
+
+func TestErrRemoteError_As(t *testing.T) {
+	v := fixtures.SomeBytes()
+
+	var err1 rpc.RemoteError
+	require.True(t, errors.As(rpc.NewRemoteError(v), &err1))
+	require.Equal(t, v, err1.Response())
+
+	var err2 rpc.RemoteError
+	require.True(t, errors.As(errors.Wrap(rpc.NewRemoteError(v), "wrap"), &err2))
+	require.Equal(t, v, err2.Response())
+
+	var err3 someError
+	require.False(t, errors.As(rpc.NewRemoteError(v), &err3))
+}
+
+type someError struct {
+}
+
+func (s someError) Error() string {
+	panic("this is a test type and we should never call this function")
 }
 
 func someRequest() *rpc.Request {

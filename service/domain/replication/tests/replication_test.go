@@ -48,7 +48,7 @@ func TestReplicationFallsBackToCreateHistoryStream(t *testing.T) {
 		return []rpc.ResponseWithError{
 			{
 				Value: nil,
-				Err:   rpc.ErrRemoteError,
+				Err:   rpc.NewRemoteError(nil),
 			},
 		}
 	})

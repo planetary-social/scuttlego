@@ -57,7 +57,7 @@ func (r *OutgoingStreamAdapter) IncomingMessages(ctx context.Context) <-chan Inc
 
 func (r *OutgoingStreamAdapter) parseErr(err error) error {
 	if err != nil {
-		if errors.Is(err, rpc.ErrRemoteError) {
+		if errors.Is(err, rpc.RemoteError{}) {
 			return replication.ErrPeerDoesNotSupportEBT
 		}
 		return errors.Wrap(err, "stream returned an error")

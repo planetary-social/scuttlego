@@ -78,7 +78,7 @@ func TestRoomsAliasRevokeHandler_RemoteTerminatesWithAnError(t *testing.T) {
 			return []rpc.ResponseWithError{
 				{
 					Value: nil,
-					Err:   rpc.ErrRemoteError,
+					Err:   rpc.RemoteError{},
 				},
 			}
 		},
@@ -94,7 +94,7 @@ func TestRoomsAliasRevokeHandler_RemoteTerminatesWithAnError(t *testing.T) {
 	require.NoError(t, err)
 
 	err = c.RoomsAliasRevoke.Handle(ctx, cmd)
-	require.EqualError(t, err, "received an unexpected error value: remote error")
+	require.EqualError(t, err, "received an unexpected error value: remote returned an error")
 }
 
 func TestRoomsAliasRevokeHandler_RemoteTerminatesCleanly(t *testing.T) {

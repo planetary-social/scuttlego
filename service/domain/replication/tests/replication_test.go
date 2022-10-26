@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"context"
 	"sync"
 	"testing"
 	"time"
@@ -52,9 +53,12 @@ func TestReplicationFallsBackToCreateHistoryStream(t *testing.T) {
 		}
 	})
 
+	replicateCtx, replicateCancel := context.WithCancel(ctx)
+	defer replicateCancel()
+
+	errCh := make(chan error)
 	go func() {
-		err = tr.Negotiator.Replicate(ctx, peer)
-		t.Log("replicate error", err)
+		errCh <- tr.Negotiator.Replicate(replicateCtx, peer)
 	}()
 
 	require.Eventually(t, func() bool {
@@ -75,4 +79,13 @@ func TestReplicationFallsBackToCreateHistoryStream(t *testing.T) {
 
 		return true
 	}, 1*time.Second, 10*time.Millisecond)
+
+	replicateCancel()
+
+	select {
+	case err := <-errCh:
+		require.NoError(t, err)
+	case <-time.After(1 * time.Second):
+		t.Fatal("timeout")
+	}
 }

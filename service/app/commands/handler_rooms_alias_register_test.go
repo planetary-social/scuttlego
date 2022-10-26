@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRoomsAliasRegisterHandler(t *testing.T) {
+func TestRoomsAliasRegisterHandler_RemoteReturnsSomeData(t *testing.T) {
 	c, err := di.BuildTestCommands(t)
 	require.NoError(t, err)
 
@@ -58,7 +58,7 @@ func TestRoomsAliasRegisterHandler(t *testing.T) {
 	require.Equal(t, expectedAliasString, aliasURL.String())
 }
 
-func TestRoomsAliasRegisterHandler_RemoteReturnsAnError(t *testing.T) {
+func TestRoomsAliasRegisterHandler_RemoteTerminatesWithAnError(t *testing.T) {
 	c, err := di.BuildTestCommands(t)
 	require.NoError(t, err)
 

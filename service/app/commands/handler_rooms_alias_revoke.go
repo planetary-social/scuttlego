@@ -2,7 +2,6 @@ package commands
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/boreq/errors"
@@ -99,8 +98,8 @@ func (h *RoomsAliasRevokeHandler) Handle(ctx context.Context, cmd RoomsAliasRevo
 		return errors.New("channel closed")
 	}
 
-	if err := response.Err; !errors.Is(err, rpc.ErrRemoteEnd) {
-		return fmt.Errorf("received an unexpected error value: %s", err)
+	if err := response.Err; err != nil {
+		return errors.Wrap(err, "received an error")
 	}
 
 	return nil

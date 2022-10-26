@@ -7,16 +7,16 @@ import (
 	"go.etcd.io/bbolt"
 )
 
-type ReadWantListRepository struct {
+type ReadBlobWantListRepository struct {
 	db      *bbolt.DB
 	factory TxRepositoriesFactory
 }
 
-func NewReadWantListRepository(db *bbolt.DB, factory TxRepositoriesFactory) *ReadWantListRepository {
-	return &ReadWantListRepository{db: db, factory: factory}
+func NewReadBlobWantListRepository(db *bbolt.DB, factory TxRepositoriesFactory) *ReadBlobWantListRepository {
+	return &ReadBlobWantListRepository{db: db, factory: factory}
 }
 
-func (b ReadWantListRepository) List() (blobs.WantList, error) {
+func (b ReadBlobWantListRepository) List() (blobs.WantList, error) {
 	var result []blobs.WantedBlob
 
 	if err := b.db.Batch(func(tx *bbolt.Tx) error {
@@ -25,7 +25,7 @@ func (b ReadWantListRepository) List() (blobs.WantList, error) {
 			return errors.Wrap(err, "could not call the factory")
 		}
 
-		list, err := r.WantList.List()
+		list, err := r.BlobWantList.List()
 		if err != nil {
 			return errors.Wrap(err, "could not get blobs")
 		}
@@ -45,7 +45,7 @@ func (b ReadWantListRepository) List() (blobs.WantList, error) {
 	return blobs.NewWantList(result)
 }
 
-func (b ReadWantListRepository) Contains(id refs.Blob) (bool, error) {
+func (b ReadBlobWantListRepository) Contains(id refs.Blob) (bool, error) {
 	var result bool
 
 	if err := b.db.View(func(tx *bbolt.Tx) error {
@@ -54,7 +54,7 @@ func (b ReadWantListRepository) Contains(id refs.Blob) (bool, error) {
 			return errors.Wrap(err, "could not call the factory")
 		}
 
-		contains, err := r.WantList.Contains(id)
+		contains, err := r.BlobWantList.Contains(id)
 		if err != nil {
 			return errors.Wrap(err, "could not get blobs")
 		}
@@ -68,14 +68,14 @@ func (b ReadWantListRepository) Contains(id refs.Blob) (bool, error) {
 	return result, nil
 }
 
-func (b ReadWantListRepository) Delete(id refs.Blob) error {
+func (b ReadBlobWantListRepository) Delete(id refs.Blob) error {
 	if err := b.db.Batch(func(tx *bbolt.Tx) error {
 		r, err := b.factory(tx)
 		if err != nil {
 			return errors.Wrap(err, "could not call the factory")
 		}
 
-		return r.WantList.Delete(id)
+		return r.BlobWantList.Delete(id)
 	}); err != nil {
 		return errors.Wrap(err, "transaction failed")
 	}

@@ -76,7 +76,8 @@ func BuildTxTestAdapters(tx *bbolt.Tx) (TxTestAdapters, error) {
 	blobRepository := bolt.NewBlobRepository(tx)
 	feedRepository := bolt.NewFeedRepository(tx, socialGraphRepository, receiveLogRepository, messageRepository, pubRepository, blobRepository, banListRepository, scuttlebutt)
 	currentTimeProviderMock := mocks.NewCurrentTimeProviderMock()
-	wantListRepository := bolt.NewWantListRepository(tx, currentTimeProviderMock)
+	blobWantListRepository := bolt.NewBlobWantListRepository(tx, currentTimeProviderMock)
+	feedWantListRepository := bolt.NewFeedWantListRepository(tx, currentTimeProviderMock)
 	txTestAdapters := TxTestAdapters{
 		MessageRepository:     messageRepository,
 		FeedRepository:        feedRepository,
@@ -84,7 +85,8 @@ func BuildTxTestAdapters(tx *bbolt.Tx) (TxTestAdapters, error) {
 		SocialGraphRepository: socialGraphRepository,
 		PubRepository:         pubRepository,
 		ReceiveLog:            receiveLogRepository,
-		WantList:              wantListRepository,
+		BlobWantList:          blobWantListRepository,
+		FeedWantList:          feedWantListRepository,
 		BanList:               banListRepository,
 		CurrentTimeProvider:   currentTimeProviderMock,
 		BanListHasher:         banListHasherMock,
@@ -226,13 +228,13 @@ func BuildTransactableAdapters(tx *bbolt.Tx, public identity.Public, config Conf
 	blobRepository := bolt.NewBlobRepository(tx)
 	feedRepository := bolt.NewFeedRepository(tx, socialGraphRepository, receiveLogRepository, messageRepository, pubRepository, blobRepository, banListRepository, scuttlebutt)
 	currentTimeProvider := adapters.NewCurrentTimeProvider()
-	wantListRepository := bolt.NewWantListRepository(tx, currentTimeProvider)
-	feedWantListRepositoryMock := mocks.NewFeedWantListRepositoryMock()
+	blobWantListRepository := bolt.NewBlobWantListRepository(tx, currentTimeProvider)
+	feedWantListRepository := bolt.NewFeedWantListRepository(tx, currentTimeProvider)
 	commandsAdapters := commands.Adapters{
 		Feed:         feedRepository,
 		SocialGraph:  socialGraphRepository,
-		BlobWantList: wantListRepository,
-		FeedWantList: feedWantListRepositoryMock,
+		BlobWantList: blobWantListRepository,
+		FeedWantList: feedWantListRepository,
 		BanList:      banListRepository,
 	}
 	return commandsAdapters, nil
@@ -261,14 +263,14 @@ func BuildTxRepositories(tx *bbolt.Tx, public identity.Public, logger logging.Lo
 	blobRepository := bolt.NewBlobRepository(tx)
 	feedRepository := bolt.NewFeedRepository(tx, socialGraphRepository, receiveLogRepository, messageRepository, pubRepository, blobRepository, banListRepository, scuttlebutt)
 	currentTimeProvider := adapters.NewCurrentTimeProvider()
-	wantListRepository := bolt.NewWantListRepository(tx, currentTimeProvider)
+	blobWantListRepository := bolt.NewBlobWantListRepository(tx, currentTimeProvider)
 	txRepositories := bolt.TxRepositories{
-		Feed:       feedRepository,
-		Graph:      socialGraphRepository,
-		ReceiveLog: receiveLogRepository,
-		Message:    messageRepository,
-		Blob:       blobRepository,
-		WantList:   wantListRepository,
+		Feed:         feedRepository,
+		Graph:        socialGraphRepository,
+		ReceiveLog:   receiveLogRepository,
+		Message:      messageRepository,
+		Blob:         blobRepository,
+		BlobWantList: blobWantListRepository,
 	}
 	return txRepositories, nil
 }
@@ -333,15 +335,15 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 		return Service{}, err
 	}
 	negotiator := replication.NewNegotiator(logger, replicator, gossipReplicator)
-	readWantListRepository := bolt.NewReadWantListRepository(db, txRepositoriesFactory)
+	readBlobWantListRepository := bolt.NewReadBlobWantListRepository(db, txRepositoriesFactory)
 	filesystemStorage, err := newFilesystemStorage(logger, config)
 	if err != nil {
 		return Service{}, err
 	}
 	blobsGetDownloader := replication2.NewBlobsGetDownloader(filesystemStorage, logger)
 	blobDownloadedPubSub := pubsub.NewBlobDownloadedPubSub()
-	hasHandler := replication2.NewHasHandler(filesystemStorage, readWantListRepository, blobsGetDownloader, blobDownloadedPubSub, logger)
-	replicationManager := replication2.NewManager(readWantListRepository, filesystemStorage, hasHandler, logger)
+	hasHandler := replication2.NewHasHandler(filesystemStorage, readBlobWantListRepository, blobsGetDownloader, blobDownloadedPubSub, logger)
+	replicationManager := replication2.NewManager(readBlobWantListRepository, filesystemStorage, hasHandler, logger)
 	replicationReplicator := replication2.NewReplicator(replicationManager)
 	peerRPCAdapter := rooms.NewPeerRPCAdapter(logger)
 	roomAttendantEventPubSub := pubsub.NewRoomAttendantEventPubSub()
@@ -450,7 +452,8 @@ type TxTestAdapters struct {
 	SocialGraphRepository *bolt.SocialGraphRepository
 	PubRepository         *bolt.PubRepository
 	ReceiveLog            *bolt.ReceiveLogRepository
-	WantList              *bolt.WantListRepository
+	BlobWantList          *bolt.BlobWantListRepository
+	FeedWantList          *bolt.FeedWantListRepository
 	BanList               *bolt.BanListRepository
 
 	CurrentTimeProvider *mocks.CurrentTimeProviderMock

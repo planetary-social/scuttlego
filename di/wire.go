@@ -41,7 +41,8 @@ type TxTestAdapters struct {
 	SocialGraphRepository *bolt.SocialGraphRepository
 	PubRepository         *bolt.PubRepository
 	ReceiveLog            *bolt.ReceiveLogRepository
-	WantList              *bolt.WantListRepository
+	BlobWantList          *bolt.BlobWantListRepository
+	FeedWantList          *bolt.FeedWantListRepository
 	BanList               *bolt.BanListRepository
 
 	CurrentTimeProvider *mocks.CurrentTimeProviderMock

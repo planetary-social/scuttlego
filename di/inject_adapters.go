@@ -29,9 +29,12 @@ var txBoltAdaptersSet = wire.NewSet(
 	bolt.NewSocialGraphRepository,
 	wire.Bind(new(commands.SocialGraphRepository), new(*bolt.SocialGraphRepository)),
 
-	bolt.NewWantListRepository,
-	wire.Bind(new(commands.BlobWantListRepository), new(*bolt.WantListRepository)),
-	wire.Bind(new(blobReplication.WantListRepository), new(*bolt.WantListRepository)),
+	bolt.NewBlobWantListRepository,
+	wire.Bind(new(commands.BlobWantListRepository), new(*bolt.BlobWantListRepository)),
+	wire.Bind(new(blobReplication.WantListRepository), new(*bolt.BlobWantListRepository)),
+
+	bolt.NewFeedWantListRepository,
+	wire.Bind(new(commands.FeedWantListRepository), new(*bolt.FeedWantListRepository)),
 
 	bolt.NewBanListRepository,
 	wire.Bind(new(commands.BanListRepository), new(*bolt.BanListRepository)),
@@ -40,9 +43,6 @@ var txBoltAdaptersSet = wire.NewSet(
 	bolt.NewMessageRepository,
 	bolt.NewPubRepository,
 	bolt.NewBlobRepository,
-
-	mocks.NewFeedWantListRepositoryMock,
-	wire.Bind(new(commands.FeedWantListRepository), new(*mocks.FeedWantListRepositoryMock)), // todo change to real impl
 )
 
 //nolint:unused
@@ -59,9 +59,9 @@ var boltAdaptersSet = wire.NewSet(
 	bolt.NewReadMessageRepository,
 	wire.Bind(new(queries.MessageRepository), new(*bolt.ReadMessageRepository)),
 
-	bolt.NewReadWantListRepository,
-	wire.Bind(new(blobReplication.WantListStorage), new(*bolt.ReadWantListRepository)),
-	wire.Bind(new(blobReplication.WantListRepository), new(*bolt.ReadWantListRepository)),
+	bolt.NewReadBlobWantListRepository,
+	wire.Bind(new(blobReplication.WantListStorage), new(*bolt.ReadBlobWantListRepository)),
+	wire.Bind(new(blobReplication.WantListRepository), new(*bolt.ReadBlobWantListRepository)),
 
 	newTxRepositoriesFactory,
 )

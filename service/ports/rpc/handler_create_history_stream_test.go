@@ -54,8 +54,10 @@ func TestCreateHistoryStream(t *testing.T) {
 			msg := fixtures.SomeMessage(fixtures.SomeSequence(), fixtures.SomeRefFeed())
 			err := queryHandler.Calls[0].ResponseWriter.WriteMessage(msg)
 			require.NoError(t, err)
-			require.Len(t, s.WrittenMessages, 1)
-			for _, body := range s.WrittenMessages {
+
+			msgs := s.WrittenMessages()
+			require.Len(t, msgs, 1)
+			for _, body := range msgs {
 				keyJSON := []byte(`"key":`)
 				require.Equal(t, testCase.ContainsKeys, bytes.Contains(body, keyJSON))
 			}

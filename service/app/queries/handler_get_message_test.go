@@ -33,6 +33,6 @@ func TestGetMessageBySequenceHandler(t *testing.T) {
 				Seq:  sequence,
 			},
 		},
-		tq.FeedRepository.GetMessageCalls,
+		tq.FeedRepository.GetMessageCalls(),
 	)
 }

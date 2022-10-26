@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -334,7 +335,8 @@ func TestIncomingRequests(t *testing.T) {
 		},
 	}
 
-	for _, testCase := range testCases {
+	for i := range testCases {
+		testCase := testCases[i]
 		t.Run(testCase.Name, func(t *testing.T) {
 			t.Parallel()
 
@@ -448,11 +450,11 @@ func TestPrematureTerminationByRemote(t *testing.T) {
 			logger := fixtures.SomeLogger()
 			raw := newRawConnectionMock()
 
-			var requestHandlerTerminatedCorrectly bool
+			var requestHandlerTerminatedCorrectly atomic.Bool
 
 			handler := newRequestHandlerFunc(func(ctx context.Context, s rpc.Stream, req *rpc.Request) {
 				testCase.Handler(ctx, s, req)
-				requestHandlerTerminatedCorrectly = true
+				requestHandlerTerminatedCorrectly.Store(true)
 			})
 
 			conn, err := rpc.NewConnection(ctx, fixtures.SomeConnectionId(), fixtures.SomeBool(), raw, handler, logger)
@@ -484,7 +486,7 @@ func TestPrematureTerminationByRemote(t *testing.T) {
 				},
 			)
 
-			require.Eventually(t, func() bool { return requestHandlerTerminatedCorrectly }, 1*time.Second, 10*time.Millisecond)
+			require.Eventually(t, func() bool { return requestHandlerTerminatedCorrectly.Load() }, 1*time.Second, 10*time.Millisecond)
 			require.Equal(t, testCase.ExpectedSentMessages, raw.SentMessages())
 		})
 	}

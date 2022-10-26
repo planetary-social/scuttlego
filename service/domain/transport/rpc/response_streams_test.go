@@ -2,6 +2,7 @@ package rpc_test
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -23,14 +24,14 @@ func TestResponseStreams_RemoteTerminationReturnsErrRemoteEnd(t *testing.T) {
 	stream, err := streams.Open(ctx, req)
 	require.NoError(t, err)
 
-	require.Len(t, sender.calls, 1, "opening the stream should send a request")
+	require.Len(t, sender.SendCalls(), 1, "opening the stream should send a request")
 
 	go func() {
-		response := createResponse(sender.calls[0])
+		response := createResponse(sender.SendCalls()[0])
 		err := streams.HandleIncomingResponse(response)
 		require.NoError(t, err)
 
-		termination := createCleanTermination(sender.calls[0])
+		termination := createCleanTermination(sender.SendCalls()[0])
 		err = streams.HandleIncomingResponse(termination)
 		require.NoError(t, err)
 	}()
@@ -63,14 +64,14 @@ func TestResponseStreams_RemoteTerminationWithAnErrorReturnsErrRemoteError(t *te
 	stream, err := streams.Open(ctx, req)
 	require.NoError(t, err)
 
-	require.Len(t, sender.calls, 1, "opening the stream should send a request")
+	require.Len(t, sender.SendCalls(), 1, "opening the stream should send a request")
 
 	go func() {
-		response := createResponse(sender.calls[0])
+		response := createResponse(sender.SendCalls()[0])
 		err := streams.HandleIncomingResponse(response)
 		require.NoError(t, err)
 
-		termination := createErrorTermination(sender.calls[0])
+		termination := createErrorTermination(sender.SendCalls()[0])
 		err = streams.HandleIncomingResponse(termination)
 		require.NoError(t, err)
 	}()
@@ -103,7 +104,7 @@ func TestResponseStreams_ContextTerminationClosesTheChannel(t *testing.T) {
 	stream, err := streams.Open(ctx, req)
 	require.NoError(t, err)
 
-	require.Len(t, sender.calls, 1, "opening the stream should send a request")
+	require.Len(t, sender.SendCalls(), 1, "opening the stream should send a request")
 
 	cancel()
 
@@ -157,14 +158,14 @@ func TestResponseStreams_RequestsAndInStreamMessagesAreCorrectlyMarshaledInDuple
 	}
 
 	require.Eventually(t, func() bool {
-		return len(sender.calls) == len(expectedMessages)
+		return len(sender.SendCalls()) == len(expectedMessages)
 	}, time.Second, 10*time.Millisecond)
 
 	for i := range expectedMessages {
 		t.Log(i)
 
 		expected := expectedMessages[i]
-		actual := sender.calls[i]
+		actual := sender.SendCalls()[i]
 
 		require.Equal(t, expected.Flags, actual.Header.Flags())
 		require.Equal(t, expected.RequestNumber, actual.Header.RequestNumber())
@@ -347,6 +348,7 @@ func createErrorTermination(req *transport.Message) *transport.Message {
 
 type SenderMock struct {
 	calls []*transport.Message
+	lock  sync.Mutex
 }
 
 func NewSenderMock() *SenderMock {
@@ -354,6 +356,18 @@ func NewSenderMock() *SenderMock {
 }
 
 func (s *SenderMock) Send(msg *transport.Message) error {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
 	s.calls = append(s.calls, msg)
 	return nil
+}
+
+func (s *SenderMock) SendCalls() []*transport.Message {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	tmp := make([]*transport.Message, len(s.calls))
+	copy(tmp, s.calls)
+	return tmp
 }

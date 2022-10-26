@@ -343,7 +343,7 @@ func TestRequestStream_IncomingMessagesReceivesIncomingMessagesAndThenClosesWhen
 		func() bool {
 			incomingMessagesLock.Lock()
 			defer incomingMessagesLock.Unlock()
-		
+
 			return assert.ObjectsAreEqual(
 				[]rpc.IncomingMessage{
 					{

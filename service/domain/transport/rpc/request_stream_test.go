@@ -341,6 +341,9 @@ func TestRequestStream_IncomingMessagesReceivesIncomingMessagesAndThenClosesWhen
 
 	require.Eventually(t,
 		func() bool {
+			incomingMessagesLock.Lock()
+			defer incomingMessagesLock.Unlock()
+		
 			return assert.ObjectsAreEqual(
 				[]rpc.IncomingMessage{
 					{

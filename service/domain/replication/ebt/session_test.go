@@ -184,7 +184,7 @@ func TestSession_NotesWithReceiveOrReplicateSetToFalseCallRequestedFeedsCancel(t
 	}
 }
 
-func TestSession_ErrorWhenProcessingRawMessagesDontTerminateTheSession(t *testing.T) {
+func TestSession_ErrorsWhenProcessingRawMessagesDontTerminateTheSession(t *testing.T) {
 	s := newTestSession(t)
 
 	s.RawMessageHandler.HandleError = fixtures.SomeError()

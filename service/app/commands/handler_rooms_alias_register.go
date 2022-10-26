@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/boreq/errors"
@@ -12,6 +13,8 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/rooms/aliases"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 )
+
+var ErrRoomAliasAlreadyTaken = errors.New("alias is already taken")
 
 type RoomsAliasRegister struct {
 	room    refs.Identity
@@ -96,6 +99,12 @@ func (h *RoomsAliasRegisterHandler) Handle(ctx context.Context, cmd RoomsAliasRe
 
 	response, err := h.registerAlias(ctx, cmd, signature)
 	if err != nil {
+		var errRemote rpc.RemoteError
+		if errors.As(err, &errRemote) {
+			if strings.Contains(string(errRemote.Response()), "is already taken") {
+				return aliases.AliasEndpointURL{}, ErrRoomAliasAlreadyTaken
+			}
+		}
 		return aliases.AliasEndpointURL{}, errors.Wrap(err, "could not contact the pub and redeem the invite")
 	}
 

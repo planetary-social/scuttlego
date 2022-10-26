@@ -9,7 +9,7 @@ package tests
 import (
 	"testing"
 
-	"github.com/planetary-social/scuttlego/fixtures"
+	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/domain/replication"
 	"github.com/planetary-social/scuttlego/service/domain/replication/ebt"
 	"github.com/planetary-social/scuttlego/service/domain/replication/gossip"
@@ -18,20 +18,20 @@ import (
 // Injectors from wire.go:
 
 func BuildTestReplication(t *testing.T) (TestReplication, error) {
-	logger := fixtures.TestLogger(t)
+	devNullLogger := logging.NewDevNullLogger()
 	sessionTracker := ebt.NewSessionTracker()
 	rawMessageHandlerMock := NewRawMessageHandlerMock()
 	contactsRepositoryMock := NewContactsRepositoryMock()
 	contactsCache := replication.NewContactsCache(contactsRepositoryMock)
 	messageStreamerMock := NewMessageStreamerMock()
-	sessionRunner := ebt.NewSessionRunner(logger, rawMessageHandlerMock, contactsCache, messageStreamerMock)
-	replicator := ebt.NewReplicator(sessionTracker, sessionRunner, logger)
-	manager := gossip.NewManager(logger, contactsCache)
-	gossipReplicator, err := gossip.NewGossipReplicator(manager, rawMessageHandlerMock, logger)
+	sessionRunner := ebt.NewSessionRunner(devNullLogger, rawMessageHandlerMock, contactsCache, messageStreamerMock)
+	replicator := ebt.NewReplicator(sessionTracker, sessionRunner, devNullLogger)
+	manager := gossip.NewManager(devNullLogger, contactsCache)
+	gossipReplicator, err := gossip.NewGossipReplicator(manager, rawMessageHandlerMock, devNullLogger)
 	if err != nil {
 		return TestReplication{}, err
 	}
-	negotiator := replication.NewNegotiator(logger, replicator, gossipReplicator)
+	negotiator := replication.NewNegotiator(devNullLogger, replicator, gossipReplicator)
 	testReplication := TestReplication{
 		Negotiator:         negotiator,
 		RawMessageHandler:  rawMessageHandlerMock,

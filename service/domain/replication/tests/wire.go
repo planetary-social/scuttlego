@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/google/wire"
-	"github.com/planetary-social/scuttlego/fixtures"
+	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/domain/replication"
 	"github.com/planetary-social/scuttlego/service/domain/replication/ebt"
 	"github.com/planetary-social/scuttlego/service/domain/replication/gossip"
@@ -55,7 +55,8 @@ func BuildTestReplication(t *testing.T) (TestReplication, error) {
 		NewMessageStreamerMock,
 		wire.Bind(new(ebt.MessageStreamer), new(*MessageStreamerMock)),
 
-		fixtures.TestLogger,
+		logging.NewDevNullLogger,
+		wire.Bind(new(logging.Logger), new(logging.DevNullLogger)),
 	)
 
 	return TestReplication{}, nil

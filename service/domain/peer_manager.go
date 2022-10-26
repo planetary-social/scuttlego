@@ -108,12 +108,24 @@ func (p PeerManager) Peers() []transport.Peer {
 	defer p.peersLock.Unlock()
 
 	var result []transport.Peer
-
 	for _, connectedPeer := range p.peers {
 		result = append(result, connectedPeer.peer)
 	}
-
 	return result
+}
+
+// DisconnectAll disconnects all peers.
+func (p PeerManager) DisconnectAll() error {
+	p.peersLock.Lock()
+	defer p.peersLock.Unlock()
+
+	var resultErr error
+	for _, connectedPeer := range p.peers {
+		if err := connectedPeer.peer.Conn().Close(); err != nil {
+			resultErr = multierror.Append(resultErr, err)
+		}
+	}
+	return resultErr
 }
 
 // Connect attempts to establish communications with the specified peer. If a

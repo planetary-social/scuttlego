@@ -38,6 +38,9 @@ type PeerManager interface {
 	// ProcessNewLocalDiscovery informs the peer manager about a new local
 	// discovery.
 	ProcessNewLocalDiscovery(remote identity.Public, address network.Address) error
+
+	// DisconnectAll disconnects all peers.
+	DisconnectAll() error
 }
 
 type TransactionProvider interface {

@@ -126,10 +126,12 @@ func BuildTestCommands(t *testing.T) (TestCommands, error) {
 	roomsAliasRevokeHandler := commands.NewRoomsAliasRevokeHandler(dialerMock)
 	peerManagerMock := mocks2.NewPeerManagerMock()
 	processRoomAttendantEventHandler := commands.NewProcessRoomAttendantEventHandler(peerManagerMock)
+	disconnectAllHandler := commands.NewDisconnectAllHandler(peerManagerMock)
 	testCommands := TestCommands{
 		RoomsAliasRegister:        roomsAliasRegisterHandler,
 		RoomsAliasRevoke:          roomsAliasRevokeHandler,
 		ProcessRoomAttendantEvent: processRoomAttendantEventHandler,
+		DisconnectAll:             disconnectAllHandler,
 		PeerManager:               peerManagerMock,
 		Dialer:                    dialerMock,
 	}
@@ -334,6 +336,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	scanner := rooms.NewScanner(peerRPCAdapter, peerRPCAdapter, roomAttendantEventPubSub, logger)
 	peerManager := domain.NewPeerManager(contextContext, peerManagerConfig, dialer, tunnelDialer, negotiator, replicationReplicator, scanner, logger)
 	connectHandler := commands.NewConnectHandler(peerManager, logger)
+	disconnectAllHandler := commands.NewDisconnectAllHandler(peerManager)
 	establishNewConnectionsHandler := commands.NewEstablishNewConnectionsHandler(peerManager)
 	acceptNewPeerHandler := commands.NewAcceptNewPeerHandler(peerManager)
 	processNewLocalDiscoveryHandler := commands.NewProcessNewLocalDiscoveryHandler(peerManager)
@@ -350,6 +353,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 		Follow:                    followHandler,
 		PublishRaw:                publishRawHandler,
 		Connect:                   connectHandler,
+		DisconnectAll:             disconnectAllHandler,
 		EstablishNewConnections:   establishNewConnectionsHandler,
 		AcceptNewPeer:             acceptNewPeerHandler,
 		ProcessNewLocalDiscovery:  processNewLocalDiscoveryHandler,
@@ -451,6 +455,7 @@ type TestCommands struct {
 	RoomsAliasRegister        *commands.RoomsAliasRegisterHandler
 	RoomsAliasRevoke          *commands.RoomsAliasRevokeHandler
 	ProcessRoomAttendantEvent *commands.ProcessRoomAttendantEventHandler
+	DisconnectAll             *commands.DisconnectAllHandler
 
 	PeerManager *mocks2.PeerManagerMock
 	Dialer      *mocks.DialerMock

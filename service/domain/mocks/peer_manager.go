@@ -10,6 +10,16 @@ import (
 type PeerManagerMock struct {
 	connectViaRoomCalls []PeerManagerConnectViaRoomCall
 	peersReturnValue    []transport.Peer
+	disconnectAllCalls  int
+}
+
+func (p *PeerManagerMock) DisconnectAllCalls() int {
+	return p.disconnectAllCalls
+}
+
+func (p *PeerManagerMock) DisconnectAll() error {
+	p.disconnectAllCalls++
+	return nil
 }
 
 func NewPeerManagerMock() *PeerManagerMock {

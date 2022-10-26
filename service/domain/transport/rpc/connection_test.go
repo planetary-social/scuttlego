@@ -338,6 +338,9 @@ func TestIncomingRequests(t *testing.T) {
 	for i := range testCases {
 		testCase := testCases[i]
 		t.Run(testCase.Name, func(t *testing.T) {
+			if testCase.Name == "duplex" {
+				t.Skip("#109")
+			}
 			t.Parallel()
 
 			ctx := fixtures.TestContext(t)

@@ -77,7 +77,7 @@ func (s Scanner) Run(ctx context.Context, peer transport.Peer) error {
 func (s Scanner) canTunnelConnections(ctx context.Context, peer transport.Peer) (bool, error) {
 	metadata, err := s.metadataGetter.GetMetadata(ctx, peer)
 	if err != nil {
-		if errors.Is(err, rpc.ErrRemoteError) {
+		if errors.Is(err, rpc.RemoteError{}) {
 			return false, nil // most likely this is not a room at all
 		}
 		return false, errors.Wrap(err, "error getting metadata")

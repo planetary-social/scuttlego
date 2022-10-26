@@ -67,7 +67,7 @@ func (d *BlobsGetDownloader) Download(ctx context.Context, peer transport.Peer, 
 func (d *BlobsGetDownloader) copyBlobContent(pipeWriter *io.PipeWriter, rs rpc.ResponseStream) error {
 	for chunk := range rs.Channel() {
 		if err := chunk.Err; err != nil {
-			if errors.Is(err, rpc.ErrRemoteError) || errors.Is(err, rpc.ErrRemoteEnd) {
+			if errors.Is(err, rpc.RemoteError{}) || errors.Is(err, rpc.ErrRemoteEnd) {
 				break // todo can be an error or a real end of stream; is our rpc interface wrong?
 				// todo interface has changed update?
 			}

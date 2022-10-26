@@ -24,6 +24,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/feeds/formats"
 	"github.com/planetary-social/scuttlego/service/domain/graph"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
+	"github.com/planetary-social/scuttlego/service/domain/invites"
 	domainmocks "github.com/planetary-social/scuttlego/service/domain/mocks"
 	"github.com/planetary-social/scuttlego/service/domain/network/local"
 	"github.com/planetary-social/scuttlego/service/domain/replication"
@@ -99,11 +100,13 @@ type TestCommands struct {
 	ProcessRoomAttendantEvent *commands.ProcessRoomAttendantEventHandler
 	DisconnectAll             *commands.DisconnectAllHandler
 	DownloadFeed              *commands.DownloadFeedHandler
+	RedeemInvite              *commands.RedeemInviteHandler
 
 	PeerManager            *domainmocks.PeerManagerMock
 	Dialer                 *mocks.DialerMock
 	FeedWantListRepository *mocks.FeedWantListRepositoryMock
 	CurrentTimeProvider    *mocks.CurrentTimeProviderMock
+	InviteRedeemer         *mocks.InviteRedeemerMock
 }
 
 func BuildTestCommands(*testing.T) (TestCommands, error) {
@@ -128,6 +131,11 @@ func BuildTestCommands(*testing.T) (TestCommands, error) {
 
 		mocks.NewCurrentTimeProviderMock,
 		wire.Bind(new(commands.CurrentTimeProvider), new(*mocks.CurrentTimeProviderMock)),
+
+		mocks.NewInviteRedeemerMock,
+		wire.Bind(new(commands.InviteRedeemer), new(*mocks.InviteRedeemerMock)),
+
+		fixtures.TestLogger,
 
 		wire.Struct(new(TestCommands), "*"),
 	)
@@ -241,6 +249,9 @@ func BuildService(context.Context, identity.Private, Config) (Service, error) {
 
 		tunnel.NewDialer,
 		wire.Bind(new(domain.RoomDialer), new(*tunnel.Dialer)),
+
+		invites.NewInviteRedeemer,
+		wire.Bind(new(commands.InviteRedeemer), new(*invites.InviteRedeemer)),
 
 		portsSet,
 		applicationSet,

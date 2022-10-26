@@ -2,6 +2,7 @@ package di
 
 import (
 	"github.com/google/wire"
+	invitesadapters "github.com/planetary-social/scuttlego/service/adapters/invites"
 	"github.com/planetary-social/scuttlego/service/app/commands"
 	"github.com/planetary-social/scuttlego/service/app/queries"
 	"github.com/planetary-social/scuttlego/service/domain"
@@ -28,4 +29,5 @@ var networkingSet = wire.NewSet(
 	wire.Bind(new(commands.Dialer), new(*network.Dialer)),
 	wire.Bind(new(queries.Dialer), new(*network.Dialer)),
 	wire.Bind(new(domain.Dialer), new(*network.Dialer)),
+	wire.Bind(new(invitesadapters.Dialer), new(*network.Dialer)),
 )

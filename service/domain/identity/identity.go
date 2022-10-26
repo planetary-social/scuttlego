@@ -73,6 +73,14 @@ func NewPrivateFromSeed(seed []byte) (Private, error) {
 	return Private{ed25519.NewKeyFromSeed(seed)}, nil
 }
 
+func MustNewPrivateFromSeed(seed []byte) Private {
+	v, err := NewPrivateFromSeed(seed)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
 func (p Private) Public() Public {
 	return NewPublicFromPrivate(p)
 }

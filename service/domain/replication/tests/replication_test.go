@@ -44,15 +44,6 @@ func TestReplicationFallsBackToCreateHistoryStream(t *testing.T) {
 		t.Log("handler received: ", req.Name().String())
 		requests = append(requests, req)
 
-		if req.Name().Equal(messages.EbtReplicateProcedure.Name()) {
-			return []rpc.ResponseWithError{
-				{
-					Value: nil,
-					Err:   rpc.ErrRemoteError,
-				},
-			}
-		}
-
 		return []rpc.ResponseWithError{
 			{
 				Value: nil,
@@ -70,12 +61,16 @@ func TestReplicationFallsBackToCreateHistoryStream(t *testing.T) {
 		requestsLock.Lock()
 		defer requestsLock.Unlock()
 
+		var calledEbt, calledChs bool
 		for _, req := range requests {
 			if req.Name().Equal(messages.CreateHistoryStreamProcedure.Name()) {
-				return true
+				calledChs = true
+			}
+			if req.Name().Equal(messages.EbtReplicateProcedure.Name()) {
+				calledEbt = true
 			}
 		}
 
-		return false
+		return calledEbt && calledChs
 	}, 1*time.Second, 10*time.Millisecond)
 }

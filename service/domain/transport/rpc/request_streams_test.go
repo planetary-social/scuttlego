@@ -265,8 +265,6 @@ func TestRequestStreams_RemoteCanSendTerminationAfterTheStreamIsClosed(t *testin
 }
 
 func TestRequestStreams_MultipleMessagesSentInDuplexStream(t *testing.T) {
-	t.Skip("todo fix this test, there is a race condition in handling incoming messages and close messages in duplex streams #109")
-
 	t.Parallel()
 
 	requestNumber := fixtures.SomePositiveInt32()

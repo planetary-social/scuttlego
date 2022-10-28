@@ -202,6 +202,16 @@ func TestRequestStream_HandleNewMessageReturnsAnErrorForProceduresThatAreNotDupl
 
 			msg := someDuplexIncomingMessage(t, requestNumber)
 
+			if testCase.AcceptsFollowUpMessages {
+				ch, err := stream.IncomingMessages()
+				require.NoError(t, err)
+
+				go func() {
+					for range ch {
+					}
+				}()
+			}
+
 			err = stream.HandleNewMessage(msg)
 			if testCase.AcceptsFollowUpMessages {
 				require.NoError(t, err)

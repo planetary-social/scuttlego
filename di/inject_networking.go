@@ -20,6 +20,7 @@ var networkingSet = wire.NewSet(
 	wire.Bind(new(portsnetwork.ServerPeerInitializer), new(*domaintransport.PeerInitializer)),
 	wire.Bind(new(network.ClientPeerInitializer), new(*domaintransport.PeerInitializer)),
 	wire.Bind(new(tunnel.ClientPeerInitializer), new(*domaintransport.PeerInitializer)),
+	wire.Bind(new(commands.ServerPeerInitializer), new(*domaintransport.PeerInitializer)),
 
 	rpc.NewConnectionIdGenerator,
 

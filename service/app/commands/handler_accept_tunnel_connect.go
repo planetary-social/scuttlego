@@ -5,8 +5,14 @@ import (
 	"io"
 
 	"github.com/boreq/errors"
+	"github.com/planetary-social/scuttlego/service/domain/identity"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
+	"github.com/planetary-social/scuttlego/service/domain/transport"
 )
+
+type ServerPeerInitializer interface {
+	InitializeServerPeer(ctx context.Context, rwc io.ReadWriteCloser) (transport.Peer, error)
+}
 
 type AcceptTunnelConnect struct {
 	origin refs.Identity
@@ -24,6 +30,9 @@ func NewAcceptTunnelConnect(origin refs.Identity, target refs.Identity, portal r
 	}
 	if portal.IsZero() {
 		return AcceptTunnelConnect{}, errors.New("zero value of portal")
+	}
+	if rwc == nil {
+		return AcceptTunnelConnect{}, errors.New("rwc is nil")
 	}
 	return AcceptTunnelConnect{
 		origin: origin,
@@ -49,13 +58,44 @@ func (a AcceptTunnelConnect) Rwc() io.ReadWriteCloser {
 	return a.rwc
 }
 
-type AcceptTunnelConnectHandler struct {
+func (a AcceptTunnelConnect) IsZero() bool {
+	return a.origin.IsZero()
 }
 
-func NewAcceptTunnelConnectHandler() *AcceptTunnelConnectHandler {
-	return &AcceptTunnelConnectHandler{}
+type AcceptTunnelConnectHandler struct {
+	local       identity.Public
+	initializer ServerPeerInitializer
+	peerHandler NewPeerHandler
+}
+
+func NewAcceptTunnelConnectHandler(
+	local identity.Public,
+	initializer ServerPeerInitializer,
+	peerHandler NewPeerHandler,
+) *AcceptTunnelConnectHandler {
+	return &AcceptTunnelConnectHandler{
+		local:       local,
+		initializer: initializer,
+		peerHandler: peerHandler,
+	}
 }
 
 func (h *AcceptTunnelConnectHandler) Handle(ctx context.Context, cmd AcceptTunnelConnect) error {
-	return errors.New("not implemented")
+	if cmd.IsZero() {
+		return errors.New("zero value of cmd")
+	}
+
+	if !cmd.Target().Identity().Equal(h.local) {
+		return errors.New("target doesn't match local identity")
+	}
+
+	peer, err := h.initializer.InitializeServerPeer(ctx, cmd.Rwc())
+	if err != nil {
+		return errors.Wrap(err, "failed to initialize the peer")
+	}
+
+	h.peerHandler.HandleNewPeer(peer)
+
+	<-ctx.Done()
+	return ctx.Err()
 }

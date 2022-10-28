@@ -101,12 +101,16 @@ type TestCommands struct {
 	DisconnectAll             *commands.DisconnectAllHandler
 	DownloadFeed              *commands.DownloadFeedHandler
 	RedeemInvite              *commands.RedeemInviteHandler
+	AcceptTunnelConnect       *commands.AcceptTunnelConnectHandler
 
 	PeerManager            *domainmocks.PeerManagerMock
 	Dialer                 *mocks.DialerMock
 	FeedWantListRepository *mocks.FeedWantListRepositoryMock
 	CurrentTimeProvider    *mocks.CurrentTimeProviderMock
 	InviteRedeemer         *mocks.InviteRedeemerMock
+	Local                  identity.Public
+	PeerInitializer        *mocks.PeerInitializerMock
+	NewPeerHandler         *mocks.NewPeerHandlerMock
 }
 
 func BuildTestCommands(*testing.T) (TestCommands, error) {
@@ -120,6 +124,7 @@ func BuildTestCommands(*testing.T) (TestCommands, error) {
 		wire.Bind(new(commands.PeerManager), new(*domainmocks.PeerManagerMock)),
 
 		identity.NewPrivate,
+		privateIdentityToPublicIdentity,
 
 		mocks.NewMockTransactionProvider,
 		wire.Bind(new(commands.TransactionProvider), new(*mocks.MockTransactionProvider)),
@@ -134,6 +139,12 @@ func BuildTestCommands(*testing.T) (TestCommands, error) {
 
 		mocks.NewInviteRedeemerMock,
 		wire.Bind(new(commands.InviteRedeemer), new(*mocks.InviteRedeemerMock)),
+
+		mocks.NewPeerInitializerMock,
+		wire.Bind(new(commands.ServerPeerInitializer), new(*mocks.PeerInitializerMock)),
+
+		mocks.NewNewPeerHandlerMock,
+		wire.Bind(new(commands.NewPeerHandler), new(*mocks.NewPeerHandlerMock)),
 
 		fixtures.TestLogger,
 

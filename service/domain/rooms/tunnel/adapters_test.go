@@ -3,6 +3,7 @@ package tunnel_test
 import (
 	"bytes"
 	"context"
+	"github.com/boreq/errors"
 	"testing"
 	"time"
 
@@ -52,7 +53,7 @@ func TestResponseStreamReadWriteCloserAdapter_ReadPropagatesStreamErrors(t *test
 	stream := newResponseStreamMock(ctx, []rpc.ResponseWithError{
 		{
 			Value: nil,
-			Err:   fixtures.SomeError(),
+			Err:   errors.New("some error"),
 		},
 	})
 

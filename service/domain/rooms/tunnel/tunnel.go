@@ -12,8 +12,9 @@ import (
 )
 
 type ClientPeerInitializer interface {
-	// InitializeClientPeer initializes outgoing connections by performing a handshake and establishing an RPC
-	// connection using the provided ReadWriteCloser. Context is used as the RPC connection context.
+	// InitializeClientPeer initializes outgoing connections by performing a
+	// handshake and establishing an RPC connection using the provided
+	// ReadWriteCloser. Context is used as the RPC connection context.
 	InitializeClientPeer(ctx context.Context, rwc io.ReadWriteCloser, remote identity.Public) (transport.Peer, error)
 }
 

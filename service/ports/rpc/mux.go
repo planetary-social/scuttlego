@@ -11,11 +11,13 @@ func NewMuxHandlers(
 	blobsGet *HandlerBlobsGet,
 	blobsCreateWants *HandlerBlobsCreateWants,
 	ebtReplicate *HandlerEbtReplicate,
+	tunnelConnect *HandlerTunnelConnect,
 ) []mux.Handler {
 	return []mux.Handler{
 		blobsGet,
 		blobsCreateWants,
 		ebtReplicate,
+		tunnelConnect,
 	}
 }
 

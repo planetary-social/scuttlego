@@ -1,7 +1,6 @@
 package tunnel
 
 import (
-	"bytes"
 	"context"
 	"io"
 
@@ -10,7 +9,6 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/messages"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/planetary-social/scuttlego/service/domain/transport"
-	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 )
 
 type ClientPeerInitializer interface {
@@ -57,7 +55,7 @@ func (d *Dialer) DialViaRoom(ctx context.Context, portal transport.Peer, target 
 		return transport.Peer{}, errors.Wrap(err, "error performing the request")
 	}
 
-	rwc := NewStreamReadWriterCloserAdapter(stream, cancel)
+	rwc := NewResponseStreamReadWriteCloserAdapter(stream, cancel)
 	peer, err := d.initializer.InitializeClientPeer(ctx, rwc, target)
 	if err != nil {
 		cancel()
@@ -65,44 +63,4 @@ func (d *Dialer) DialViaRoom(ctx context.Context, portal transport.Peer, target 
 	}
 
 	return peer, nil
-}
-
-type StreamReadWriterCloserAdapter struct {
-	cancel context.CancelFunc
-	stream rpc.ResponseStream
-	buf    *bytes.Buffer
-}
-
-func NewStreamReadWriterCloserAdapter(stream rpc.ResponseStream, cancel context.CancelFunc) *StreamReadWriterCloserAdapter {
-	return &StreamReadWriterCloserAdapter{
-		stream: stream,
-		cancel: cancel,
-		buf:    &bytes.Buffer{},
-	}
-}
-
-func (s StreamReadWriterCloserAdapter) Read(p []byte) (int, error) {
-	if s.buf.Len() == 0 {
-		resp, ok := <-s.stream.Channel()
-		if !ok {
-			return 0, errors.New("channel closed")
-		}
-
-		if err := resp.Err; err != nil {
-			return 0, errors.Wrap(err, "stream returned an error")
-		}
-
-		s.buf.Write(resp.Value.Bytes())
-	}
-
-	return s.buf.Read(p)
-}
-
-func (s StreamReadWriterCloserAdapter) Write(p []byte) (n int, err error) {
-	return len(p), s.stream.WriteMessage(p)
-}
-
-func (s StreamReadWriterCloserAdapter) Close() error {
-	s.cancel()
-	return nil
 }

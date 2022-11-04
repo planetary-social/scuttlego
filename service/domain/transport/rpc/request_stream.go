@@ -19,8 +19,9 @@ type RequestStream struct {
 	cancel context.CancelFunc
 	raw    MessageSender
 
-	incomingMessagesOut chan IncomingMessage
-	incomingMessagesIn  chan IncomingMessage
+	incomingMessages       chan IncomingMessage
+	incomingMessagesLock   sync.Mutex
+	incomingMessagesClosed bool
 }
 
 func NewRequestStream(ctx context.Context, number int, typ ProcedureType, raw MessageSender) (*RequestStream, error) {
@@ -42,12 +43,18 @@ func NewRequestStream(ctx context.Context, number int, typ ProcedureType, raw Me
 		cancel: cancel,
 		raw:    raw,
 
-		incomingMessagesOut: make(chan IncomingMessage),
-		incomingMessagesIn:  make(chan IncomingMessage),
+		incomingMessages: make(chan IncomingMessage),
 	}
 
 	if typ == ProcedureTypeDuplex {
-		go rs.passIncomingMessages()
+		go func() {
+			<-ctx.Done()
+
+			rs.incomingMessagesLock.Lock()
+			rs.incomingMessagesClosed = true
+			close(rs.incomingMessages)
+			rs.incomingMessagesLock.Unlock()
+		}()
 	}
 
 	return rs, nil
@@ -100,7 +107,7 @@ func (rs *RequestStream) IncomingMessages() (<-chan IncomingMessage, error) {
 	if rs.typ != ProcedureTypeDuplex {
 		return nil, errors.New("only duplex streams can receive messages")
 	}
-	return rs.incomingMessagesOut, nil
+	return rs.incomingMessages, nil
 }
 
 func (rs *RequestStream) Context() context.Context {
@@ -120,30 +127,16 @@ func (rs *RequestStream) HandleNewMessage(msg transport.Message) error {
 		return errors.New("only duplex streams can receive messages")
 	}
 
-	select {
-	case <-rs.ctx.Done():
-		return rs.ctx.Err()
-	case rs.incomingMessagesIn <- IncomingMessage{
-		Body: msg.Body,
-	}:
+	rs.incomingMessagesLock.Lock()
+	defer rs.incomingMessagesLock.Unlock()
+
+	if rs.incomingMessagesClosed {
 		return nil
 	}
-}
 
-func (rs *RequestStream) passIncomingMessages() {
-	defer close(rs.incomingMessagesOut)
-
-	for {
-		select {
-		case <-rs.ctx.Done():
-			return
-		case v := <-rs.incomingMessagesIn:
-			select {
-			case <-rs.ctx.Done():
-				return
-			case rs.incomingMessagesOut <- v:
-			}
-		}
-
+	select {
+	case <-rs.ctx.Done():
+	case rs.incomingMessages <- IncomingMessage{Body: msg.Body}:
 	}
+	return nil
 }

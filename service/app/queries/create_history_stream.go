@@ -117,7 +117,9 @@ func (h *CreateHistoryStreamHandler) worker(ctx context.Context) {
 			if closeErr := req.Query().ResponseWriter.CloseWithError(err); closeErr != nil {
 				h.logger.WithError(closeErr).Debug("closing failed")
 			}
-			h.logger.WithError(err).Error("error processing an incoming request")
+			if !errors.Is(err, context.Canceled) {
+				h.logger.WithError(err).Error("error processing an incoming request")
+			}
 		}
 	}
 }

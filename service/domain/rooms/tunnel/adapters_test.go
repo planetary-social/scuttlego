@@ -3,10 +3,10 @@ package tunnel_test
 import (
 	"bytes"
 	"context"
-	"github.com/boreq/errors"
 	"testing"
 	"time"
 
+	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/fixtures"
 	"github.com/planetary-social/scuttlego/service/domain/rooms/tunnel"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"

@@ -1,9 +1,7 @@
 package commands_test
 
 import (
-	"context"
 	"testing"
-	"time"
 
 	"github.com/planetary-social/scuttlego/di"
 	"github.com/planetary-social/scuttlego/fixtures"
@@ -16,7 +14,7 @@ func TestAcceptNewPeerHandler(t *testing.T) {
 	tc, err := di.BuildTestCommands(t)
 	require.NoError(t, err)
 
-	ctx, cancel := context.WithCancel(fixtures.TestContext(t))
+	ctx := fixtures.TestContext(t)
 
 	origin := fixtures.SomeRefIdentity()
 	portal := fixtures.SomeRefIdentity()
@@ -28,40 +26,11 @@ func TestAcceptNewPeerHandler(t *testing.T) {
 	cmd, err := commands.NewAcceptTunnelConnect(origin, target, portal, rwc)
 	require.NoError(t, err)
 
-	errCh := make(chan error)
-	go func() {
-		errCh <- tc.AcceptTunnelConnect.Handle(ctx, cmd)
-	}()
+	err = tc.AcceptTunnelConnect.Handle(ctx, cmd)
+	require.NoError(t, err)
 
-	require.Eventually(t,
-		func() bool {
-			return tc.PeerInitializer.InitializeServerPeerCalls() == 1
-		},
-		1*time.Second, 10*time.Millisecond,
-	)
-
-	require.Eventually(t,
-		func() bool {
-			return tc.NewPeerHandler.HandleNewPeerCalls() == 1
-		},
-		1*time.Second, 10*time.Millisecond,
-	)
-
-	select {
-	case <-errCh:
-		t.Fatal("handler returned")
-	case <-time.After(1 * time.Second):
-		t.Log("ok, the handler is blocking")
-	}
-
-	cancel()
-
-	select {
-	case err := <-errCh:
-		require.EqualError(t, err, "context canceled")
-	case <-time.After(1 * time.Second):
-		t.Fatal("timeout, the handler is still blocking")
-	}
+	require.Equal(t, 1, tc.PeerInitializer.InitializeServerPeerCalls())
+	require.Equal(t, 1, tc.NewPeerHandler.HandleNewPeerCalls())
 }
 
 type readWriteCloserMock struct {

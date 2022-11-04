@@ -3,6 +3,7 @@ package rpc_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/planetary-social/scuttlego/fixtures"
 	"github.com/planetary-social/scuttlego/service/app/commands"
@@ -18,7 +19,7 @@ func TestHandlerTunnelConnect_CallsCommandHandler(t *testing.T) {
 
 	require.Equal(t, messages.TunnelConnectProcedure, handler.Procedure())
 
-	ctx := fixtures.TestContext(t)
+	ctx, cancel := context.WithCancel(fixtures.TestContext(t))
 	s := mocks.NewMockCloserStream()
 
 	portal := fixtures.SomeRefIdentity()
@@ -30,14 +31,48 @@ func TestHandlerTunnelConnect_CallsCommandHandler(t *testing.T) {
 
 	req, err := messages.NewTunnelConnectToTarget(args)
 
-	err = handler.Handle(ctx, s, req)
-	require.NoError(t, err)
+	errCh := make(chan error)
+	go func() {
+		errCh <- handler.Handle(ctx, s, req)
+	}()
 
-	require.Len(t, commandHandler.HandleCalls, 1)
-	require.Equal(t, portal, commandHandler.HandleCalls[0].Portal())
-	require.Equal(t, target, commandHandler.HandleCalls[0].Target())
-	require.Equal(t, origin, commandHandler.HandleCalls[0].Origin())
-	require.NotNil(t, commandHandler.HandleCalls[0].Rwc())
+	require.Eventually(t,
+		func() bool {
+			if len(commandHandler.HandleCalls) != 1 {
+				return false
+			}
+			if !portal.Equal(commandHandler.HandleCalls[0].Portal()) {
+				return false
+			}
+			if !target.Equal(commandHandler.HandleCalls[0].Target()) {
+				return false
+			}
+			if !origin.Equal(commandHandler.HandleCalls[0].Origin()) {
+				return false
+			}
+			if commandHandler.HandleCalls[0].Rwc() == nil {
+				return false
+			}
+			return true
+		},
+		1*time.Second, 10*time.Millisecond,
+	)
+
+	select {
+	case <-errCh:
+		t.Fatal("handler returned")
+	case <-time.After(1 * time.Second):
+		t.Log("ok, the handler is blocking")
+	}
+
+	cancel()
+
+	select {
+	case err := <-errCh:
+		require.EqualError(t, err, "context canceled")
+	case <-time.After(1 * time.Second):
+		t.Fatal("timeout, the handler is still blocking")
+	}
 }
 
 type acceptTunnelConnectCommandHandlerMock struct {

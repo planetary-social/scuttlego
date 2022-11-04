@@ -48,5 +48,6 @@ func (h HandlerTunnelConnect) Handle(ctx context.Context, s mux.Stream, req *rpc
 		return errors.Wrap(err, "error executing the command")
 	}
 
-	return nil
+	<-ctx.Done()
+	return ctx.Err()
 }

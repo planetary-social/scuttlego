@@ -95,7 +95,5 @@ func (h *AcceptTunnelConnectHandler) Handle(ctx context.Context, cmd AcceptTunne
 	}
 
 	h.peerHandler.HandleNewPeer(peer)
-
-	<-ctx.Done()
-	return ctx.Err()
+	return nil
 }

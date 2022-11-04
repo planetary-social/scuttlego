@@ -2,6 +2,7 @@ package rpc_test
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -30,6 +31,7 @@ func TestHandlerTunnelConnect_CallsCommandHandler(t *testing.T) {
 	require.NoError(t, err)
 
 	req, err := messages.NewTunnelConnectToTarget(args)
+	require.NoError(t, err)
 
 	errCh := make(chan error)
 	go func() {
@@ -38,19 +40,21 @@ func TestHandlerTunnelConnect_CallsCommandHandler(t *testing.T) {
 
 	require.Eventually(t,
 		func() bool {
-			if len(commandHandler.HandleCalls) != 1 {
+			calls := commandHandler.HandleCalls()
+
+			if len(calls) != 1 {
 				return false
 			}
-			if !portal.Equal(commandHandler.HandleCalls[0].Portal()) {
+			if !portal.Equal(calls[0].Portal()) {
 				return false
 			}
-			if !target.Equal(commandHandler.HandleCalls[0].Target()) {
+			if !target.Equal(calls[0].Target()) {
 				return false
 			}
-			if !origin.Equal(commandHandler.HandleCalls[0].Origin()) {
+			if !origin.Equal(calls[0].Origin()) {
 				return false
 			}
-			if commandHandler.HandleCalls[0].Rwc() == nil {
+			if calls[0].Rwc() == nil {
 				return false
 			}
 			return true
@@ -76,7 +80,8 @@ func TestHandlerTunnelConnect_CallsCommandHandler(t *testing.T) {
 }
 
 type acceptTunnelConnectCommandHandlerMock struct {
-	HandleCalls []commands.AcceptTunnelConnect
+	handleCalls []commands.AcceptTunnelConnect
+	lock        sync.Mutex
 }
 
 func newAcceptTunnelConnectCommandHandlerMock() *acceptTunnelConnectCommandHandlerMock {
@@ -84,6 +89,16 @@ func newAcceptTunnelConnectCommandHandlerMock() *acceptTunnelConnectCommandHandl
 }
 
 func (a *acceptTunnelConnectCommandHandlerMock) Handle(ctx context.Context, cmd commands.AcceptTunnelConnect) error {
-	a.HandleCalls = append(a.HandleCalls, cmd)
+	a.lock.Lock()
+	defer a.lock.Unlock()
+	a.handleCalls = append(a.handleCalls, cmd)
 	return nil
+}
+
+func (a *acceptTunnelConnectCommandHandlerMock) HandleCalls() []commands.AcceptTunnelConnect {
+	a.lock.Lock()
+	defer a.lock.Unlock()
+	tmp := make([]commands.AcceptTunnelConnect, len(a.handleCalls))
+	copy(tmp, a.handleCalls)
+	return tmp
 }

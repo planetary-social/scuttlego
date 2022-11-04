@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRoomsAliasRevokeHandler_RemoteReturnsUnexpectedData(t *testing.T) {
+func TestRoomsAliasRevokeHandler_RemoteReturnsSomeData(t *testing.T) {
 	c, err := di.BuildTestCommands(t)
 	require.NoError(t, err)
 
@@ -53,7 +53,7 @@ func TestRoomsAliasRevokeHandler_RemoteReturnsUnexpectedData(t *testing.T) {
 	require.NoError(t, err)
 
 	err = c.RoomsAliasRevoke.Handle(ctx, cmd)
-	require.EqualError(t, err, "received an unexpected error value: %!s(<nil>)")
+	require.NoError(t, err)
 }
 
 func TestRoomsAliasRevokeHandler_RemoteTerminatesWithAnError(t *testing.T) {
@@ -78,7 +78,7 @@ func TestRoomsAliasRevokeHandler_RemoteTerminatesWithAnError(t *testing.T) {
 			return []rpc.ResponseWithError{
 				{
 					Value: nil,
-					Err:   rpc.RemoteError{},
+					Err:   rpc.NewRemoteError(nil),
 				},
 			}
 		},
@@ -94,7 +94,7 @@ func TestRoomsAliasRevokeHandler_RemoteTerminatesWithAnError(t *testing.T) {
 	require.NoError(t, err)
 
 	err = c.RoomsAliasRevoke.Handle(ctx, cmd)
-	require.EqualError(t, err, "received an unexpected error value: remote returned an error")
+	require.EqualError(t, err, "received an error: remote returned an error")
 }
 
 func TestRoomsAliasRevokeHandler_RemoteTerminatesCleanly(t *testing.T) {
@@ -135,5 +135,5 @@ func TestRoomsAliasRevokeHandler_RemoteTerminatesCleanly(t *testing.T) {
 	require.NoError(t, err)
 
 	err = c.RoomsAliasRevoke.Handle(ctx, cmd)
-	require.NoError(t, err)
+	require.EqualError(t, err, "received an error: remote end")
 }

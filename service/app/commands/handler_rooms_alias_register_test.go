@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRoomsAliasRegisterHandler(t *testing.T) {
+func TestRoomsAliasRegisterHandler_RemoteReturnsSomeData(t *testing.T) {
 	c, err := di.BuildTestCommands(t)
 	require.NoError(t, err)
 
@@ -58,7 +58,7 @@ func TestRoomsAliasRegisterHandler(t *testing.T) {
 	require.Equal(t, expectedAliasString, aliasURL.String())
 }
 
-func TestRoomsAliasRegisterHandler_RemoteReturnsAnError(t *testing.T) {
+func TestRoomsAliasRegisterHandler_RemoteTerminatesWithAnError(t *testing.T) {
 	c, err := di.BuildTestCommands(t)
 	require.NoError(t, err)
 
@@ -97,4 +97,45 @@ func TestRoomsAliasRegisterHandler_RemoteReturnsAnError(t *testing.T) {
 
 	_, err = c.RoomsAliasRegister.Handle(ctx, cmd)
 	require.EqualError(t, err, "could not contact the pub and redeem the invite: received an error: remote end")
+}
+
+func TestRoomsAliasRegisterHandler_RemoteTerminatesWithAnErrorBecauseAnAliasIsAlreadyTaken(t *testing.T) {
+	c, err := di.BuildTestCommands(t)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithTimeout(fixtures.TestContext(t), 5*time.Second)
+	defer cancel()
+
+	roomIdentityRef := fixtures.SomeRefIdentity()
+	roomAddress := network.NewAddress(fixtures.SomeString())
+
+	alias := fixtures.SomeAlias()
+
+	connection := mocks.NewConnectionMock(ctx)
+	connection.Mock(
+		func(req *rpc.Request) []rpc.ResponseWithError {
+			require.Equal(t, messages.RoomRegisterAliasProcedure.Typ(), req.Type())
+			require.Equal(t, messages.RoomRegisterAliasProcedure.Name(), req.Name())
+			require.Contains(t, string(req.Arguments()), alias.String())
+
+			return []rpc.ResponseWithError{
+				{
+					Value: nil,
+					Err:   rpc.NewRemoteError([]byte(`{"name":"Error","message":"alias (\"alias\") is already taken","stack":""}`)),
+				},
+			}
+		},
+	)
+
+	c.Dialer.MockPeer(roomIdentityRef.Identity(), roomAddress, connection)
+
+	cmd, err := commands.NewRoomsAliasRegister(
+		roomIdentityRef,
+		roomAddress,
+		alias,
+	)
+	require.NoError(t, err)
+
+	_, err = c.RoomsAliasRegister.Handle(ctx, cmd)
+	require.ErrorIs(t, err, commands.ErrRoomAliasAlreadyTaken)
 }

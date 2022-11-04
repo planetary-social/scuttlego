@@ -19,8 +19,9 @@ type RequestStream struct {
 	cancel context.CancelFunc
 	raw    MessageSender
 
-	incomingMessages     chan IncomingMessage
-	incomingMessagesLock sync.Mutex
+	incomingMessages       chan IncomingMessage
+	incomingMessagesLock   sync.Mutex
+	incomingMessagesClosed bool
 }
 
 func NewRequestStream(ctx context.Context, number int, typ ProcedureType, raw MessageSender) (*RequestStream, error) {
@@ -50,6 +51,7 @@ func NewRequestStream(ctx context.Context, number int, typ ProcedureType, raw Me
 			<-ctx.Done()
 
 			rs.incomingMessagesLock.Lock()
+			rs.incomingMessagesClosed = true
 			close(rs.incomingMessages)
 			rs.incomingMessagesLock.Unlock()
 		}()
@@ -127,6 +129,10 @@ func (rs *RequestStream) HandleNewMessage(msg transport.Message) error {
 
 	rs.incomingMessagesLock.Lock()
 	defer rs.incomingMessagesLock.Unlock()
+
+	if rs.incomingMessagesClosed {
+		return nil
+	}
 
 	select {
 	case <-rs.ctx.Done():

@@ -52,6 +52,9 @@ var commandsSet = wire.NewSet(
 	wire.Bind(new(pubsub.ProcessRoomAttendantEventHandler), new(*commands.ProcessRoomAttendantEventHandler)),
 
 	commands.NewDownloadFeedHandler,
+
+	commands.NewAcceptTunnelConnectHandler,
+	wire.Bind(new(portsrpc.AcceptTunnelConnectHandler), new(*commands.AcceptTunnelConnectHandler)),
 )
 
 var queriesSet = wire.NewSet(

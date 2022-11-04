@@ -141,6 +141,10 @@ func BuildTestCommands(t *testing.T) (TestCommands, error) {
 	inviteRedeemerMock := mocks.NewInviteRedeemerMock()
 	logger := fixtures.TestLogger(t)
 	redeemInviteHandler := commands.NewRedeemInviteHandler(inviteRedeemerMock, private, logger)
+	public := privateIdentityToPublicIdentity(private)
+	peerInitializerMock := mocks.NewPeerInitializerMock()
+	newPeerHandlerMock := mocks.NewNewPeerHandlerMock()
+	acceptTunnelConnectHandler := commands.NewAcceptTunnelConnectHandler(public, peerInitializerMock, newPeerHandlerMock)
 	testCommands := TestCommands{
 		RoomsAliasRegister:        roomsAliasRegisterHandler,
 		RoomsAliasRevoke:          roomsAliasRevokeHandler,
@@ -148,11 +152,15 @@ func BuildTestCommands(t *testing.T) (TestCommands, error) {
 		DisconnectAll:             disconnectAllHandler,
 		DownloadFeed:              downloadFeedHandler,
 		RedeemInvite:              redeemInviteHandler,
+		AcceptTunnelConnect:       acceptTunnelConnectHandler,
 		PeerManager:               peerManagerMock,
 		Dialer:                    dialerMock,
 		FeedWantListRepository:    feedWantListRepositoryMock,
 		CurrentTimeProvider:       currentTimeProviderMock,
 		InviteRedeemer:            inviteRedeemerMock,
+		Local:                     public,
+		PeerInitializer:           peerInitializerMock,
+		NewPeerHandler:            newPeerHandlerMock,
 	}
 	return testCommands, nil
 }
@@ -439,7 +447,9 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	handlerBlobsCreateWants := rpc2.NewHandlerBlobsCreateWants(createWantsHandler)
 	handleIncomingEbtReplicateHandler := commands.NewHandleIncomingEbtReplicateHandler(replicator)
 	handlerEbtReplicate := rpc2.NewHandlerEbtReplicate(handleIncomingEbtReplicateHandler)
-	v2 := rpc2.NewMuxHandlers(handlerBlobsGet, handlerBlobsCreateWants, handlerEbtReplicate)
+	acceptTunnelConnectHandler := commands.NewAcceptTunnelConnectHandler(public, peerInitializer, peerManager)
+	handlerTunnelConnect := rpc2.NewHandlerTunnelConnect(acceptTunnelConnectHandler)
+	v2 := rpc2.NewMuxHandlers(handlerBlobsGet, handlerBlobsCreateWants, handlerEbtReplicate, handlerTunnelConnect)
 	handlerCreateHistoryStream := rpc2.NewHandlerCreateHistoryStream(createHistoryStreamHandler, logger)
 	v3 := rpc2.NewMuxClosingHandlers(handlerCreateHistoryStream)
 	muxMux, err := mux.NewMux(logger, v2, v3)
@@ -486,12 +496,16 @@ type TestCommands struct {
 	DisconnectAll             *commands.DisconnectAllHandler
 	DownloadFeed              *commands.DownloadFeedHandler
 	RedeemInvite              *commands.RedeemInviteHandler
+	AcceptTunnelConnect       *commands.AcceptTunnelConnectHandler
 
 	PeerManager            *mocks2.PeerManagerMock
 	Dialer                 *mocks.DialerMock
 	FeedWantListRepository *mocks.FeedWantListRepositoryMock
 	CurrentTimeProvider    *mocks.CurrentTimeProviderMock
 	InviteRedeemer         *mocks.InviteRedeemerMock
+	Local                  identity.Public
+	PeerInitializer        *mocks.PeerInitializerMock
+	NewPeerHandler         *mocks.NewPeerHandlerMock
 }
 
 type TestQueries struct {

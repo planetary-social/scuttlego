@@ -4,23 +4,30 @@ import (
 	"context"
 
 	"github.com/planetary-social/scuttlego/logging"
-	"github.com/planetary-social/scuttlego/service/app"
 	"github.com/planetary-social/scuttlego/service/app/commands"
 	"github.com/planetary-social/scuttlego/service/domain/network/local"
 )
+
+type ProcessNewLocalDiscoveryCommandHandler interface {
+	Handle(cmd commands.ProcessNewLocalDiscovery) error
+}
 
 // Discoverer receives local UDP announcements from other Secure Scuttlebutt
 // clients and passes them to the ProcessNewLocalDiscovery command.
 type Discoverer struct {
 	discoverer *local.Discoverer
-	app        app.Application
+	handler    ProcessNewLocalDiscoveryCommandHandler
 	logger     logging.Logger
 }
 
-func NewDiscoverer(discoverer *local.Discoverer, app app.Application, logger logging.Logger) *Discoverer {
+func NewDiscoverer(
+	discoverer *local.Discoverer,
+	handler ProcessNewLocalDiscoveryCommandHandler,
+	logger logging.Logger,
+) *Discoverer {
 	return &Discoverer{
 		discoverer: discoverer,
-		app:        app,
+		handler:    handler,
 		logger:     logger.New("discoverer"),
 	}
 }
@@ -36,7 +43,7 @@ func (d Discoverer) Run(ctx context.Context) error {
 }
 
 func (d Discoverer) handleNewDiscovery(v local.IdentityWithAddress) {
-	if err := d.app.Commands.ProcessNewLocalDiscovery.Handle(
+	if err := d.handler.Handle(
 		commands.ProcessNewLocalDiscovery{
 			Remote:  v.Remote,
 			Address: v.Address,

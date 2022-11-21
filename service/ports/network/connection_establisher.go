@@ -5,24 +5,27 @@ import (
 	"time"
 
 	"github.com/planetary-social/scuttlego/logging"
-	"github.com/planetary-social/scuttlego/service/app"
 )
+
+type EstablishNewConnectionsCommandHandler interface {
+	Handle() error
+}
 
 // ConnectionEstablisher periodically triggers the EstablishNewConnections
 // application command.
 type ConnectionEstablisher struct {
 	establishConnectionsEvery time.Duration
-	app                       app.Application
+	handler                   EstablishNewConnectionsCommandHandler
 	logger                    logging.Logger
 }
 
 func NewConnectionEstablisher(
-	app app.Application,
+	handler EstablishNewConnectionsCommandHandler,
 	logger logging.Logger,
 ) *ConnectionEstablisher {
 	return &ConnectionEstablisher{
 		establishConnectionsEvery: 15 * time.Second,
-		app:                       app,
+		handler:                   handler,
 		logger:                    logger.New("connection_establisher"),
 	}
 }
@@ -30,7 +33,7 @@ func NewConnectionEstablisher(
 // Run periodically triggers the command until the context is closed.
 func (d ConnectionEstablisher) Run(ctx context.Context) error {
 	for {
-		if err := d.app.Commands.EstablishNewConnections.Handle(); err != nil {
+		if err := d.handler.Handle(); err != nil {
 			d.logger.WithError(err).Debug("failed to establish new connections")
 		}
 

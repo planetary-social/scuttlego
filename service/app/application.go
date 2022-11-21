@@ -14,23 +14,19 @@ type Commands struct {
 	RedeemInvite *commands.RedeemInviteHandler
 	Follow       *commands.FollowHandler
 	PublishRaw   *commands.PublishRawHandler
+	DownloadFeed *commands.DownloadFeedHandler
 
-	Connect                  *commands.ConnectHandler
-	DisconnectAll            *commands.DisconnectAllHandler
-	EstablishNewConnections  *commands.EstablishNewConnectionsHandler
-	AcceptNewPeer            *commands.AcceptNewPeerHandler
-	ProcessNewLocalDiscovery *commands.ProcessNewLocalDiscoveryHandler
+	Connect       *commands.ConnectHandler
+	DisconnectAll *commands.DisconnectAllHandler
 
-	CreateWants  *commands.CreateWantsHandler
 	DownloadBlob *commands.DownloadBlobHandler
 	CreateBlob   *commands.CreateBlobHandler
 
 	AddToBanList      *commands.AddToBanListHandler
 	RemoveFromBanList *commands.RemoveFromBanListHandler
 
-	RoomsAliasRegister        *commands.RoomsAliasRegisterHandler
-	RoomsAliasRevoke          *commands.RoomsAliasRevokeHandler
-	ProcessRoomAttendantEvent *commands.ProcessRoomAttendantEventHandler
+	RoomsAliasRegister *commands.RoomsAliasRegisterHandler
+	RoomsAliasRevoke   *commands.RoomsAliasRevokeHandler
 }
 
 type Queries struct {

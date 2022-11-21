@@ -7,6 +7,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/app/commands"
 	"github.com/planetary-social/scuttlego/service/app/queries"
 	"github.com/planetary-social/scuttlego/service/domain/replication"
+	"github.com/planetary-social/scuttlego/service/ports/network"
 	"github.com/planetary-social/scuttlego/service/ports/pubsub"
 	portsrpc "github.com/planetary-social/scuttlego/service/ports/rpc"
 )
@@ -26,12 +27,23 @@ var commandsSet = wire.NewSet(
 	commands.NewFollowHandler,
 	commands.NewConnectHandler,
 	commands.NewDisconnectAllHandler,
-	commands.NewAcceptNewPeerHandler,
-	commands.NewProcessNewLocalDiscoveryHandler,
 	commands.NewPublishRawHandler,
-	commands.NewEstablishNewConnectionsHandler,
 	commands.NewDownloadBlobHandler,
 	commands.NewCreateBlobHandler,
+	commands.NewDownloadFeedHandler,
+	commands.NewRoomsAliasRegisterHandler,
+	commands.NewRoomsAliasRevokeHandler,
+	commands.NewAddToBanListHandler,
+	commands.NewRemoveFromBanListHandler,
+
+	commands.NewProcessNewLocalDiscoveryHandler,
+	wire.Bind(new(network.ProcessNewLocalDiscoveryCommandHandler), new(*commands.ProcessNewLocalDiscoveryHandler)),
+
+	commands.NewAcceptNewPeerHandler,
+	wire.Bind(new(network.AcceptNewPeerCommandHandler), new(*commands.AcceptNewPeerHandler)),
+
+	commands.NewEstablishNewConnectionsHandler,
+	wire.Bind(new(network.EstablishNewConnectionsCommandHandler), new(*commands.EstablishNewConnectionsHandler)),
 
 	commands.NewRawMessageHandler,
 	wire.Bind(new(replication.RawMessageHandler), new(*commands.RawMessageHandler)),
@@ -39,19 +51,11 @@ var commandsSet = wire.NewSet(
 	commands.NewCreateWantsHandler,
 	wire.Bind(new(portsrpc.CreateWantsCommandHandler), new(*commands.CreateWantsHandler)),
 
-	commands.NewAddToBanListHandler,
-	commands.NewRemoveFromBanListHandler,
-
 	commands.NewHandleIncomingEbtReplicateHandler,
 	wire.Bind(new(portsrpc.EbtReplicateCommandHandler), new(*commands.HandleIncomingEbtReplicateHandler)),
 
-	commands.NewRoomsAliasRegisterHandler,
-	commands.NewRoomsAliasRevokeHandler,
-
 	commands.NewProcessRoomAttendantEventHandler,
 	wire.Bind(new(pubsub.ProcessRoomAttendantEventHandler), new(*commands.ProcessRoomAttendantEventHandler)),
-
-	commands.NewDownloadFeedHandler,
 
 	commands.NewAcceptTunnelConnectHandler,
 	wire.Bind(new(portsrpc.AcceptTunnelConnectHandler), new(*commands.AcceptTunnelConnectHandler)),

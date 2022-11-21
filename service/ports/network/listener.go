@@ -8,10 +8,13 @@ import (
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/logging"
-	"github.com/planetary-social/scuttlego/service/app"
 	"github.com/planetary-social/scuttlego/service/app/commands"
 	"github.com/planetary-social/scuttlego/service/domain/transport"
 )
+
+type AcceptNewPeerCommandHandler interface {
+	Handle(cmd commands.AcceptNewPeer) error
+}
 
 type ServerPeerInitializer interface {
 	// InitializeServerPeer initializes incoming connections by performing a
@@ -24,7 +27,7 @@ type ServerPeerInitializer interface {
 // initializes them and passes them to the AcceptNewPeer command.
 type Listener struct {
 	initializer   ServerPeerInitializer
-	app           app.Application
+	handler       AcceptNewPeerCommandHandler
 	address       string
 	logger        logging.Logger
 	connectionCtx context.Context
@@ -34,10 +37,16 @@ type Listener struct {
 // address should be formatted in the way which can be handled by the net
 // package e.g. ":8008". The provided context is used to initiate the peer
 // connections.
-func NewListener(ctx context.Context, initializer ServerPeerInitializer, app app.Application, address string, logger logging.Logger) (*Listener, error) {
+func NewListener(
+	ctx context.Context,
+	initializer ServerPeerInitializer,
+	handler AcceptNewPeerCommandHandler,
+	address string,
+	logger logging.Logger,
+) (*Listener, error) {
 	return &Listener{
 		initializer:   initializer,
-		app:           app,
+		handler:       handler,
 		address:       address,
 		logger:        logger.New("listener"),
 		connectionCtx: ctx,
@@ -72,7 +81,7 @@ func (l *Listener) handleNewConnection(conn net.Conn) {
 		return
 	}
 
-	err = l.app.Commands.AcceptNewPeer.Handle(commands.AcceptNewPeer{Peer: p})
+	err = l.handler.Handle(commands.AcceptNewPeer{Peer: p})
 	if err != nil {
 		conn.Close()
 		l.logger.WithError(err).Debug("could not accept a new peer")

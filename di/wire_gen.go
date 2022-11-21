@@ -332,6 +332,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	}
 	followHandler := commands.NewFollowHandler(transactionProvider, private, marshaler, logger)
 	publishRawHandler := commands.NewPublishRawHandler(transactionProvider, private, logger)
+	downloadFeedHandler := commands.NewDownloadFeedHandler(transactionProvider, currentTimeProvider)
 	peerManagerConfig := extractPeerManagerConfigFromConfig(config)
 	tunnelDialer := tunnel.NewDialer(peerInitializer)
 	sessionTracker := ebt.NewSessionTracker()
@@ -372,34 +373,25 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	peerManager := domain.NewPeerManager(contextContext, peerManagerConfig, dialer, tunnelDialer, negotiator, replicationReplicator, scanner, logger)
 	connectHandler := commands.NewConnectHandler(peerManager, logger)
 	disconnectAllHandler := commands.NewDisconnectAllHandler(peerManager)
-	establishNewConnectionsHandler := commands.NewEstablishNewConnectionsHandler(peerManager)
-	acceptNewPeerHandler := commands.NewAcceptNewPeerHandler(peerManager)
-	processNewLocalDiscoveryHandler := commands.NewProcessNewLocalDiscoveryHandler(peerManager)
-	createWantsHandler := commands.NewCreateWantsHandler(replicationManager)
 	downloadBlobHandler := commands.NewDownloadBlobHandler(transactionProvider, currentTimeProvider)
 	createBlobHandler := commands.NewCreateBlobHandler(filesystemStorage)
 	addToBanListHandler := commands.NewAddToBanListHandler(transactionProvider)
 	removeFromBanListHandler := commands.NewRemoveFromBanListHandler(transactionProvider)
 	roomsAliasRegisterHandler := commands.NewRoomsAliasRegisterHandler(dialer, private)
 	roomsAliasRevokeHandler := commands.NewRoomsAliasRevokeHandler(dialer)
-	processRoomAttendantEventHandler := commands.NewProcessRoomAttendantEventHandler(peerManager)
 	appCommands := app.Commands{
-		RedeemInvite:              redeemInviteHandler,
-		Follow:                    followHandler,
-		PublishRaw:                publishRawHandler,
-		Connect:                   connectHandler,
-		DisconnectAll:             disconnectAllHandler,
-		EstablishNewConnections:   establishNewConnectionsHandler,
-		AcceptNewPeer:             acceptNewPeerHandler,
-		ProcessNewLocalDiscovery:  processNewLocalDiscoveryHandler,
-		CreateWants:               createWantsHandler,
-		DownloadBlob:              downloadBlobHandler,
-		CreateBlob:                createBlobHandler,
-		AddToBanList:              addToBanListHandler,
-		RemoveFromBanList:         removeFromBanListHandler,
-		RoomsAliasRegister:        roomsAliasRegisterHandler,
-		RoomsAliasRevoke:          roomsAliasRevokeHandler,
-		ProcessRoomAttendantEvent: processRoomAttendantEventHandler,
+		RedeemInvite:       redeemInviteHandler,
+		Follow:             followHandler,
+		PublishRaw:         publishRawHandler,
+		DownloadFeed:       downloadFeedHandler,
+		Connect:            connectHandler,
+		DisconnectAll:      disconnectAllHandler,
+		DownloadBlob:       downloadBlobHandler,
+		CreateBlob:         createBlobHandler,
+		AddToBanList:       addToBanListHandler,
+		RemoveFromBanList:  removeFromBanListHandler,
+		RoomsAliasRegister: roomsAliasRegisterHandler,
+		RoomsAliasRevoke:   roomsAliasRevokeHandler,
 	}
 	readReceiveLogRepository := bolt.NewReadReceiveLogRepository(db, txRepositoriesFactory)
 	receiveLogHandler := queries.NewReceiveLogHandler(readReceiveLogRepository)
@@ -433,7 +425,8 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 		Commands: appCommands,
 		Queries:  appQueries,
 	}
-	listener, err := newListener(contextContext, peerInitializer, application, config, logger)
+	acceptNewPeerHandler := commands.NewAcceptNewPeerHandler(peerManager)
+	listener, err := newListener(contextContext, peerInitializer, acceptNewPeerHandler, config, logger)
 	if err != nil {
 		return Service{}, err
 	}
@@ -441,9 +434,12 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	if err != nil {
 		return Service{}, err
 	}
-	networkDiscoverer := network2.NewDiscoverer(discoverer, application, logger)
-	connectionEstablisher := network2.NewConnectionEstablisher(application, logger)
+	processNewLocalDiscoveryHandler := commands.NewProcessNewLocalDiscoveryHandler(peerManager)
+	networkDiscoverer := network2.NewDiscoverer(discoverer, processNewLocalDiscoveryHandler, logger)
+	establishNewConnectionsHandler := commands.NewEstablishNewConnectionsHandler(peerManager)
+	connectionEstablisher := network2.NewConnectionEstablisher(establishNewConnectionsHandler, logger)
 	handlerBlobsGet := rpc2.NewHandlerBlobsGet(getBlobHandler)
+	createWantsHandler := commands.NewCreateWantsHandler(replicationManager)
 	handlerBlobsCreateWants := rpc2.NewHandlerBlobsCreateWants(createWantsHandler)
 	handleIncomingEbtReplicateHandler := commands.NewHandleIncomingEbtReplicateHandler(replicator)
 	handlerEbtReplicate := rpc2.NewHandlerEbtReplicate(handleIncomingEbtReplicateHandler)
@@ -457,6 +453,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 		return Service{}, err
 	}
 	requestSubscriber := pubsub2.NewRequestSubscriber(requestPubSub, muxMux)
+	processRoomAttendantEventHandler := commands.NewProcessRoomAttendantEventHandler(peerManager)
 	roomAttendantEventSubscriber := pubsub2.NewRoomAttendantEventSubscriber(roomAttendantEventPubSub, processRoomAttendantEventHandler, logger)
 	advertiser, err := newAdvertiser(public, config)
 	if err != nil {

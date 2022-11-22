@@ -174,11 +174,13 @@ func (s *ResponseStreams) waitAndCloseResponseStream(rs *responseStream) {
 	s.streamsLock.Lock()
 	defer s.streamsLock.Unlock()
 
-	go func() {
-		if err := sendCloseStream(s.raw, rs.number, nil); err != nil {
-			s.logger.WithError(err).Debug("failed to close the stream")
-		}
-	}()
+	if rs.typ != ProcedureTypeAsync {
+		go func() {
+			if err := sendCloseStream(s.raw, rs.number, nil); err != nil {
+				s.logger.WithError(err).Debug("failed to close the stream")
+			}
+		}()
+	}
 
 	delete(s.streams, rs.number)
 	close(rs.ch)

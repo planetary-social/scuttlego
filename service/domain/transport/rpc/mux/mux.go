@@ -90,11 +90,12 @@ func (m Mux) HandleRequest(ctx context.Context, s CloserStream, req *rpc.Request
 	handler, err := m.getHandler(req)
 	if err == nil {
 		go func() {
-			if err := handler.Handle(ctx, s, req); err != nil {
+			err := handler.Handle(ctx, s, req)
+			if err != nil {
 				m.logger.WithError(err).Debug("handler returned an error")
-				if closeErr := s.CloseWithError(err); closeErr != nil {
-					m.logger.WithError(closeErr).Debug("could not write an error returned by the handler")
-				}
+			}
+			if closeErr := s.CloseWithError(err); closeErr != nil {
+				m.logger.WithError(closeErr).Debug("could not write an error returned by the handler")
 			}
 		}()
 		return

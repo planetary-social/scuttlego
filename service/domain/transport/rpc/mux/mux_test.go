@@ -10,6 +10,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/mux"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/mux/mocks"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -141,6 +142,90 @@ func TestNewMux_ProcedureNamesMustBeUniqueForSynchronousHandlersAndHandlers(t *t
 
 	_, err := mux.NewMux(logger, handlers, synchronousHandlers)
 	require.EqualError(t, err, "could not add a synchronous handler: handler is not unique: handler for method 'someProcedure' was already added")
+}
+
+func TestNewMux_ReturningNonNilErrorFromSynchroniousHandlerCallsCloseWithError(t *testing.T) {
+	t.Parallel()
+
+	logger := fixtures.TestLogger(t)
+
+	procedure := rpc.MustNewProcedure(
+		rpc.MustNewProcedureName([]string{"someProcedure"}),
+		rpc.ProcedureTypeAsync,
+	)
+
+	someError := fixtures.SomeError()
+
+	handlers := []mux.Handler{
+		newMockHandler(
+			procedure,
+			func(ctx context.Context, s mux.Stream, req *rpc.Request) error {
+				return someError
+			},
+		),
+	}
+
+	m, err := mux.NewMux(logger, handlers, nil)
+	require.NoError(t, err)
+
+	ctx := fixtures.TestContext(t)
+	s := mocks.NewMockCloserStream()
+	req := rpc.MustNewRequest(procedure.Name(), procedure.Typ(), nil)
+
+	m.HandleRequest(ctx, s, req)
+	require.Eventually(
+		t,
+		func() bool {
+			return assert.ObjectsAreEqual(
+				[]error{
+					someError,
+				},
+				s.WrittenErrors(),
+			)
+		},
+		1*time.Second, 10*time.Millisecond,
+	)
+}
+
+func TestNewMux_ReturningNilErrorFromSynchrioniousHandlerCallsCloseWithError(t *testing.T) {
+	t.Parallel()
+
+	logger := fixtures.TestLogger(t)
+
+	procedure := rpc.MustNewProcedure(
+		rpc.MustNewProcedureName([]string{"someProcedure"}),
+		rpc.ProcedureTypeAsync,
+	)
+
+	handlers := []mux.Handler{
+		newMockHandler(
+			procedure,
+			func(ctx context.Context, s mux.Stream, req *rpc.Request) error {
+				return nil
+			},
+		),
+	}
+
+	m, err := mux.NewMux(logger, handlers, nil)
+	require.NoError(t, err)
+
+	ctx := fixtures.TestContext(t)
+	s := mocks.NewMockCloserStream()
+	req := rpc.MustNewRequest(procedure.Name(), procedure.Typ(), nil)
+
+	m.HandleRequest(ctx, s, req)
+	require.Eventually(
+		t,
+		func() bool {
+			return assert.ObjectsAreEqual(
+				[]error{
+					nil,
+				},
+				s.WrittenErrors(),
+			)
+		},
+		1*time.Second, 10*time.Millisecond,
+	)
 }
 
 func TestNewMux_HandlerDoesNotBlock(t *testing.T) {

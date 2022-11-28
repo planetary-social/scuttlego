@@ -277,6 +277,85 @@ func TestResponseStreams_ReturnsImplementationForWhichWriteMessageWorksOnlyForDu
 	}
 }
 
+func TestResponseStreams_StreamsShouldSendTerminationOnlyForCertainProcedureTypes(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		Name                  string
+		ProcedureType         rpc.ProcedureType
+		ShouldSendTermination bool
+	}{
+		{
+			Name:                  "source",
+			ProcedureType:         rpc.ProcedureTypeSource,
+			ShouldSendTermination: true,
+		},
+		{
+			Name:                  "duplex",
+			ProcedureType:         rpc.ProcedureTypeDuplex,
+			ShouldSendTermination: true,
+		},
+		{
+			Name:                  "async",
+			ProcedureType:         rpc.ProcedureTypeAsync,
+			ShouldSendTermination: false,
+		},
+	}
+
+	for i := range testCases {
+		testCase := testCases[i]
+		t.Run(testCase.Name, func(t *testing.T) {
+			t.Parallel()
+
+			sender := NewSenderMock()
+			logger := fixtures.SomeLogger()
+			ctx, cancel := context.WithCancel(fixtures.TestContext(t))
+			req := rpc.MustNewRequest(
+				fixtures.SomeProcedureName(),
+				testCase.ProcedureType,
+				fixtures.SomeJSON(),
+			)
+
+			streams := rpc.NewResponseStreams(sender, logger)
+
+			stream, err := streams.Open(ctx, req)
+			require.NoError(t, err)
+
+			require.Len(t, sender.SendCalls(), 1, "opening the stream should send a request")
+
+			cancel()
+
+			select {
+			case _, ok := <-stream.Channel():
+				require.False(t, ok)
+			case <-time.After(5 * time.Second):
+				t.Fatal("channel was not released")
+			}
+
+			if testCase.ShouldSendTermination {
+				require.Eventually(t, func() bool {
+					calls := sender.SendCalls()
+
+					if len(calls) != 2 {
+						return false
+					}
+
+					if !calls[1].Header.Flags().EndOrError() {
+						return false
+					}
+
+					return true
+				}, 1*time.Second, 10*time.Millisecond)
+			} else {
+				<-time.After(2 * time.Second)
+				calls := sender.SendCalls()
+				require.Equal(t, 1, len(calls))
+				require.False(t, calls[0].Header.Flags().EndOrError())
+			}
+		})
+	}
+}
+
 func TestErrRemoteError_Is(t *testing.T) {
 	require.False(t, errors.Is(errors.New("some error"), rpc.RemoteError{}))
 	require.True(t, errors.Is(rpc.NewRemoteError(nil), rpc.RemoteError{}))

@@ -15,18 +15,18 @@ change.**
 - Support for the default feed format
 - Tracking the social graph
 - Connection manager (local peers, predefined pubs)
-- Replicating messages using `createHistoryStream`
+- Replicating messages using `createHistoryStream` and Epidemic Broadcast Trees
 - Replication scheduler (prioritise closer feeds, avoid replicating the same
   messages simultaneously from various peers etc.)
 - Replicating and creating blobs
+- Tunneling via rooms
+- Some commands and queries for managing room aliases
 
 ### Planned in the near future
 
 - Connection manager (dynamic discovery of pubs from feeds)
 - Handling blob wants recevied from remote peers
 - Cleaning up old blobs and messages
-- Rooms
-- Replicating messages using EBTs
 
 ### Planned
 

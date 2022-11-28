@@ -65,7 +65,7 @@ func (m *Marshaler) Unmarshal(b message.RawMessageContent) (content.KnownMessage
 	cnt, err := mapping.Unmarshal(b.Bytes())
 	if err != nil {
 		logger.WithField("typ", typ).WithError(err).Error("mapping returned an error")
-		return nil, errors.Wrapf(err, "mapping '%s' returned an error", typ)
+		return content.NewUnknown(b.Bytes())
 	}
 
 	return cnt, nil

@@ -3,6 +3,7 @@ package migrations
 import (
 	"context"
 	"fmt"
+
 	"github.com/boreq/errors"
 	"github.com/hashicorp/go-multierror"
 	"github.com/planetary-social/scuttlego/internal"
@@ -15,10 +16,6 @@ type MigrationFunc func(ctx context.Context, state State) (State, error)
 type Migration struct {
 	Name string
 	Fn   MigrationFunc
-}
-
-type Runner struct {
-	storage ProgressStorage
 }
 
 type Migrations struct {
@@ -42,10 +39,18 @@ func (m Migrations) List() []Migration {
 	return m.migrations
 }
 
+type Runner struct {
+	storage ProgressStorage
+}
+
+func NewRunner(storage ProgressStorage) *Runner {
+	return &Runner{storage: storage}
+}
+
 func (r Runner) Run(ctx context.Context, migrations Migrations) error {
 	for _, migration := range migrations.List() {
 		if err := r.runMigration(ctx, migration); err != nil {
-			return errors.Wrap(err, "error running migration '%s'")
+			return errors.Wrapf(err, "error running migration '%s'", migration.Name)
 		}
 	}
 	return nil
@@ -64,10 +69,14 @@ func (r Runner) runMigration(ctx context.Context, migration Migration) error {
 	newState, migrationErr := migration.Fn(ctx, r.initializeStateIfEmpty(progress.State))
 	saveStateErr := r.saveState(migration, newState, err)
 
-	var resultErr error
-	resultErr = multierror.Append(resultErr, errors.Wrap(migrationErr, "migration error"))
-	resultErr = multierror.Append(resultErr, errors.Wrap(saveStateErr, "error saving state"))
-	return resultErr
+	if migrationErr != nil || saveStateErr != nil {
+		var resultErr error
+		resultErr = multierror.Append(resultErr, errors.Wrap(migrationErr, "migrations error"))
+		resultErr = multierror.Append(resultErr, errors.Wrap(saveStateErr, "error saving state"))
+		return resultErr
+	}
+
+	return nil
 }
 
 func (r Runner) initializeStateIfEmpty(state State) State {
@@ -82,7 +91,6 @@ func (r Runner) saveState(migration Migration, state State, err error) error {
 		Status: r.statusFromError(err),
 		State:  state,
 	})
-
 }
 
 func (r Runner) statusFromError(err error) Status {

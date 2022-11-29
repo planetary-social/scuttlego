@@ -16,10 +16,12 @@ import (
 	"github.com/google/wire"
 	"github.com/planetary-social/scuttlego/fixtures"
 	"github.com/planetary-social/scuttlego/logging"
+	migrations2 "github.com/planetary-social/scuttlego/migrations"
 	"github.com/planetary-social/scuttlego/service/adapters"
 	"github.com/planetary-social/scuttlego/service/adapters/bolt"
 	ebt2 "github.com/planetary-social/scuttlego/service/adapters/ebt"
 	"github.com/planetary-social/scuttlego/service/adapters/invites"
+	"github.com/planetary-social/scuttlego/service/adapters/migrations"
 	"github.com/planetary-social/scuttlego/service/adapters/mocks"
 	"github.com/planetary-social/scuttlego/service/adapters/pubsub"
 	"github.com/planetary-social/scuttlego/service/app"
@@ -379,6 +381,15 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	removeFromBanListHandler := commands.NewRemoveFromBanListHandler(transactionProvider)
 	roomsAliasRegisterHandler := commands.NewRoomsAliasRegisterHandler(dialer, private)
 	roomsAliasRevokeHandler := commands.NewRoomsAliasRevokeHandler(dialer)
+	boltProgressStorage := migrations.NewBoltProgressStorage()
+	runner := migrations2.NewRunner(boltProgressStorage)
+	migrationImportDataFromGoSSB := newMigrationImportDataFromGoSSB(config)
+	v2 := newMigrationsList(migrationImportDataFromGoSSB)
+	migrationsMigrations, err := migrations2.NewMigrations(v2)
+	if err != nil {
+		return Service{}, err
+	}
+	runMigrationsHandler := commands.NewRunMigrationsHandler(runner, migrationsMigrations)
 	appCommands := app.Commands{
 		RedeemInvite:       redeemInviteHandler,
 		Follow:             followHandler,
@@ -392,6 +403,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 		RemoveFromBanList:  removeFromBanListHandler,
 		RoomsAliasRegister: roomsAliasRegisterHandler,
 		RoomsAliasRevoke:   roomsAliasRevokeHandler,
+		RunMigrations:      runMigrationsHandler,
 	}
 	readReceiveLogRepository := bolt.NewReadReceiveLogRepository(db, txRepositoriesFactory)
 	receiveLogHandler := queries.NewReceiveLogHandler(readReceiveLogRepository)
@@ -445,10 +457,10 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	handlerEbtReplicate := rpc2.NewHandlerEbtReplicate(handleIncomingEbtReplicateHandler)
 	acceptTunnelConnectHandler := commands.NewAcceptTunnelConnectHandler(public, peerInitializer, peerManager)
 	handlerTunnelConnect := rpc2.NewHandlerTunnelConnect(acceptTunnelConnectHandler)
-	v2 := rpc2.NewMuxHandlers(handlerBlobsGet, handlerBlobsCreateWants, handlerEbtReplicate, handlerTunnelConnect)
+	v3 := rpc2.NewMuxHandlers(handlerBlobsGet, handlerBlobsCreateWants, handlerEbtReplicate, handlerTunnelConnect)
 	handlerCreateHistoryStream := rpc2.NewHandlerCreateHistoryStream(createHistoryStreamHandler, logger)
-	v3 := rpc2.NewMuxClosingHandlers(handlerCreateHistoryStream)
-	muxMux, err := mux.NewMux(logger, v2, v3)
+	v4 := rpc2.NewMuxClosingHandlers(handlerCreateHistoryStream)
+	muxMux, err := mux.NewMux(logger, v3, v4)
 	if err != nil {
 		return Service{}, err
 	}

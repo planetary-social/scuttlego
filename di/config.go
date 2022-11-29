@@ -13,7 +13,7 @@ type Config struct {
 	DataDirectory string
 
 	// GoSSBDataDirectory specifies the location of the old data directory used
-	// by go-ssb. This is needed for data migration.
+	// by go-ssb. This is needed for data migrations.
 	GoSSBDataDirectory string
 
 	// ListenAddress for the TCP listener in the format accepted by the

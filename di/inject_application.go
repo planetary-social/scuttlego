@@ -35,6 +35,7 @@ var commandsSet = wire.NewSet(
 	commands.NewRoomsAliasRevokeHandler,
 	commands.NewAddToBanListHandler,
 	commands.NewRemoveFromBanListHandler,
+	commands.NewRunMigrationsHandler,
 
 	commands.NewProcessNewLocalDiscoveryHandler,
 	wire.Bind(new(network.ProcessNewLocalDiscoveryCommandHandler), new(*commands.ProcessNewLocalDiscoveryHandler)),

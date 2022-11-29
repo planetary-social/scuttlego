@@ -275,6 +275,7 @@ func BuildService(context.Context, identity.Private, Config) (Service, error) {
 		adaptersSet,
 		extractFromConfigSet,
 		networkingSet,
+		migrationsSet,
 	)
 	return Service{}, nil
 }

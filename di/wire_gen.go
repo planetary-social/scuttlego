@@ -382,9 +382,13 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	roomsAliasRegisterHandler := commands.NewRoomsAliasRegisterHandler(dialer, private)
 	roomsAliasRevokeHandler := commands.NewRoomsAliasRevokeHandler(dialer)
 	boltProgressStorage := migrations.NewBoltProgressStorage()
-	runner := migrations2.NewRunner(boltProgressStorage)
-	migrationImportDataFromGoSSB := newMigrationImportDataFromGoSSB(config)
-	v2 := newMigrationsList(migrationImportDataFromGoSSB)
+	runner := migrations2.NewRunner(boltProgressStorage, logger)
+	goSSBRepoReader := migrations.NewGoSSBRepoReader(networkKey, messageHMAC, logger)
+	migrationHandlerImportDataFromGoSSB := commands.NewMigrationHandlerImportDataFromGoSSB(goSSBRepoReader)
+	commandsMigrations := commands.Migrations{
+		MigrationImportDataFromGoSSB: migrationHandlerImportDataFromGoSSB,
+	}
+	v2 := newMigrationsList(commandsMigrations, config)
 	migrationsMigrations, err := migrations2.NewMigrations(v2)
 	if err != nil {
 		return Service{}, err

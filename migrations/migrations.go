@@ -2,11 +2,13 @@ package migrations
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/boreq/errors"
 	"github.com/hashicorp/go-multierror"
 	"github.com/planetary-social/scuttlego/internal"
+	"github.com/planetary-social/scuttlego/logging"
 )
 
 type State map[string]string
@@ -41,10 +43,11 @@ func (m Migrations) List() []Migration {
 
 type Runner struct {
 	storage ProgressStorage
+	logger  logging.Logger
 }
 
-func NewRunner(storage ProgressStorage) *Runner {
-	return &Runner{storage: storage}
+func NewRunner(storage ProgressStorage, logger logging.Logger) *Runner {
+	return &Runner{storage: storage, logger: logger.New("migrations_runner")}
 }
 
 func (r Runner) Run(ctx context.Context, migrations Migrations) error {
@@ -57,16 +60,30 @@ func (r Runner) Run(ctx context.Context, migrations Migrations) error {
 }
 
 func (r Runner) runMigration(ctx context.Context, migration Migration) error {
+	logger := r.logger.WithField("migration_name", migration.Name)
+
+	logger.Debug("considering migration")
+
 	progress, err := r.storage.Load(migration.Name)
 	if err != nil && !errors.Is(err, ErrProgressNotFound) {
 		return errors.Wrap(err, "error loading progress")
 	}
 
 	if progress.Status == StatusFinished {
+		logger.Debug("not running this migration as it was already finished")
 		return nil
 	}
 
-	newState, migrationErr := migration.Fn(ctx, r.initializeStateIfEmpty(progress.State))
+	state := r.initializeStateIfEmpty(progress.State)
+
+	humanReadableState, err := json.Marshal(state)
+	if err != nil {
+		return errors.Wrap(err, "state json marshal error")
+	}
+
+	logger.WithField("state", string(humanReadableState)).Debug("executing migration")
+
+	newState, migrationErr := migration.Fn(ctx, state)
 	saveStateErr := r.saveState(migration, newState, err)
 
 	if migrationErr != nil || saveStateErr != nil {

@@ -385,7 +385,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	boltProgressStorage := migrations.NewBoltProgressStorage()
 	runner := migrations2.NewRunner(boltProgressStorage, logger)
 	goSSBRepoReader := migrations.NewGoSSBRepoReader(networkKey, messageHMAC, logger)
-	migrationHandlerImportDataFromGoSSB := commands.NewMigrationHandlerImportDataFromGoSSB(goSSBRepoReader, transactionProvider, rawMessageIdentifier, logger)
+	migrationHandlerImportDataFromGoSSB := commands.NewMigrationHandlerImportDataFromGoSSB(goSSBRepoReader, transactionProvider, marshaler, logger)
 	commandsMigrations := commands.Migrations{
 		MigrationImportDataFromGoSSB: migrationHandlerImportDataFromGoSSB,
 	}

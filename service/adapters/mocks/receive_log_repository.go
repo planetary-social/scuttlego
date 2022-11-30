@@ -2,35 +2,36 @@ package mocks
 
 import (
 	"github.com/boreq/errors"
+	"github.com/planetary-social/scuttlego/service/app/common"
 	"github.com/planetary-social/scuttlego/service/app/queries"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 )
 
 type ReceiveLogRepositoryMock struct {
-	GetMessageCalls []queries.ReceiveLogSequence
+	GetMessageCalls []common.ReceiveLogSequence
 
-	sequenceToMessages  map[queries.ReceiveLogSequence]message.Message
-	messagesToSequences map[string]queries.ReceiveLogSequence
+	sequenceToMessages  map[common.ReceiveLogSequence]message.Message
+	messagesToSequences map[string]common.ReceiveLogSequence
 }
 
 func NewReceiveLogRepositoryMock() *ReceiveLogRepositoryMock {
 	return &ReceiveLogRepositoryMock{
-		sequenceToMessages:  map[queries.ReceiveLogSequence]message.Message{},
-		messagesToSequences: map[string]queries.ReceiveLogSequence{},
+		sequenceToMessages:  map[common.ReceiveLogSequence]message.Message{},
+		messagesToSequences: map[string]common.ReceiveLogSequence{},
 	}
 }
 
-func (r ReceiveLogRepositoryMock) MockMessage(seq queries.ReceiveLogSequence, msg message.Message) {
+func (r ReceiveLogRepositoryMock) MockMessage(seq common.ReceiveLogSequence, msg message.Message) {
 	r.sequenceToMessages[seq] = msg
 	r.messagesToSequences[msg.Id().String()] = seq
 }
 
-func (r ReceiveLogRepositoryMock) List(startSeq queries.ReceiveLogSequence, limit int) ([]queries.LogMessage, error) {
+func (r ReceiveLogRepositoryMock) List(startSeq common.ReceiveLogSequence, limit int) ([]queries.LogMessage, error) {
 	return nil, nil
 }
 
-func (r *ReceiveLogRepositoryMock) GetMessage(seq queries.ReceiveLogSequence) (message.Message, error) {
+func (r *ReceiveLogRepositoryMock) GetMessage(seq common.ReceiveLogSequence) (message.Message, error) {
 	r.GetMessageCalls = append(r.GetMessageCalls, seq)
 
 	v, ok := r.sequenceToMessages[seq]
@@ -40,10 +41,10 @@ func (r *ReceiveLogRepositoryMock) GetMessage(seq queries.ReceiveLogSequence) (m
 	return v, nil
 }
 
-func (r ReceiveLogRepositoryMock) GetSequence(ref refs.Message) (queries.ReceiveLogSequence, error) {
+func (r ReceiveLogRepositoryMock) GetSequence(ref refs.Message) (common.ReceiveLogSequence, error) {
 	v, ok := r.messagesToSequences[ref.String()]
 	if !ok {
-		return queries.ReceiveLogSequence{}, errors.New("not found")
+		return common.ReceiveLogSequence{}, errors.New("not found")
 	}
 	return v, nil
 }

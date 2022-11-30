@@ -249,6 +249,7 @@ func BuildTransactableAdapters(tx *bbolt.Tx, public identity.Public, config Conf
 	feedWantListRepository := bolt.NewFeedWantListRepository(tx, currentTimeProvider)
 	commandsAdapters := commands.Adapters{
 		Feed:         feedRepository,
+		ReceiveLog:   receiveLogRepository,
 		SocialGraph:  socialGraphRepository,
 		BlobWantList: blobWantListRepository,
 		FeedWantList: feedWantListRepository,
@@ -384,7 +385,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	boltProgressStorage := migrations.NewBoltProgressStorage()
 	runner := migrations2.NewRunner(boltProgressStorage, logger)
 	goSSBRepoReader := migrations.NewGoSSBRepoReader(networkKey, messageHMAC, logger)
-	migrationHandlerImportDataFromGoSSB := commands.NewMigrationHandlerImportDataFromGoSSB(goSSBRepoReader)
+	migrationHandlerImportDataFromGoSSB := commands.NewMigrationHandlerImportDataFromGoSSB(goSSBRepoReader, transactionProvider, rawMessageIdentifier, logger)
 	commandsMigrations := commands.Migrations{
 		MigrationImportDataFromGoSSB: migrationHandlerImportDataFromGoSSB,
 	}

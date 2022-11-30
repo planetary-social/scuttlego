@@ -2,6 +2,7 @@ package queries
 
 import (
 	"github.com/boreq/errors"
+	"github.com/planetary-social/scuttlego/service/app/common"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 )
@@ -12,28 +13,28 @@ type ReceiveLogRepository interface {
 	// such a concept doesn't exist within this implementation. The log is zero
 	// indexed. If limit isn't positive an error is returned. Sequence has
 	// nothing to do with the sequence field of Scuttlebutt messages.
-	List(startSeq ReceiveLogSequence, limit int) ([]LogMessage, error)
+	List(startSeq common.ReceiveLogSequence, limit int) ([]LogMessage, error)
 
 	// GetMessage returns the message that the provided receive log sequence
 	// points to.
-	GetMessage(seq ReceiveLogSequence) (message.Message, error)
+	GetMessage(seq common.ReceiveLogSequence) (message.Message, error)
 
 	// GetSequence returns the sequence assigned to a message in the receive
 	// log.
-	GetSequence(ref refs.Message) (ReceiveLogSequence, error)
+	GetSequence(ref refs.Message) (common.ReceiveLogSequence, error)
 }
 
 type ReceiveLog struct {
 	// Only messages with a sequence greater or equal to the start sequence are
 	// returned.
-	startSeq ReceiveLogSequence
+	startSeq common.ReceiveLogSequence
 
 	// Limit specifies the max number of messages which will be returned. Limit
 	// must be positive.
 	limit int
 }
 
-func NewReceiveLog(startSeq ReceiveLogSequence, limit int) (ReceiveLog, error) {
+func NewReceiveLog(startSeq common.ReceiveLogSequence, limit int) (ReceiveLog, error) {
 	if limit <= 0 {
 		return ReceiveLog{}, errors.New("limit must be positive")
 	}
@@ -41,7 +42,7 @@ func NewReceiveLog(startSeq ReceiveLogSequence, limit int) (ReceiveLog, error) {
 	return ReceiveLog{startSeq: startSeq, limit: limit}, nil
 }
 
-func (r ReceiveLog) StartSeq() ReceiveLogSequence {
+func (r ReceiveLog) StartSeq() common.ReceiveLogSequence {
 	return r.startSeq
 }
 

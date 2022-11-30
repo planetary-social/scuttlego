@@ -3,6 +3,7 @@ package queries
 import (
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/internal"
+	"github.com/planetary-social/scuttlego/service/app/common"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
@@ -12,7 +13,7 @@ type PublishedLog struct {
 	// Only messages with a sequence greater or equal to the start sequence are
 	// returned. StartSeq must point to a message published by the current
 	// identity. If not such message is known nil should be passed.
-	StartSeq *ReceiveLogSequence
+	StartSeq *common.ReceiveLogSequence
 }
 
 type PublishedLogHandler struct {

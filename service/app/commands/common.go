@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/boreq/errors"
+	"github.com/planetary-social/scuttlego/service/app/common"
 	"github.com/planetary-social/scuttlego/service/domain/bans"
 	"github.com/planetary-social/scuttlego/service/domain/feeds"
 	"github.com/planetary-social/scuttlego/service/domain/graph"
@@ -47,8 +48,13 @@ type TransactionProvider interface {
 	Transact(func(adapters Adapters) error) error
 }
 
+type ReceiveLogRepository interface {
+	PutUnderSpecificSequence(id refs.Message, sequence common.ReceiveLogSequence) error
+}
+
 type Adapters struct {
 	Feed         FeedRepository
+	ReceiveLog   ReceiveLogRepository
 	SocialGraph  SocialGraphRepository
 	BlobWantList BlobWantListRepository
 	FeedWantList FeedWantListRepository
@@ -61,6 +67,10 @@ type FeedRepository interface {
 	// UpdateFeed updates the specified feed by calling the provided function on
 	// it. Feed is never nil.
 	UpdateFeed(ref refs.Feed, f UpdateFeedFn) error
+
+	// UpdateFeedIgnoringReceiveLog works like UpdateFeed but doesn't put
+	// messages in receive log.
+	UpdateFeedIgnoringReceiveLog(ref refs.Feed, f UpdateFeedFn) error
 
 	// DeleteFeed removes the feed with all associated data.
 	DeleteFeed(ref refs.Feed) error

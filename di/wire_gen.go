@@ -393,7 +393,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	removeFromBanListHandler := commands.NewRemoveFromBanListHandler(transactionProvider)
 	roomsAliasRegisterHandler := commands.NewRoomsAliasRegisterHandler(dialer, private)
 	roomsAliasRevokeHandler := commands.NewRoomsAliasRevokeHandler(dialer)
-	boltStorage := migrations.NewBoltStorage()
+	boltStorage := migrations.NewBoltStorage(db)
 	runner := migrations2.NewRunner(boltStorage, logger)
 	goSSBRepoReader := migrations.NewGoSSBRepoReader(networkKey, messageHMAC, logger)
 	migrationHandlerImportDataFromGoSSB := commands.NewMigrationHandlerImportDataFromGoSSB(goSSBRepoReader, transactionProvider, marshaler, logger)

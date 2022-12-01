@@ -1,6 +1,8 @@
 package migrations
 
 import (
+	"encoding/json"
+
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/migrations"
 	"github.com/planetary-social/scuttlego/service/adapters/bolt/utils"
@@ -22,10 +24,54 @@ func NewBoltStorage(db *bbolt.DB) *BoltStorage {
 }
 
 func (b *BoltStorage) LoadState(name string) (migrations.State, error) {
-	return migrations.State{}, migrations.ErrStateNotFound
+	var state migrations.State
+
+	if err := b.db.View(func(tx *bbolt.Tx) error {
+		b, err := utils.GetBucket(tx, b.stateBucket())
+		if err != nil {
+			return errors.Wrap(err, "error creating bucket")
+		}
+
+		if b == nil {
+			return migrations.ErrStateNotFound
+		}
+
+		v := b.Get([]byte(name))
+		if v == nil {
+			return migrations.ErrStateNotFound
+		}
+
+		if err := json.Unmarshal(v, &state); err != nil {
+			return errors.Wrap(err, "error unmarshaling state")
+		}
+
+		return nil
+	}); err != nil {
+		if errors.Is(err, migrations.ErrStateNotFound) {
+			return nil, err
+		}
+		return nil, errors.Wrap(err, "transaction failed")
+	}
+
+	return state, nil
 }
 
 func (b *BoltStorage) SaveState(name string, state migrations.State) error {
+	marshaledState, err := json.Marshal(state)
+	if err != nil {
+		return errors.Wrap(err, "error marshaling state")
+	}
+
+	if err := b.db.Batch(func(tx *bbolt.Tx) error {
+		b, err := utils.CreateBucket(tx, b.stateBucket())
+		if err != nil {
+			return errors.Wrap(err, "error creating bucket")
+		}
+
+		return b.Put([]byte(name), []byte(marshaledState))
+	}); err != nil {
+		return errors.Wrap(err, "transaction failed")
+	}
 	return nil
 }
 

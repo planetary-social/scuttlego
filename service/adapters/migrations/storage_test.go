@@ -49,3 +49,31 @@ func TestBoltStorage_SupportedStatusesAreSavedAndReturned(t *testing.T) {
 		})
 	}
 }
+
+func TestBoltStorage_StateIsSavedAndReturned(t *testing.T) {
+	db := fixtures.Bolt(t)
+	storage := NewBoltStorage(db)
+
+	someName1 := fixtures.SomeString()
+	someName2 := fixtures.SomeString()
+
+	_, err := storage.LoadState(someName1)
+	require.ErrorIs(t, err, migrations.ErrStateNotFound)
+
+	_, err = storage.LoadState(someName2)
+	require.ErrorIs(t, err, migrations.ErrStateNotFound)
+
+	state := migrations.State{
+		fixtures.SomeString(): fixtures.SomeString(),
+	}
+
+	err = storage.SaveState(someName1, state)
+	require.NoError(t, err)
+
+	retrievedState, err := storage.LoadState(someName1)
+	require.NoError(t, err)
+	require.Equal(t, state, retrievedState)
+
+	_, err = storage.LoadState(someName2)
+	require.ErrorIs(t, err, migrations.ErrStateNotFound)
+}

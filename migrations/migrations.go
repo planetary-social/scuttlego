@@ -23,8 +23,38 @@ type MigrationFunc func(ctx context.Context, state State, saveStateFunc SaveStat
 type SaveStateFunc func(state State) error
 
 type Migration struct {
-	Name string
-	Fn   MigrationFunc
+	name string
+	fn   MigrationFunc
+}
+
+func NewMigration(name string, fn MigrationFunc) (Migration, error) {
+	if name == "" {
+		return Migration{}, errors.New("name is an empty string")
+	}
+	if fn == nil {
+		return Migration{}, errors.New("function is nil")
+	}
+	return Migration{name: name, fn: fn}, nil
+}
+
+func MustNewMigration(name string, fn MigrationFunc) Migration {
+	v, err := NewMigration(name, fn)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
+func (m Migration) Name() string {
+	return m.name
+}
+
+func (m Migration) Fn() MigrationFunc {
+	return m.fn
+}
+
+func (m Migration) IsZero() bool {
+	return m.fn == nil
 }
 
 type Migrations struct {
@@ -34,11 +64,14 @@ type Migrations struct {
 func NewMigrations(migrations []Migration) (Migrations, error) {
 	names := internal.NewSet[string]()
 	for _, migration := range migrations {
-		if names.Contains(migration.Name) {
-			return Migrations{}, fmt.Errorf("duplicate name '%s'", migration.Name)
+		if migration.IsZero() {
+			return Migrations{}, errors.New("zero value of migration")
 		}
 
-		names.Put(migration.Name)
+		if names.Contains(migration.Name()) {
+			return Migrations{}, fmt.Errorf("duplicate name '%s'", migration.Name())
+		}
+		names.Put(migration.Name())
 	}
 
 	return Migrations{migrations: migrations}, nil
@@ -92,7 +125,7 @@ func NewRunner(storage Storage, logger logging.Logger) *Runner {
 func (r Runner) Run(ctx context.Context, migrations Migrations) error {
 	for _, migration := range migrations.List() {
 		if err := r.runMigration(ctx, migration); err != nil {
-			return errors.Wrapf(err, "error running migration '%s'", migration.Name)
+			return errors.Wrapf(err, "error running migration '%s'", migration.Name())
 		}
 	}
 	return nil
@@ -129,11 +162,11 @@ func (r Runner) runMigration(ctx context.Context, migration Migration) error {
 	logger.WithField("state", string(humanReadableState)).Debug("executing migration")
 
 	saveStateFunc := func(state State) error {
-		return r.storage.SaveState(migration.Name, state)
+		return r.storage.SaveState(migration.Name(), state)
 	}
 
-	migrationErr := migration.Fn(ctx, state, saveStateFunc)
-	saveStateErr := r.storage.SaveStatus(migration.Name, r.statusFromError(migrationErr))
+	migrationErr := migration.Fn()(ctx, state, saveStateFunc)
+	saveStateErr := r.storage.SaveStatus(migration.Name(), r.statusFromError(migrationErr))
 
 	if migrationErr != nil || saveStateErr != nil {
 		var resultErr error
@@ -146,7 +179,7 @@ func (r Runner) runMigration(ctx context.Context, migration Migration) error {
 }
 
 func (r Runner) shouldRun(migration Migration) (bool, error) {
-	status, err := r.storage.LoadStatus(migration.Name)
+	status, err := r.storage.LoadStatus(migration.Name())
 	if err != nil {
 		if errors.Is(err, ErrStatusNotFound) {
 			return true, nil
@@ -157,7 +190,7 @@ func (r Runner) shouldRun(migration Migration) (bool, error) {
 }
 
 func (r Runner) loadState(migration Migration) (State, error) {
-	state, err := r.storage.LoadState(migration.Name)
+	state, err := r.storage.LoadState(migration.Name())
 	if err != nil {
 		if errors.Is(err, ErrStateNotFound) {
 			return make(State), nil

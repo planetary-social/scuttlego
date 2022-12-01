@@ -34,9 +34,9 @@ func newMigrationsList(
 	config Config,
 ) []migrations.Migration {
 	return []migrations.Migration{
-		{
-			Name: "0001_import_data_from_gossb",
-			Fn: func(ctx context.Context, state migrations.State, saveStateFunc migrations.SaveStateFunc) error {
+		migrations.MustNewMigration(
+			"0001_import_data_from_gossb",
+			func(ctx context.Context, state migrations.State, saveStateFunc migrations.SaveStateFunc) error {
 				cmd, err := commands.NewImportDataFromGoSSB(config.GoSSBDataDirectory)
 				if err != nil {
 					return errors.Wrap(err, "could not create a command")
@@ -49,6 +49,6 @@ func newMigrationsList(
 
 				return nil
 			},
-		},
+		),
 	}
 }

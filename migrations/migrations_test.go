@@ -34,13 +34,13 @@ func TestRunner_MigrationIsExecutedWithEmptyInitializedStateIfNoStateIsSaved(t *
 
 	ctx := fixtures.TestContext(t)
 	m := migrations.MustNewMigrations([]migrations.Migration{
-		{
-			Name: name,
-			Fn: func(ctx context.Context, state migrations.State, saveStateFunc migrations.SaveStateFunc) error {
+		migrations.MustNewMigration(
+			name,
+			func(ctx context.Context, state migrations.State, saveStateFunc migrations.SaveStateFunc) error {
 				passedState = &state
 				return nil
 			},
-		},
+		),
 	})
 
 	err := r.Runner.Run(ctx, m)
@@ -66,13 +66,13 @@ func TestRunner_MigrationIsExecutedWithSavedStateIfStateWasSaved(t *testing.T) {
 
 	ctx := fixtures.TestContext(t)
 	m := migrations.MustNewMigrations([]migrations.Migration{
-		{
-			Name: name,
-			Fn: func(ctx context.Context, state migrations.State, saveStateFunc migrations.SaveStateFunc) error {
+		migrations.MustNewMigration(
+			name,
+			func(ctx context.Context, state migrations.State, saveStateFunc migrations.SaveStateFunc) error {
 				passedState = &state
 				return nil
 			},
-		},
+		),
 	})
 
 	someState := migrations.State{
@@ -102,12 +102,12 @@ func TestRunner_MigrationIsExecutedIfNoStatusIsSaved(t *testing.T) {
 
 	ctx := fixtures.TestContext(t)
 	m := migrations.MustNewMigrations([]migrations.Migration{
-		{
-			Name: name,
-			Fn: func(ctx context.Context, state migrations.State, saveStateFunc migrations.SaveStateFunc) error {
+		migrations.MustNewMigration(
+			name,
+			func(ctx context.Context, state migrations.State, saveStateFunc migrations.SaveStateFunc) error {
 				return nil
 			},
-		},
+		),
 	})
 
 	err := r.Runner.Run(ctx, m)
@@ -155,12 +155,12 @@ func TestRunner_StatusIsSavedBasedOnReturnedErrors(t *testing.T) {
 
 		ctx := fixtures.TestContext(t)
 		m := migrations.MustNewMigrations([]migrations.Migration{
-			{
-				Name: name,
-				Fn: func(ctx context.Context, state migrations.State, saveStateFunc migrations.SaveStateFunc) error {
+			migrations.MustNewMigration(
+				name,
+				func(ctx context.Context, state migrations.State, saveStateFunc migrations.SaveStateFunc) error {
 					return testCase.ReturnedError
 				},
-			},
+			),
 		})
 
 		err := r.Runner.Run(ctx, m)
@@ -189,12 +189,12 @@ func TestRunner_MigrationIsNotExecutedIfItPreviouslySucceeded(t *testing.T) {
 
 	ctx := fixtures.TestContext(t)
 	m := migrations.MustNewMigrations([]migrations.Migration{
-		{
-			Name: name,
-			Fn: func(ctx context.Context, state migrations.State, saveStateFunc migrations.SaveStateFunc) error {
+		migrations.MustNewMigration(
+			name,
+			func(ctx context.Context, state migrations.State, saveStateFunc migrations.SaveStateFunc) error {
 				return nil
 			},
-		},
+		),
 	})
 
 	r.Storage.returnedStatus = internal.Ptr(migrations.StatusFinished)
@@ -220,12 +220,12 @@ func TestRunner_MigrationIsExecutedIfItPreviouslyFailed(t *testing.T) {
 
 	ctx := fixtures.TestContext(t)
 	m := migrations.MustNewMigrations([]migrations.Migration{
-		{
-			Name: name,
-			Fn: func(ctx context.Context, state migrations.State, saveStateFunc migrations.SaveStateFunc) error {
+		migrations.MustNewMigration(
+			name,
+			func(ctx context.Context, state migrations.State, saveStateFunc migrations.SaveStateFunc) error {
 				return nil
 			},
-		},
+		),
 	})
 
 	r.Storage.returnedStatus = internal.Ptr(migrations.StatusFailed)
@@ -259,18 +259,18 @@ func TestRunner_MigrationsAreConsideredInOrder(t *testing.T) {
 
 	ctx := fixtures.TestContext(t)
 	m := migrations.MustNewMigrations([]migrations.Migration{
-		{
-			Name: name1,
-			Fn: func(ctx context.Context, state migrations.State, saveStateFunc migrations.SaveStateFunc) error {
+		migrations.MustNewMigration(
+			name1,
+			func(ctx context.Context, state migrations.State, saveStateFunc migrations.SaveStateFunc) error {
 				return nil
 			},
-		},
-		{
-			Name: name2,
-			Fn: func(ctx context.Context, state migrations.State, saveStateFunc migrations.SaveStateFunc) error {
+		),
+		migrations.MustNewMigration(
+			name2,
+			func(ctx context.Context, state migrations.State, saveStateFunc migrations.SaveStateFunc) error {
 				return nil
 			},
-		},
+		),
 	})
 
 	err := r.Runner.Run(ctx, m)
@@ -308,12 +308,12 @@ func TestRunner_MigrationsCanSaveState(t *testing.T) {
 		fixtures.SomeString(): fixtures.SomeString(),
 	}
 	m := migrations.MustNewMigrations([]migrations.Migration{
-		{
-			Name: name,
-			Fn: func(ctx context.Context, state migrations.State, saveStateFunc migrations.SaveStateFunc) error {
+		migrations.MustNewMigration(
+			name,
+			func(ctx context.Context, state migrations.State, saveStateFunc migrations.SaveStateFunc) error {
 				return saveStateFunc(someState)
 			},
-		},
+		),
 	})
 
 	ctx := fixtures.TestContext(t)
@@ -403,4 +403,35 @@ type loadStatusCall struct {
 type saveStatusCall struct {
 	name   string
 	status migrations.Status
+}
+
+func TestNewMigrations_DuplicateNamesAreNotAllowed(t *testing.T) {
+	name := "some name"
+
+	_, err := migrations.NewMigrations(
+		[]migrations.Migration{
+			migrations.MustNewMigration(
+				name,
+				func(ctx context.Context, state migrations.State, saveStateFunc migrations.SaveStateFunc) error {
+					return nil
+				},
+			),
+			migrations.MustNewMigration(
+				name,
+				func(ctx context.Context, state migrations.State, saveStateFunc migrations.SaveStateFunc) error {
+					return nil
+				},
+			),
+		},
+	)
+	require.EqualError(t, err, "duplicate name 'some name'")
+}
+
+func TestNewMigrations_ZeroValuesOfMigrationsAreNotAllowed(t *testing.T) {
+	_, err := migrations.NewMigrations(
+		[]migrations.Migration{
+			{},
+		},
+	)
+	require.EqualError(t, err, "zero value of migration")
 }

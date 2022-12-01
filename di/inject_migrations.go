@@ -6,7 +6,7 @@ import (
 	"github.com/boreq/errors"
 	"github.com/google/wire"
 	"github.com/planetary-social/scuttlego/migrations"
-	migrations2 "github.com/planetary-social/scuttlego/service/adapters/migrations"
+	migrationsadapters "github.com/planetary-social/scuttlego/service/adapters/migrations"
 	"github.com/planetary-social/scuttlego/service/app/commands"
 )
 
@@ -17,14 +17,14 @@ var migrationsSet = wire.NewSet(
 
 	migrations.NewMigrations,
 
-	migrations2.NewBoltProgressStorage,
-	wire.Bind(new(migrations.ProgressStorage), new(*migrations2.BoltProgressStorage)),
+	migrationsadapters.NewBoltStorage,
+	wire.Bind(new(migrations.Storage), new(*migrationsadapters.BoltStorage)),
 
 	wire.Struct(new(commands.Migrations), "*"),
 	commands.NewMigrationHandlerImportDataFromGoSSB,
 
-	migrations2.NewGoSSBRepoReader,
-	wire.Bind(new(commands.GoSSBRepoReader), new(*migrations2.GoSSBRepoReader)),
+	migrationsadapters.NewGoSSBRepoReader,
+	wire.Bind(new(commands.GoSSBRepoReader), new(*migrationsadapters.GoSSBRepoReader)),
 
 	newMigrationsList,
 )
@@ -36,18 +36,18 @@ func newMigrationsList(
 	return []migrations.Migration{
 		{
 			Name: "0001_import_data_from_gossb",
-			Fn: func(ctx context.Context, state migrations.State) (migrations.State, error) {
+			Fn: func(ctx context.Context, state migrations.State, saveStateFunc migrations.SaveStateFunc) error {
 				cmd, err := commands.NewImportDataFromGoSSB(config.GoSSBDataDirectory)
 				if err != nil {
-					return state, errors.Wrap(err, "could not create a command")
+					return errors.Wrap(err, "could not create a command")
 				}
 
 				err = m.MigrationImportDataFromGoSSB.Handle(ctx, cmd)
 				if err != nil {
-					return state, errors.Wrap(err, "could not run a command")
+					return errors.Wrap(err, "could not run a command")
 				}
 
-				return state, nil
+				return nil
 			},
 		},
 	}

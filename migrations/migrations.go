@@ -13,7 +13,14 @@ import (
 
 type State map[string]string
 
-type MigrationFunc func(ctx context.Context, state State) (State, error)
+// MigrationFunc is executed with the previously saved state. If the migration
+// func is executed for the first time then the saved state will be an empty
+// map. State is saved by calling the provided function. If a migration function
+// returns an error it will be executed again. If a function doesn't return an
+// error it should not be executed again.
+type MigrationFunc func(ctx context.Context, state State, saveStateFunc SaveStateFunc) error
+
+type SaveStateFunc func(state State) error
 
 type Migration struct {
 	Name string
@@ -41,12 +48,36 @@ func (m Migrations) List() []Migration {
 	return m.migrations
 }
 
+type Status struct {
+	s string
+}
+
+var (
+	StatusFailed   = Status{"failed"}
+	StatusFinished = Status{"finished"}
+)
+
+var (
+	ErrStateNotFound  = errors.New("state not found")
+	ErrStatusNotFound = errors.New("status not found")
+)
+
+type Storage interface {
+	// LoadState returns ErrStateNotFound if state has not been saved yet.
+	LoadState(name string) (State, error)
+	SaveState(name string, state State) error
+
+	// LoadStatus returns ErrStatusNotFound if status has not been saved yet.
+	LoadStatus(name string) (Status, error)
+	SaveStatus(name string, status Status) error
+}
+
 type Runner struct {
-	storage ProgressStorage
+	storage Storage
 	logger  logging.Logger
 }
 
-func NewRunner(storage ProgressStorage, logger logging.Logger) *Runner {
+func NewRunner(storage Storage, logger logging.Logger) *Runner {
 	return &Runner{storage: storage, logger: logger.New("migrations_runner")}
 }
 
@@ -60,21 +91,27 @@ func (r Runner) Run(ctx context.Context, migrations Migrations) error {
 }
 
 func (r Runner) runMigration(ctx context.Context, migration Migration) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	logger := r.logger.WithField("migration_name", migration.Name)
 
 	logger.Debug("considering migration")
 
-	progress, err := r.storage.Load(migration.Name)
-	if err != nil && !errors.Is(err, ErrProgressNotFound) {
-		return errors.Wrap(err, "error loading progress")
+	shouldRun, err := r.shouldRun(migration)
+	if err != nil {
+		return errors.Wrap(err, "error checking if migration should be run")
 	}
 
-	if progress.Status == StatusFinished {
-		logger.Debug("not running this migration as it was already finished")
+	if !shouldRun {
+		logger.Debug("not running this migration")
 		return nil
 	}
 
-	state := r.initializeStateIfEmpty(progress.State)
+	state, err := r.loadState(migration)
+	if err != nil {
+		return errors.Wrap(err, "error loading state")
+	}
 
 	humanReadableState, err := json.Marshal(state)
 	if err != nil {
@@ -83,8 +120,12 @@ func (r Runner) runMigration(ctx context.Context, migration Migration) error {
 
 	logger.WithField("state", string(humanReadableState)).Debug("executing migration")
 
-	newState, migrationErr := migration.Fn(ctx, state)
-	saveStateErr := r.saveState(migration, newState, err)
+	saveStateFunc := func(state State) error {
+		return r.storage.SaveState(migration.Name, state)
+	}
+
+	migrationErr := migration.Fn(ctx, state, saveStateFunc)
+	saveStateErr := r.storage.SaveStatus(migration.Name, r.statusFromError(migrationErr))
 
 	if migrationErr != nil || saveStateErr != nil {
 		var resultErr error
@@ -96,18 +137,26 @@ func (r Runner) runMigration(ctx context.Context, migration Migration) error {
 	return nil
 }
 
-func (r Runner) initializeStateIfEmpty(state State) State {
-	if state == nil {
-		return make(State)
+func (r Runner) shouldRun(migration Migration) (bool, error) {
+	status, err := r.storage.LoadStatus(migration.Name)
+	if err != nil {
+		if errors.Is(err, ErrStatusNotFound) {
+			return true, nil
+		}
+		return false, errors.Wrap(err, "error loading status")
 	}
-	return state
+	return status != StatusFinished, nil
 }
 
-func (r Runner) saveState(migration Migration, state State, err error) error {
-	return r.storage.Save(migration.Name, Progress{
-		Status: r.statusFromError(err),
-		State:  state,
-	})
+func (r Runner) loadState(migration Migration) (State, error) {
+	state, err := r.storage.LoadState(migration.Name)
+	if err != nil {
+		if errors.Is(err, ErrStateNotFound) {
+			return make(State), nil
+		}
+		return nil, errors.Wrap(err, "error loading state")
+	}
+	return state, nil
 }
 
 func (r Runner) statusFromError(err error) Status {
@@ -115,26 +164,4 @@ func (r Runner) statusFromError(err error) Status {
 		return StatusFinished
 	}
 	return StatusFailed
-}
-
-type Progress struct {
-	Status Status
-	State  State
-}
-
-type Status struct {
-	s string
-}
-
-var (
-	StatusFailed   = Status{"failed"}
-	StatusFinished = Status{"finished"}
-)
-
-var ErrProgressNotFound = errors.New("not found")
-
-type ProgressStorage interface {
-	// Load returns ErrProgressNotFound if progress has not been saved yet.
-	Load(name string) (Progress, error)
-	Save(name string, progress Progress) error
 }

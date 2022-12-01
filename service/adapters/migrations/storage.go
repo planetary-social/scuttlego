@@ -4,17 +4,25 @@ import (
 	"github.com/planetary-social/scuttlego/migrations"
 )
 
-type BoltProgressStorage struct {
+type BoltStorage struct {
 }
 
-func NewBoltProgressStorage() *BoltProgressStorage {
-	return &BoltProgressStorage{}
+func NewBoltStorage() *BoltStorage {
+	return &BoltStorage{}
 }
 
-func (b BoltProgressStorage) Load(name string) (migrations.Progress, error) {
-	return migrations.Progress{}, migrations.ErrProgressNotFound
+func (b BoltStorage) LoadState(name string) (migrations.State, error) {
+	return migrations.State{}, migrations.ErrStateNotFound
 }
 
-func (b BoltProgressStorage) Save(name string, progress migrations.Progress) error {
+func (b BoltStorage) SaveState(name string, state migrations.State) error {
+	return nil
+}
+
+func (b BoltStorage) LoadStatus(name string) (migrations.Status, error) {
+	return migrations.Status{}, migrations.ErrStatusNotFound
+}
+
+func (b BoltStorage) SaveStatus(name string, status migrations.Status) error {
 	return nil
 }

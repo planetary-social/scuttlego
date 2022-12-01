@@ -382,8 +382,8 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	removeFromBanListHandler := commands.NewRemoveFromBanListHandler(transactionProvider)
 	roomsAliasRegisterHandler := commands.NewRoomsAliasRegisterHandler(dialer, private)
 	roomsAliasRevokeHandler := commands.NewRoomsAliasRevokeHandler(dialer)
-	boltProgressStorage := migrations.NewBoltProgressStorage()
-	runner := migrations2.NewRunner(boltProgressStorage, logger)
+	boltStorage := migrations.NewBoltStorage()
+	runner := migrations2.NewRunner(boltStorage, logger)
 	goSSBRepoReader := migrations.NewGoSSBRepoReader(networkKey, messageHMAC, logger)
 	migrationHandlerImportDataFromGoSSB := commands.NewMigrationHandlerImportDataFromGoSSB(goSSBRepoReader, transactionProvider, marshaler, logger)
 	commandsMigrations := commands.Migrations{

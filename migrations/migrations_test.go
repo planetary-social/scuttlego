@@ -300,6 +300,37 @@ func TestRunner_MigrationsAreConsideredInOrder(t *testing.T) {
 	)
 }
 
+func TestRunner_MigrationsCanSaveState(t *testing.T) {
+	r := newTestRunner(t)
+
+	name := fixtures.SomeString()
+	someState := migrations.State{
+		fixtures.SomeString(): fixtures.SomeString(),
+	}
+	m := migrations.MustNewMigrations([]migrations.Migration{
+		{
+			Name: name,
+			Fn: func(ctx context.Context, state migrations.State, saveStateFunc migrations.SaveStateFunc) error {
+				return saveStateFunc(someState)
+			},
+		},
+	})
+
+	ctx := fixtures.TestContext(t)
+	err := r.Runner.Run(ctx, m)
+	require.NoError(t, err)
+
+	require.Equal(t,
+		[]saveStateCall{
+			{
+				name:  name,
+				state: someState,
+			},
+		},
+		r.Storage.saveStateCalls,
+	)
+}
+
 type testRunner struct {
 	Runner  *migrations.Runner
 	Storage *storageMock

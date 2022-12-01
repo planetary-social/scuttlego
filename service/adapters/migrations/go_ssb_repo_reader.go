@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/logging"
@@ -40,6 +41,16 @@ func NewGoSSBRepoReader(
 }
 
 func (m GoSSBRepoReader) GetMessages(ctx context.Context, directory string) (<-chan commands.GoSSBMessageOrError, error) {
+	_, err := os.Stat(directory)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			ch := make(chan commands.GoSSBMessageOrError)
+			close(ch)
+			return ch, nil
+		}
+		return nil, errors.Wrap(err, "failed to stat directory")
+	}
+
 	ctx, cancel := context.WithCancel(ctx)
 
 	bot, err := m.createBot(ctx, directory)

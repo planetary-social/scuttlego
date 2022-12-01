@@ -44,6 +44,14 @@ func NewMigrations(migrations []Migration) (Migrations, error) {
 	return Migrations{migrations: migrations}, nil
 }
 
+func MustNewMigrations(migrations []Migration) Migrations {
+	v, err := NewMigrations(migrations)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
 func (m Migrations) List() []Migration {
 	return m.migrations
 }

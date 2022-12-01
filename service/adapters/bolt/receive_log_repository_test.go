@@ -6,7 +6,7 @@ import (
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/di"
 	"github.com/planetary-social/scuttlego/fixtures"
-	"github.com/planetary-social/scuttlego/service/app/queries"
+	"github.com/planetary-social/scuttlego/service/app/common"
 	"github.com/stretchr/testify/require"
 	"go.etcd.io/bbolt"
 )
@@ -18,7 +18,7 @@ func TestReceiveLog_Get_ReturnsNoMessagesWhenEmpty(t *testing.T) {
 		txadapters, err := di.BuildTxTestAdapters(tx)
 		require.NoError(t, err)
 
-		msgs, err := txadapters.ReceiveLog.List(queries.MustNewReceiveLogSequence(0), 10)
+		msgs, err := txadapters.ReceiveLog.List(common.MustNewReceiveLogSequence(0), 10)
 		require.NoError(t, err)
 		require.Empty(t, msgs)
 
@@ -34,7 +34,7 @@ func TestReceiveLog_Get_ReturnsErrorForInvalidLimit(t *testing.T) {
 		txadapters, err := di.BuildTxTestAdapters(tx)
 		require.NoError(t, err)
 
-		_, err = txadapters.ReceiveLog.List(queries.MustNewReceiveLogSequence(0), 0)
+		_, err = txadapters.ReceiveLog.List(common.MustNewReceiveLogSequence(0), 0)
 		require.EqualError(t, err, "limit must be positive")
 
 		return nil
@@ -46,7 +46,7 @@ func TestReceiveLog_Put_InsertsCorrectMapping(t *testing.T) {
 	db := fixtures.Bolt(t)
 
 	msg := fixtures.SomeMessage(fixtures.SomeSequence(), fixtures.SomeRefFeed())
-	expectedSequence := queries.MustNewReceiveLogSequence(0)
+	expectedSequence := common.MustNewReceiveLogSequence(0)
 
 	err := db.Update(func(tx *bbolt.Tx) error {
 		txadapters, err := di.BuildTxTestAdapters(tx)
@@ -120,7 +120,7 @@ func TestReceiveLog_Get_ReturnsMessagesObeyingLimitAndStartSeq(t *testing.T) {
 			txadapters, err := di.BuildTxTestAdapters(tx)
 			require.NoError(t, err)
 
-			msgs, err := txadapters.ReceiveLog.List(queries.MustNewReceiveLogSequence(0), 10)
+			msgs, err := txadapters.ReceiveLog.List(common.MustNewReceiveLogSequence(0), 10)
 			require.NoError(t, err)
 			require.Len(t, msgs, 10)
 
@@ -134,7 +134,7 @@ func TestReceiveLog_Get_ReturnsMessagesObeyingLimitAndStartSeq(t *testing.T) {
 			txadapters, err := di.BuildTxTestAdapters(tx)
 			require.NoError(t, err)
 
-			msgs, err := txadapters.ReceiveLog.List(queries.MustNewReceiveLogSequence(5), 10)
+			msgs, err := txadapters.ReceiveLog.List(common.MustNewReceiveLogSequence(5), 10)
 			require.NoError(t, err)
 			require.Len(t, msgs, 5)
 

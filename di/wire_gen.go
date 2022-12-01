@@ -134,8 +134,12 @@ func BuildTestCommands(t *testing.T) (TestCommands, error) {
 	processRoomAttendantEventHandler := commands.NewProcessRoomAttendantEventHandler(peerManagerMock)
 	disconnectAllHandler := commands.NewDisconnectAllHandler(peerManagerMock)
 	feedWantListRepositoryMock := mocks.NewFeedWantListRepositoryMock()
+	feedRepositoryMock := mocks.NewFeedRepositoryMock()
+	receiveLogRepositoryMock := mocks.NewReceiveLogRepositoryMock()
 	adapters := commands.Adapters{
 		FeedWantList: feedWantListRepositoryMock,
+		Feed:         feedRepositoryMock,
+		ReceiveLog:   receiveLogRepositoryMock,
 	}
 	mockTransactionProvider := mocks.NewMockTransactionProvider(adapters)
 	currentTimeProviderMock := mocks.NewCurrentTimeProviderMock()
@@ -147,22 +151,29 @@ func BuildTestCommands(t *testing.T) (TestCommands, error) {
 	peerInitializerMock := mocks.NewPeerInitializerMock()
 	newPeerHandlerMock := mocks.NewNewPeerHandlerMock()
 	acceptTunnelConnectHandler := commands.NewAcceptTunnelConnectHandler(public, peerInitializerMock, newPeerHandlerMock)
+	goSSBRepoReaderMock := mocks.NewGoSSBRepoReaderMock()
+	marshalerMock := mocks.NewMarshalerMock()
+	migrationHandlerImportDataFromGoSSB := commands.NewMigrationHandlerImportDataFromGoSSB(goSSBRepoReaderMock, mockTransactionProvider, marshalerMock, logger)
 	testCommands := TestCommands{
-		RoomsAliasRegister:        roomsAliasRegisterHandler,
-		RoomsAliasRevoke:          roomsAliasRevokeHandler,
-		ProcessRoomAttendantEvent: processRoomAttendantEventHandler,
-		DisconnectAll:             disconnectAllHandler,
-		DownloadFeed:              downloadFeedHandler,
-		RedeemInvite:              redeemInviteHandler,
-		AcceptTunnelConnect:       acceptTunnelConnectHandler,
-		PeerManager:               peerManagerMock,
-		Dialer:                    dialerMock,
-		FeedWantListRepository:    feedWantListRepositoryMock,
-		CurrentTimeProvider:       currentTimeProviderMock,
-		InviteRedeemer:            inviteRedeemerMock,
-		Local:                     public,
-		PeerInitializer:           peerInitializerMock,
-		NewPeerHandler:            newPeerHandlerMock,
+		RoomsAliasRegister:           roomsAliasRegisterHandler,
+		RoomsAliasRevoke:             roomsAliasRevokeHandler,
+		ProcessRoomAttendantEvent:    processRoomAttendantEventHandler,
+		DisconnectAll:                disconnectAllHandler,
+		DownloadFeed:                 downloadFeedHandler,
+		RedeemInvite:                 redeemInviteHandler,
+		AcceptTunnelConnect:          acceptTunnelConnectHandler,
+		MigrationImportDataFromGoSSB: migrationHandlerImportDataFromGoSSB,
+		PeerManager:                  peerManagerMock,
+		Dialer:                       dialerMock,
+		FeedWantListRepository:       feedWantListRepositoryMock,
+		CurrentTimeProvider:          currentTimeProviderMock,
+		InviteRedeemer:               inviteRedeemerMock,
+		Local:                        public,
+		PeerInitializer:              peerInitializerMock,
+		NewPeerHandler:               newPeerHandlerMock,
+		GoSSBRepoReader:              goSSBRepoReaderMock,
+		FeedRepository:               feedRepositoryMock,
+		ReceiveLog:                   receiveLogRepositoryMock,
 	}
 	return testCommands, nil
 }
@@ -512,6 +523,8 @@ type TestCommands struct {
 	RedeemInvite              *commands.RedeemInviteHandler
 	AcceptTunnelConnect       *commands.AcceptTunnelConnectHandler
 
+	MigrationImportDataFromGoSSB *commands.MigrationHandlerImportDataFromGoSSB
+
 	PeerManager            *mocks2.PeerManagerMock
 	Dialer                 *mocks.DialerMock
 	FeedWantListRepository *mocks.FeedWantListRepositoryMock
@@ -520,6 +533,9 @@ type TestCommands struct {
 	Local                  identity.Public
 	PeerInitializer        *mocks.PeerInitializerMock
 	NewPeerHandler         *mocks.NewPeerHandlerMock
+	GoSSBRepoReader        *mocks.GoSSBRepoReaderMock
+	FeedRepository         *mocks.FeedRepositoryMock
+	ReceiveLog             *mocks.ReceiveLogRepositoryMock
 }
 
 type TestQueries struct {

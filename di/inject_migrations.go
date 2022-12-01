@@ -20,13 +20,17 @@ var migrationsSet = wire.NewSet(
 	migrationsadapters.NewBoltStorage,
 	wire.Bind(new(migrations.Storage), new(*migrationsadapters.BoltStorage)),
 
-	wire.Struct(new(commands.Migrations), "*"),
-	commands.NewMigrationHandlerImportDataFromGoSSB,
-
 	migrationsadapters.NewGoSSBRepoReader,
 	wire.Bind(new(commands.GoSSBRepoReader), new(*migrationsadapters.GoSSBRepoReader)),
 
 	newMigrationsList,
+
+	migrationCommandsSet,
+)
+
+var migrationCommandsSet = wire.NewSet(
+	wire.Struct(new(commands.Migrations), "*"),
+	commands.NewMigrationHandlerImportDataFromGoSSB,
 )
 
 func newMigrationsList(

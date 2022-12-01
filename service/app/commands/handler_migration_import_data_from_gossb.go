@@ -77,7 +77,7 @@ func (h MigrationHandlerImportDataFromGoSSB) Handle(ctx context.Context, cmd Imp
 		h.logger.
 			WithField("receive_log_sequence", v.Value.ReceiveLogSequence).
 			WithField("message_id", v.Value.Message.Key().Sigil()).
-			Debug("processing message")
+			Trace("processing message")
 
 		msgs = append(msgs, v.Value)
 
@@ -99,30 +99,37 @@ func (h MigrationHandlerImportDataFromGoSSB) Handle(ctx context.Context, cmd Imp
 func (h MigrationHandlerImportDataFromGoSSB) saveMessages(gossbmsgs []GoSSBMessage) error {
 	if err := h.transaction.Transact(func(adapters Adapters) error {
 		for _, gossbmsg := range gossbmsgs {
-			msg, err := h.convertMessage(gossbmsg.Message)
-			if err != nil {
-				return errors.Wrap(err, "error converting the message")
-			}
-
-			receiveLogSequence, err := common.NewReceiveLogSequence(int(gossbmsg.ReceiveLogSequence))
-			if err != nil {
-				return errors.Wrap(err, "error creating the receive log sequence")
-			}
-
-			if err := adapters.Feed.UpdateFeedIgnoringReceiveLog(msg.Feed(), func(feed *feeds.Feed) error {
-				return feed.AppendMessage(msg)
-			}); err != nil {
-				return errors.Wrap(err, "error updating the feed")
-			}
-
-			if err := adapters.ReceiveLog.PutUnderSpecificSequence(msg.Id(), receiveLogSequence); err != nil {
-				return errors.Wrap(err, "error updating the feed")
+			if err := h.saveMessage(adapters, gossbmsg); err != nil {
+				return errors.Wrapf(err, "error saving message '%s' with receive log sequence '%d'", gossbmsg.Message.Key().Sigil(), gossbmsg.ReceiveLogSequence)
 			}
 		}
-
 		return nil
 	}); err != nil {
 		return errors.Wrap(err, "transaction failed")
+	}
+
+	return nil
+}
+
+func (h MigrationHandlerImportDataFromGoSSB) saveMessage(adapters Adapters, gossbmsg GoSSBMessage) error {
+	msg, err := h.convertMessage(gossbmsg.Message)
+	if err != nil {
+		return errors.Wrap(err, "error converting the message")
+	}
+
+	receiveLogSequence, err := common.NewReceiveLogSequence(int(gossbmsg.ReceiveLogSequence))
+	if err != nil {
+		return errors.Wrap(err, "error creating the receive log sequence")
+	}
+
+	if err := adapters.Feed.UpdateFeedIgnoringReceiveLog(msg.Feed(), func(feed *feeds.Feed) error {
+		return feed.AppendMessage(msg)
+	}); err != nil {
+		return errors.Wrap(err, "error updating the feed")
+	}
+
+	if err := adapters.ReceiveLog.PutUnderSpecificSequence(msg.Id(), receiveLogSequence); err != nil {
+		return errors.Wrap(err, "error updating the receive log")
 	}
 
 	return nil
@@ -143,24 +150,24 @@ func (h MigrationHandlerImportDataFromGoSSB) convertMessage(gossbmsg gossbrefs.M
 	if gossbmsg.Previous() != nil {
 		tmp, err := refs.NewMessage(gossbmsg.Previous().Sigil())
 		if err != nil {
-			return message.Message{}, errors.Wrap(err, "invalid previous message id")
+			return message.Message{}, errors.Wrap(err, "error creating previous message id")
 		}
 		previous = &tmp
 	}
 
 	sequence, err := message.NewSequence(int(gossbmsg.Seq()))
 	if err != nil {
-		return message.Message{}, errors.Wrap(err, "invalid sequence")
+		return message.Message{}, errors.Wrap(err, "error creating sequence")
 	}
 
 	author, err := refs.NewIdentity(gossbmsg.Author().Sigil())
 	if err != nil {
-		return message.Message{}, errors.Wrap(err, "invalid author")
+		return message.Message{}, errors.Wrap(err, "error creating author")
 	}
 
 	feed, err := refs.NewFeed(gossbmsg.Author().Sigil())
 	if err != nil {
-		return message.Message{}, errors.Wrap(err, "invalid feed")
+		return message.Message{}, errors.Wrap(err, "error creating feed")
 	}
 
 	rawMessageContent, err := message.NewRawMessageContent(gossbmsg.ContentBytes())

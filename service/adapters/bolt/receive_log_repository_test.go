@@ -11,7 +11,7 @@ import (
 	"go.etcd.io/bbolt"
 )
 
-func TestReceiveLog_GetMessage_ReturnsPrefefinedErrorWhenNotFound(t *testing.T) {
+func TestReceiveLog_GetMessage_ReturnsPredefinedErrorWhenNotFound(t *testing.T) {
 	db := fixtures.Bolt(t)
 
 	msg := fixtures.SomeMessage(fixtures.SomeSequence(), fixtures.SomeRefFeed())
@@ -46,7 +46,7 @@ func TestReceiveLog_GetMessage_ReturnsPrefefinedErrorWhenNotFound(t *testing.T) 
 	require.NoError(t, err)
 }
 
-func TestReceiveLog_GetSequences_ReturnsPrefefinedErrorWhenNotFound(t *testing.T) {
+func TestReceiveLog_GetSequences_ReturnsPredefinedErrorWhenNotFound(t *testing.T) {
 	db := fixtures.Bolt(t)
 
 	msg1 := fixtures.SomeRefMessage()

@@ -135,9 +135,9 @@ func (r Runner) runMigration(ctx context.Context, migration Migration) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	logger := r.logger.WithField("migration_name", migration.Name)
+	logger := r.logger.WithField("migration_name", migration.Name())
 
-	logger.Debug("considering migration")
+	logger.Trace("considering migration")
 
 	shouldRun, err := r.shouldRun(migration)
 	if err != nil {

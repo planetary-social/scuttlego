@@ -20,18 +20,19 @@ func TestMigrationHandlerImportDataFromGoSSB_MessageReturnedFromRepoReaderIsSave
 	require.NoError(t, err)
 
 	directory := fixtures.SomeString()
+	receiveLogSequence := fixtures.SomeReceiveLogSequence()
 
-	cmd, err := commands.NewImportDataFromGoSSB(directory)
+	cmd, err := commands.NewImportDataFromGoSSB(directory, &receiveLogSequence)
 	require.NoError(t, err)
 
-	receiveLogSequence := int64(123)
+	msgReceiveLogSequence := int64(123)
 	msg := mockGoSSBMessage(t)
 
 	tc.GoSSBRepoReader.MockGetMessages(
 		[]commands.GoSSBMessageOrError{
 			{
 				Value: commands.GoSSBMessage{
-					ReceiveLogSequence: receiveLogSequence,
+					ReceiveLogSequence: msgReceiveLogSequence,
 					Message:            msg,
 				},
 				Err: nil,
@@ -46,7 +47,8 @@ func TestMigrationHandlerImportDataFromGoSSB_MessageReturnedFromRepoReaderIsSave
 	require.Equal(t,
 		[]mocks.GoSSBRepoReaderMockGetMessagesCall{
 			{
-				Directory: directory,
+				Directory:           directory,
+				ResumeAfterSequence: &receiveLogSequence,
 			},
 		},
 		tc.GoSSBRepoReader.GoSSBRepoReaderMockGetMessagesCalls,
@@ -70,7 +72,7 @@ func TestMigrationHandlerImportDataFromGoSSB_MessageReturnedFromRepoReaderIsSave
 		[]mocks.ReceiveLogRepositoryPutUnderSpecificSequenceCall{
 			{
 				Id:       refs.MustNewMessage(msg.Key().String()),
-				Sequence: common.MustNewReceiveLogSequence(int(receiveLogSequence)),
+				Sequence: common.MustNewReceiveLogSequence(int(msgReceiveLogSequence)),
 			},
 		},
 		tc.ReceiveLog.PutUnderSpecificSequenceCalls,

@@ -9,6 +9,7 @@ import (
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/app/commands"
+	"github.com/planetary-social/scuttlego/service/app/common"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/formats"
 	"github.com/planetary-social/scuttlego/service/domain/transport/boxstream"
 	"go.cryptoscope.co/luigi"
@@ -40,7 +41,7 @@ func NewGoSSBRepoReader(
 	}
 }
 
-func (m GoSSBRepoReader) GetMessages(ctx context.Context, directory string) (<-chan commands.GoSSBMessageOrError, error) {
+func (m GoSSBRepoReader) GetMessages(ctx context.Context, directory string, resumeAfterSequence *common.ReceiveLogSequence) (<-chan commands.GoSSBMessageOrError, error) {
 	_, err := os.Stat(directory)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {

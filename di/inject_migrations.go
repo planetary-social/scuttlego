@@ -41,7 +41,7 @@ func newMigrationsList(
 		migrations.MustNewMigration(
 			"0001_import_data_from_gossb",
 			func(ctx context.Context, state migrations.State, saveStateFunc migrations.SaveStateFunc) error {
-				cmd, err := commands.NewImportDataFromGoSSB(config.GoSSBDataDirectory)
+				cmd, err := commands.NewImportDataFromGoSSB(config.GoSSBDataDirectory, nil)
 				if err != nil {
 					return errors.Wrap(err, "could not create a command")
 				}

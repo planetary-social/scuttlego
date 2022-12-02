@@ -16,7 +16,7 @@ import (
 const batchSize = 5000
 
 type GoSSBRepoReader interface {
-	GetMessages(ctx context.Context, directory string) (<-chan GoSSBMessageOrError, error)
+	GetMessages(ctx context.Context, directory string, resumeAfterSequence *common.ReceiveLogSequence) (<-chan GoSSBMessageOrError, error)
 }
 
 type GoSSBMessageOrError struct {
@@ -30,14 +30,18 @@ type GoSSBMessage struct {
 }
 
 type ImportDataFromGoSSB struct {
-	directory string
+	directory           string
+	resumeAfterSequence *common.ReceiveLogSequence
 }
 
-func NewImportDataFromGoSSB(directory string) (ImportDataFromGoSSB, error) {
+func NewImportDataFromGoSSB(directory string, resumeAfterSequence *common.ReceiveLogSequence) (ImportDataFromGoSSB, error) {
 	if directory == "" {
 		return ImportDataFromGoSSB{}, errors.New("directory is an empty string")
 	}
-	return ImportDataFromGoSSB{directory: directory}, nil
+	return ImportDataFromGoSSB{
+		directory:           directory,
+		resumeAfterSequence: resumeAfterSequence,
+	}, nil
 }
 
 type MigrationHandlerImportDataFromGoSSB struct {
@@ -62,7 +66,7 @@ func NewMigrationHandlerImportDataFromGoSSB(
 }
 
 func (h MigrationHandlerImportDataFromGoSSB) Handle(ctx context.Context, cmd ImportDataFromGoSSB) error {
-	ch, err := h.repoReader.GetMessages(ctx, cmd.directory)
+	ch, err := h.repoReader.GetMessages(ctx, cmd.directory, cmd.resumeAfterSequence)
 	if err != nil {
 		return errors.Wrap(err, "error getting message channel")
 	}

@@ -4,10 +4,12 @@ import (
 	"context"
 
 	"github.com/planetary-social/scuttlego/service/app/commands"
+	"github.com/planetary-social/scuttlego/service/app/common"
 )
 
 type GoSSBRepoReaderMockGetMessagesCall struct {
-	Directory string
+	Directory           string
+	ResumeAfterSequence *common.ReceiveLogSequence
 }
 
 type GoSSBRepoReaderMock struct {
@@ -19,8 +21,14 @@ func NewGoSSBRepoReaderMock() *GoSSBRepoReaderMock {
 	return &GoSSBRepoReaderMock{}
 }
 
-func (g *GoSSBRepoReaderMock) GetMessages(ctx context.Context, directory string) (<-chan commands.GoSSBMessageOrError, error) {
-	g.GoSSBRepoReaderMockGetMessagesCalls = append(g.GoSSBRepoReaderMockGetMessagesCalls, GoSSBRepoReaderMockGetMessagesCall{Directory: directory})
+func (g *GoSSBRepoReaderMock) GetMessages(ctx context.Context, directory string, resumeAfterSequence *common.ReceiveLogSequence) (<-chan commands.GoSSBMessageOrError, error) {
+	g.GoSSBRepoReaderMockGetMessagesCalls = append(
+		g.GoSSBRepoReaderMockGetMessagesCalls,
+		GoSSBRepoReaderMockGetMessagesCall{
+			Directory:           directory,
+			ResumeAfterSequence: resumeAfterSequence,
+		},
+	)
 	ch := make(chan commands.GoSSBMessageOrError)
 	go func() {
 		defer close(ch)

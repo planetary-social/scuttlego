@@ -1,14 +1,10 @@
 package di
 
 import (
-	"context"
-
-	"github.com/boreq/errors"
 	"github.com/google/wire"
 	"github.com/planetary-social/scuttlego/migrations"
 	migrationsadapters "github.com/planetary-social/scuttlego/service/adapters/migrations"
 	"github.com/planetary-social/scuttlego/service/app/commands"
-	"github.com/planetary-social/scuttlego/service/app/common"
 )
 
 //nolint:unused
@@ -26,6 +22,8 @@ var migrationsSet = wire.NewSet(
 
 	newMigrationsList,
 
+	newCommandImportDataFromGoSSBHandlerAdapter,
+
 	migrationCommandsSet,
 )
 
@@ -34,34 +32,23 @@ var migrationCommandsSet = wire.NewSet(
 	commands.NewMigrationHandlerImportDataFromGoSSB,
 )
 
-func newMigrationsList(
-	m commands.Migrations,
+func newCommandImportDataFromGoSSBHandlerAdapter(
 	config Config,
+	m commands.Migrations,
+) *migrationsadapters.CommandImportDataFromGoSSBHandlerAdapter {
+	return migrationsadapters.NewCommandImportDataFromGoSSBHandlerAdapter(
+		config.GoSSBDataDirectory,
+		m,
+	)
+}
+
+func newMigrationsList(
+	commandImportDataFromGoSSBHandlerAdapter *migrationsadapters.CommandImportDataFromGoSSBHandlerAdapter,
 ) []migrations.Migration {
 	return []migrations.Migration{
 		migrations.MustNewMigration(
 			"0001_import_data_from_gossb",
-			func(ctx context.Context, state migrations.State, saveStateFunc migrations.SaveStateFunc) error {
-				saveResumeAfterSequenceFn := func(sequence common.ReceiveLogSequence) error {
-					return nil
-				}
-
-				cmd, err := commands.NewImportDataFromGoSSB(
-					config.GoSSBDataDirectory,
-					nil,
-					saveResumeAfterSequenceFn,
-				)
-				if err != nil {
-					return errors.Wrap(err, "could not create a command")
-				}
-
-				err = m.MigrationImportDataFromGoSSB.Handle(ctx, cmd)
-				if err != nil {
-					return errors.Wrap(err, "could not run a command")
-				}
-
-				return nil
-			},
+			commandImportDataFromGoSSBHandlerAdapter.Fn,
 		),
 	}
 }

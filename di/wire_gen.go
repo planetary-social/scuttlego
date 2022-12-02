@@ -400,7 +400,8 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	commandsMigrations := commands.Migrations{
 		MigrationImportDataFromGoSSB: migrationHandlerImportDataFromGoSSB,
 	}
-	v2 := newMigrationsList(commandsMigrations, config)
+	commandImportDataFromGoSSBHandlerAdapter := newCommandImportDataFromGoSSBHandlerAdapter(config, commandsMigrations)
+	v2 := newMigrationsList(commandImportDataFromGoSSBHandlerAdapter)
 	migrationsMigrations, err := migrations2.NewMigrations(v2)
 	if err != nil {
 		return Service{}, err

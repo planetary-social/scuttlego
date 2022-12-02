@@ -8,6 +8,7 @@ import (
 	"github.com/planetary-social/scuttlego/migrations"
 	migrationsadapters "github.com/planetary-social/scuttlego/service/adapters/migrations"
 	"github.com/planetary-social/scuttlego/service/app/commands"
+	"github.com/planetary-social/scuttlego/service/app/common"
 )
 
 //nolint:unused
@@ -41,7 +42,15 @@ func newMigrationsList(
 		migrations.MustNewMigration(
 			"0001_import_data_from_gossb",
 			func(ctx context.Context, state migrations.State, saveStateFunc migrations.SaveStateFunc) error {
-				cmd, err := commands.NewImportDataFromGoSSB(config.GoSSBDataDirectory, nil)
+				saveResumeAfterSequenceFn := func(sequence common.ReceiveLogSequence) error {
+					return nil
+				}
+
+				cmd, err := commands.NewImportDataFromGoSSB(
+					config.GoSSBDataDirectory,
+					nil,
+					saveResumeAfterSequenceFn,
+				)
 				if err != nil {
 					return errors.Wrap(err, "could not create a command")
 				}

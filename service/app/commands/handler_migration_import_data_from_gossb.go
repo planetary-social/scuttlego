@@ -16,6 +16,9 @@ import (
 const batchSize = 5000
 
 type GoSSBRepoReader interface {
+	// GetMessages returns a channel on which receive log messages will be sent
+	// ordered by their receive log sequence. Some messages may be missing. If
+	// the provided value is not nil it will resume after the provided sequence.
 	GetMessages(ctx context.Context, directory string, resumeAfterSequence *common.ReceiveLogSequence) (<-chan GoSSBMessageOrError, error)
 }
 
@@ -25,22 +28,33 @@ type GoSSBMessageOrError struct {
 }
 
 type GoSSBMessage struct {
-	ReceiveLogSequence int64
+	ReceiveLogSequence common.ReceiveLogSequence
 	Message            gossbrefs.Message
 }
 
+type SaveResumeAfterSequenceFn func(common.ReceiveLogSequence) error
+
 type ImportDataFromGoSSB struct {
-	directory           string
-	resumeAfterSequence *common.ReceiveLogSequence
+	directory                 string
+	resumeAfterSequence       *common.ReceiveLogSequence
+	saveResumeAfterSequenceFn SaveResumeAfterSequenceFn
 }
 
-func NewImportDataFromGoSSB(directory string, resumeAfterSequence *common.ReceiveLogSequence) (ImportDataFromGoSSB, error) {
+func NewImportDataFromGoSSB(
+	directory string,
+	resumeAfterSequence *common.ReceiveLogSequence,
+	saveResumeAfterSequenceFn SaveResumeAfterSequenceFn,
+) (ImportDataFromGoSSB, error) {
 	if directory == "" {
 		return ImportDataFromGoSSB{}, errors.New("directory is an empty string")
 	}
+	if saveResumeAfterSequenceFn == nil {
+		return ImportDataFromGoSSB{}, errors.New("nil save resume after sequence function")
+	}
 	return ImportDataFromGoSSB{
-		directory:           directory,
-		resumeAfterSequence: resumeAfterSequence,
+		directory:                 directory,
+		resumeAfterSequence:       resumeAfterSequence,
+		saveResumeAfterSequenceFn: saveResumeAfterSequenceFn,
 	}, nil
 }
 
@@ -86,21 +100,28 @@ func (h MigrationHandlerImportDataFromGoSSB) Handle(ctx context.Context, cmd Imp
 		msgs = append(msgs, v.Value)
 
 		if len(msgs) >= batchSize {
-			if err := h.saveMessages(msgs); err != nil {
+			if err := h.saveMessages(msgs, cmd.saveResumeAfterSequenceFn); err != nil {
 				return errors.Wrap(err, "error saving messages")
 			}
 			msgs = nil
 		}
 	}
 
-	if err := h.saveMessages(msgs); err != nil {
+	if err := h.saveMessages(msgs, cmd.saveResumeAfterSequenceFn); err != nil {
 		return errors.Wrap(err, "error saving messages")
 	}
 
 	return nil
 }
 
-func (h MigrationHandlerImportDataFromGoSSB) saveMessages(gossbmsgs []GoSSBMessage) error {
+func (h MigrationHandlerImportDataFromGoSSB) saveMessages(
+	gossbmsgs []GoSSBMessage,
+	saveResumeAfterSequenceFn SaveResumeAfterSequenceFn,
+) error {
+	if len(gossbmsgs) == 0 {
+		return nil
+	}
+
 	if err := h.transaction.Transact(func(adapters Adapters) error {
 		for _, gossbmsg := range gossbmsgs {
 			if err := h.saveMessage(adapters, gossbmsg); err != nil {
@@ -112,6 +133,11 @@ func (h MigrationHandlerImportDataFromGoSSB) saveMessages(gossbmsgs []GoSSBMessa
 		return errors.Wrap(err, "transaction failed")
 	}
 
+	lastMsgReceiveLogSequence := gossbmsgs[len(gossbmsgs)-1].ReceiveLogSequence
+	if err := saveResumeAfterSequenceFn(lastMsgReceiveLogSequence); err != nil {
+		return errors.Wrap(err, "error saving the receive log sequence")
+	}
+
 	return nil
 }
 
@@ -121,18 +147,13 @@ func (h MigrationHandlerImportDataFromGoSSB) saveMessage(adapters Adapters, goss
 		return errors.Wrap(err, "error converting the message")
 	}
 
-	receiveLogSequence, err := common.NewReceiveLogSequence(int(gossbmsg.ReceiveLogSequence))
-	if err != nil {
-		return errors.Wrap(err, "error creating the receive log sequence")
-	}
-
 	if err := adapters.Feed.UpdateFeedIgnoringReceiveLog(msg.Feed(), func(feed *feeds.Feed) error {
 		return feed.AppendMessage(msg)
 	}); err != nil {
 		return errors.Wrap(err, "error updating the feed")
 	}
 
-	if err := adapters.ReceiveLog.PutUnderSpecificSequence(msg.Id(), receiveLogSequence); err != nil {
+	if err := adapters.ReceiveLog.PutUnderSpecificSequence(msg.Id(), gossbmsg.ReceiveLogSequence); err != nil {
 		return errors.Wrap(err, "error updating the receive log")
 	}
 

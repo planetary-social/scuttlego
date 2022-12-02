@@ -52,6 +52,8 @@ func (m GoSSBRepoReader) GetMessages(ctx context.Context, directory string, resu
 		return nil, errors.Wrap(err, "failed to stat directory")
 	}
 
+	// todo resume after sequence
+
 	ctx, cancel := context.WithCancel(ctx)
 
 	bot, err := m.createBot(ctx, directory)
@@ -64,9 +66,15 @@ func (m GoSSBRepoReader) GetMessages(ctx context.Context, directory string, resu
 		WithField("max_receive_log_sequence", bot.ReceiveLog.Seq()).
 		Debug("created the bot")
 
-	src, err := bot.ReceiveLog.Query(
+	query := []margaret.QuerySpec{
 		margaret.SeqWrap(true),
-	)
+	}
+
+	if resumeAfterSequence != nil {
+		query = append(query, margaret.Gt(int64(resumeAfterSequence.Int())))
+	}
+
+	src, err := bot.ReceiveLog.Query(query...)
 	if err != nil {
 		cancel()
 		return nil, errors.Wrap(err, "error querying receive log")
@@ -112,36 +120,39 @@ func (m GoSSBRepoReader) GetMessages(ctx context.Context, directory string, resu
 	return ch, nil
 }
 
-func (m GoSSBRepoReader) getNextMessage(ctx context.Context, src luigi.Source) (int64, refs.Message, error) {
+func (m GoSSBRepoReader) getNextMessage(ctx context.Context, src luigi.Source) (common.ReceiveLogSequence, refs.Message, error) {
 	for {
 		v, err := src.Next(ctx)
 		if err != nil {
 			if luigi.IsEOS(err) {
-				return 0, nil, io.EOF
+				return common.ReceiveLogSequence{}, nil, io.EOF
 			}
-			return 0, nil, errors.Wrap(err, "error getting next value")
+			return common.ReceiveLogSequence{}, nil, errors.Wrap(err, "error getting next value")
 		}
 
 		if err, ok := v.(error); ok {
 			if margaret.IsErrNulled(err) {
 				continue
 			}
-			return 0, nil, errors.Wrap(err, "margaret returned an error")
+			return common.ReceiveLogSequence{}, nil, errors.Wrap(err, "margaret returned an error")
 		}
 
 		sw, ok := v.(margaret.SeqWrapper)
 		if !ok {
-			return 0, nil, fmt.Errorf("expected message seq wrapper but got '%T'", v)
+			return common.ReceiveLogSequence{}, nil, fmt.Errorf("expected message seq wrapper but got '%T'", v)
 		}
-
-		rxLogSeq := sw.Seq()
 
 		msg, ok := sw.Value().(refs.Message)
 		if !ok {
-			return 0, nil, fmt.Errorf("expected message but got '%T'", sw.Value())
+			return common.ReceiveLogSequence{}, nil, fmt.Errorf("expected message but got '%T'", sw.Value())
 		}
 
-		return rxLogSeq, msg, nil
+		receiveLogSequence, err := common.NewReceiveLogSequence(int(sw.Seq()))
+		if err != nil {
+			return common.ReceiveLogSequence{}, nil, errors.Wrap(err, "error creating a receive log sequence")
+		}
+
+		return receiveLogSequence, msg, nil
 	}
 }
 

@@ -21,11 +21,12 @@ func TestMigrationHandlerImportDataFromGoSSB_MessageReturnedFromRepoReaderIsSave
 
 	directory := fixtures.SomeString()
 	receiveLogSequence := fixtures.SomeReceiveLogSequence()
+	saveResumeAfterSequenceFn := newSaveResumeAfterSequenceFnMock()
 
-	cmd, err := commands.NewImportDataFromGoSSB(directory, &receiveLogSequence)
+	cmd, err := commands.NewImportDataFromGoSSB(directory, &receiveLogSequence, saveResumeAfterSequenceFn.Fn)
 	require.NoError(t, err)
 
-	msgReceiveLogSequence := int64(123)
+	msgReceiveLogSequence := fixtures.SomeReceiveLogSequence()
 	msg := mockGoSSBMessage(t)
 
 	tc.GoSSBRepoReader.MockGetMessages(
@@ -72,10 +73,17 @@ func TestMigrationHandlerImportDataFromGoSSB_MessageReturnedFromRepoReaderIsSave
 		[]mocks.ReceiveLogRepositoryPutUnderSpecificSequenceCall{
 			{
 				Id:       refs.MustNewMessage(msg.Key().String()),
-				Sequence: common.MustNewReceiveLogSequence(int(msgReceiveLogSequence)),
+				Sequence: msgReceiveLogSequence,
 			},
 		},
 		tc.ReceiveLog.PutUnderSpecificSequenceCalls,
+	)
+
+	require.Equal(t,
+		[]common.ReceiveLogSequence{
+			msgReceiveLogSequence,
+		},
+		saveResumeAfterSequenceFn.calls,
 	)
 }
 
@@ -90,6 +98,19 @@ func mockGoSSBMessage(t *testing.T) gossbrefs.Message {
 		key:    key,
 		author: author,
 	}
+}
+
+type saveResumeAfterSequenceFnMock struct {
+	calls []common.ReceiveLogSequence
+}
+
+func newSaveResumeAfterSequenceFnMock() *saveResumeAfterSequenceFnMock {
+	return &saveResumeAfterSequenceFnMock{}
+}
+
+func (m *saveResumeAfterSequenceFnMock) Fn(s common.ReceiveLogSequence) error {
+	m.calls = append(m.calls, s)
+	return nil
 }
 
 type mockMessage struct {

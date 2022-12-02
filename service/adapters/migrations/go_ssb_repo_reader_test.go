@@ -26,7 +26,7 @@ func TestGoSSBRepoReader_GetMessages_ReturnsNoResultsIfDirectoryDoesNotExist(t *
 	_, err := os.Stat(nonexistentDirectory)
 	require.ErrorIs(t, err, os.ErrNotExist)
 
-	ch, err := reader.GetMessages(ctx, nonexistentDirectory)
+	ch, err := reader.GetMessages(ctx, nonexistentDirectory, nil)
 	require.NoError(t, err)
 
 	for range ch {

@@ -256,3 +256,73 @@ func TestReceiveLog_PutUnderSpecificSequence_InsertsCorrectMapping(t *testing.T)
 	})
 	require.NoError(t, err)
 }
+
+func TestReceiveLogRepository_PutUnderSpecificSequenceAdvancesInternalSequenceCounter(t *testing.T) {
+	db := fixtures.Bolt(t)
+
+	msg1 := fixtures.SomeMessage(fixtures.SomeSequence(), fixtures.SomeRefFeed())
+	sequence := common.MustNewReceiveLogSequence(123)
+
+	msg2 := fixtures.SomeMessage(fixtures.SomeSequence(), fixtures.SomeRefFeed())
+
+	err := db.Update(func(tx *bbolt.Tx) error {
+		txadapters, err := di.BuildTxTestAdapters(tx)
+		require.NoError(t, err)
+
+		if err := txadapters.ReceiveLog.PutUnderSpecificSequence(msg1.Id(), sequence); err != nil {
+			return errors.Wrap(err, "could not put a message in receive log")
+		}
+
+		if err := txadapters.MessageRepository.Put(msg1); err != nil {
+			return errors.Wrap(err, "could not put a message in message repository")
+		}
+
+		return nil
+	})
+	require.NoError(t, err)
+
+	err = db.View(func(tx *bbolt.Tx) error {
+		txadapters, err := di.BuildTxTestAdapters(tx)
+		require.NoError(t, err)
+
+		msgs, err := txadapters.ReceiveLog.List(common.MustNewReceiveLogSequence(0), 100)
+		require.NoError(t, err)
+
+		require.Len(t, msgs, 1)
+		require.Equal(t, sequence, msgs[0].Sequence)
+
+		return nil
+	})
+	require.NoError(t, err)
+
+	err = db.Update(func(tx *bbolt.Tx) error {
+		txadapters, err := di.BuildTxTestAdapters(tx)
+		require.NoError(t, err)
+
+		if err := txadapters.ReceiveLog.Put(msg2.Id()); err != nil {
+			return errors.Wrap(err, "could not put a message in receive log")
+		}
+
+		if err := txadapters.MessageRepository.Put(msg2); err != nil {
+			return errors.Wrap(err, "could not put a message in message repository")
+		}
+
+		return nil
+	})
+	require.NoError(t, err)
+
+	err = db.View(func(tx *bbolt.Tx) error {
+		txadapters, err := di.BuildTxTestAdapters(tx)
+		require.NoError(t, err)
+
+		msgs, err := txadapters.ReceiveLog.List(common.MustNewReceiveLogSequence(0), 100)
+		require.NoError(t, err)
+
+		require.Len(t, msgs, 2)
+		require.Equal(t, sequence, msgs[0].Sequence)
+		require.Equal(t, common.MustNewReceiveLogSequence(sequence.Int()+1), msgs[1].Sequence)
+
+		return nil
+	})
+	require.NoError(t, err)
+}

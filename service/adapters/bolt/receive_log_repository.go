@@ -67,7 +67,11 @@ func (r ReceiveLogRepository) PutUnderSpecificSequence(id refs.Message, sequence
 		return errors.Wrap(err, "put failed")
 	}
 
-	// todo advance counter I think
+	if targetSequence := uint64(sequence.Int()) + 1; sequencesToMessages.Sequence() <= targetSequence { // Automatic insert happens under the set value hence + 1, see Put
+		if err := sequencesToMessages.SetSequence(targetSequence); err != nil {
+			return errors.Wrap(err, "error setting sequence")
+		}
+	}
 
 	return nil
 }

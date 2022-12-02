@@ -257,7 +257,7 @@ func TestReceiveLog_PutUnderSpecificSequence_InsertsCorrectMapping(t *testing.T)
 	require.NoError(t, err)
 }
 
-func TestReceiveLogRepository_PutUnderSpecificSequenceAdvancesInternalSequenceCounter(t *testing.T) {
+func TestReceiveLogRepository_PutUnderSpecificSequenceAdvancesInternalSequenceCounterIfItIsLower(t *testing.T) {
 	db := fixtures.Bolt(t)
 
 	msg1 := fixtures.SomeMessage(fixtures.SomeSequence(), fixtures.SomeRefFeed())
@@ -321,6 +321,144 @@ func TestReceiveLogRepository_PutUnderSpecificSequenceAdvancesInternalSequenceCo
 		require.Len(t, msgs, 2)
 		require.Equal(t, sequence, msgs[0].Sequence)
 		require.Equal(t, common.MustNewReceiveLogSequence(sequence.Int()+1), msgs[1].Sequence)
+
+		return nil
+	})
+	require.NoError(t, err)
+}
+
+func TestReceiveLogRepository_PutUnderSpecificSequenceDoesNotAdvanceInternalSequenceCounterIfItIsHigher(t *testing.T) {
+	db := fixtures.Bolt(t)
+
+	msg1 := fixtures.SomeMessage(fixtures.SomeSequence(), fixtures.SomeRefFeed())
+	msg2 := fixtures.SomeMessage(fixtures.SomeSequence(), fixtures.SomeRefFeed())
+	msg3 := fixtures.SomeMessage(fixtures.SomeSequence(), fixtures.SomeRefFeed())
+	sequence := common.MustNewReceiveLogSequence(0)
+
+	err := db.Update(func(tx *bbolt.Tx) error {
+		txadapters, err := di.BuildTxTestAdapters(tx)
+		require.NoError(t, err)
+
+		if err := txadapters.ReceiveLog.Put(msg1.Id()); err != nil {
+			return errors.Wrap(err, "could not put a message in receive log")
+		}
+
+		if err := txadapters.MessageRepository.Put(msg1); err != nil {
+			return errors.Wrap(err, "could not put a message in message repository")
+		}
+
+		if err := txadapters.ReceiveLog.Put(msg2.Id()); err != nil {
+			return errors.Wrap(err, "could not put a message in receive log")
+		}
+
+		if err := txadapters.MessageRepository.Put(msg2); err != nil {
+			return errors.Wrap(err, "could not put a message in message repository")
+		}
+
+		return nil
+	})
+	require.NoError(t, err)
+
+	err = db.View(func(tx *bbolt.Tx) error {
+		txadapters, err := di.BuildTxTestAdapters(tx)
+		require.NoError(t, err)
+
+		msgs, err := txadapters.ReceiveLog.List(common.MustNewReceiveLogSequence(0), 100)
+		require.NoError(t, err)
+
+		require.Len(t, msgs, 2)
+		require.Equal(t, common.MustNewReceiveLogSequence(0), msgs[0].Sequence)
+		require.Equal(t, common.MustNewReceiveLogSequence(1), msgs[1].Sequence)
+
+		return nil
+	})
+	require.NoError(t, err)
+
+	err = db.Update(func(tx *bbolt.Tx) error {
+		txadapters, err := di.BuildTxTestAdapters(tx)
+		require.NoError(t, err)
+
+		if err := txadapters.ReceiveLog.PutUnderSpecificSequence(msg1.Id(), sequence); err != nil {
+			return errors.Wrap(err, "could not put a message in receive log")
+		}
+
+		return nil
+	})
+	require.NoError(t, err)
+
+	err = db.Update(func(tx *bbolt.Tx) error {
+		txadapters, err := di.BuildTxTestAdapters(tx)
+		require.NoError(t, err)
+
+		if err := txadapters.ReceiveLog.Put(msg3.Id()); err != nil {
+			return errors.Wrap(err, "could not put a message in receive log")
+		}
+
+		if err := txadapters.MessageRepository.Put(msg3); err != nil {
+			return errors.Wrap(err, "could not put a message in message repository")
+		}
+
+		return nil
+	})
+	require.NoError(t, err)
+
+	err = db.View(func(tx *bbolt.Tx) error {
+		txadapters, err := di.BuildTxTestAdapters(tx)
+		require.NoError(t, err)
+
+		msgs, err := txadapters.ReceiveLog.List(common.MustNewReceiveLogSequence(0), 100)
+		require.NoError(t, err)
+
+		require.Len(t, msgs, 3)
+		require.Equal(t, common.MustNewReceiveLogSequence(0), msgs[0].Sequence)
+		require.Equal(t, common.MustNewReceiveLogSequence(1), msgs[1].Sequence)
+		require.Equal(t, common.MustNewReceiveLogSequence(2), msgs[2].Sequence)
+
+		return nil
+	})
+	require.NoError(t, err)
+}
+
+func TestReceiveLogRepository_OneMessageMayBeUnderMultipleSequences(t *testing.T) {
+	db := fixtures.Bolt(t)
+
+	msg := fixtures.SomeMessage(fixtures.SomeSequence(), fixtures.SomeRefFeed())
+	sequence1 := common.MustNewReceiveLogSequence(123)
+	sequence2 := common.MustNewReceiveLogSequence(345)
+
+	err := db.Update(func(tx *bbolt.Tx) error {
+		txadapters, err := di.BuildTxTestAdapters(tx)
+		require.NoError(t, err)
+
+		if err := txadapters.ReceiveLog.PutUnderSpecificSequence(msg.Id(), sequence1); err != nil {
+			return errors.Wrap(err, "could not put a message in receive log")
+		}
+
+		if err := txadapters.ReceiveLog.PutUnderSpecificSequence(msg.Id(), sequence2); err != nil {
+			return errors.Wrap(err, "could not put a message in receive log")
+		}
+
+		if err := txadapters.MessageRepository.Put(msg); err != nil {
+			return errors.Wrap(err, "could not put a message in message repository")
+		}
+
+		return nil
+	})
+	require.NoError(t, err)
+
+	err = db.View(func(tx *bbolt.Tx) error {
+		txadapters, err := di.BuildTxTestAdapters(tx)
+		require.NoError(t, err)
+
+		seqs, err := txadapters.ReceiveLog.GetSequences(msg.Id())
+		require.NoError(t, err)
+
+		require.Equal(t,
+			[]common.ReceiveLogSequence{
+				sequence1,
+				sequence2,
+			},
+			seqs)
 
 		return nil
 	})

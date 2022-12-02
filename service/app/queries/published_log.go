@@ -62,14 +62,14 @@ func (h *PublishedLogHandler) Handle(query PublishedLog) ([]LogMessage, error) {
 
 	var result []LogMessage
 	for _, msg := range msgs {
-		receiveLogSequence, err := h.receiveLogRepository.GetSequence(msg.Id())
+		receiveLogSequences, err := h.receiveLogRepository.GetSequences(msg.Id())
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to look up message sequence")
 		}
 
 		result = append(result, LogMessage{
 			Message:  msg,
-			Sequence: receiveLogSequence,
+			Sequence: receiveLogSequences[0], // todo test
 		})
 	}
 

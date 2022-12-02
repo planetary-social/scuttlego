@@ -29,3 +29,5 @@ func MustNewReceiveLogSequence(seq int) ReceiveLogSequence {
 func (r ReceiveLogSequence) Int() int {
 	return r.seq
 }
+
+var ErrReceiveLogEntryNotFound = errors.New("receive log entry not found")

@@ -8,6 +8,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/app/common"
 	"github.com/planetary-social/scuttlego/service/domain/bans"
 	"github.com/planetary-social/scuttlego/service/domain/feeds"
+	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/graph"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
 	"github.com/planetary-social/scuttlego/service/domain/network"
@@ -50,6 +51,10 @@ type TransactionProvider interface {
 
 type ReceiveLogRepository interface {
 	PutUnderSpecificSequence(id refs.Message, sequence common.ReceiveLogSequence) error
+
+	// GetMessage returns the message that the provided receive log sequence
+	// points to. Returns common.ErrReceiveLogEntryNotFound if not found.
+	GetMessage(seq common.ReceiveLogSequence) (message.Message, error)
 }
 
 type Adapters struct {

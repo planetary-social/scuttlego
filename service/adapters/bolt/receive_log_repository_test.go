@@ -11,6 +11,71 @@ import (
 	"go.etcd.io/bbolt"
 )
 
+func TestReceiveLog_GetMessage_ReturnsPrefefinedErrorWhenNotFound(t *testing.T) {
+	db := fixtures.Bolt(t)
+
+	msg := fixtures.SomeMessage(fixtures.SomeSequence(), fixtures.SomeRefFeed())
+
+	err := db.Update(func(tx *bbolt.Tx) error {
+		txadapters, err := di.BuildTxTestAdapters(tx)
+		require.NoError(t, err)
+
+		sequence1 := fixtures.SomeReceiveLogSequence()
+		sequence2 := fixtures.SomeReceiveLogSequence()
+
+		_, err = txadapters.ReceiveLog.GetMessage(sequence1)
+		require.ErrorIs(t, err, common.ErrReceiveLogEntryNotFound)
+
+		_, err = txadapters.ReceiveLog.GetMessage(sequence2)
+		require.ErrorIs(t, err, common.ErrReceiveLogEntryNotFound)
+
+		err = txadapters.ReceiveLog.PutUnderSpecificSequence(msg.Id(), sequence1)
+		require.NoError(t, err)
+
+		err = txadapters.MessageRepository.Put(msg)
+		require.NoError(t, err)
+
+		_, err = txadapters.ReceiveLog.GetMessage(sequence1)
+		require.NoError(t, err)
+
+		_, err = txadapters.ReceiveLog.GetMessage(sequence2)
+		require.ErrorIs(t, err, common.ErrReceiveLogEntryNotFound)
+
+		return nil
+	})
+	require.NoError(t, err)
+}
+
+func TestReceiveLog_GetSequences_ReturnsPrefefinedErrorWhenNotFound(t *testing.T) {
+	db := fixtures.Bolt(t)
+
+	msg1 := fixtures.SomeRefMessage()
+	msg2 := fixtures.SomeRefMessage()
+
+	err := db.Update(func(tx *bbolt.Tx) error {
+		txadapters, err := di.BuildTxTestAdapters(tx)
+		require.NoError(t, err)
+
+		_, err = txadapters.ReceiveLog.GetSequences(msg1)
+		require.ErrorIs(t, err, common.ErrReceiveLogEntryNotFound)
+
+		_, err = txadapters.ReceiveLog.GetSequences(msg2)
+		require.ErrorIs(t, err, common.ErrReceiveLogEntryNotFound)
+
+		err = txadapters.ReceiveLog.PutUnderSpecificSequence(msg1, fixtures.SomeReceiveLogSequence())
+		require.NoError(t, err)
+
+		_, err = txadapters.ReceiveLog.GetSequences(msg1)
+		require.NoError(t, err)
+
+		_, err = txadapters.ReceiveLog.GetSequences(msg2)
+		require.ErrorIs(t, err, common.ErrReceiveLogEntryNotFound)
+
+		return nil
+	})
+	require.NoError(t, err)
+}
+
 func TestReceiveLog_Get_ReturnsNoMessagesWhenEmpty(t *testing.T) {
 	db := fixtures.Bolt(t)
 
@@ -68,9 +133,9 @@ func TestReceiveLog_Put_InsertsCorrectMapping(t *testing.T) {
 		txadapters, err := di.BuildTxTestAdapters(tx)
 		require.NoError(t, err)
 
-		seq, err := txadapters.ReceiveLog.GetSequence(msg.Id())
+		seqs, err := txadapters.ReceiveLog.GetSequences(msg.Id())
 		require.NoError(t, err)
-		require.Equal(t, expectedSequence, seq)
+		require.Equal(t, []common.ReceiveLogSequence{expectedSequence}, seqs)
 
 		return nil
 	})
@@ -170,9 +235,9 @@ func TestReceiveLog_PutUnderSpecificSequence_InsertsCorrectMapping(t *testing.T)
 		txadapters, err := di.BuildTxTestAdapters(tx)
 		require.NoError(t, err)
 
-		seq, err := txadapters.ReceiveLog.GetSequence(msg.Id())
+		seqs, err := txadapters.ReceiveLog.GetSequences(msg.Id())
 		require.NoError(t, err)
-		require.Equal(t, sequence, seq)
+		require.Equal(t, []common.ReceiveLogSequence{sequence}, seqs)
 
 		return nil
 	})

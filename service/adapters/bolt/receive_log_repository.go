@@ -12,8 +12,6 @@ import (
 	"go.etcd.io/bbolt"
 )
 
-var errReceiveLogEntryNotFound = errors.New("receive log entry not found")
-
 type ReceiveLogRepository struct {
 	tx                *bbolt.Tx
 	messageRepository *MessageRepository
@@ -27,7 +25,7 @@ func NewReceiveLogRepository(tx *bbolt.Tx, messageRepository *MessageRepository)
 }
 
 func (r ReceiveLogRepository) Put(id refs.Message) error {
-	messagesToSequences, err := r.createMessagesToSequencesBucket(r.tx)
+	messagesToSequences, err := r.createMessagesToSequencesBucket(r.tx, id)
 	if err != nil {
 		return errors.Wrap(err, "could not create a bucket")
 	}
@@ -45,7 +43,6 @@ func (r ReceiveLogRepository) Put(id refs.Message) error {
 	receiveLogSeq, err := common.NewReceiveLogSequence(int(seq - 1)) // NextSequence starts with 1 while our log is 0 indexed
 	if err != nil {
 		return errors.Wrap(err, "failed to create receive log sequence")
-
 	}
 
 	if err := r.put(id, receiveLogSeq, sequencesToMessages, messagesToSequences); err != nil {
@@ -56,7 +53,7 @@ func (r ReceiveLogRepository) Put(id refs.Message) error {
 }
 
 func (r ReceiveLogRepository) PutUnderSpecificSequence(id refs.Message, sequence common.ReceiveLogSequence) error {
-	messagesToSequences, err := r.createMessagesToSequencesBucket(r.tx)
+	messagesToSequences, err := r.createMessagesToSequencesBucket(r.tx, id)
 	if err != nil {
 		return errors.Wrap(err, "could not create a bucket")
 	}
@@ -70,6 +67,8 @@ func (r ReceiveLogRepository) PutUnderSpecificSequence(id refs.Message, sequence
 		return errors.Wrap(err, "put failed")
 	}
 
+	// todo advance counter I think
+
 	return nil
 }
 
@@ -81,7 +80,7 @@ func (r ReceiveLogRepository) put(id refs.Message, receiveLogSeq common.ReceiveL
 		return errors.Wrap(err, "failed to put into sequences to messages bucket")
 	}
 
-	if err := messagesToSequences.Put(refBytes, seqBytes); err != nil {
+	if err := messagesToSequences.Put(seqBytes, nil); err != nil {
 		return errors.Wrap(err, "failed to put into messages to sequences bucket")
 	}
 
@@ -136,33 +135,46 @@ func (r ReceiveLogRepository) GetMessage(seq common.ReceiveLogSequence) (message
 	}
 
 	if bucket == nil {
-		return message.Message{}, errReceiveLogEntryNotFound
+		return message.Message{}, common.ErrReceiveLogEntryNotFound
 	}
 
 	value := bucket.Get(r.marshalSequence(seq))
 	if value == nil {
-		return message.Message{}, errReceiveLogEntryNotFound
+		return message.Message{}, common.ErrReceiveLogEntryNotFound
 	}
 
 	return r.loadMessage(value)
 }
 
-func (r ReceiveLogRepository) GetSequence(ref refs.Message) (common.ReceiveLogSequence, error) {
-	bucket, err := r.getMessagesToSequencesBucket(r.tx)
+func (r ReceiveLogRepository) GetSequences(ref refs.Message) ([]common.ReceiveLogSequence, error) {
+	bucket, err := r.getMessagesToSequencesBucket(r.tx, ref)
 	if err != nil {
-		return common.ReceiveLogSequence{}, errors.Wrap(err, "could not create a bucket")
+		return nil, errors.Wrap(err, "could not create a bucket")
 	}
 
 	if bucket == nil {
-		return common.ReceiveLogSequence{}, errReceiveLogEntryNotFound
+		return nil, common.ErrReceiveLogEntryNotFound
 	}
 
-	value := bucket.Get(r.marshalRef(ref))
-	if value == nil {
-		return common.ReceiveLogSequence{}, errReceiveLogEntryNotFound
+	var sequences []common.ReceiveLogSequence
+
+	if err := bucket.ForEach(func(k, v []byte) error {
+		sequence, err := r.unmarshalSequence(k)
+		if err != nil {
+			return errors.Wrap(err, "error unmarshaling sequence")
+		}
+
+		sequences = append(sequences, sequence)
+		return nil
+	}); err != nil {
+		return nil, errors.Wrap(err, "foreach error")
 	}
 
-	return r.unmarshalSequence(value)
+	if len(sequences) == 0 {
+		return nil, common.ErrReceiveLogEntryNotFound
+	}
+
+	return sequences, nil
 }
 
 func (r ReceiveLogRepository) loadMessage(value []byte) (message.Message, error) {
@@ -194,18 +206,19 @@ func (r ReceiveLogRepository) sequencesToMessagesBucketPath() []utils.BucketName
 	}
 }
 
-func (r ReceiveLogRepository) createMessagesToSequencesBucket(tx *bbolt.Tx) (*bbolt.Bucket, error) {
-	return utils.CreateBucket(tx, r.messagesToSequencesBucketPath())
+func (r ReceiveLogRepository) createMessagesToSequencesBucket(tx *bbolt.Tx, msgRef refs.Message) (*bbolt.Bucket, error) {
+	return utils.CreateBucket(tx, r.messagesToSequencesBucketPath(msgRef))
 }
 
-func (r ReceiveLogRepository) getMessagesToSequencesBucket(tx *bbolt.Tx) (*bbolt.Bucket, error) {
-	return utils.GetBucket(tx, r.messagesToSequencesBucketPath())
+func (r ReceiveLogRepository) getMessagesToSequencesBucket(tx *bbolt.Tx, msgRef refs.Message) (*bbolt.Bucket, error) {
+	return utils.GetBucket(tx, r.messagesToSequencesBucketPath(msgRef))
 }
 
-func (r ReceiveLogRepository) messagesToSequencesBucketPath() []utils.BucketName {
+func (r ReceiveLogRepository) messagesToSequencesBucketPath(msgRef refs.Message) []utils.BucketName {
 	return []utils.BucketName{
 		utils.BucketName("receive_log"),
 		utils.BucketName("messages_to_sequences"),
+		utils.BucketName(msgRef.String()),
 	}
 }
 
@@ -283,8 +296,8 @@ func (r ReadReceiveLogRepository) GetMessage(seq common.ReceiveLogSequence) (mes
 	return result, nil
 }
 
-func (r ReadReceiveLogRepository) GetSequence(ref refs.Message) (common.ReceiveLogSequence, error) {
-	var result common.ReceiveLogSequence
+func (r ReadReceiveLogRepository) GetSequences(ref refs.Message) ([]common.ReceiveLogSequence, error) {
+	var result []common.ReceiveLogSequence
 
 	if err := r.db.View(func(tx *bbolt.Tx) error {
 		r, err := r.factory(tx)
@@ -292,7 +305,7 @@ func (r ReadReceiveLogRepository) GetSequence(ref refs.Message) (common.ReceiveL
 			return errors.Wrap(err, "could not call the factory")
 		}
 
-		seq, err := r.ReceiveLog.GetSequence(ref)
+		seq, err := r.ReceiveLog.GetSequences(ref)
 		if err != nil {
 			return errors.Wrap(err, "failed to call the repository")
 		}
@@ -300,7 +313,7 @@ func (r ReadReceiveLogRepository) GetSequence(ref refs.Message) (common.ReceiveL
 		result = seq
 		return nil
 	}); err != nil {
-		return common.ReceiveLogSequence{}, errors.Wrap(err, "transaction failed")
+		return nil, errors.Wrap(err, "transaction failed")
 	}
 
 	return result, nil

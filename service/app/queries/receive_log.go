@@ -19,9 +19,10 @@ type ReceiveLogRepository interface {
 	// points to.
 	GetMessage(seq common.ReceiveLogSequence) (message.Message, error)
 
-	// GetSequence returns the sequence assigned to a message in the receive
-	// log.
-	GetSequence(ref refs.Message) (common.ReceiveLogSequence, error)
+	// GetSequences returns the sequences assigned to a message in the receive
+	// log. If an error isn't returned then the slice will have at least one
+	// element.
+	GetSequences(ref refs.Message) ([]common.ReceiveLogSequence, error)
 }
 
 type ReceiveLog struct {

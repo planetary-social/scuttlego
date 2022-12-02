@@ -42,17 +42,17 @@ func (r *ReceiveLogRepositoryMock) GetMessage(seq common.ReceiveLogSequence) (me
 
 	v, ok := r.sequenceToMessages[seq]
 	if !ok {
-		return message.Message{}, errors.New("not found")
+		return message.Message{}, common.ErrReceiveLogEntryNotFound
 	}
 	return v, nil
 }
 
-func (r ReceiveLogRepositoryMock) GetSequence(ref refs.Message) (common.ReceiveLogSequence, error) {
+func (r ReceiveLogRepositoryMock) GetSequences(ref refs.Message) ([]common.ReceiveLogSequence, error) {
 	v, ok := r.messagesToSequences[ref.String()]
 	if !ok {
-		return common.ReceiveLogSequence{}, errors.New("not found")
+		return nil, errors.New("not found")
 	}
-	return v, nil
+	return []common.ReceiveLogSequence{v}, nil
 }
 
 func (r *ReceiveLogRepositoryMock) PutUnderSpecificSequence(id refs.Message, sequence common.ReceiveLogSequence) error {

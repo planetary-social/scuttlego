@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/logging"
@@ -93,7 +94,7 @@ func (h MigrationHandlerImportDataFromGoSSB) Handle(ctx context.Context, cmd Imp
 		}
 
 		h.logger.
-			WithField("receive_log_sequence", v.Value.ReceiveLogSequence).
+			WithField("receive_log_sequence", v.Value.ReceiveLogSequence.Int()).
 			WithField("message_id", v.Value.Message.Key().Sigil()).
 			Trace("processing message")
 
@@ -125,7 +126,7 @@ func (h MigrationHandlerImportDataFromGoSSB) saveMessages(
 	if err := h.transaction.Transact(func(adapters Adapters) error {
 		for _, gossbmsg := range gossbmsgs {
 			if err := h.saveMessage(adapters, gossbmsg); err != nil {
-				return errors.Wrapf(err, "error saving message '%s' with receive log sequence '%d'", gossbmsg.Message.Key().Sigil(), gossbmsg.ReceiveLogSequence)
+				return errors.Wrapf(err, "error saving message '%s' with receive log sequence '%d'", gossbmsg.Message.Key().Sigil(), gossbmsg.ReceiveLogSequence.Int())
 			}
 		}
 		return nil
@@ -151,6 +152,17 @@ func (h MigrationHandlerImportDataFromGoSSB) saveMessage(adapters Adapters, goss
 		return feed.AppendMessage(msg)
 	}); err != nil {
 		return errors.Wrap(err, "error updating the feed")
+	}
+
+	foundMessage, err := adapters.ReceiveLog.GetMessage(gossbmsg.ReceiveLogSequence)
+	if err != nil {
+		if !errors.Is(err, common.ErrReceiveLogEntryNotFound) {
+			return errors.Wrap(err, "error getting message from receive log")
+		}
+	} else {
+		if !foundMessage.Id().Equal(msg.Id()) {
+			return fmt.Errorf("duplicate message, old='%s', new='%s'", foundMessage.Id(), msg.Id())
+		}
 	}
 
 	if err := adapters.ReceiveLog.PutUnderSpecificSequence(msg.Id(), gossbmsg.ReceiveLogSequence); err != nil {

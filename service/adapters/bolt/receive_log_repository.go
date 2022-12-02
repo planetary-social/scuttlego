@@ -48,6 +48,32 @@ func (r ReceiveLogRepository) Put(id refs.Message) error {
 
 	}
 
+	if err := r.put(id, receiveLogSeq, sequencesToMessages, messagesToSequences); err != nil {
+		return errors.Wrap(err, "put failed")
+	}
+
+	return nil
+}
+
+func (r ReceiveLogRepository) PutUnderSpecificSequence(id refs.Message, sequence common.ReceiveLogSequence) error {
+	messagesToSequences, err := r.createMessagesToSequencesBucket(r.tx)
+	if err != nil {
+		return errors.Wrap(err, "could not create a bucket")
+	}
+
+	sequencesToMessages, err := r.createSequencesToMessagesBucket(r.tx)
+	if err != nil {
+		return errors.Wrap(err, "could not create a bucket")
+	}
+
+	if err := r.put(id, sequence, sequencesToMessages, messagesToSequences); err != nil {
+		return errors.Wrap(err, "put failed")
+	}
+
+	return nil
+}
+
+func (r ReceiveLogRepository) put(id refs.Message, receiveLogSeq common.ReceiveLogSequence, sequencesToMessages *bbolt.Bucket, messagesToSequences *bbolt.Bucket) error {
 	seqBytes := r.marshalSequence(receiveLogSeq)
 	refBytes := r.marshalRef(id)
 
@@ -59,11 +85,6 @@ func (r ReceiveLogRepository) Put(id refs.Message) error {
 		return errors.Wrap(err, "failed to put into messages to sequences bucket")
 	}
 
-	return nil
-}
-
-func (r ReceiveLogRepository) PutUnderSpecificSequence(id refs.Message, sequence common.ReceiveLogSequence) error {
-	// todo
 	return nil
 }
 

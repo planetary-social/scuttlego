@@ -64,12 +64,12 @@ func (h *PublishedLogHandler) Handle(query PublishedLog) ([]LogMessage, error) {
 	for _, msg := range msgs {
 		receiveLogSequences, err := h.receiveLogRepository.GetSequences(msg.Id())
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to look up message sequence")
+			return nil, errors.Wrap(err, "failed to look up message sequences")
 		}
 
 		result = append(result, LogMessage{
 			Message:  msg,
-			Sequence: receiveLogSequences[0], // todo test
+			Sequence: receiveLogSequences[0],
 		})
 	}
 

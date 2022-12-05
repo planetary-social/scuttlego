@@ -15,22 +15,23 @@ type ReceiveLogRepositoryPutUnderSpecificSequenceCall struct {
 
 type ReceiveLogRepositoryMock struct {
 	GetMessageCalls               []common.ReceiveLogSequence
+	GetSequencesCalls             []refs.Message
 	PutUnderSpecificSequenceCalls []ReceiveLogRepositoryPutUnderSpecificSequenceCall
 
 	sequenceToMessages  map[common.ReceiveLogSequence]message.Message
-	messagesToSequences map[string]common.ReceiveLogSequence
+	messagesToSequences map[string][]common.ReceiveLogSequence
 }
 
 func NewReceiveLogRepositoryMock() *ReceiveLogRepositoryMock {
 	return &ReceiveLogRepositoryMock{
 		sequenceToMessages:  map[common.ReceiveLogSequence]message.Message{},
-		messagesToSequences: map[string]common.ReceiveLogSequence{},
+		messagesToSequences: map[string][]common.ReceiveLogSequence{},
 	}
 }
 
 func (r ReceiveLogRepositoryMock) MockMessage(seq common.ReceiveLogSequence, msg message.Message) {
 	r.sequenceToMessages[seq] = msg
-	r.messagesToSequences[msg.Id().String()] = seq
+	r.messagesToSequences[msg.Id().String()] = append(r.messagesToSequences[msg.Id().String()], seq)
 }
 
 func (r ReceiveLogRepositoryMock) List(startSeq common.ReceiveLogSequence, limit int) ([]queries.LogMessage, error) {
@@ -47,12 +48,14 @@ func (r *ReceiveLogRepositoryMock) GetMessage(seq common.ReceiveLogSequence) (me
 	return v, nil
 }
 
-func (r ReceiveLogRepositoryMock) GetSequences(ref refs.Message) ([]common.ReceiveLogSequence, error) {
-	v, ok := r.messagesToSequences[ref.String()]
+func (r *ReceiveLogRepositoryMock) GetSequences(ref refs.Message) ([]common.ReceiveLogSequence, error) {
+	r.GetSequencesCalls = append(r.GetSequencesCalls, ref)
+
+	sequences, ok := r.messagesToSequences[ref.String()]
 	if !ok {
 		return nil, errors.New("not found")
 	}
-	return []common.ReceiveLogSequence{v}, nil
+	return sequences, nil
 }
 
 func (r *ReceiveLogRepositoryMock) PutUnderSpecificSequence(id refs.Message, sequence common.ReceiveLogSequence) error {

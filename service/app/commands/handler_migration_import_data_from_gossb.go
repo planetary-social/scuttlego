@@ -148,12 +148,6 @@ func (h MigrationHandlerImportDataFromGoSSB) saveMessage(adapters Adapters, goss
 		return errors.Wrap(err, "error converting the message")
 	}
 
-	if err := adapters.Feed.UpdateFeedIgnoringReceiveLog(msg.Feed(), func(feed *feeds.Feed) error {
-		return feed.AppendMessage(msg)
-	}); err != nil {
-		return errors.Wrap(err, "error updating the feed")
-	}
-
 	foundMessage, err := adapters.ReceiveLog.GetMessage(gossbmsg.ReceiveLogSequence)
 	if err != nil {
 		if !errors.Is(err, common.ErrReceiveLogEntryNotFound) {
@@ -163,6 +157,12 @@ func (h MigrationHandlerImportDataFromGoSSB) saveMessage(adapters Adapters, goss
 		if !foundMessage.Id().Equal(msg.Id()) {
 			return fmt.Errorf("duplicate message, old='%s', new='%s'", foundMessage.Id(), msg.Id())
 		}
+	}
+
+	if err := adapters.Feed.UpdateFeedIgnoringReceiveLog(msg.Feed(), func(feed *feeds.Feed) error {
+		return feed.AppendMessage(msg)
+	}); err != nil {
+		return errors.Wrap(err, "error updating the feed")
 	}
 
 	if err := adapters.ReceiveLog.PutUnderSpecificSequence(msg.Id(), gossbmsg.ReceiveLogSequence); err != nil {

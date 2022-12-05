@@ -2,6 +2,7 @@ package commands_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/adapters/mocks"
 	"github.com/planetary-social/scuttlego/service/app/commands"
 	"github.com/planetary-social/scuttlego/service/app/common"
+	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/stretchr/testify/require"
 	gossbrefs "go.mindeco.de/ssb-refs"
@@ -87,6 +89,122 @@ func TestMigrationHandlerImportDataFromGoSSB_MessageReturnedFromRepoReaderIsSave
 	)
 }
 
+func TestMigrationHandlerImportDataFromGoSSB_ConflictingSequenceNumbersCauseAnErrorIfMessagesAreDifferent(t *testing.T) {
+	receiveLogSequence := fixtures.SomeReceiveLogSequence()
+	gossbmsg := mockGoSSBMessage(t)
+	receiveLogMessage1 := someMessageWithId(refs.MustNewMessage(gossbmsg.Key().Sigil()))
+	receiveLogMessage2 := someMessageWithId(fixtures.SomeRefMessage())
+
+	testCases := []struct {
+		Name              string
+		ReceiveLogMessage message.Message
+		ExpectedError     error
+	}{
+		{
+			Name:              "duplicate_message_with_identical_sequence_and_identical_id",
+			ReceiveLogMessage: receiveLogMessage1,
+			ExpectedError:     nil,
+		},
+		{
+			Name:              "duplicate_message_with_identical_sequence_and_different_id",
+			ReceiveLogMessage: receiveLogMessage2,
+			ExpectedError: fmt.Errorf(
+				"error saving messages: transaction failed: error saving message '%s' with receive log sequence '%d': duplicate message, old='%s', new='%s'",
+				gossbmsg.Key().Sigil(),
+				receiveLogSequence.Int(),
+				receiveLogMessage2.Id().String(),
+				gossbmsg.Key().Sigil(),
+			),
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			tc, err := di.BuildTestCommands(t)
+			require.NoError(t, err)
+
+			directory := fixtures.SomeString()
+			saveResumeAfterSequenceFn := newSaveResumeAfterSequenceFnMock()
+
+			cmd, err := commands.NewImportDataFromGoSSB(directory, nil, saveResumeAfterSequenceFn.Fn)
+			require.NoError(t, err)
+
+			tc.GoSSBRepoReader.MockGetMessages([]commands.GoSSBMessageOrError{
+				{
+					Value: commands.GoSSBMessage{
+						ReceiveLogSequence: receiveLogSequence,
+						Message:            gossbmsg,
+					},
+					Err: nil,
+				},
+			})
+
+			tc.ReceiveLog.MockMessage(receiveLogSequence, testCase.ReceiveLogMessage)
+
+			ctx := fixtures.TestContext(t)
+			err = tc.MigrationImportDataFromGoSSB.Handle(ctx, cmd)
+
+			require.Equal(t,
+				[]common.ReceiveLogSequence{
+					receiveLogSequence,
+				},
+				tc.ReceiveLog.GetMessageCalls,
+			)
+
+			if testCase.ExpectedError != nil {
+				require.EqualError(t, err, testCase.ExpectedError.Error())
+
+				require.Empty(
+					t,
+					tc.ReceiveLog.PutUnderSpecificSequenceCalls,
+				)
+
+				require.Empty(
+					t,
+					tc.FeedRepository.UpdateFeedIgnoringReceiveLogCalls(),
+				)
+
+				require.Empty(t,
+					saveResumeAfterSequenceFn.calls,
+				)
+			} else {
+				require.NoError(t, err)
+
+				require.Equal(
+					t,
+					[]mocks.ReceiveLogRepositoryPutUnderSpecificSequenceCall{
+						{
+							Id:       refs.MustNewMessage(gossbmsg.Key().String()),
+							Sequence: receiveLogSequence,
+						},
+					},
+					tc.ReceiveLog.PutUnderSpecificSequenceCalls,
+				)
+
+				require.Equal(
+					t,
+					[]mocks.FeedRepositoryMockUpdateFeedIgnoringReceiveLogCall{
+						{
+							Feed: refs.MustNewFeed(gossbmsg.Author().Sigil()),
+							MessagesToPersist: []refs.Message{
+								refs.MustNewMessage(gossbmsg.Key().String()),
+							},
+						},
+					},
+					tc.FeedRepository.UpdateFeedIgnoringReceiveLogCalls(),
+				)
+
+				require.Equal(t,
+					[]common.ReceiveLogSequence{
+						receiveLogSequence,
+					},
+					saveResumeAfterSequenceFn.calls,
+				)
+			}
+		})
+	}
+}
+
 func mockGoSSBMessage(t *testing.T) gossbrefs.Message {
 	key, err := gossbrefs.ParseMessageRef(fixtures.SomeRefMessage().String())
 	require.NoError(t, err)
@@ -152,4 +270,17 @@ func (m mockMessage) ValueContent() *gossbrefs.Value {
 
 func (m mockMessage) ValueContentJSON() json.RawMessage {
 	return fixtures.SomeRawMessage().Bytes()
+}
+
+func someMessageWithId(id refs.Message) message.Message {
+	return message.MustNewMessage(
+		id,
+		nil,
+		message.NewFirstSequence(),
+		fixtures.SomeRefIdentity(),
+		fixtures.SomeRefFeed(),
+		fixtures.SomeTime(),
+		fixtures.SomeContent(),
+		fixtures.SomeRawMessage(),
+	)
 }

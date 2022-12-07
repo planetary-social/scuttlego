@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/planetary-social/scuttlego/logging"
-	"github.com/planetary-social/scuttlego/service/app/queries"
+	"github.com/planetary-social/scuttlego/service/app/common"
 	"github.com/planetary-social/scuttlego/service/domain/bans"
 	"github.com/planetary-social/scuttlego/service/domain/blobs"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/content"
@@ -130,8 +130,8 @@ func SomeSequence() message.Sequence {
 	return message.MustNewSequence(rand.Int())
 }
 
-func SomeReceiveLogSequence() queries.ReceiveLogSequence {
-	return queries.MustNewReceiveLogSequence(rand.Int())
+func SomeReceiveLogSequence() common.ReceiveLogSequence {
+	return common.MustNewReceiveLogSequence(rand.Int())
 }
 
 func SomeString() string {

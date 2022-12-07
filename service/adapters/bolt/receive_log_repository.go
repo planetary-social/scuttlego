@@ -5,13 +5,12 @@ import (
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/service/adapters/bolt/utils"
+	"github.com/planetary-social/scuttlego/service/app/common"
 	"github.com/planetary-social/scuttlego/service/app/queries"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"go.etcd.io/bbolt"
 )
-
-var errReceiveLogEntryNotFound = errors.New("receive log entry not found")
 
 type ReceiveLogRepository struct {
 	tx                *bbolt.Tx
@@ -26,7 +25,7 @@ func NewReceiveLogRepository(tx *bbolt.Tx, messageRepository *MessageRepository)
 }
 
 func (r ReceiveLogRepository) Put(id refs.Message) error {
-	messagesToSequences, err := r.createMessagesToSequencesBucket(r.tx)
+	messagesToSequences, err := r.createMessagesToSequencesBucket(r.tx, id)
 	if err != nil {
 		return errors.Wrap(err, "could not create a bucket")
 	}
@@ -41,12 +40,43 @@ func (r ReceiveLogRepository) Put(id refs.Message) error {
 		return errors.Wrap(err, "could not get the next sequence")
 	}
 
-	receiveLogSeq, err := queries.NewReceiveLogSequence(int(seq - 1)) // NextSequence starts with 1 while our log is 0 indexed
+	receiveLogSeq, err := common.NewReceiveLogSequence(int(seq - 1)) // NextSequence starts with 1 while our log is 0 indexed
 	if err != nil {
 		return errors.Wrap(err, "failed to create receive log sequence")
-
 	}
 
+	if err := r.put(id, receiveLogSeq, sequencesToMessages, messagesToSequences); err != nil {
+		return errors.Wrap(err, "put failed")
+	}
+
+	return nil
+}
+
+func (r ReceiveLogRepository) PutUnderSpecificSequence(id refs.Message, sequence common.ReceiveLogSequence) error {
+	messagesToSequences, err := r.createMessagesToSequencesBucket(r.tx, id)
+	if err != nil {
+		return errors.Wrap(err, "could not create a bucket")
+	}
+
+	sequencesToMessages, err := r.createSequencesToMessagesBucket(r.tx)
+	if err != nil {
+		return errors.Wrap(err, "could not create a bucket")
+	}
+
+	if err := r.put(id, sequence, sequencesToMessages, messagesToSequences); err != nil {
+		return errors.Wrap(err, "put failed")
+	}
+
+	if targetSequence := uint64(sequence.Int()) + 1; sequencesToMessages.Sequence() <= targetSequence { // Automatic insert happens under the set value hence + 1, see Put
+		if err := sequencesToMessages.SetSequence(targetSequence); err != nil {
+			return errors.Wrap(err, "error setting sequence")
+		}
+	}
+
+	return nil
+}
+
+func (r ReceiveLogRepository) put(id refs.Message, receiveLogSeq common.ReceiveLogSequence, sequencesToMessages *bbolt.Bucket, messagesToSequences *bbolt.Bucket) error {
 	seqBytes := r.marshalSequence(receiveLogSeq)
 	refBytes := r.marshalRef(id)
 
@@ -54,14 +84,14 @@ func (r ReceiveLogRepository) Put(id refs.Message) error {
 		return errors.Wrap(err, "failed to put into sequences to messages bucket")
 	}
 
-	if err := messagesToSequences.Put(refBytes, seqBytes); err != nil {
+	if err := messagesToSequences.Put(seqBytes, nil); err != nil {
 		return errors.Wrap(err, "failed to put into messages to sequences bucket")
 	}
 
 	return nil
 }
 
-func (r ReceiveLogRepository) List(startSeq queries.ReceiveLogSequence, limit int) ([]queries.LogMessage, error) {
+func (r ReceiveLogRepository) List(startSeq common.ReceiveLogSequence, limit int) ([]queries.LogMessage, error) {
 	if limit <= 0 {
 		return nil, errors.New("limit must be positive")
 	}
@@ -102,40 +132,53 @@ func (r ReceiveLogRepository) List(startSeq queries.ReceiveLogSequence, limit in
 	return result, nil
 }
 
-func (r ReceiveLogRepository) GetMessage(seq queries.ReceiveLogSequence) (message.Message, error) {
+func (r ReceiveLogRepository) GetMessage(seq common.ReceiveLogSequence) (message.Message, error) {
 	bucket, err := r.getSequencesToMessagesBucket(r.tx)
 	if err != nil {
 		return message.Message{}, errors.Wrap(err, "could not create a bucket")
 	}
 
 	if bucket == nil {
-		return message.Message{}, errReceiveLogEntryNotFound
+		return message.Message{}, common.ErrReceiveLogEntryNotFound
 	}
 
 	value := bucket.Get(r.marshalSequence(seq))
 	if value == nil {
-		return message.Message{}, errReceiveLogEntryNotFound
+		return message.Message{}, common.ErrReceiveLogEntryNotFound
 	}
 
 	return r.loadMessage(value)
 }
 
-func (r ReceiveLogRepository) GetSequence(ref refs.Message) (queries.ReceiveLogSequence, error) {
-	bucket, err := r.getMessagesToSequencesBucket(r.tx)
+func (r ReceiveLogRepository) GetSequences(ref refs.Message) ([]common.ReceiveLogSequence, error) {
+	bucket, err := r.getMessagesToSequencesBucket(r.tx, ref)
 	if err != nil {
-		return queries.ReceiveLogSequence{}, errors.Wrap(err, "could not create a bucket")
+		return nil, errors.Wrap(err, "could not create a bucket")
 	}
 
 	if bucket == nil {
-		return queries.ReceiveLogSequence{}, errReceiveLogEntryNotFound
+		return nil, common.ErrReceiveLogEntryNotFound
 	}
 
-	value := bucket.Get(r.marshalRef(ref))
-	if value == nil {
-		return queries.ReceiveLogSequence{}, errReceiveLogEntryNotFound
+	var sequences []common.ReceiveLogSequence
+
+	if err := bucket.ForEach(func(k, v []byte) error {
+		sequence, err := r.unmarshalSequence(k)
+		if err != nil {
+			return errors.Wrap(err, "error unmarshaling sequence")
+		}
+
+		sequences = append(sequences, sequence)
+		return nil
+	}); err != nil {
+		return nil, errors.Wrap(err, "foreach error")
 	}
 
-	return r.unmarshalSequence(value)
+	if len(sequences) == 0 {
+		return nil, common.ErrReceiveLogEntryNotFound
+	}
+
+	return sequences, nil
 }
 
 func (r ReceiveLogRepository) loadMessage(value []byte) (message.Message, error) {
@@ -167,27 +210,28 @@ func (r ReceiveLogRepository) sequencesToMessagesBucketPath() []utils.BucketName
 	}
 }
 
-func (r ReceiveLogRepository) createMessagesToSequencesBucket(tx *bbolt.Tx) (*bbolt.Bucket, error) {
-	return utils.CreateBucket(tx, r.messagesToSequencesBucketPath())
+func (r ReceiveLogRepository) createMessagesToSequencesBucket(tx *bbolt.Tx, msgRef refs.Message) (*bbolt.Bucket, error) {
+	return utils.CreateBucket(tx, r.messagesToSequencesBucketPath(msgRef))
 }
 
-func (r ReceiveLogRepository) getMessagesToSequencesBucket(tx *bbolt.Tx) (*bbolt.Bucket, error) {
-	return utils.GetBucket(tx, r.messagesToSequencesBucketPath())
+func (r ReceiveLogRepository) getMessagesToSequencesBucket(tx *bbolt.Tx, msgRef refs.Message) (*bbolt.Bucket, error) {
+	return utils.GetBucket(tx, r.messagesToSequencesBucketPath(msgRef))
 }
 
-func (r ReceiveLogRepository) messagesToSequencesBucketPath() []utils.BucketName {
+func (r ReceiveLogRepository) messagesToSequencesBucketPath(msgRef refs.Message) []utils.BucketName {
 	return []utils.BucketName{
 		utils.BucketName("receive_log"),
 		utils.BucketName("messages_to_sequences"),
+		utils.BucketName(msgRef.String()),
 	}
 }
 
-func (r ReceiveLogRepository) marshalSequence(seq queries.ReceiveLogSequence) []byte {
+func (r ReceiveLogRepository) marshalSequence(seq common.ReceiveLogSequence) []byte {
 	return itob(uint64(seq.Int()))
 }
 
-func (r ReceiveLogRepository) unmarshalSequence(key []byte) (queries.ReceiveLogSequence, error) {
-	return queries.NewReceiveLogSequence(int(btoi(key)))
+func (r ReceiveLogRepository) unmarshalSequence(key []byte) (common.ReceiveLogSequence, error) {
+	return common.NewReceiveLogSequence(int(btoi(key)))
 }
 
 func (r ReceiveLogRepository) marshalRef(id refs.Message) []byte {
@@ -210,7 +254,7 @@ func NewReadReceiveLogRepository(db *bbolt.DB, factory TxRepositoriesFactory) *R
 	}
 }
 
-func (r ReadReceiveLogRepository) List(startSeq queries.ReceiveLogSequence, limit int) ([]queries.LogMessage, error) {
+func (r ReadReceiveLogRepository) List(startSeq common.ReceiveLogSequence, limit int) ([]queries.LogMessage, error) {
 	var result []queries.LogMessage
 
 	if err := r.db.View(func(tx *bbolt.Tx) error {
@@ -233,7 +277,7 @@ func (r ReadReceiveLogRepository) List(startSeq queries.ReceiveLogSequence, limi
 	return result, nil
 }
 
-func (r ReadReceiveLogRepository) GetMessage(seq queries.ReceiveLogSequence) (message.Message, error) {
+func (r ReadReceiveLogRepository) GetMessage(seq common.ReceiveLogSequence) (message.Message, error) {
 	var result message.Message
 
 	if err := r.db.View(func(tx *bbolt.Tx) error {
@@ -256,8 +300,8 @@ func (r ReadReceiveLogRepository) GetMessage(seq queries.ReceiveLogSequence) (me
 	return result, nil
 }
 
-func (r ReadReceiveLogRepository) GetSequence(ref refs.Message) (queries.ReceiveLogSequence, error) {
-	var result queries.ReceiveLogSequence
+func (r ReadReceiveLogRepository) GetSequences(ref refs.Message) ([]common.ReceiveLogSequence, error) {
+	var result []common.ReceiveLogSequence
 
 	if err := r.db.View(func(tx *bbolt.Tx) error {
 		r, err := r.factory(tx)
@@ -265,7 +309,7 @@ func (r ReadReceiveLogRepository) GetSequence(ref refs.Message) (queries.Receive
 			return errors.Wrap(err, "could not call the factory")
 		}
 
-		seq, err := r.ReceiveLog.GetSequence(ref)
+		seq, err := r.ReceiveLog.GetSequences(ref)
 		if err != nil {
 			return errors.Wrap(err, "failed to call the repository")
 		}
@@ -273,7 +317,7 @@ func (r ReadReceiveLogRepository) GetSequence(ref refs.Message) (queries.Receive
 		result = seq
 		return nil
 	}); err != nil {
-		return queries.ReceiveLogSequence{}, errors.Wrap(err, "transaction failed")
+		return nil, errors.Wrap(err, "transaction failed")
 	}
 
 	return result, nil

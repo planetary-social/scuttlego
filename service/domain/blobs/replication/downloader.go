@@ -2,7 +2,6 @@ package replication
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"time"
 
@@ -49,7 +48,6 @@ func (d *BlobsGetDownloader) Download(ctx context.Context, peer transport.Peer, 
 
 	rs, err := peer.Conn().PerformRequest(ctx, request)
 	if err != nil {
-		fmt.Println("performing request error", err)
 		return errors.Wrap(err, "could not perform a request")
 	}
 

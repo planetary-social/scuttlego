@@ -12,6 +12,10 @@ type Config struct {
 	// will be stored.
 	DataDirectory string
 
+	// GoSSBDataDirectory specifies the location of the old data directory used
+	// by go-ssb. This is needed for data migrations.
+	GoSSBDataDirectory string
+
 	// ListenAddress for the TCP listener in the format accepted by the
 	// standard library.
 	// Optional, defaults to ":8008".

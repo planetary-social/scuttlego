@@ -7,7 +7,9 @@ import (
 	"github.com/planetary-social/scuttlego/fixtures"
 	"github.com/planetary-social/scuttlego/internal"
 	"github.com/planetary-social/scuttlego/service/adapters/mocks"
+	"github.com/planetary-social/scuttlego/service/app/common"
 	"github.com/planetary-social/scuttlego/service/app/queries"
+	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/stretchr/testify/require"
 )
@@ -91,4 +93,60 @@ func TestPublishedLog_StartSequenceMustPointToMessageFromMainLocalFeed(t *testin
 	require.EqualError(t, err, "start sequence doesn't point to a message from this feed")
 
 	require.NotEmpty(t, app.ReceiveLogRepository.GetMessageCalls)
+}
+
+func TestPublishedLog_FirstSequenceFromTheReturnedSequencesIsUsed(t *testing.T) {
+	app, err := di.BuildTestQueries(t)
+	require.NoError(t, err)
+
+	localFeed := refs.MustNewIdentityFromPublic(app.LocalIdentity).MainFeed()
+
+	receiveLogSequence1 := common.MustNewReceiveLogSequence(5)
+	receiveLogSequence2 := common.MustNewReceiveLogSequence(10)
+
+	query := queries.PublishedLog{
+		StartSeq: nil,
+	}
+
+	sequence := fixtures.SomeSequence()
+	msg := fixtures.SomeMessage(sequence, localFeed)
+
+	app.FeedRepository.GetMessagesReturnValue = []message.Message{
+		msg,
+	}
+
+	app.ReceiveLogRepository.MockMessage(receiveLogSequence1, msg)
+	app.ReceiveLogRepository.MockMessage(receiveLogSequence2, msg)
+
+	msgs, err := app.Queries.PublishedLog.Handle(query)
+	require.NoError(t, err)
+
+	require.Equal(
+		t,
+		[]mocks.FeedRepositoryMockGetMessagesCall{
+			{
+				Id:    localFeed,
+				Seq:   nil,
+				Limit: nil,
+			},
+		},
+		app.FeedRepository.GetMessagesCalls(),
+	)
+
+	require.Equal(t,
+		[]refs.Message{
+			msg.Id(),
+		},
+		app.ReceiveLogRepository.GetSequencesCalls,
+	)
+
+	require.Equal(t,
+		[]queries.LogMessage{
+			{
+				Message:  msg,
+				Sequence: receiveLogSequence1,
+			},
+		},
+		msgs,
+	)
 }

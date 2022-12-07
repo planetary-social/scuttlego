@@ -3,6 +3,9 @@ package mocks
 import (
 	"sync"
 
+	"github.com/boreq/errors"
+	"github.com/planetary-social/scuttlego/service/app/commands"
+	"github.com/planetary-social/scuttlego/service/domain/feeds"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 )
@@ -18,6 +21,11 @@ type FeedRepositoryMockGetMessageCall struct {
 	Seq  message.Sequence
 }
 
+type FeedRepositoryMockUpdateFeedIgnoringReceiveLogCall struct {
+	Feed              refs.Feed
+	MessagesToPersist []refs.Message
+}
+
 type FeedRepositoryMock struct {
 	getMessagesCalls       []FeedRepositoryMockGetMessagesCall
 	GetMessagesReturnValue []message.Message
@@ -26,9 +34,36 @@ type FeedRepositoryMock struct {
 	getMessageCalls       []FeedRepositoryMockGetMessageCall
 	GetMessageReturnValue message.Message
 
+	updateFeedIgnoringReceiveLogCalls []FeedRepositoryMockUpdateFeedIgnoringReceiveLogCall
+
 	CountReturnValue int
 
 	lock sync.Mutex
+}
+
+func (m *FeedRepositoryMock) UpdateFeed(ref refs.Feed, f commands.UpdateFeedFn) error {
+	return errors.New("not implemented")
+}
+
+func (m *FeedRepositoryMock) UpdateFeedIgnoringReceiveLog(ref refs.Feed, f commands.UpdateFeedFn) error {
+	feed := feeds.NewFeed(nil)
+	if err := f(feed); err != nil {
+		return errors.Wrap(err, "error")
+	}
+	messagesToPersist := feed.PopForPersisting()
+	var messageRefs []refs.Message
+	for _, msg := range messagesToPersist {
+		messageRefs = append(messageRefs, msg.Message().Id())
+	}
+	m.updateFeedIgnoringReceiveLogCalls = append(m.updateFeedIgnoringReceiveLogCalls, FeedRepositoryMockUpdateFeedIgnoringReceiveLogCall{
+		Feed:              ref,
+		MessagesToPersist: messageRefs,
+	})
+	return nil
+}
+
+func (m *FeedRepositoryMock) DeleteFeed(ref refs.Feed) error {
+	return errors.New("not implemented")
 }
 
 func NewFeedRepositoryMock() *FeedRepositoryMock {
@@ -70,5 +105,14 @@ func (m *FeedRepositoryMock) GetMessageCalls() []FeedRepositoryMockGetMessageCal
 
 	tmp := make([]FeedRepositoryMockGetMessageCall, len(m.getMessageCalls))
 	copy(tmp, m.getMessageCalls)
+	return tmp
+}
+
+func (m *FeedRepositoryMock) UpdateFeedIgnoringReceiveLogCalls() []FeedRepositoryMockUpdateFeedIgnoringReceiveLogCall {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	tmp := make([]FeedRepositoryMockUpdateFeedIgnoringReceiveLogCall, len(m.updateFeedIgnoringReceiveLogCalls))
+	copy(tmp, m.updateFeedIgnoringReceiveLogCalls)
 	return tmp
 }

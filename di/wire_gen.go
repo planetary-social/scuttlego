@@ -16,10 +16,12 @@ import (
 	"github.com/google/wire"
 	"github.com/planetary-social/scuttlego/fixtures"
 	"github.com/planetary-social/scuttlego/logging"
+	migrations2 "github.com/planetary-social/scuttlego/migrations"
 	"github.com/planetary-social/scuttlego/service/adapters"
 	"github.com/planetary-social/scuttlego/service/adapters/bolt"
 	ebt2 "github.com/planetary-social/scuttlego/service/adapters/ebt"
 	"github.com/planetary-social/scuttlego/service/adapters/invites"
+	"github.com/planetary-social/scuttlego/service/adapters/migrations"
 	"github.com/planetary-social/scuttlego/service/adapters/mocks"
 	"github.com/planetary-social/scuttlego/service/adapters/pubsub"
 	"github.com/planetary-social/scuttlego/service/app"
@@ -132,8 +134,12 @@ func BuildTestCommands(t *testing.T) (TestCommands, error) {
 	processRoomAttendantEventHandler := commands.NewProcessRoomAttendantEventHandler(peerManagerMock)
 	disconnectAllHandler := commands.NewDisconnectAllHandler(peerManagerMock)
 	feedWantListRepositoryMock := mocks.NewFeedWantListRepositoryMock()
+	feedRepositoryMock := mocks.NewFeedRepositoryMock()
+	receiveLogRepositoryMock := mocks.NewReceiveLogRepositoryMock()
 	adapters := commands.Adapters{
 		FeedWantList: feedWantListRepositoryMock,
+		Feed:         feedRepositoryMock,
+		ReceiveLog:   receiveLogRepositoryMock,
 	}
 	mockTransactionProvider := mocks.NewMockTransactionProvider(adapters)
 	currentTimeProviderMock := mocks.NewCurrentTimeProviderMock()
@@ -145,22 +151,29 @@ func BuildTestCommands(t *testing.T) (TestCommands, error) {
 	peerInitializerMock := mocks.NewPeerInitializerMock()
 	newPeerHandlerMock := mocks.NewNewPeerHandlerMock()
 	acceptTunnelConnectHandler := commands.NewAcceptTunnelConnectHandler(public, peerInitializerMock, newPeerHandlerMock)
+	goSSBRepoReaderMock := mocks.NewGoSSBRepoReaderMock()
+	marshalerMock := mocks.NewMarshalerMock()
+	migrationHandlerImportDataFromGoSSB := commands.NewMigrationHandlerImportDataFromGoSSB(goSSBRepoReaderMock, mockTransactionProvider, marshalerMock, logger)
 	testCommands := TestCommands{
-		RoomsAliasRegister:        roomsAliasRegisterHandler,
-		RoomsAliasRevoke:          roomsAliasRevokeHandler,
-		ProcessRoomAttendantEvent: processRoomAttendantEventHandler,
-		DisconnectAll:             disconnectAllHandler,
-		DownloadFeed:              downloadFeedHandler,
-		RedeemInvite:              redeemInviteHandler,
-		AcceptTunnelConnect:       acceptTunnelConnectHandler,
-		PeerManager:               peerManagerMock,
-		Dialer:                    dialerMock,
-		FeedWantListRepository:    feedWantListRepositoryMock,
-		CurrentTimeProvider:       currentTimeProviderMock,
-		InviteRedeemer:            inviteRedeemerMock,
-		Local:                     public,
-		PeerInitializer:           peerInitializerMock,
-		NewPeerHandler:            newPeerHandlerMock,
+		RoomsAliasRegister:           roomsAliasRegisterHandler,
+		RoomsAliasRevoke:             roomsAliasRevokeHandler,
+		ProcessRoomAttendantEvent:    processRoomAttendantEventHandler,
+		DisconnectAll:                disconnectAllHandler,
+		DownloadFeed:                 downloadFeedHandler,
+		RedeemInvite:                 redeemInviteHandler,
+		AcceptTunnelConnect:          acceptTunnelConnectHandler,
+		MigrationImportDataFromGoSSB: migrationHandlerImportDataFromGoSSB,
+		PeerManager:                  peerManagerMock,
+		Dialer:                       dialerMock,
+		FeedWantListRepository:       feedWantListRepositoryMock,
+		CurrentTimeProvider:          currentTimeProviderMock,
+		InviteRedeemer:               inviteRedeemerMock,
+		Local:                        public,
+		PeerInitializer:              peerInitializerMock,
+		NewPeerHandler:               newPeerHandlerMock,
+		GoSSBRepoReader:              goSSBRepoReaderMock,
+		FeedRepository:               feedRepositoryMock,
+		ReceiveLog:                   receiveLogRepositoryMock,
 	}
 	return testCommands, nil
 }
@@ -247,6 +260,7 @@ func BuildTransactableAdapters(tx *bbolt.Tx, public identity.Public, config Conf
 	feedWantListRepository := bolt.NewFeedWantListRepository(tx, currentTimeProvider)
 	commandsAdapters := commands.Adapters{
 		Feed:         feedRepository,
+		ReceiveLog:   receiveLogRepository,
 		SocialGraph:  socialGraphRepository,
 		BlobWantList: blobWantListRepository,
 		FeedWantList: feedWantListRepository,
@@ -379,6 +393,20 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	removeFromBanListHandler := commands.NewRemoveFromBanListHandler(transactionProvider)
 	roomsAliasRegisterHandler := commands.NewRoomsAliasRegisterHandler(dialer, private)
 	roomsAliasRevokeHandler := commands.NewRoomsAliasRevokeHandler(dialer)
+	boltStorage := migrations.NewBoltStorage(db)
+	runner := migrations2.NewRunner(boltStorage, logger)
+	goSSBRepoReader := migrations.NewGoSSBRepoReader(networkKey, messageHMAC, logger)
+	migrationHandlerImportDataFromGoSSB := commands.NewMigrationHandlerImportDataFromGoSSB(goSSBRepoReader, transactionProvider, marshaler, logger)
+	commandsMigrations := commands.Migrations{
+		MigrationImportDataFromGoSSB: migrationHandlerImportDataFromGoSSB,
+	}
+	commandImportDataFromGoSSBHandlerAdapter := newCommandImportDataFromGoSSBHandlerAdapter(config, commandsMigrations)
+	v2 := newMigrationsList(commandImportDataFromGoSSBHandlerAdapter)
+	migrationsMigrations, err := migrations2.NewMigrations(v2)
+	if err != nil {
+		return Service{}, err
+	}
+	runMigrationsHandler := commands.NewRunMigrationsHandler(runner, migrationsMigrations)
 	appCommands := app.Commands{
 		RedeemInvite:       redeemInviteHandler,
 		Follow:             followHandler,
@@ -392,6 +420,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 		RemoveFromBanList:  removeFromBanListHandler,
 		RoomsAliasRegister: roomsAliasRegisterHandler,
 		RoomsAliasRevoke:   roomsAliasRevokeHandler,
+		RunMigrations:      runMigrationsHandler,
 	}
 	readReceiveLogRepository := bolt.NewReadReceiveLogRepository(db, txRepositoriesFactory)
 	receiveLogHandler := queries.NewReceiveLogHandler(readReceiveLogRepository)
@@ -445,10 +474,10 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	handlerEbtReplicate := rpc2.NewHandlerEbtReplicate(handleIncomingEbtReplicateHandler)
 	acceptTunnelConnectHandler := commands.NewAcceptTunnelConnectHandler(public, peerInitializer, peerManager)
 	handlerTunnelConnect := rpc2.NewHandlerTunnelConnect(acceptTunnelConnectHandler)
-	v2 := rpc2.NewMuxHandlers(handlerBlobsGet, handlerBlobsCreateWants, handlerEbtReplicate, handlerTunnelConnect)
+	v3 := rpc2.NewMuxHandlers(handlerBlobsGet, handlerBlobsCreateWants, handlerEbtReplicate, handlerTunnelConnect)
 	handlerCreateHistoryStream := rpc2.NewHandlerCreateHistoryStream(createHistoryStreamHandler, logger)
-	v3 := rpc2.NewMuxClosingHandlers(handlerCreateHistoryStream)
-	muxMux, err := mux.NewMux(logger, v2, v3)
+	v4 := rpc2.NewMuxClosingHandlers(handlerCreateHistoryStream)
+	muxMux, err := mux.NewMux(logger, v3, v4)
 	if err != nil {
 		return Service{}, err
 	}
@@ -495,6 +524,8 @@ type TestCommands struct {
 	RedeemInvite              *commands.RedeemInviteHandler
 	AcceptTunnelConnect       *commands.AcceptTunnelConnectHandler
 
+	MigrationImportDataFromGoSSB *commands.MigrationHandlerImportDataFromGoSSB
+
 	PeerManager            *mocks2.PeerManagerMock
 	Dialer                 *mocks.DialerMock
 	FeedWantListRepository *mocks.FeedWantListRepositoryMock
@@ -503,6 +534,9 @@ type TestCommands struct {
 	Local                  identity.Public
 	PeerInitializer        *mocks.PeerInitializerMock
 	NewPeerHandler         *mocks.NewPeerHandlerMock
+	GoSSBRepoReader        *mocks.GoSSBRepoReaderMock
+	FeedRepository         *mocks.FeedRepositoryMock
+	ReceiveLog             *mocks.ReceiveLogRepositoryMock
 }
 
 type TestQueries struct {

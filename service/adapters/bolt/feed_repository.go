@@ -62,7 +62,24 @@ func (b FeedRepository) UpdateFeed(ref refs.Feed, f commands.UpdateFeedFn) error
 		return errors.Wrap(err, "provided function returned an error")
 	}
 
-	return b.saveFeed(ref, feed)
+	return b.saveFeed(ref, feed, true)
+}
+
+func (b FeedRepository) UpdateFeedIgnoringReceiveLog(ref refs.Feed, f commands.UpdateFeedFn) error {
+	feed, err := b.loadFeed(ref)
+	if err != nil {
+		return errors.Wrap(err, "could not load a feed")
+	}
+
+	if feed == nil {
+		feed = feeds.NewFeed(b.formatScuttlebutt)
+	}
+
+	if err = f(feed); err != nil {
+		return errors.Wrap(err, "provided function returned an error")
+	}
+
+	return b.saveFeed(ref, feed, false)
 }
 
 func (b FeedRepository) GetFeed(ref refs.Feed) (*feeds.Feed, error) {
@@ -263,7 +280,7 @@ func (b FeedRepository) loadFeed(ref refs.Feed) (*feeds.Feed, error) {
 	return feed, nil
 }
 
-func (b FeedRepository) saveFeed(ref refs.Feed, feed *feeds.Feed) error {
+func (b FeedRepository) saveFeed(ref refs.Feed, feed *feeds.Feed, saveInReceiveLog bool) error {
 	msgsToPersist := feed.PopForPersisting()
 
 	if len(msgsToPersist) != 0 {
@@ -281,7 +298,7 @@ func (b FeedRepository) saveFeed(ref refs.Feed, feed *feeds.Feed) error {
 				return errors.Wrap(err, "could not save a message in bucket")
 			}
 
-			if err := b.saveMessageInRepositories(msgToPersist); err != nil {
+			if err := b.saveMessageInRepositories(msgToPersist, saveInReceiveLog); err != nil {
 				return errors.Wrap(err, "could not save a message in repositories")
 			}
 		}
@@ -290,13 +307,15 @@ func (b FeedRepository) saveFeed(ref refs.Feed, feed *feeds.Feed) error {
 	return nil
 }
 
-func (b FeedRepository) saveMessageInRepositories(msg feeds.MessageToPersist) error {
+func (b FeedRepository) saveMessageInRepositories(msg feeds.MessageToPersist, saveInReceiveLog bool) error {
 	if err := b.messageRepository.Put(msg.Message()); err != nil {
 		return errors.Wrap(err, "message repository put failed")
 	}
 
-	if err := b.receiveLog.Put(msg.Message().Id()); err != nil {
-		return errors.Wrap(err, "receive log put failed")
+	if saveInReceiveLog {
+		if err := b.receiveLog.Put(msg.Message().Id()); err != nil {
+			return errors.Wrap(err, "receive log put failed")
+		}
 	}
 
 	for _, contact := range msg.ContactsToSave() {

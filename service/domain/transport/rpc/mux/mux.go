@@ -125,7 +125,7 @@ func (m Mux) addHandler(handler Handler) error {
 		return errors.Wrap(err, "handler is not unique")
 	}
 
-	m.logger.WithField("key", key).Debug("adding handler")
+	m.logger.WithField("key", key).Trace("adding handler")
 	m.handlers[key] = handler
 	return nil
 }
@@ -137,7 +137,7 @@ func (m Mux) addSynchronousHandler(handler SynchronousHandler) error {
 		return errors.Wrap(err, "handler is not unique")
 	}
 
-	m.logger.WithField("key", key).Debug("adding synchronous handler")
+	m.logger.WithField("key", key).Trace("adding synchronous handler")
 	m.synchronousHandlers[key] = handler
 	return nil
 }

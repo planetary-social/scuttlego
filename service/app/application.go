@@ -27,6 +27,8 @@ type Commands struct {
 
 	RoomsAliasRegister *commands.RoomsAliasRegisterHandler
 	RoomsAliasRevoke   *commands.RoomsAliasRevokeHandler
+
+	RunMigrations *commands.RunMigrationsHandler
 }
 
 type Queries struct {

@@ -103,6 +103,8 @@ type TestCommands struct {
 	RedeemInvite              *commands.RedeemInviteHandler
 	AcceptTunnelConnect       *commands.AcceptTunnelConnectHandler
 
+	MigrationImportDataFromGoSSB *commands.MigrationHandlerImportDataFromGoSSB
+
 	PeerManager            *domainmocks.PeerManagerMock
 	Dialer                 *mocks.DialerMock
 	FeedWantListRepository *mocks.FeedWantListRepositoryMock
@@ -111,11 +113,15 @@ type TestCommands struct {
 	Local                  identity.Public
 	PeerInitializer        *mocks.PeerInitializerMock
 	NewPeerHandler         *mocks.NewPeerHandlerMock
+	GoSSBRepoReader        *mocks.GoSSBRepoReaderMock
+	FeedRepository         *mocks.FeedRepositoryMock
+	ReceiveLog             *mocks.ReceiveLogRepositoryMock
 }
 
 func BuildTestCommands(*testing.T) (TestCommands, error) {
 	wire.Build(
-		applicationSet,
+		commandsSet,
+		migrationCommandsSet,
 
 		mocks.NewDialerMock,
 		wire.Bind(new(commands.Dialer), new(*mocks.DialerMock)),
@@ -129,7 +135,12 @@ func BuildTestCommands(*testing.T) (TestCommands, error) {
 		mocks.NewMockTransactionProvider,
 		wire.Bind(new(commands.TransactionProvider), new(*mocks.MockTransactionProvider)),
 
-		wire.Struct(new(commands.Adapters), "FeedWantList"),
+		wire.Struct(
+			new(commands.Adapters),
+			"FeedWantList",
+			"Feed",
+			"ReceiveLog",
+		),
 
 		mocks.NewFeedWantListRepositoryMock,
 		wire.Bind(new(commands.FeedWantListRepository), new(*mocks.FeedWantListRepositoryMock)),
@@ -145,6 +156,18 @@ func BuildTestCommands(*testing.T) (TestCommands, error) {
 
 		mocks.NewNewPeerHandlerMock,
 		wire.Bind(new(commands.NewPeerHandler), new(*mocks.NewPeerHandlerMock)),
+
+		mocks.NewGoSSBRepoReaderMock,
+		wire.Bind(new(commands.GoSSBRepoReader), new(*mocks.GoSSBRepoReaderMock)),
+
+		mocks.NewMarshalerMock,
+		wire.Bind(new(formats.Marshaler), new(*mocks.MarshalerMock)),
+
+		mocks.NewFeedRepositoryMock,
+		wire.Bind(new(commands.FeedRepository), new(*mocks.FeedRepositoryMock)),
+
+		mocks.NewReceiveLogRepositoryMock,
+		wire.Bind(new(commands.ReceiveLogRepository), new(*mocks.ReceiveLogRepositoryMock)),
 
 		fixtures.TestLogger,
 
@@ -275,6 +298,7 @@ func BuildService(context.Context, identity.Private, Config) (Service, error) {
 		adaptersSet,
 		extractFromConfigSet,
 		networkingSet,
+		migrationsSet,
 	)
 	return Service{}, nil
 }

@@ -97,10 +97,22 @@ func (m *MessageBuffer) persist() error {
 
 	start := time.Now()
 
-	if err := m.transaction.Transact(func(adapters Adapters) error {
-		return m.persistTransaction(adapters)
+	var updatedSequences map[string]message.Sequence
+
+	if err := m.transaction.Transact(func(adapters Adapters) (err error) {
+		updatedSequences, err = m.persistTransaction(adapters)
+		return err
 	}); err != nil {
 		return errors.Wrap(err, "transaction failed")
+	}
+
+	for key, updatedSequence := range updatedSequences {
+		m.logger.WithField("key", key).WithField("sequence", updatedSequence.Int()).Debug("dropping after")
+		m.messages[key].LeaveOnlyAfter(updatedSequence)
+		if m.messages[key].Len() == 0 {
+			m.logger.WithField("key", key).Debug("deleting")
+			delete(m.messages, key)
+		}
 	}
 
 	m.logger.
@@ -111,14 +123,16 @@ func (m *MessageBuffer) persist() error {
 	return nil
 }
 
-func (m *MessageBuffer) persistTransaction(adapters Adapters) error {
+func (m *MessageBuffer) persistTransaction(adapters Adapters) (map[string]message.Sequence, error) {
 	socialGraph, err := adapters.SocialGraph.GetSocialGraph()
 	if err != nil {
-		return errors.Wrap(err, "could not load the social graph")
+		return nil, errors.Wrap(err, "could not load the social graph")
 	}
 
 	counterAll := 0
 	counterSuccesses := 0
+
+	updatedSequences := make(map[string]message.Sequence)
 
 	for key, feedMessages := range m.messages {
 		counterAll++
@@ -126,30 +140,28 @@ func (m *MessageBuffer) persistTransaction(adapters Adapters) error {
 		feedRef := feedMessages.Feed()
 		authorRef, err := refs.NewIdentityFromPublic(feedRef.Identity()) // todo cleanup
 		if err != nil {
-			return errors.Wrap(err, "error creating an identity")
+			return nil, errors.Wrap(err, "error creating an identity")
 		}
 
 		feedLogger := m.logger.WithField("feed", feedRef)
 
 		feedIsBanned, err := adapters.BanList.ContainsFeed(feedRef)
 		if err != nil {
-			return errors.Wrap(err, "error checking if the feed is banned")
+			return nil, errors.Wrap(err, "error checking if the feed is banned")
 		}
 
 		if feedIsBanned {
-			return errors.New("feed is banned")
+			return nil, errors.New("feed is banned")
 		}
 
 		wantListContains, err := adapters.FeedWantList.Contains(feedRef)
 		if err != nil {
-			return errors.Wrap(err, "error checking the want list")
+			return nil, errors.Wrap(err, "error checking the want list")
 		}
 
 		if !socialGraph.HasContact(authorRef) && !wantListContains {
 			continue // do nothing as this contact is not in our social graph
 		}
-
-		var lastSequence *message.Sequence
 
 		if err := adapters.Feed.UpdateFeed(feedRef, func(feed *feeds.Feed) error {
 			seq := m.getSequence(feed)
@@ -157,6 +169,7 @@ func (m *MessageBuffer) persistTransaction(adapters Adapters) error {
 
 			feedLogger.
 				WithField("sequence_in_database", seq).
+				WithField("sequences_in_buffer", feedMessages.Sequences()).
 				WithField("messages_that_can_be_persisted", len(msgs)).
 				Debug("persisting messages")
 
@@ -173,20 +186,12 @@ func (m *MessageBuffer) persistTransaction(adapters Adapters) error {
 
 			sequence, ok := feed.Sequence()
 			if ok {
-				lastSequence = &sequence
+				updatedSequences[key] = sequence
 			}
 
 			return nil
 		}); err != nil {
-			return errors.Wrapf(err, "failed to update the feed '%s'", feedRef)
-		}
-
-		if lastSequence != nil {
-			feedMessages.LeaveOnlyAfter(*lastSequence)
-		}
-
-		if feedMessages.Len() == 0 {
-			delete(m.messages, key)
+			return nil, errors.Wrapf(err, "failed to update the feed '%s'", feedRef)
 		}
 	}
 
@@ -196,7 +201,7 @@ func (m *MessageBuffer) persistTransaction(adapters Adapters) error {
 		WithField("feeds", len(m.messages)).
 		Debug("update complete")
 
-	return nil
+	return updatedSequences, nil
 }
 
 func (m *MessageBuffer) cleanup() {

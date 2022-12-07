@@ -13,14 +13,14 @@ import (
 
 type State map[string]string
 
+type SaveStateFunc func(state State) error
+
 // MigrationFunc is executed with the previously saved state. If the migration
 // func is executed for the first time then the saved state will be an empty
 // map. State is saved by calling the provided function. If a migration function
 // returns an error it will be executed again. If a function doesn't return an
 // error it should not be executed again.
 type MigrationFunc func(ctx context.Context, state State, saveStateFunc SaveStateFunc) error
-
-type SaveStateFunc func(state State) error
 
 type Migration struct {
 	name string
@@ -168,14 +168,17 @@ func (r Runner) runMigration(ctx context.Context, migration Migration) error {
 	migrationErr := migration.Fn()(ctx, state, saveStateFunc)
 	saveStateErr := r.storage.SaveStatus(migration.Name(), r.statusFromError(migrationErr))
 
-	if migrationErr != nil || saveStateErr != nil {
-		var resultErr error
-		resultErr = multierror.Append(resultErr, errors.Wrap(migrationErr, "migrations error"))
-		resultErr = multierror.Append(resultErr, errors.Wrap(saveStateErr, "error saving state"))
-		return resultErr
+	var resultErr error
+
+	if migrationErr != nil {
+		resultErr = multierror.Append(resultErr, errors.Wrap(migrationErr, "migration function returned an error"))
 	}
 
-	return nil
+	if saveStateErr != nil {
+		resultErr = multierror.Append(resultErr, errors.Wrap(saveStateErr, "error saving state"))
+	}
+
+	return resultErr
 }
 
 func (r Runner) shouldRun(migration Migration) (bool, error) {

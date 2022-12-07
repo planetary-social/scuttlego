@@ -8,6 +8,8 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.0
+	go.cryptoscope.co/luigi v0.3.6-0.20200131144242-3256b54e72c8
+	go.cryptoscope.co/margaret v0.4.3
 	go.cryptoscope.co/netwrap v0.1.1
 	go.cryptoscope.co/secretstream v1.2.10
 	go.cryptoscope.co/ssb v0.2.2-0.20220218153308-74274366774e
@@ -49,8 +51,6 @@ require (
 	github.com/ugorji/go/codec v1.2.6 // indirect
 	github.com/willf/bitset v1.1.10 // indirect
 	github.com/zeebo/bencode v1.0.0 // indirect
-	go.cryptoscope.co/luigi v0.3.6-0.20200131144242-3256b54e72c8 // indirect
-	go.cryptoscope.co/margaret v0.4.3 // indirect
 	go.cryptoscope.co/muxrpc/v2 v2.0.10 // indirect
 	go.cryptoscope.co/nocomment v0.0.0-20210520094614-fb744e81f810 // indirect
 	go.mindeco.de v1.12.0 // indirect

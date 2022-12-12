@@ -46,6 +46,13 @@ func (m *FeedRepositoryMock) UpdateFeed(ref refs.Feed, f commands.UpdateFeedFn) 
 }
 
 func (m *FeedRepositoryMock) UpdateFeedIgnoringReceiveLog(ref refs.Feed, f commands.UpdateFeedFn) error {
+	call := FeedRepositoryMockUpdateFeedIgnoringReceiveLogCall{
+		Feed: ref,
+	}
+	defer func() {
+		m.updateFeedIgnoringReceiveLogCalls = append(m.updateFeedIgnoringReceiveLogCalls, call)
+	}()
+
 	feed := feeds.NewFeed(nil)
 	if err := f(feed); err != nil {
 		return errors.Wrap(err, "error")
@@ -55,10 +62,7 @@ func (m *FeedRepositoryMock) UpdateFeedIgnoringReceiveLog(ref refs.Feed, f comma
 	for _, msg := range messagesToPersist {
 		messageRefs = append(messageRefs, msg.Message().Id())
 	}
-	m.updateFeedIgnoringReceiveLogCalls = append(m.updateFeedIgnoringReceiveLogCalls, FeedRepositoryMockUpdateFeedIgnoringReceiveLogCall{
-		Feed:              ref,
-		MessagesToPersist: messageRefs,
-	})
+	call.MessagesToPersist = messageRefs
 	return nil
 }
 

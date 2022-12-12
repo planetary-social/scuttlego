@@ -46,7 +46,7 @@ func (a *CommandImportDataFromGoSSBHandlerAdapter) Fn(ctx context.Context, state
 		return errors.Wrap(err, "could not create a command")
 	}
 
-	err = a.m.MigrationImportDataFromGoSSB.Handle(ctx, cmd)
+	_, err = a.m.MigrationImportDataFromGoSSB.Handle(ctx, cmd)
 	if err != nil {
 		return errors.Wrap(err, "could not run a command")
 	}

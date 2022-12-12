@@ -44,8 +44,16 @@ func TestMigrationHandlerImportDataFromGoSSB_MessageReturnedFromRepoReaderIsSave
 	)
 
 	ctx := fixtures.TestContext(t)
-	err = tc.MigrationImportDataFromGoSSB.Handle(ctx, cmd)
+	result, err := tc.MigrationImportDataFromGoSSB.Handle(ctx, cmd)
 	require.NoError(t, err)
+
+	require.Equal(t,
+		commands.ImportDataFromGoSSBResult{
+			Successes: 1,
+			Errors:    0,
+		},
+		result,
+	)
 
 	require.Equal(t,
 		[]mocks.GoSSBRepoReaderMockGetMessagesCall{
@@ -84,6 +92,102 @@ func TestMigrationHandlerImportDataFromGoSSB_MessageReturnedFromRepoReaderIsSave
 	require.Equal(t,
 		[]common.ReceiveLogSequence{
 			msgReceiveLogSequence,
+		},
+		saveResumeAfterSequenceFn.calls,
+	)
+}
+
+func TestMigrationHandlerImportDataFromGoSSB_ErrorsWhenAppendingMessagesAreIgnored(t *testing.T) {
+	tc, err := di.BuildTestCommands(t)
+	require.NoError(t, err)
+
+	directory := fixtures.SomeString()
+	receiveLogSequence := fixtures.SomeReceiveLogSequence()
+	saveResumeAfterSequenceFn := newSaveResumeAfterSequenceFnMock()
+
+	cmd, err := commands.NewImportDataFromGoSSB(directory, &receiveLogSequence, saveResumeAfterSequenceFn.Fn)
+	require.NoError(t, err)
+
+	msgReceiveLogSequence1 := common.MustNewReceiveLogSequence(1)
+	id1 := fixtures.SomeRefMessage()
+	msg1 := mockGoSSBMessageWithIdPreviousSequence(t, id1, nil, message.MustNewSequence(1))
+
+	msgReceiveLogSequence2 := common.MustNewReceiveLogSequence(2)
+	id2 := fixtures.SomeRefMessage()
+	msg2 := mockGoSSBMessageWithIdPreviousSequence(t, id2, &id1, message.MustNewSequence(2))
+
+	tc.GoSSBRepoReader.MockGetMessages(
+		[]commands.GoSSBMessageOrError{
+			{
+				Value: commands.GoSSBMessage{
+					ReceiveLogSequence: msgReceiveLogSequence1,
+					Message:            msg1,
+				},
+				Err: nil,
+			},
+			{
+				Value: commands.GoSSBMessage{
+					ReceiveLogSequence: msgReceiveLogSequence2,
+					Message:            msg2,
+				},
+				Err: nil,
+			},
+		},
+	)
+
+	ctx := fixtures.TestContext(t)
+	result, err := tc.MigrationImportDataFromGoSSB.Handle(ctx, cmd)
+	require.NoError(t, err)
+
+	require.Equal(t,
+		commands.ImportDataFromGoSSBResult{
+			Successes: 1,
+			Errors:    1,
+		},
+		result,
+	)
+
+	require.Equal(t,
+		[]mocks.GoSSBRepoReaderMockGetMessagesCall{
+			{
+				Directory:           directory,
+				ResumeAfterSequence: &receiveLogSequence,
+			},
+		},
+		tc.GoSSBRepoReader.GoSSBRepoReaderMockGetMessagesCalls,
+	)
+
+	require.Equal(
+		t,
+		[]mocks.FeedRepositoryMockUpdateFeedIgnoringReceiveLogCall{
+			{
+				Feed: refs.MustNewFeed(msg1.Author().Sigil()),
+				MessagesToPersist: []refs.Message{
+					refs.MustNewMessage(msg1.Key().String()),
+				},
+			},
+			{
+				Feed:              refs.MustNewFeed(msg2.Author().Sigil()),
+				MessagesToPersist: nil,
+			},
+		},
+		tc.FeedRepository.UpdateFeedIgnoringReceiveLogCalls(),
+	)
+
+	require.Equal(
+		t,
+		[]mocks.ReceiveLogRepositoryPutUnderSpecificSequenceCall{
+			{
+				Id:       refs.MustNewMessage(msg1.Key().String()),
+				Sequence: msgReceiveLogSequence1,
+			},
+		},
+		tc.ReceiveLog.PutUnderSpecificSequenceCalls,
+	)
+
+	require.Equal(t,
+		[]common.ReceiveLogSequence{
+			msgReceiveLogSequence2,
 		},
 		saveResumeAfterSequenceFn.calls,
 	)
@@ -142,7 +246,7 @@ func TestMigrationHandlerImportDataFromGoSSB_ConflictingSequenceNumbersCauseAnEr
 			tc.ReceiveLog.MockMessage(receiveLogSequence, testCase.ReceiveLogMessage)
 
 			ctx := fixtures.TestContext(t)
-			err = tc.MigrationImportDataFromGoSSB.Handle(ctx, cmd)
+			_, err = tc.MigrationImportDataFromGoSSB.Handle(ctx, cmd)
 
 			require.Equal(t,
 				[]common.ReceiveLogSequence{
@@ -215,6 +319,35 @@ func mockGoSSBMessage(t *testing.T) gossbrefs.Message {
 	return mockMessage{
 		key:    key,
 		author: author,
+		seq:    1,
+	}
+}
+
+func mockGoSSBMessageWithIdPreviousSequence(
+	t *testing.T,
+	id refs.Message,
+	prev *refs.Message,
+	sequence message.Sequence,
+) gossbrefs.Message {
+	key, err := gossbrefs.ParseMessageRef(id.String())
+	require.NoError(t, err)
+
+	var previous *gossbrefs.MessageRef
+	if prev != nil {
+		tmp, err := gossbrefs.ParseMessageRef(prev.String())
+		require.NoError(t, err)
+
+		previous = &tmp
+	}
+
+	author, err := gossbrefs.ParseFeedRef(fixtures.SomeRefIdentity().String())
+	require.NoError(t, err)
+
+	return mockMessage{
+		key:      key,
+		author:   author,
+		previous: previous,
+		seq:      int64(sequence.Int()),
 	}
 }
 
@@ -232,8 +365,10 @@ func (m *saveResumeAfterSequenceFnMock) Fn(s common.ReceiveLogSequence) error {
 }
 
 type mockMessage struct {
-	key    gossbrefs.MessageRef
-	author gossbrefs.FeedRef
+	key      gossbrefs.MessageRef
+	author   gossbrefs.FeedRef
+	previous *gossbrefs.MessageRef
+	seq      int64
 }
 
 func (m mockMessage) Key() gossbrefs.MessageRef {
@@ -241,11 +376,11 @@ func (m mockMessage) Key() gossbrefs.MessageRef {
 }
 
 func (m mockMessage) Previous() *gossbrefs.MessageRef {
-	return nil
+	return m.previous
 }
 
 func (m mockMessage) Seq() int64 {
-	return 1
+	return m.seq
 }
 
 func (m mockMessage) Claimed() time.Time {

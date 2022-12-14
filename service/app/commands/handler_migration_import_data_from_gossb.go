@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/logging"
@@ -59,6 +60,11 @@ func NewImportDataFromGoSSB(
 	}, nil
 }
 
+type ImportDataFromGoSSBResult struct {
+	Successes int
+	Errors    int
+}
+
 type MigrationHandlerImportDataFromGoSSB struct {
 	repoReader  GoSSBRepoReader
 	transaction TransactionProvider
@@ -80,17 +86,33 @@ func NewMigrationHandlerImportDataFromGoSSB(
 	}
 }
 
-func (h MigrationHandlerImportDataFromGoSSB) Handle(ctx context.Context, cmd ImportDataFromGoSSB) error {
-	ch, err := h.repoReader.GetMessages(ctx, cmd.directory, cmd.resumeAfterSequence)
-	if err != nil {
-		return errors.Wrap(err, "error getting message channel")
-	}
+func (h MigrationHandlerImportDataFromGoSSB) Handle(ctx context.Context, cmd ImportDataFromGoSSB) (ImportDataFromGoSSBResult, error) {
+	h.logger.
+		WithField("directory", cmd.directory).
+		WithField("resume_after_sequence", cmd.resumeAfterSequence).
+		Debug("import starting")
 
 	var msgs []GoSSBMessage
+	successCounter := 0
+	errorCounter := 0
+	start := time.Now()
+
+	defer func() {
+		h.logger.
+			WithField("success_counter", successCounter).
+			WithField("error_counter", errorCounter).
+			WithField("elapsed_time_in_seconds", time.Since(start).String()).
+			Debug("import ended")
+	}()
+
+	ch, err := h.repoReader.GetMessages(ctx, cmd.directory, cmd.resumeAfterSequence)
+	if err != nil {
+		return ImportDataFromGoSSBResult{}, errors.Wrap(err, "error getting message channel")
+	}
 
 	for v := range ch {
 		if err := v.Err; err != nil {
-			return errors.Wrap(err, "received an error")
+			return ImportDataFromGoSSBResult{}, errors.Wrap(err, "received an error")
 		}
 
 		h.logger.
@@ -101,38 +123,58 @@ func (h MigrationHandlerImportDataFromGoSSB) Handle(ctx context.Context, cmd Imp
 		msgs = append(msgs, v.Value)
 
 		if len(msgs) >= batchSize {
-			if err := h.saveMessages(msgs, cmd.saveResumeAfterSequenceFn); err != nil {
-				return errors.Wrap(err, "error saving messages")
+			if err := h.saveMessages(msgs, cmd.saveResumeAfterSequenceFn, &errorCounter, &successCounter); err != nil {
+				return ImportDataFromGoSSBResult{}, errors.Wrap(err, "error saving messages")
 			}
 			msgs = nil
 		}
 	}
 
-	if err := h.saveMessages(msgs, cmd.saveResumeAfterSequenceFn); err != nil {
-		return errors.Wrap(err, "error saving messages")
+	if err := h.saveMessages(msgs, cmd.saveResumeAfterSequenceFn, &errorCounter, &successCounter); err != nil {
+		return ImportDataFromGoSSBResult{}, errors.Wrap(err, "error saving messages")
 	}
 
-	return nil
+	return ImportDataFromGoSSBResult{
+		Successes: successCounter,
+		Errors:    errorCounter,
+	}, nil
 }
 
 func (h MigrationHandlerImportDataFromGoSSB) saveMessages(
 	gossbmsgs []GoSSBMessage,
 	saveResumeAfterSequenceFn SaveResumeAfterSequenceFn,
+	errorCounter *int,
+	successCounter *int,
 ) error {
 	if len(gossbmsgs) == 0 {
 		return nil
 	}
 
+	tmpErrorCounter := 0
+	tmpSuccessCounter := 0
+
 	if err := h.transaction.Transact(func(adapters Adapters) error {
+		tmpErrorCounter = 0
+		tmpSuccessCounter = 0
+
 		for _, gossbmsg := range gossbmsgs {
 			if err := h.saveMessage(adapters, gossbmsg); err != nil {
+				if errors.Is(err, appendMessageError{}) {
+					tmpErrorCounter++
+					continue
+				}
 				return errors.Wrapf(err, "error saving message '%s' with receive log sequence '%d'", gossbmsg.Message.Key().Sigil(), gossbmsg.ReceiveLogSequence.Int())
+			} else {
+				tmpSuccessCounter++
 			}
 		}
 		return nil
 	}); err != nil {
 		return errors.Wrap(err, "transaction failed")
 	}
+
+	*errorCounter += tmpErrorCounter
+	*successCounter += tmpSuccessCounter
 
 	lastMsgReceiveLogSequence := gossbmsgs[len(gossbmsgs)-1].ReceiveLogSequence
 	if err := saveResumeAfterSequenceFn(lastMsgReceiveLogSequence); err != nil {
@@ -160,7 +202,10 @@ func (h MigrationHandlerImportDataFromGoSSB) saveMessage(adapters Adapters, goss
 	}
 
 	if err := adapters.Feed.UpdateFeedIgnoringReceiveLog(msg.Feed(), func(feed *feeds.Feed) error {
-		return feed.AppendMessage(msg)
+		if err := feed.AppendMessage(msg); err != nil {
+			return newAppendMessageError(err)
+		}
+		return nil
 	}); err != nil {
 		return errors.Wrap(err, "error updating the feed")
 	}
@@ -232,4 +277,34 @@ func (h MigrationHandlerImportDataFromGoSSB) convertMessage(gossbmsg gossbrefs.M
 	}
 
 	return msg, nil
+}
+
+type appendMessageError struct {
+	error error
+}
+
+func newAppendMessageError(error error) error {
+	return &appendMessageError{error: error}
+}
+
+func (e appendMessageError) Error() string {
+	return "error appending a message"
+}
+
+func (e appendMessageError) Unwrap() error {
+	return e.error
+}
+
+func (e appendMessageError) As(target interface{}) bool {
+	if v, ok := target.(*appendMessageError); ok {
+		*v = e
+		return true
+	}
+	return false
+}
+
+func (e appendMessageError) Is(target error) bool {
+	_, ok1 := target.(*appendMessageError)
+	_, ok2 := target.(appendMessageError)
+	return ok1 || ok2
 }

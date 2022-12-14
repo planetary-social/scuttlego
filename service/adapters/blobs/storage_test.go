@@ -3,6 +3,8 @@ package blobs_test
 import (
 	"bytes"
 	"io"
+	"io/fs"
+	"path/filepath"
 	"testing"
 
 	"github.com/planetary-social/scuttlego/fixtures"
@@ -78,9 +80,45 @@ func TestStorageCreate(t *testing.T) {
 	require.Equal(t, bts, readData)
 }
 
+func TestStorageStoreUsesSamePathsAsGoSSB(t *testing.T) {
+	directory := fixtures.Directory(t)
+	logger := logging.NewDevNullLogger()
+
+	storage, err := blobs.NewFilesystemStorage(directory, logger)
+	require.NoError(t, err)
+
+	data := []byte("testblobdata")
+	id, r := newBlobFromData(t, data)
+
+	err = storage.Store(id, r)
+	require.NoError(t, err)
+
+	var pathsInDirectory []string
+	err = filepath.Walk(directory, func(path string, info fs.FileInfo, err error) error {
+		pathsInDirectory = append(pathsInDirectory, path)
+		return nil
+	})
+	require.NoError(t, err)
+
+	require.Equal(t,
+		[]string{
+			directory,
+			filepath.Join(directory, "sha256"),
+			filepath.Join(directory, "sha256/5c"),
+			filepath.Join(directory, "sha256/5c/dfa36516194ff23d296063290032cb65d2e649797bbf3966c8813270aaaaf1"),
+			filepath.Join(directory, "tmp"),
+		},
+		pathsInDirectory,
+	)
+}
+
 func newFakeBlob(t *testing.T) (refs.Blob, io.Reader, []byte) {
 	data := fixtures.SomeBytes()
+	ref, reader := newBlobFromData(t, data)
+	return ref, reader, data
+}
 
+func newBlobFromData(t *testing.T, data []byte) (refs.Blob, io.Reader) {
 	h := blobsdomain.NewHasher()
 	_, err := h.Write(data)
 	require.NoError(t, err)
@@ -88,5 +126,5 @@ func newFakeBlob(t *testing.T) (refs.Blob, io.Reader, []byte) {
 	id, err := h.SumRef()
 	require.NoError(t, err)
 
-	return id, bytes.NewReader(data), data
+	return id, bytes.NewReader(data)
 }

@@ -100,7 +100,7 @@ var blobsAdaptersSet = wire.NewSet(
 )
 
 func newFilesystemStorage(logger logging.Logger, config Config) (*blobs.FilesystemStorage, error) {
-	return blobs.NewFilesystemStorage(path.Join(config.DataDirectory, "blobs"), logger)
+	return blobs.NewFilesystemStorage(path.Join(config.GoSSBDataDirectory, "blobs"), logger)
 }
 
 //nolint:unused

@@ -23,6 +23,8 @@ const partialFileSuffix = ".part"
 
 const filenameSeparator = "-"
 
+const charactersInDirName = 2
+
 type FilesystemStorage struct {
 	path   string
 	logger logging.Logger
@@ -75,11 +77,8 @@ func (f FilesystemStorage) Store(id refs.Blob, r io.Reader) error {
 		return errors.Wrap(err, "failed to close the temporary file")
 	}
 
-	oldName := tmpFile.Name()
-	newName := f.pathStorage(id)
-
-	if err := os.Rename(oldName, newName); err != nil {
-		return errors.Wrap(err, "failed to rename the file")
+	if err := f.moveTemporaryFileToTargetFile(tmpFile, id); err != nil {
+		return errors.Wrap(err, "failed to move the temporary file")
 	}
 
 	return nil
@@ -110,14 +109,27 @@ func (f FilesystemStorage) Create(r io.Reader) (refs.Blob, error) {
 		return refs.Blob{}, errors.Wrap(err, "failed to close the temporary file")
 	}
 
-	oldName := tmpFile.Name()
-	newName := f.pathStorage(id)
-
-	if err := os.Rename(oldName, newName); err != nil {
-		return refs.Blob{}, errors.Wrap(err, "failed to rename the file")
+	if err := f.moveTemporaryFileToTargetFile(tmpFile, id); err != nil {
+		return refs.Blob{}, errors.Wrap(err, "failed to move the temporary file")
 	}
 
 	return id, nil
+}
+
+func (f FilesystemStorage) moveTemporaryFileToTargetFile(tmpFile *os.File, id refs.Blob) error {
+	oldName := tmpFile.Name()
+	newName := f.pathStorage(id)
+
+	targetDir, _ := filepath.Split(newName)
+	if err := os.MkdirAll(targetDir, onlyForMe); err != nil {
+		return errors.Wrap(err, "error creating target directory")
+	}
+
+	if err := os.Rename(oldName, newName); err != nil {
+		return errors.Wrap(err, "failed to rename the file")
+	}
+
+	return nil
 }
 
 func (f FilesystemStorage) Get(id refs.Blob) (io.ReadCloser, error) {
@@ -157,16 +169,18 @@ func (f FilesystemStorage) createTemporary() error {
 }
 
 func (f FilesystemStorage) dirTemporary() string {
-	return path.Join(f.path, "temporary")
+	return path.Join(f.path, "tmp")
 }
 
 func (f FilesystemStorage) dirStorage() string {
-	return path.Join(f.path, "storage")
+	return path.Join(f.path, "sha256")
 }
 
 func (f FilesystemStorage) pathStorage(id refs.Blob) string {
 	hexRef := hex.EncodeToString(id.Bytes())
-	return path.Join(f.dirStorage(), hexRef)
+	dirName := hexRef[:charactersInDirName]
+	fileName := hexRef[charactersInDirName:]
+	return path.Join(f.dirStorage(), dirName, fileName)
 }
 
 func (f FilesystemStorage) removeTemporaryFiles() error {

@@ -70,3 +70,5 @@ require (
 	gopkg.in/check.v1 v1.0.0-20200902074654-038fdea0a05b // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 )
+
+replace go.cryptoscope.co/ssb => github.com/planetary-social/ssb v0.2.2-0.20221215175110-f4588d5494a2

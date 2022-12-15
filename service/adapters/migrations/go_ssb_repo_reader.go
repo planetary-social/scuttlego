@@ -161,6 +161,8 @@ func (m GoSSBRepoReader) createBot(ctx context.Context, directory string) (*sbot
 		sbot.WithRepoPath(directory),
 		sbot.WithContext(ctx),
 		sbot.WithAppKey(m.networkKey.Bytes()),
+		sbot.DisableIndexes(),
+		sbot.DisableLiveIndexMode(),
 	}
 	if !m.messageHMAC.IsZero() {
 		options = append(options, sbot.WithHMACSigning(m.messageHMAC.Bytes()))

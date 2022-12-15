@@ -296,6 +296,8 @@ github.com/pkg/errors v0.8.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINE
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pkg/profile v1.2.1/go.mod h1:hJw3o1OdXxsrSjjVksARp5W95eeEaEfptyVZyv6JUPA=
+github.com/planetary-social/ssb v0.2.2-0.20221215175110-f4588d5494a2 h1:XK35Z3s3TXPS+hn27E9SHwGsJMVJkq3tlfDNMKX5uKI=
+github.com/planetary-social/ssb v0.2.2-0.20221215175110-f4588d5494a2/go.mod h1:aVHa4tYy6ucGATXL2YvKGFR7nFrzqKuhFeMyA0XRI0s=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/posener/complete v1.1.1/go.mod h1:em0nMJCgc9GFtwrmVmEMR/ZL6WyhyjMBndrE9hABlRI=
@@ -389,6 +391,7 @@ github.com/zeebo/bencode v1.0.0/go.mod h1:Ct7CkrWIQuLWAy9M3atFHYq4kG9Ao/SsY5cdtC
 go.cryptoscope.co/luigi v0.3.5/go.mod h1:vJZOaxKWLWTC5oRWBOGVVW9X+o6nikLZSYUF9bvPd2w=
 go.cryptoscope.co/luigi v0.3.6-0.20200131144242-3256b54e72c8 h1:83xMhOCA4LJdbvdS9btSWTpD+vJk6VJyoW8gV0kWzcc=
 go.cryptoscope.co/luigi v0.3.6-0.20200131144242-3256b54e72c8/go.mod h1:vJZOaxKWLWTC5oRWBOGVVW9X+o6nikLZSYUF9bvPd2w=
+go.cryptoscope.co/margaret v0.4.0/go.mod h1:iTn7xcBu0ggNLuaXlbttgPNQkgwuamU/i+1wxHC5eLc=
 go.cryptoscope.co/margaret v0.4.3 h1:k/t11PPUJM0oum19Xv4wWR9N2jZw/dK/xMAfGhrLBpE=
 go.cryptoscope.co/margaret v0.4.3/go.mod h1:CTgXq3MQtEeWtLjaCFGw063+w8nE2hhuQKwrfXwHbz0=
 go.cryptoscope.co/muxrpc/v2 v2.0.10 h1:H4MhLrdzMfW1vs5SwYYFUHKNkXO0mkhVM4ZRPsVh5Yk=
@@ -401,8 +404,6 @@ go.cryptoscope.co/nocomment v0.0.0-20210520094614-fb744e81f810/go.mod h1:SJ9qQwH
 go.cryptoscope.co/secretstream v1.2.9/go.mod h1:loRL5ujcD9NYZWYg020PDdYD5bSoV08v/fmpYb1kcIU=
 go.cryptoscope.co/secretstream v1.2.10 h1:6OoBWBgqPCbrJw4mQJxYTTbF8cTeljqPVsUcg2C+QkU=
 go.cryptoscope.co/secretstream v1.2.10/go.mod h1:FNk6U60ZoEpTXomRKIRwc/7/CIS6u1Gz0we/vY+KDH4=
-go.cryptoscope.co/ssb v0.2.2-0.20220218153308-74274366774e h1:jfApQsfjC6EEk45Cq8KnU91eJAZtQ3BX8025rLrQp7g=
-go.cryptoscope.co/ssb v0.2.2-0.20220218153308-74274366774e/go.mod h1:j337PnJjj4F/YjWlFkhy1RoMCUJrYDzYmXpDowgJjxE=
 go.etcd.io/bbolt v1.3.3/go.mod h1:IbVyRI1SCnLcuJnV2u8VeU0CEYM7e686BmAb1XKL+uU=
 go.etcd.io/bbolt v1.3.6 h1:/ecaJf0sk1l4l6V4awd65v2C3ILy7MSj+s/x1ADCIMU=
 go.etcd.io/bbolt v1.3.6/go.mod h1:qXsaaIqmgQH0T+OPdb99Bf+PKfBBQVAdyD6TY9G8XM4=

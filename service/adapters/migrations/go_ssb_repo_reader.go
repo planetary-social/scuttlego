@@ -10,8 +10,6 @@ import (
 	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/app/commands"
 	"github.com/planetary-social/scuttlego/service/app/common"
-	"github.com/planetary-social/scuttlego/service/domain/feeds/formats"
-	"github.com/planetary-social/scuttlego/service/domain/transport/boxstream"
 	"go.cryptoscope.co/luigi"
 	"go.cryptoscope.co/margaret"
 	"go.cryptoscope.co/ssb/message/multimsg"
@@ -25,20 +23,14 @@ import (
 const getMessagesChannelSize = 1000
 
 type GoSSBRepoReader struct {
-	networkKey  boxstream.NetworkKey
-	messageHMAC formats.MessageHMAC
-	logger      logging.Logger
+	logger logging.Logger
 }
 
 func NewGoSSBRepoReader(
-	networkKey boxstream.NetworkKey,
-	messageHMAC formats.MessageHMAC,
 	logger logging.Logger,
 ) *GoSSBRepoReader {
 	return &GoSSBRepoReader{
-		networkKey:  networkKey,
-		messageHMAC: messageHMAC,
-		logger:      logger.New("go_ssb_repo_reader"),
+		logger: logger.New("go_ssb_repo_reader"),
 	}
 }
 

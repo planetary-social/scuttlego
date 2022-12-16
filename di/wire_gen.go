@@ -395,7 +395,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	roomsAliasRevokeHandler := commands.NewRoomsAliasRevokeHandler(dialer)
 	boltStorage := migrations.NewBoltStorage(db)
 	runner := migrations2.NewRunner(boltStorage, logger)
-	goSSBRepoReader := migrations.NewGoSSBRepoReader(networkKey, messageHMAC, logger)
+	goSSBRepoReader := migrations.NewGoSSBRepoReader(logger)
 	migrationHandlerImportDataFromGoSSB := commands.NewMigrationHandlerImportDataFromGoSSB(goSSBRepoReader, transactionProvider, marshaler, logger)
 	commandsMigrations := commands.Migrations{
 		MigrationImportDataFromGoSSB: migrationHandlerImportDataFromGoSSB,

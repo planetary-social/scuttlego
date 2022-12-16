@@ -10,11 +10,10 @@ import (
 	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/app/commands"
 	"github.com/planetary-social/scuttlego/service/app/common"
-	"github.com/planetary-social/scuttlego/service/domain/feeds/formats"
-	"github.com/planetary-social/scuttlego/service/domain/transport/boxstream"
 	"go.cryptoscope.co/luigi"
 	"go.cryptoscope.co/margaret"
-	"go.cryptoscope.co/ssb/sbot"
+	"go.cryptoscope.co/ssb/message/multimsg"
+	"go.cryptoscope.co/ssb/repo"
 	refs "go.mindeco.de/ssb-refs"
 )
 
@@ -24,20 +23,14 @@ import (
 const getMessagesChannelSize = 1000
 
 type GoSSBRepoReader struct {
-	networkKey  boxstream.NetworkKey
-	messageHMAC formats.MessageHMAC
-	logger      logging.Logger
+	logger logging.Logger
 }
 
 func NewGoSSBRepoReader(
-	networkKey boxstream.NetworkKey,
-	messageHMAC formats.MessageHMAC,
 	logger logging.Logger,
 ) *GoSSBRepoReader {
 	return &GoSSBRepoReader{
-		networkKey:  networkKey,
-		messageHMAC: messageHMAC,
-		logger:      logger.New("go_ssb_repo_reader"),
+		logger: logger.New("go_ssb_repo_reader"),
 	}
 }
 
@@ -52,38 +45,31 @@ func (m GoSSBRepoReader) GetMessages(ctx context.Context, directory string, resu
 		return nil, errors.Wrap(err, "failed to stat directory")
 	}
 
-	// todo resume after sequence
-
-	ctx, cancel := context.WithCancel(ctx)
-
-	bot, err := m.createBot(ctx, directory)
+	receiveLog, err := m.createReceiveLog(directory)
 	if err != nil {
-		cancel()
 		return nil, errors.Wrap(err, "error making a bot")
 	}
 
+	closeReceiveLog := func() {
+		if err := receiveLog.Close(); err != nil {
+			m.logger.WithError(err).Error("error closing receive log")
+		}
+	}
+
 	m.logger.
-		WithField("max_receive_log_sequence", bot.ReceiveLog.Seq()).
-		Debug("created the bot")
+		WithField("max_receive_log_sequence", receiveLog.Seq()).
+		Debug("created the receive log")
 
-	query := []margaret.QuerySpec{
-		margaret.SeqWrap(true),
-	}
-
-	if resumeAfterSequence != nil {
-		query = append(query, margaret.Gt(int64(resumeAfterSequence.Int())))
-	}
-
-	src, err := bot.ReceiveLog.Query(query...)
+	src, err := m.queryReceiveLog(receiveLog, resumeAfterSequence)
 	if err != nil {
-		cancel()
+		closeReceiveLog()
 		return nil, errors.Wrap(err, "error querying receive log")
 	}
 
 	ch := make(chan commands.GoSSBMessageOrError, getMessagesChannelSize)
 
 	go func() {
-		defer cancel()
+		defer closeReceiveLog()
 		defer close(ch)
 
 		for {
@@ -156,20 +142,28 @@ func (m GoSSBRepoReader) getNextMessage(ctx context.Context, src luigi.Source) (
 	}
 }
 
-func (m GoSSBRepoReader) createBot(ctx context.Context, directory string) (*sbot.Sbot, error) {
-	options := []sbot.Option{
-		sbot.WithRepoPath(directory),
-		sbot.WithContext(ctx),
-		sbot.WithAppKey(m.networkKey.Bytes()),
-	}
-	if !m.messageHMAC.IsZero() {
-		options = append(options, sbot.WithHMACSigning(m.messageHMAC.Bytes()))
-	}
-
-	bot, err := sbot.New(options...)
+func (m GoSSBRepoReader) createReceiveLog(directory string) (multimsg.AlterableLog, error) {
+	receiveLog, err := repo.OpenLog(repo.New(directory))
 	if err != nil {
-		return nil, errors.Wrap(err, "error calling sbot new")
+		return nil, errors.Wrap(err, "error opening log")
 	}
 
-	return bot, nil
+	return receiveLog, nil
+}
+
+func (m GoSSBRepoReader) queryReceiveLog(receiveLog multimsg.AlterableLog, resumeAfterSequence *common.ReceiveLogSequence) (luigi.Source, error) {
+	query := []margaret.QuerySpec{
+		margaret.SeqWrap(true),
+	}
+
+	if resumeAfterSequence != nil {
+		query = append(query, margaret.Gt(int64(resumeAfterSequence.Int())))
+	}
+
+	src, err := receiveLog.Query(query...)
+	if err != nil {
+		return nil, errors.Wrap(err, "error calling query")
+	}
+
+	return src, nil
 }

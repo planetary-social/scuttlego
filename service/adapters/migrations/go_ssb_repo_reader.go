@@ -3,8 +3,6 @@ package migrations
 import (
 	"context"
 	"fmt"
-	"go.cryptoscope.co/ssb/message/multimsg"
-	"go.cryptoscope.co/ssb/repo"
 	"io"
 	"os"
 
@@ -16,6 +14,8 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/transport/boxstream"
 	"go.cryptoscope.co/luigi"
 	"go.cryptoscope.co/margaret"
+	"go.cryptoscope.co/ssb/message/multimsg"
+	"go.cryptoscope.co/ssb/repo"
 	refs "go.mindeco.de/ssb-refs"
 )
 

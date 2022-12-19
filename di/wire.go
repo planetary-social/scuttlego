@@ -254,7 +254,7 @@ func BuildTxRepositories(*bbolt.Tx, identity.Public, logging.Logger, formats.Mes
 
 // BuildService creates a new service which uses the provided context as a long-term context used as a base context for
 // e.g. established connections.
-func BuildService(context.Context, identity.Private, Config) (Service, error) {
+func BuildService(context.Context, identity.Private, Config) (Service, func(), error) {
 	wire.Build(
 		NewService,
 
@@ -303,7 +303,7 @@ func BuildService(context.Context, identity.Private, Config) (Service, error) {
 		networkingSet,
 		migrationsSet,
 	)
-	return Service{}, nil
+	return Service{}, nil, nil
 }
 
 var replicatorSet = wire.NewSet(
@@ -357,13 +357,17 @@ func newAdaptersFactory(config Config, local identity.Public) bolt.AdaptersFacto
 	}
 }
 
-func newBolt(config Config) (*bbolt.DB, error) {
+func newBolt(config Config) (*bbolt.DB, func(), error) {
 	filename := path.Join(config.DataDirectory, "database.bolt")
 	b, err := bbolt.Open(filename, 0600, &bbolt.Options{Timeout: 5 * time.Second})
 	if err != nil {
-		return nil, errors.Wrap(err, "could not open the database, is something else reading it?")
+		return nil, nil, errors.Wrap(err, "could not open the database, is something else reading it?")
 	}
-	return b, nil
+	return b, func() {
+		if err := b.Close(); err != nil {
+			config.Logger.WithError(err).Error("error closing the database")
+		}
+	}, nil
 }
 
 func privateIdentityToPublicIdentity(p identity.Private) identity.Public {

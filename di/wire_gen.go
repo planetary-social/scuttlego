@@ -314,12 +314,12 @@ var (
 
 // BuildService creates a new service which uses the provided context as a long-term context used as a base context for
 // e.g. established connections.
-func BuildService(contextContext context.Context, private identity.Private, config Config) (Service, error) {
+func BuildService(contextContext context.Context, private identity.Private, config Config) (Service, func(), error) {
 	networkKey := extractNetworkKeyFromConfig(config)
 	currentTimeProvider := adapters.NewCurrentTimeProvider()
 	handshaker, err := boxstream.NewHandshaker(private, networkKey, currentTimeProvider)
 	if err != nil {
-		return Service{}, err
+		return Service{}, nil, err
 	}
 	requestPubSub := pubsub.NewRequestPubSub()
 	connectionIdGenerator := rpc.NewConnectionIdGenerator()
@@ -327,14 +327,14 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	peerInitializer := transport2.NewPeerInitializer(handshaker, requestPubSub, connectionIdGenerator, logger)
 	dialer, err := network.NewDialer(peerInitializer, logger)
 	if err != nil {
-		return Service{}, err
+		return Service{}, nil, err
 	}
 	inviteDialer := invites.NewInviteDialer(dialer, networkKey, requestPubSub, connectionIdGenerator, currentTimeProvider, logger)
 	inviteRedeemer := invites2.NewInviteRedeemer(inviteDialer, logger)
 	redeemInviteHandler := commands.NewRedeemInviteHandler(inviteRedeemer, private, logger)
-	db, err := newBolt(config)
+	db, cleanup, err := newBolt(config)
 	if err != nil {
-		return Service{}, err
+		return Service{}, nil, err
 	}
 	public := privateIdentityToPublicIdentity(private)
 	adaptersFactory := newAdaptersFactory(config, public)
@@ -342,7 +342,8 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	messageContentMappings := transport.DefaultMappings()
 	marshaler, err := transport.NewMarshaler(messageContentMappings, logger)
 	if err != nil {
-		return Service{}, err
+		cleanup()
+		return Service{}, nil, err
 	}
 	followHandler := commands.NewFollowHandler(transactionProvider, private, marshaler, logger)
 	transactionRawMessagePublisher := commands.NewTransactionRawMessagePublisher(transactionProvider)
@@ -370,13 +371,15 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	manager := gossip.NewManager(logger, wantedFeedsCache)
 	gossipReplicator, err := gossip.NewGossipReplicator(manager, rawMessageHandler, logger)
 	if err != nil {
-		return Service{}, err
+		cleanup()
+		return Service{}, nil, err
 	}
 	negotiator := replication.NewNegotiator(logger, replicator, gossipReplicator)
 	readBlobWantListRepository := bolt.NewReadBlobWantListRepository(db, txRepositoriesFactory)
 	filesystemStorage, err := newFilesystemStorage(logger, config)
 	if err != nil {
-		return Service{}, err
+		cleanup()
+		return Service{}, nil, err
 	}
 	blobsGetDownloader := replication2.NewBlobsGetDownloader(filesystemStorage, logger)
 	blobDownloadedPubSub := pubsub.NewBlobDownloadedPubSub()
@@ -406,7 +409,8 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	v2 := newMigrationsList(commandImportDataFromGoSSBHandlerAdapter)
 	migrationsMigrations, err := migrations2.NewMigrations(v2)
 	if err != nil {
-		return Service{}, err
+		cleanup()
+		return Service{}, nil, err
 	}
 	runMigrationsHandler := commands.NewRunMigrationsHandler(runner, migrationsMigrations)
 	appCommands := app.Commands{
@@ -429,18 +433,21 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	receiveLogHandler := queries.NewReceiveLogHandler(readReceiveLogRepository)
 	publishedLogHandler, err := queries.NewPublishedLogHandler(readFeedRepository, readReceiveLogRepository, public)
 	if err != nil {
-		return Service{}, err
+		cleanup()
+		return Service{}, nil, err
 	}
 	readMessageRepository := bolt.NewReadMessageRepository(db, txRepositoriesFactory)
 	statusHandler := queries.NewStatusHandler(readMessageRepository, readFeedRepository, peerManager)
 	getBlobHandler, err := queries.NewGetBlobHandler(filesystemStorage)
 	if err != nil {
-		return Service{}, err
+		cleanup()
+		return Service{}, nil, err
 	}
 	blobDownloadedEventsHandler := queries.NewBlobDownloadedEventsHandler(blobDownloadedPubSub)
 	roomsListAliasesHandler, err := queries.NewRoomsListAliasesHandler(dialer, public)
 	if err != nil {
-		return Service{}, err
+		cleanup()
+		return Service{}, nil, err
 	}
 	getMessageBySequenceHandler := queries.NewGetMessageBySequenceHandler(readFeedRepository)
 	appQueries := app.Queries{
@@ -460,11 +467,13 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	acceptNewPeerHandler := commands.NewAcceptNewPeerHandler(peerManager)
 	listener, err := newListener(contextContext, peerInitializer, acceptNewPeerHandler, config, logger)
 	if err != nil {
-		return Service{}, err
+		cleanup()
+		return Service{}, nil, err
 	}
 	discoverer, err := local.NewDiscoverer(public, logger)
 	if err != nil {
-		return Service{}, err
+		cleanup()
+		return Service{}, nil, err
 	}
 	processNewLocalDiscoveryHandler := commands.NewProcessNewLocalDiscoveryHandler(peerManager)
 	networkDiscoverer := network2.NewDiscoverer(discoverer, processNewLocalDiscoveryHandler, logger)
@@ -482,17 +491,21 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	v4 := rpc2.NewMuxClosingHandlers(handlerCreateHistoryStream)
 	muxMux, err := mux.NewMux(logger, v3, v4)
 	if err != nil {
-		return Service{}, err
+		cleanup()
+		return Service{}, nil, err
 	}
 	requestSubscriber := pubsub2.NewRequestSubscriber(requestPubSub, muxMux)
 	processRoomAttendantEventHandler := commands.NewProcessRoomAttendantEventHandler(peerManager)
 	roomAttendantEventSubscriber := pubsub2.NewRoomAttendantEventSubscriber(roomAttendantEventPubSub, processRoomAttendantEventHandler, logger)
 	advertiser, err := newAdvertiser(public, config)
 	if err != nil {
-		return Service{}, err
+		cleanup()
+		return Service{}, nil, err
 	}
 	service := NewService(application, listener, networkDiscoverer, connectionEstablisher, requestSubscriber, roomAttendantEventSubscriber, advertiser, messageBuffer, createHistoryStreamHandler)
-	return service, nil
+	return service, func() {
+		cleanup()
+	}, nil
 }
 
 // wire.go:
@@ -572,13 +585,17 @@ func newAdaptersFactory(config Config, local2 identity.Public) bolt.AdaptersFact
 	}
 }
 
-func newBolt(config Config) (*bbolt.DB, error) {
+func newBolt(config Config) (*bbolt.DB, func(), error) {
 	filename := path.Join(config.DataDirectory, "database.bolt")
 	b, err := bbolt.Open(filename, 0600, &bbolt.Options{Timeout: 5 * time.Second})
 	if err != nil {
-		return nil, errors.Wrap(err, "could not open the database, is something else reading it?")
+		return nil, nil, errors.Wrap(err, "could not open the database, is something else reading it?")
 	}
-	return b, nil
+	return b, func() {
+		if err := b.Close(); err != nil {
+			config.Logger.WithError(err).Error("error closing the database")
+		}
+	}, nil
 }
 
 func privateIdentityToPublicIdentity(p identity.Private) identity.Public {

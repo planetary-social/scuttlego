@@ -28,6 +28,7 @@ var commandsSet = wire.NewSet(
 	commands.NewConnectHandler,
 	commands.NewDisconnectAllHandler,
 	commands.NewPublishRawHandler,
+	commands.NewPublishRawAsIdentityHandler,
 	commands.NewDownloadBlobHandler,
 	commands.NewCreateBlobHandler,
 	commands.NewDownloadFeedHandler,

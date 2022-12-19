@@ -287,6 +287,9 @@ func BuildService(context.Context, identity.Private, Config) (Service, error) {
 		invites.NewInviteRedeemer,
 		wire.Bind(new(commands.InviteRedeemer), new(*invites.InviteRedeemer)),
 
+		commands.NewTransactionRawMessagePublisher,
+		wire.Bind(new(commands.RawMessagePublisher), new(*commands.TransactionRawMessagePublisher)),
+
 		portsSet,
 		applicationSet,
 		replicatorSet,

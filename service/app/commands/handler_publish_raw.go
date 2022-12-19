@@ -1,59 +1,53 @@
 package commands
 
 import (
-	"time"
-
 	"github.com/boreq/errors"
-	"github.com/planetary-social/scuttlego/logging"
-	"github.com/planetary-social/scuttlego/service/domain/feeds"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 )
 
 type PublishRaw struct {
-	Content []byte
+	content []byte
+}
+
+func NewPublishRaw(content []byte) (PublishRaw, error) {
+	if len(content) == 0 {
+		return PublishRaw{}, errors.New("zero length of content")
+	}
+
+	return PublishRaw{content: content}, nil
+}
+
+func (cmd PublishRaw) IsZero() bool {
+	return len(cmd.content) == 0
 }
 
 type PublishRawHandler struct {
-	transaction TransactionProvider
-	local       identity.Private
-	logger      logging.Logger
+	publisher RawMessagePublisher
+	local     identity.Private
 }
 
-func NewPublishRawHandler(transaction TransactionProvider, local identity.Private, logger logging.Logger) *PublishRawHandler {
+func NewPublishRawHandler(
+	publisher RawMessagePublisher,
+	local identity.Private,
+) *PublishRawHandler {
 	return &PublishRawHandler{
-		transaction: transaction,
-		local:       local,
-		logger:      logger,
+		publisher: publisher,
+		local:     local,
 	}
 }
 
 func (h *PublishRawHandler) Handle(cmd PublishRaw) (refs.Message, error) {
-	content, err := message.NewRawMessageContent(cmd.Content)
+	content, err := message.NewRawMessageContent(cmd.content)
 	if err != nil {
 		return refs.Message{}, errors.Wrap(err, "could not create raw message content")
 	}
 
-	myRef, err := refs.NewIdentityFromPublic(h.local.Public())
+	ref, err := h.publisher.Publish(h.local, content)
 	if err != nil {
-		return refs.Message{}, errors.Wrap(err, "could not create my own ref")
+		return refs.Message{}, errors.Wrap(err, "publishing error")
 	}
 
-	var id refs.Message
-
-	if err := h.transaction.Transact(func(adapters Adapters) error {
-		return adapters.Feed.UpdateFeed(myRef.MainFeed(), func(feed *feeds.Feed) error {
-			var err error
-			id, err = feed.CreateMessage(content, time.Now(), h.local)
-			if err != nil {
-				return errors.Wrap(err, "failed to create a message")
-			}
-			return nil
-		})
-	}); err != nil {
-		return refs.Message{}, errors.Wrap(err, "transaction failed")
-	}
-
-	return id, nil
+	return ref, nil
 }

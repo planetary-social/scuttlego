@@ -127,10 +127,11 @@ func run() error {
 
 	config.Logger.WithField("identity", local.Public()).Debug("my identity")
 
-	service, err := di.BuildService(ctx, local, config)
+	service, cleanup, err := di.BuildService(ctx, local, config)
 	if err != nil {
 		return errors.Wrap(err, "could not build a service")
 	}
+	defer cleanup()
 
 	//go func() {
 	//	<-time.After(5 * time.Second)

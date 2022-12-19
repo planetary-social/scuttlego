@@ -345,7 +345,9 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 		return Service{}, err
 	}
 	followHandler := commands.NewFollowHandler(transactionProvider, private, marshaler, logger)
-	publishRawHandler := commands.NewPublishRawHandler(transactionProvider, private, logger)
+	transactionRawMessagePublisher := commands.NewTransactionRawMessagePublisher(transactionProvider)
+	publishRawHandler := commands.NewPublishRawHandler(transactionRawMessagePublisher, private)
+	publishRawAsIdentityHandler := commands.NewPublishRawAsIdentityHandler(transactionRawMessagePublisher)
 	downloadFeedHandler := commands.NewDownloadFeedHandler(transactionProvider, currentTimeProvider)
 	peerManagerConfig := extractPeerManagerConfigFromConfig(config)
 	tunnelDialer := tunnel.NewDialer(peerInitializer)
@@ -408,19 +410,20 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	}
 	runMigrationsHandler := commands.NewRunMigrationsHandler(runner, migrationsMigrations)
 	appCommands := app.Commands{
-		RedeemInvite:       redeemInviteHandler,
-		Follow:             followHandler,
-		PublishRaw:         publishRawHandler,
-		DownloadFeed:       downloadFeedHandler,
-		Connect:            connectHandler,
-		DisconnectAll:      disconnectAllHandler,
-		DownloadBlob:       downloadBlobHandler,
-		CreateBlob:         createBlobHandler,
-		AddToBanList:       addToBanListHandler,
-		RemoveFromBanList:  removeFromBanListHandler,
-		RoomsAliasRegister: roomsAliasRegisterHandler,
-		RoomsAliasRevoke:   roomsAliasRevokeHandler,
-		RunMigrations:      runMigrationsHandler,
+		RedeemInvite:         redeemInviteHandler,
+		Follow:               followHandler,
+		PublishRaw:           publishRawHandler,
+		PublishRawAsIdentity: publishRawAsIdentityHandler,
+		DownloadFeed:         downloadFeedHandler,
+		Connect:              connectHandler,
+		DisconnectAll:        disconnectAllHandler,
+		DownloadBlob:         downloadBlobHandler,
+		CreateBlob:           createBlobHandler,
+		AddToBanList:         addToBanListHandler,
+		RemoveFromBanList:    removeFromBanListHandler,
+		RoomsAliasRegister:   roomsAliasRegisterHandler,
+		RoomsAliasRevoke:     roomsAliasRevokeHandler,
+		RunMigrations:        runMigrationsHandler,
 	}
 	readReceiveLogRepository := bolt.NewReadReceiveLogRepository(db, txRepositoriesFactory)
 	receiveLogHandler := queries.NewReceiveLogHandler(readReceiveLogRepository)

@@ -11,10 +11,11 @@ type Application struct {
 }
 
 type Commands struct {
-	RedeemInvite *commands.RedeemInviteHandler
-	Follow       *commands.FollowHandler
-	PublishRaw   *commands.PublishRawHandler
-	DownloadFeed *commands.DownloadFeedHandler
+	RedeemInvite         *commands.RedeemInviteHandler
+	Follow               *commands.FollowHandler
+	PublishRaw           *commands.PublishRawHandler
+	PublishRawAsIdentity *commands.PublishRawAsIdentityHandler
+	DownloadFeed         *commands.DownloadFeedHandler
 
 	Connect       *commands.ConnectHandler
 	DisconnectAll *commands.DisconnectAllHandler

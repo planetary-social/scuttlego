@@ -21,6 +21,10 @@ type FeedRepositoryMockGetMessageCall struct {
 	Seq  message.Sequence
 }
 
+type FeedRepositoryMockUpdateFeedCall struct {
+	Feed refs.Feed
+}
+
 type FeedRepositoryMockUpdateFeedIgnoringReceiveLogCall struct {
 	Feed              refs.Feed
 	MessagesToPersist []refs.Message
@@ -34,6 +38,7 @@ type FeedRepositoryMock struct {
 	getMessageCalls       []FeedRepositoryMockGetMessageCall
 	GetMessageReturnValue message.Message
 
+	updateFeedCalls                   []FeedRepositoryMockUpdateFeedCall
 	updateFeedIgnoringReceiveLogCalls []FeedRepositoryMockUpdateFeedIgnoringReceiveLogCall
 
 	CountReturnValue int
@@ -41,8 +46,16 @@ type FeedRepositoryMock struct {
 	lock sync.Mutex
 }
 
+func NewFeedRepositoryMock() *FeedRepositoryMock {
+	return &FeedRepositoryMock{}
+}
+
 func (m *FeedRepositoryMock) UpdateFeed(ref refs.Feed, f commands.UpdateFeedFn) error {
-	return errors.New("not implemented")
+	call := FeedRepositoryMockUpdateFeedCall{
+		Feed: ref,
+	}
+	m.updateFeedCalls = append(m.updateFeedCalls, call)
+	return nil
 }
 
 func (m *FeedRepositoryMock) UpdateFeedIgnoringReceiveLog(ref refs.Feed, f commands.UpdateFeedFn) error {
@@ -68,10 +81,6 @@ func (m *FeedRepositoryMock) UpdateFeedIgnoringReceiveLog(ref refs.Feed, f comma
 
 func (m *FeedRepositoryMock) DeleteFeed(ref refs.Feed) error {
 	return errors.New("not implemented")
-}
-
-func NewFeedRepositoryMock() *FeedRepositoryMock {
-	return &FeedRepositoryMock{}
 }
 
 func (m *FeedRepositoryMock) GetMessages(id refs.Feed, seq *message.Sequence, limit *int) ([]message.Message, error) {
@@ -118,5 +127,14 @@ func (m *FeedRepositoryMock) UpdateFeedIgnoringReceiveLogCalls() []FeedRepositor
 
 	tmp := make([]FeedRepositoryMockUpdateFeedIgnoringReceiveLogCall, len(m.updateFeedIgnoringReceiveLogCalls))
 	copy(tmp, m.updateFeedIgnoringReceiveLogCalls)
+	return tmp
+}
+
+func (m *FeedRepositoryMock) UpdateFeedCalls() []FeedRepositoryMockUpdateFeedCall {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	tmp := make([]FeedRepositoryMockUpdateFeedCall, len(m.updateFeedCalls))
+	copy(tmp, m.updateFeedCalls)
 	return tmp
 }

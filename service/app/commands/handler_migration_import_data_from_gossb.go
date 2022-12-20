@@ -92,7 +92,7 @@ func (h MigrationHandlerImportDataFromGoSSB) Handle(ctx context.Context, cmd Imp
 		WithField("resume_after_sequence", cmd.resumeAfterSequence).
 		Debug("import starting")
 
-	var msgs []GoSSBMessage
+	msgs := make([]scuttlegoMessage, 0, batchSize)
 	successCounter := 0
 	errorCounter := 0
 	start := time.Now()
@@ -105,20 +105,17 @@ func (h MigrationHandlerImportDataFromGoSSB) Handle(ctx context.Context, cmd Imp
 			Debug("import ended")
 	}()
 
-	ch, err := h.repoReader.GetMessages(ctx, cmd.directory, cmd.resumeAfterSequence)
+	gossbMessageCh, err := h.repoReader.GetMessages(ctx, cmd.directory, cmd.resumeAfterSequence)
 	if err != nil {
 		return ImportDataFromGoSSBResult{}, errors.Wrap(err, "error getting message channel")
 	}
 
-	for v := range ch {
+	scuttlegoMessageCh := h.startConversionLoop(ctx, gossbMessageCh)
+
+	for v := range scuttlegoMessageCh {
 		if err := v.Err; err != nil {
 			return ImportDataFromGoSSBResult{}, errors.Wrap(err, "received an error")
 		}
-
-		h.logger.
-			WithField("receive_log_sequence", v.Value.ReceiveLogSequence.Int()).
-			WithField("message_id", v.Value.Message.Key().Sigil()).
-			Trace("processing message")
 
 		msgs = append(msgs, v.Value)
 
@@ -126,7 +123,7 @@ func (h MigrationHandlerImportDataFromGoSSB) Handle(ctx context.Context, cmd Imp
 			if err := h.saveMessages(msgs, cmd.saveResumeAfterSequenceFn, &errorCounter, &successCounter); err != nil {
 				return ImportDataFromGoSSBResult{}, errors.Wrap(err, "error saving messages")
 			}
-			msgs = nil
+			msgs = msgs[:0]
 		}
 	}
 
@@ -140,30 +137,81 @@ func (h MigrationHandlerImportDataFromGoSSB) Handle(ctx context.Context, cmd Imp
 	}, nil
 }
 
+func (h MigrationHandlerImportDataFromGoSSB) startConversionLoop(ctx context.Context, in <-chan GoSSBMessageOrError) <-chan scuttlegoMessageOrError {
+	out := make(chan scuttlegoMessageOrError, batchSize)
+
+	go func() {
+		defer close(out)
+
+		for v := range in {
+			if err := v.Err; err != nil {
+				select {
+				case out <- scuttlegoMessageOrError{Err: errors.Wrap(err, "received an error")}:
+					return
+				case <-ctx.Done():
+					return
+				}
+			}
+
+			h.logger.
+				WithField("receive_log_sequence", v.Value.ReceiveLogSequence.Int()).
+				WithField("message_id", v.Value.Message.Key().Sigil()).
+				Trace("converting message")
+
+			msg, err := h.convertMessage(v.Value.Message)
+			if err != nil {
+				if err := v.Err; err != nil {
+					select {
+					case out <- scuttlegoMessageOrError{Err: errors.Wrap(err, "convert message error")}:
+						return
+					case <-ctx.Done():
+						return
+					}
+				}
+			}
+
+			value := scuttlegoMessage{
+				ReceiveLogSequence: v.Value.ReceiveLogSequence,
+				Message:            msg,
+			}
+
+			select {
+			case out <- scuttlegoMessageOrError{Value: value}:
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	return out
+}
+
 func (h MigrationHandlerImportDataFromGoSSB) saveMessages(
-	gossbmsgs []GoSSBMessage,
+	values []scuttlegoMessage,
 	saveResumeAfterSequenceFn SaveResumeAfterSequenceFn,
 	errorCounter *int,
 	successCounter *int,
 ) error {
-	if len(gossbmsgs) == 0 {
+	if len(values) == 0 {
 		return nil
 	}
 
 	tmpErrorCounter := 0
 	tmpSuccessCounter := 0
 
+	start := time.Now()
+
 	if err := h.transaction.Transact(func(adapters Adapters) error {
 		tmpErrorCounter = 0
 		tmpSuccessCounter = 0
 
-		for _, gossbmsg := range gossbmsgs {
-			if err := h.saveMessage(adapters, gossbmsg); err != nil {
+		for _, value := range values {
+			if err := h.saveMessage(adapters, value.Message, value.ReceiveLogSequence); err != nil {
 				if errors.Is(err, appendMessageError{}) {
 					tmpErrorCounter++
 					continue
 				}
-				return errors.Wrapf(err, "error saving message '%s' with receive log sequence '%d'", gossbmsg.Message.Key().Sigil(), gossbmsg.ReceiveLogSequence.Int())
+				return errors.Wrapf(err, "error saving message '%s' with receive log sequence '%d'", value.Message.Id().String(), value.ReceiveLogSequence.Int())
 			} else {
 				tmpSuccessCounter++
 			}
@@ -176,21 +224,27 @@ func (h MigrationHandlerImportDataFromGoSSB) saveMessages(
 	*errorCounter += tmpErrorCounter
 	*successCounter += tmpSuccessCounter
 
-	lastMsgReceiveLogSequence := gossbmsgs[len(gossbmsgs)-1].ReceiveLogSequence
+	lastMsgReceiveLogSequence := values[len(values)-1].ReceiveLogSequence
 	if err := saveResumeAfterSequenceFn(lastMsgReceiveLogSequence); err != nil {
 		return errors.Wrap(err, "error saving the receive log sequence")
 	}
 
+	h.logger.
+		WithField("successes", tmpSuccessCounter).
+		WithField("errors", tmpErrorCounter).
+		WithField("elapsed", time.Since(start).String()).
+		WithField("last_message_receive_log_sequence", lastMsgReceiveLogSequence.Int()).
+		Debug("saved messages")
+
 	return nil
 }
 
-func (h MigrationHandlerImportDataFromGoSSB) saveMessage(adapters Adapters, gossbmsg GoSSBMessage) error {
-	msg, err := h.convertMessage(gossbmsg.Message)
-	if err != nil {
-		return errors.Wrap(err, "error converting the message")
-	}
-
-	foundMessage, err := adapters.ReceiveLog.GetMessage(gossbmsg.ReceiveLogSequence)
+func (h MigrationHandlerImportDataFromGoSSB) saveMessage(
+	adapters Adapters,
+	msg message.Message,
+	receiveLogSequence common.ReceiveLogSequence,
+) error {
+	foundMessage, err := adapters.ReceiveLog.GetMessage(receiveLogSequence)
 	if err != nil {
 		if !errors.Is(err, common.ErrReceiveLogEntryNotFound) {
 			return errors.Wrap(err, "error getting message from receive log")
@@ -210,7 +264,7 @@ func (h MigrationHandlerImportDataFromGoSSB) saveMessage(adapters Adapters, goss
 		return errors.Wrap(err, "error updating the feed")
 	}
 
-	if err := adapters.ReceiveLog.PutUnderSpecificSequence(msg.Id(), gossbmsg.ReceiveLogSequence); err != nil {
+	if err := adapters.ReceiveLog.PutUnderSpecificSequence(msg.Id(), receiveLogSequence); err != nil {
 		return errors.Wrap(err, "error updating the receive log")
 	}
 
@@ -307,4 +361,14 @@ func (e appendMessageError) Is(target error) bool {
 	_, ok1 := target.(*appendMessageError)
 	_, ok2 := target.(appendMessageError)
 	return ok1 || ok2
+}
+
+type scuttlegoMessage struct {
+	ReceiveLogSequence common.ReceiveLogSequence
+	Message            message.Message
+}
+
+type scuttlegoMessageOrError struct {
+	Value scuttlegoMessage
+	Err   error
 }

@@ -3,9 +3,9 @@ package badger
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/dgraph-io/badger/v3"
 
 	"github.com/boreq/errors"
+	"github.com/dgraph-io/badger/v3"
 	"github.com/planetary-social/scuttlego/service/adapters/badger/utils"
 	"github.com/planetary-social/scuttlego/service/app/commands"
 	"github.com/planetary-social/scuttlego/service/domain/bans"

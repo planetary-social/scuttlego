@@ -1,12 +1,13 @@
 package badger_test
 
 import (
+	"testing"
+
 	"github.com/planetary-social/scuttlego/di"
 	"github.com/planetary-social/scuttlego/fixtures"
 	badgeradapters "github.com/planetary-social/scuttlego/service/adapters/badger"
 	"github.com/planetary-social/scuttlego/service/app/commands"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestBanListRepository_LookupMappingReturnsCorrectErrorWhenMappingDoesNotExist(t *testing.T) {

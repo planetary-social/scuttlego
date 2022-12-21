@@ -1,13 +1,14 @@
 package badger
 
 import (
+	"reflect"
+	"runtime"
+	"testing"
+
 	"github.com/planetary-social/scuttlego/service/adapters/mocks"
 	"github.com/planetary-social/scuttlego/service/app/commands"
 	"github.com/planetary-social/scuttlego/service/domain/bans"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
-	"reflect"
-	"runtime"
-	"testing"
 )
 
 func Run(t *testing.T, testedSystems []*TestedSystem) {

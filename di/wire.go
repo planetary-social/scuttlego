@@ -5,17 +5,17 @@ package di
 
 import (
 	"context"
-	"github.com/dgraph-io/badger/v3"
-	badgeradapters "github.com/planetary-social/scuttlego/service/adapters/badger"
 	"path"
 	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/boreq/errors"
+	"github.com/dgraph-io/badger/v3"
 	"github.com/google/wire"
 	"github.com/planetary-social/scuttlego/fixtures"
 	"github.com/planetary-social/scuttlego/logging"
+	badgeradapters "github.com/planetary-social/scuttlego/service/adapters/badger"
 	"github.com/planetary-social/scuttlego/service/adapters/bolt"
 	"github.com/planetary-social/scuttlego/service/adapters/mocks"
 	"github.com/planetary-social/scuttlego/service/adapters/pubsub"

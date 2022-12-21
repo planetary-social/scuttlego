@@ -7,11 +7,12 @@
 package tests
 
 import (
+	"testing"
+
 	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/domain/replication"
 	"github.com/planetary-social/scuttlego/service/domain/replication/ebt"
 	"github.com/planetary-social/scuttlego/service/domain/replication/gossip"
-	"testing"
 )
 
 // Injectors from wire.go:

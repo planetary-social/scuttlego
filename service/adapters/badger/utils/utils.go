@@ -3,10 +3,11 @@ package utils
 import (
 	"bytes"
 	"fmt"
-	"github.com/boreq/errors"
-	"github.com/dgraph-io/badger/v3"
 	"io"
 	"math"
+
+	"github.com/boreq/errors"
+	"github.com/dgraph-io/badger/v3"
 )
 
 const maxKeyComponentLength = math.MaxUint8

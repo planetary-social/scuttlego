@@ -8,16 +8,14 @@ package di
 
 import (
 	"context"
-	"path"
-	"testing"
-	"time"
-
 	"github.com/boreq/errors"
+	badger2 "github.com/dgraph-io/badger/v3"
 	"github.com/google/wire"
 	"github.com/planetary-social/scuttlego/fixtures"
 	"github.com/planetary-social/scuttlego/logging"
 	migrations2 "github.com/planetary-social/scuttlego/migrations"
 	"github.com/planetary-social/scuttlego/service/adapters"
+	"github.com/planetary-social/scuttlego/service/adapters/badger"
 	"github.com/planetary-social/scuttlego/service/adapters/bolt"
 	ebt2 "github.com/planetary-social/scuttlego/service/adapters/ebt"
 	"github.com/planetary-social/scuttlego/service/adapters/invites"
@@ -50,9 +48,35 @@ import (
 	pubsub2 "github.com/planetary-social/scuttlego/service/ports/pubsub"
 	rpc2 "github.com/planetary-social/scuttlego/service/ports/rpc"
 	"go.etcd.io/bbolt"
+	"path"
+	"path/filepath"
+	"testing"
+	"time"
 )
 
 // Injectors from wire.go:
+
+func BuildBadgerTestAdapters(t *testing.T) BadgerTestAdapters {
+	db := fixtures.Badger(t)
+	badgerTestAdaptersFactory := testAdaptersFactory()
+	testTransactionProvider := badger.NewTestTransactionProvider(db, badgerTestAdaptersFactory)
+	badgerTestAdapters := BadgerTestAdapters{
+		TransactionProvider: testTransactionProvider,
+	}
+	return badgerTestAdapters
+}
+
+func buildBadgerTestAdapters(tx *badger2.Txn) (badger.TestAdapters, error) {
+	banListHasherMock := mocks.NewBanListHasherMock()
+	banListRepository := badger.NewBanListRepository(tx, banListHasherMock)
+	blobRepository := badger.NewBlobRepository(tx)
+	testAdapters := badger.TestAdapters{
+		BanList:        banListRepository,
+		BlobRepository: blobRepository,
+		BanListHasher:  banListHasherMock,
+	}
+	return testAdapters, nil
+}
 
 func BuildTxTestAdapters(tx *bbolt.Tx) (TxTestAdapters, error) {
 	messageContentMappings := transport.DefaultMappings()
@@ -510,6 +534,10 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 
 // wire.go:
 
+type BadgerTestAdapters struct {
+	TransactionProvider *badger.TestTransactionProvider
+}
+
 type TxTestAdapters struct {
 	MessageRepository     *bolt.MessageRepository
 	FeedRepository        *bolt.FeedRepository
@@ -596,6 +624,24 @@ func newBolt(config Config) (*bbolt.DB, func(), error) {
 			config.Logger.WithError(err).Error("error closing the database")
 		}
 	}, nil
+}
+
+func newBadger(config Config) (*badger2.DB, func(), error) {
+	badgerDirectory := filepath.Join(config.DataDirectory, "badger")
+
+	options := badger2.DefaultOptions(badgerDirectory)
+
+	db, err := badger2.Open(options)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "failed to open the database")
+	}
+
+	return db, func() {
+		if err := db.Close(); err != nil {
+			config.Logger.WithError(err).Error("error closing the database")
+		}
+	}, nil
+
 }
 
 func privateIdentityToPublicIdentity(p identity.Private) identity.Public {

@@ -5,7 +5,10 @@ package di
 
 import (
 	"context"
+	"github.com/dgraph-io/badger/v3"
+	badgeradapters "github.com/planetary-social/scuttlego/service/adapters/badger"
 	"path"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -34,6 +37,34 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/rooms/tunnel"
 	"go.etcd.io/bbolt"
 )
+
+type BadgerTestAdapters struct {
+	TransactionProvider *badgeradapters.TestTransactionProvider
+}
+
+func BuildBadgerTestAdapters(t *testing.T) BadgerTestAdapters {
+	wire.Build(
+		wire.Struct(new(BadgerTestAdapters), "*"),
+		testBadgerTransactionProviderSet,
+		fixtures.Badger,
+	)
+
+	return BadgerTestAdapters{}
+}
+
+func buildBadgerTestAdapters(tx *badger.Txn) (badgeradapters.TestAdapters, error) {
+	wire.Build(
+		wire.Struct(new(badgeradapters.TestAdapters), "*"),
+
+		badgeradapters.NewBanListRepository,
+		badgeradapters.NewBlobRepository,
+
+		mocks.NewBanListHasherMock,
+		wire.Bind(new(badgeradapters.BanListHasher), new(*mocks.BanListHasherMock)),
+	)
+
+	return badgeradapters.TestAdapters{}, nil
+}
 
 type TxTestAdapters struct {
 	MessageRepository     *bolt.MessageRepository
@@ -368,6 +399,24 @@ func newBolt(config Config) (*bbolt.DB, func(), error) {
 			config.Logger.WithError(err).Error("error closing the database")
 		}
 	}, nil
+}
+
+func newBadger(config Config) (*badger.DB, func(), error) {
+	badgerDirectory := filepath.Join(config.DataDirectory, "badger")
+
+	options := badger.DefaultOptions(badgerDirectory)
+
+	db, err := badger.Open(options)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "failed to open the database")
+	}
+
+	return db, func() {
+		if err := db.Close(); err != nil {
+			config.Logger.WithError(err).Error("error closing the database")
+		}
+	}, nil
+
 }
 
 func privateIdentityToPublicIdentity(p identity.Private) identity.Public {

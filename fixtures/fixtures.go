@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"github.com/dgraph-io/badger/v3"
 	"math"
 	"math/rand"
 	"os"
@@ -281,6 +282,25 @@ func Bolt(t *testing.T) *bbolt.DB {
 	file := File(t)
 
 	db, err := bbolt.Open(file, 0600, &bbolt.Options{Timeout: 5 * time.Second})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cleanup := func() {
+		err := db.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Cleanup(cleanup)
+
+	return db
+}
+
+func Badger(t *testing.T) *badger.DB {
+	dir := Directory(t)
+
+	db, err := badger.Open(badger.DefaultOptions(dir))
 	if err != nil {
 		t.Fatal(err)
 	}

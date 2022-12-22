@@ -54,11 +54,6 @@ func (r BlobRepository) Delete(msgRef refs.Message) error {
 		return errors.Wrap(err, "could not get blob refs bucket")
 	}
 
-	//byBlobBucket, err := r.createBucketByBlob()
-	//if err != nil {
-	//	return errors.Wrap(err, "could not get the by blob bucket")
-	//}
-
 	if err := byMessageBlobRefsBucket.ForEach(func(item *badger.Item) error {
 		k, err := byMessageBlobRefsBucket.KeyInBucket(item)
 		if err != nil {
@@ -83,30 +78,10 @@ func (r BlobRepository) Delete(msgRef refs.Message) error {
 			return errors.Wrap(err, "delete error")
 		}
 
-		//blobRefBucket := byBlobBucket.Bucket(k)
-		//
-		//if err := blobRefBucket.Delete([]byte(msgRef.String())); err != nil {
-		//	return errors.Wrap(err, "could not remove from the bucket")
-		//}
-		//
-		//if utils.BucketIsEmpty(blobRefBucket) {
-		//	if err := byBlobBucket.DeleteBucket(k); err != nil {
-		//		return errors.Wrap(err, "could not remove the blob ref bucket")
-		//	}
-		//}
-
 		return nil
 	}); err != nil {
 		return errors.Wrap(err, "foreach error")
 	}
-
-	//c := byMessageBlobRefsBucket.Cursor()
-	//for k, _ := c.First(); k != nil; k, _ = c.Next() {
-	//}
-
-	//if err := utils.DeleteBucket(r.tx, r.bucketPathByMessage(), utils.BucketName(msgRef.String())); err != nil {
-	//	return errors.Wrap(err, "could not delete the message bucket")
-	//}
 
 	if err := byMessageBlobRefsBucket.DeleteBucket(); err != nil {
 		return errors.Wrap(err, "error deleting the blob refs bucket")
@@ -187,31 +162,18 @@ func (r BlobRepository) createBucketByBlobMessageRefs(ref refs.Blob) (utils.Buck
 	return utils.NewBucket(r.tx, r.bucketPathByBlobMessageRefs(ref))
 }
 
-//	func (r BlobRepository) getBucketByMessageBlobRefs(ref refs.Message) (*bbolt.Bucket, error) {
-//		return utils.GetBucket(r.tx, r.bucketPathByMessageBlobRefs(ref))
-//	}
-//func (r BlobRepository) createBucketByBlob() (utils.Bucket, error) {
-//	return utils.NewBucket(r.tx, r.bucketPathByBlob())
-//}
-
 func (r BlobRepository) bucketPathByMessageBlobRefs(ref refs.Message) utils.Key {
-	return r.bucketPathByMessage().Append(utils.MustNewKeyComponent([]byte(ref.String())))
-}
-
-func (r BlobRepository) bucketPathByBlobMessageRefs(ref refs.Blob) utils.Key {
-	return r.bucketPathByBlob().Append(utils.MustNewKeyComponent([]byte(ref.String())))
-}
-
-func (r BlobRepository) bucketPathByMessage() utils.Key {
 	return utils.MustNewKey(
 		bucketBlobsKeyComponent,
 		bucketBlobsByMessageKeyComponent,
+		utils.MustNewKeyComponent([]byte(ref.String())),
 	)
 }
 
-func (r BlobRepository) bucketPathByBlob() utils.Key {
+func (r BlobRepository) bucketPathByBlobMessageRefs(ref refs.Blob) utils.Key {
 	return utils.MustNewKey(
 		bucketBlobsKeyComponent,
 		bucketBlobsByBlobKeyComponent,
+		utils.MustNewKeyComponent([]byte(ref.String())),
 	)
 }

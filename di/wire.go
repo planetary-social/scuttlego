@@ -16,6 +16,7 @@ import (
 	"github.com/planetary-social/scuttlego/fixtures"
 	"github.com/planetary-social/scuttlego/logging"
 	badgeradapters "github.com/planetary-social/scuttlego/service/adapters/badger"
+	"github.com/planetary-social/scuttlego/service/adapters/badger/notx"
 	"github.com/planetary-social/scuttlego/service/adapters/bolt"
 	"github.com/planetary-social/scuttlego/service/adapters/mocks"
 	"github.com/planetary-social/scuttlego/service/adapters/pubsub"
@@ -42,28 +43,60 @@ type BadgerTestAdapters struct {
 	TransactionProvider *badgeradapters.TestTransactionProvider
 }
 
+func BuildBadgerNoTxTestAdapters(t *testing.T) notx.TestAdapters {
+	wire.Build(
+		wire.Struct(new(notx.TestAdapters), "*"),
+
+		badgerNoTxTransactionProviderSet,
+		badgerNoTxRepositoriesSet,
+
+		fixtures.Badger,
+	)
+
+	return notx.TestAdapters{}
+}
+
 func BuildBadgerTestAdapters(t *testing.T) BadgerTestAdapters {
 	wire.Build(
 		wire.Struct(new(BadgerTestAdapters), "*"),
+
 		testBadgerTransactionProviderSet,
+
 		fixtures.Badger,
 	)
 
 	return BadgerTestAdapters{}
 }
 
+func buildBadgerNoTxTxAdapters(tx *badger.Txn) (notx.TxAdapters, error) {
+	wire.Build(
+		wire.Struct(new(notx.TxAdapters), "*"),
+
+		badgerRepositoriesSet,
+
+		mocks.NewBanListHasherMock,
+		wire.Bind(new(badgeradapters.BanListHasher), new(*mocks.BanListHasherMock)),
+
+		mocks.NewCurrentTimeProviderMock,
+		wire.Bind(new(commands.CurrentTimeProvider), new(*mocks.CurrentTimeProviderMock)),
+
+		mocks.NewRawMessageIdentifierMock,
+		wire.Bind(new(badgeradapters.RawMessageIdentifier), new(*mocks.RawMessageIdentifierMock)),
+
+		identity.NewPrivate,
+		privateIdentityToPublicIdentity,
+
+		wire.Value(hops),
+	)
+
+	return notx.TxAdapters{}, nil
+}
+
 func buildBadgerTestAdapters(tx *badger.Txn) (badgeradapters.TestAdapters, error) {
 	wire.Build(
 		wire.Struct(new(badgeradapters.TestAdapters), "*"),
 
-		badgeradapters.NewBanListRepository,
-		badgeradapters.NewBlobRepository,
-		badgeradapters.NewBlobWantListRepository,
-		badgeradapters.NewFeedWantListRepository,
-		badgeradapters.NewMessageRepository,
-		badgeradapters.NewReceiveLogRepository,
-		badgeradapters.NewSocialGraphRepository,
-		badgeradapters.NewPubRepository,
+		badgerRepositoriesSet,
 
 		mocks.NewBanListHasherMock,
 		wire.Bind(new(badgeradapters.BanListHasher), new(*mocks.BanListHasherMock)),

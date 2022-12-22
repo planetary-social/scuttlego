@@ -21,6 +21,7 @@ import (
 	migrations2 "github.com/planetary-social/scuttlego/migrations"
 	"github.com/planetary-social/scuttlego/service/adapters"
 	"github.com/planetary-social/scuttlego/service/adapters/badger"
+	"github.com/planetary-social/scuttlego/service/adapters/badger/notx"
 	"github.com/planetary-social/scuttlego/service/adapters/bolt"
 	ebt2 "github.com/planetary-social/scuttlego/service/adapters/ebt"
 	"github.com/planetary-social/scuttlego/service/adapters/invites"
@@ -57,6 +58,17 @@ import (
 
 // Injectors from wire.go:
 
+func BuildBadgerNoTxTestAdapters(t *testing.T) notx.TestAdapters {
+	db := fixtures.Badger(t)
+	txAdaptersFactory := noTxTxAdaptersFactory()
+	transactionProvider := notx.NewTransactionProvider(db, txAdaptersFactory)
+	noTxBlobWantListRepository := notx.NewNoTxBlobWantListRepository(transactionProvider)
+	testAdapters := notx.TestAdapters{
+		ReadBlobWantListRepository: noTxBlobWantListRepository,
+	}
+	return testAdapters
+}
+
 func BuildBadgerTestAdapters(t *testing.T) BadgerTestAdapters {
 	db := fixtures.Badger(t)
 	badgerTestAdaptersFactory := testAdaptersFactory()
@@ -66,6 +78,41 @@ func BuildBadgerTestAdapters(t *testing.T) BadgerTestAdapters {
 	}
 	return badgerTestAdapters
 }
+
+func buildBadgerNoTxTxAdapters(tx *badger2.Txn) (notx.TxAdapters, error) {
+	banListHasherMock := mocks.NewBanListHasherMock()
+	banListRepository := badger.NewBanListRepository(tx, banListHasherMock)
+	blobRepository := badger.NewBlobRepository(tx)
+	currentTimeProviderMock := mocks.NewCurrentTimeProviderMock()
+	blobWantListRepository := badger.NewBlobWantListRepository(tx, currentTimeProviderMock)
+	feedWantListRepository := badger.NewFeedWantListRepository(tx, currentTimeProviderMock)
+	rawMessageIdentifierMock := mocks.NewRawMessageIdentifierMock()
+	messageRepository := badger.NewMessageRepository(tx, rawMessageIdentifierMock)
+	receiveLogRepository := badger.NewReceiveLogRepository(tx, messageRepository)
+	private, err := identity.NewPrivate()
+	if err != nil {
+		return notx.TxAdapters{}, err
+	}
+	public := privateIdentityToPublicIdentity(private)
+	graphHops := _wireHopsValue
+	socialGraphRepository := badger.NewSocialGraphRepository(tx, public, graphHops, banListRepository)
+	pubRepository := badger.NewPubRepository(tx)
+	txAdapters := notx.TxAdapters{
+		BanListRepository:      banListRepository,
+		BlobRepository:         blobRepository,
+		BlobWantListRepository: blobWantListRepository,
+		FeedWantListRepository: feedWantListRepository,
+		MessageRepository:      messageRepository,
+		ReceiveLogRepository:   receiveLogRepository,
+		SocialGraphRepository:  socialGraphRepository,
+		PubRepository:          pubRepository,
+	}
+	return txAdapters, nil
+}
+
+var (
+	_wireHopsValue = hops
+)
 
 func buildBadgerTestAdapters(tx *badger2.Txn) (badger.TestAdapters, error) {
 	banListHasherMock := mocks.NewBanListHasherMock()
@@ -82,7 +129,7 @@ func buildBadgerTestAdapters(tx *badger2.Txn) (badger.TestAdapters, error) {
 		return badger.TestAdapters{}, err
 	}
 	public := privateIdentityToPublicIdentity(private)
-	graphHops := _wireHopsValue
+	graphHops := _wireGraphHopsValue
 	socialGraphRepository := badger.NewSocialGraphRepository(tx, public, graphHops, banListRepository)
 	pubRepository := badger.NewPubRepository(tx)
 	testAdapters := badger.TestAdapters{
@@ -101,7 +148,7 @@ func buildBadgerTestAdapters(tx *badger2.Txn) (badger.TestAdapters, error) {
 }
 
 var (
-	_wireHopsValue = hops
+	_wireGraphHopsValue = hops
 )
 
 func BuildTxTestAdapters(tx *bbolt.Tx) (TxTestAdapters, error) {
@@ -121,7 +168,7 @@ func BuildTxTestAdapters(tx *bbolt.Tx) (TxTestAdapters, error) {
 		return TxTestAdapters{}, err
 	}
 	public := privateIdentityToPublicIdentity(private)
-	graphHops := _wireGraphHopsValue
+	graphHops := _wireHopsValue2
 	banListHasherMock := mocks.NewBanListHasherMock()
 	banListRepository := bolt.NewBanListRepository(tx, banListHasherMock)
 	socialGraphRepository := bolt.NewSocialGraphRepository(tx, public, graphHops, banListRepository)
@@ -149,7 +196,7 @@ func BuildTxTestAdapters(tx *bbolt.Tx) (TxTestAdapters, error) {
 }
 
 var (
-	_wireGraphHopsValue = hops
+	_wireHopsValue2 = hops
 )
 
 func BuildTestAdapters(db *bbolt.DB) (TestAdapters, error) {
@@ -286,7 +333,7 @@ func BuildTestQueries(t *testing.T) (TestQueries, error) {
 }
 
 func BuildTransactableAdapters(tx *bbolt.Tx, public identity.Public, config Config) (commands.Adapters, error) {
-	graphHops := _wireHopsValue2
+	graphHops := _wireHopsValue3
 	banListHasher := adapters.NewBanListHasher()
 	banListRepository := bolt.NewBanListRepository(tx, banListHasher)
 	socialGraphRepository := bolt.NewSocialGraphRepository(tx, public, graphHops, banListRepository)
@@ -320,11 +367,11 @@ func BuildTransactableAdapters(tx *bbolt.Tx, public identity.Public, config Conf
 }
 
 var (
-	_wireHopsValue2 = hops
+	_wireHopsValue3 = hops
 )
 
 func BuildTxRepositories(tx *bbolt.Tx, public identity.Public, logger logging.Logger, messageHMAC formats.MessageHMAC) (bolt.TxRepositories, error) {
-	graphHops := _wireHopsValue3
+	graphHops := _wireHopsValue4
 	banListHasher := adapters.NewBanListHasher()
 	banListRepository := bolt.NewBanListRepository(tx, banListHasher)
 	socialGraphRepository := bolt.NewSocialGraphRepository(tx, public, graphHops, banListRepository)
@@ -359,7 +406,7 @@ func BuildTxRepositories(tx *bbolt.Tx, public identity.Public, logger logging.Lo
 }
 
 var (
-	_wireHopsValue3 = hops
+	_wireHopsValue4 = hops
 )
 
 // BuildService creates a new service which uses the provided context as a long-term context used as a base context for

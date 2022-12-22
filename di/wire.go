@@ -58,9 +58,14 @@ func buildBadgerTestAdapters(tx *badger.Txn) (badgeradapters.TestAdapters, error
 
 		badgeradapters.NewBanListRepository,
 		badgeradapters.NewBlobRepository,
+		badgeradapters.NewBlobWantListRepository,
+		badgeradapters.NewFeedWantListRepository,
 
 		mocks.NewBanListHasherMock,
 		wire.Bind(new(badgeradapters.BanListHasher), new(*mocks.BanListHasherMock)),
+
+		mocks.NewCurrentTimeProviderMock,
+		wire.Bind(new(commands.CurrentTimeProvider), new(*mocks.CurrentTimeProviderMock)),
 	)
 
 	return badgeradapters.TestAdapters{}, nil

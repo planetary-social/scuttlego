@@ -71,10 +71,16 @@ func buildBadgerTestAdapters(tx *badger2.Txn) (badger.TestAdapters, error) {
 	banListHasherMock := mocks.NewBanListHasherMock()
 	banListRepository := badger.NewBanListRepository(tx, banListHasherMock)
 	blobRepository := badger.NewBlobRepository(tx)
+	currentTimeProviderMock := mocks.NewCurrentTimeProviderMock()
+	blobWantListRepository := badger.NewBlobWantListRepository(tx, currentTimeProviderMock)
+	feedWantListRepository := badger.NewFeedWantListRepository(tx, currentTimeProviderMock)
 	testAdapters := badger.TestAdapters{
-		BanList:        banListRepository,
-		BlobRepository: blobRepository,
-		BanListHasher:  banListHasherMock,
+		BanList:             banListRepository,
+		BlobRepository:      blobRepository,
+		BlobWantList:        blobWantListRepository,
+		FeedWantList:        feedWantListRepository,
+		BanListHasher:       banListHasherMock,
+		CurrentTimeProvider: currentTimeProviderMock,
 	}
 	return testAdapters, nil
 }

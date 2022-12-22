@@ -34,8 +34,11 @@ type TestAdaptersFactory func(tx *badger.Txn) (TestAdapters, error)
 type TestAdapters struct {
 	BanList        *BanListRepository
 	BlobRepository *BlobRepository
+	BlobWantList   *BlobWantListRepository
+	FeedWantList   *FeedWantListRepository
 
-	BanListHasher *mocks.BanListHasherMock
+	BanListHasher       *mocks.BanListHasherMock
+	CurrentTimeProvider *mocks.CurrentTimeProviderMock
 }
 
 type TestTransactionProvider struct {

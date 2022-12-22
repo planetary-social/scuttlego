@@ -76,12 +76,14 @@ func buildBadgerTestAdapters(tx *badger2.Txn) (badger.TestAdapters, error) {
 	feedWantListRepository := badger.NewFeedWantListRepository(tx, currentTimeProviderMock)
 	rawMessageIdentifierMock := mocks.NewRawMessageIdentifierMock()
 	messageRepository := badger.NewMessageRepository(tx, rawMessageIdentifierMock)
+	receiveLogRepository := badger.NewReceiveLogRepository(tx, messageRepository)
 	testAdapters := badger.TestAdapters{
 		BanList:             banListRepository,
 		BlobRepository:      blobRepository,
 		BlobWantList:        blobWantListRepository,
 		FeedWantList:        feedWantListRepository,
 		MessageRepository:   messageRepository,
+		ReceiveLog:          receiveLogRepository,
 		BanListHasher:       banListHasherMock,
 		CurrentTimeProvider: currentTimeProviderMock,
 	}

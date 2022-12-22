@@ -37,6 +37,7 @@ type TestAdapters struct {
 	BlobWantList      *BlobWantListRepository
 	FeedWantList      *FeedWantListRepository
 	MessageRepository *MessageRepository
+	ReceiveLog        *ReceiveLogRepository
 
 	BanListHasher       *mocks.BanListHasherMock
 	CurrentTimeProvider *mocks.CurrentTimeProviderMock

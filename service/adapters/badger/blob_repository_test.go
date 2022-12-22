@@ -214,15 +214,7 @@ func TestBlobRepository_DeleteRemovesDataWithoutTouchingOtherEntriesIfMultipleMe
 			blobMsgs, err := adapters.BlobRepository.ListMessages(blob)
 			require.NoError(t, err)
 
-			expectedBlobMsgs := []refs.Message{msgRef1, msgRef2}
-
-			sort.Slice(blobMsgs, func(i, j int) bool {
-				return blobMsgs[i].String() < blobMsgs[j].String()
-			})
-
-			sort.Slice(expectedBlobMsgs, func(i, j int) bool {
-				return expectedBlobMsgs[i].String() < expectedBlobMsgs[j].String()
-			})
+			expectedBlobMsgs := []refs.Message{msgRef2}
 
 			require.Equal(t,
 				expectedBlobMsgs,

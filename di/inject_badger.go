@@ -24,6 +24,7 @@ var badgerRepositoriesSet = wire.NewSet(
 	badgeradapters.NewPubRepository,
 )
 
+//nolint:unused
 var badgerNoTxTransactionProviderSet = wire.NewSet(
 	notx.NewTransactionProvider,
 	noTxTxAdaptersFactory,

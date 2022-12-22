@@ -6,6 +6,7 @@ import (
 	badgeradapters "github.com/planetary-social/scuttlego/service/adapters/badger"
 )
 
+//nolint:unused
 var testBadgerTransactionProviderSet = wire.NewSet(
 	badgeradapters.NewTestTransactionProvider,
 	testAdaptersFactory,

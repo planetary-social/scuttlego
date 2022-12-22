@@ -21,7 +21,7 @@ func NewKeyComponent(b []byte) (KeyComponent, error) {
 		return KeyComponent{}, errors.New("empty key component")
 	}
 
-	if l := len(b); l > math.MaxUint8 {
+	if l := len(b); l > maxKeyComponentLength {
 		return KeyComponent{}, fmt.Errorf("key component too long: %d", l)
 	}
 

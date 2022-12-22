@@ -24,6 +24,14 @@ func NewBucket(tx *badger.Txn, prefix Key) (Bucket, error) {
 	return Bucket{tx: tx, prefix: prefix}, nil
 }
 
+func MustNewBucket(tx *badger.Txn, prefix Key) Bucket {
+	v, err := NewBucket(tx, prefix)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
 func (b Bucket) Set(key, val []byte) error {
 	targetKey, err := b.targetKey(key)
 	if err != nil {

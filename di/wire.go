@@ -60,12 +60,16 @@ func buildBadgerTestAdapters(tx *badger.Txn) (badgeradapters.TestAdapters, error
 		badgeradapters.NewBlobRepository,
 		badgeradapters.NewBlobWantListRepository,
 		badgeradapters.NewFeedWantListRepository,
+		badgeradapters.NewMessageRepository,
 
 		mocks.NewBanListHasherMock,
 		wire.Bind(new(badgeradapters.BanListHasher), new(*mocks.BanListHasherMock)),
 
 		mocks.NewCurrentTimeProviderMock,
 		wire.Bind(new(commands.CurrentTimeProvider), new(*mocks.CurrentTimeProviderMock)),
+
+		mocks.NewRawMessageIdentifierMock,
+		wire.Bind(new(badgeradapters.RawMessageIdentifier), new(*mocks.RawMessageIdentifierMock)),
 	)
 
 	return badgeradapters.TestAdapters{}, nil

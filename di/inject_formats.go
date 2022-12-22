@@ -2,6 +2,7 @@ package di
 
 import (
 	"github.com/google/wire"
+	"github.com/planetary-social/scuttlego/service/adapters/badger"
 	"github.com/planetary-social/scuttlego/service/adapters/bolt"
 	"github.com/planetary-social/scuttlego/service/app/commands"
 	"github.com/planetary-social/scuttlego/service/domain/feeds"
@@ -23,6 +24,7 @@ var formatsSet = wire.NewSet(
 	formats.NewRawMessageIdentifier,
 	wire.Bind(new(commands.RawMessageIdentifier), new(*formats.RawMessageIdentifier)),
 	wire.Bind(new(bolt.RawMessageIdentifier), new(*formats.RawMessageIdentifier)),
+	wire.Bind(new(badger.RawMessageIdentifier), new(*formats.RawMessageIdentifier)),
 )
 
 func newFormats(

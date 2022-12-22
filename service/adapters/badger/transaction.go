@@ -32,10 +32,11 @@ func (t TransactionProvider) Transact(f func(adapters commands.Adapters) error) 
 type TestAdaptersFactory func(tx *badger.Txn) (TestAdapters, error)
 
 type TestAdapters struct {
-	BanList        *BanListRepository
-	BlobRepository *BlobRepository
-	BlobWantList   *BlobWantListRepository
-	FeedWantList   *FeedWantListRepository
+	BanList           *BanListRepository
+	BlobRepository    *BlobRepository
+	BlobWantList      *BlobWantListRepository
+	FeedWantList      *FeedWantListRepository
+	MessageRepository *MessageRepository
 
 	BanListHasher       *mocks.BanListHasherMock
 	CurrentTimeProvider *mocks.CurrentTimeProviderMock

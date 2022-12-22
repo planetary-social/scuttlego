@@ -129,11 +129,7 @@ func (r ReceiveLogRepository) List(startSeq common.ReceiveLogSequence, limit int
 			return nil, errors.Wrap(err, "could not determine key in bucket")
 		}
 
-		if keyInBucket.Len() != 1 {
-			return nil, errors.New("invalid length")
-		}
-
-		receiveLogSequence, err := r.unmarshalSequence(keyInBucket.Components()[0].Bytes())
+		receiveLogSequence, err := r.unmarshalSequence(keyInBucket.Bytes())
 		if err != nil {
 			return nil, errors.New("could not load the key")
 		}
@@ -208,11 +204,7 @@ func (r ReceiveLogRepository) GetSequences(ref refs.Message) ([]common.ReceiveLo
 			return errors.Wrap(err, "unable to determine key in bucket")
 		}
 
-		if len(keyInBucket.Components()) != 1 {
-			return errors.New("invalid key length")
-		}
-
-		sequence, err := r.unmarshalSequence(keyInBucket.Components()[0].Bytes())
+		sequence, err := r.unmarshalSequence(keyInBucket.Bytes())
 		if err != nil {
 			return errors.Wrap(err, "error unmarshaling sequence")
 		}

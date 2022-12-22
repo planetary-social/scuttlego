@@ -62,6 +62,7 @@ func buildBadgerTestAdapters(tx *badger.Txn) (badgeradapters.TestAdapters, error
 		badgeradapters.NewFeedWantListRepository,
 		badgeradapters.NewMessageRepository,
 		badgeradapters.NewReceiveLogRepository,
+		badgeradapters.NewSocialGraphRepository,
 
 		mocks.NewBanListHasherMock,
 		wire.Bind(new(badgeradapters.BanListHasher), new(*mocks.BanListHasherMock)),
@@ -71,6 +72,11 @@ func buildBadgerTestAdapters(tx *badger.Txn) (badgeradapters.TestAdapters, error
 
 		mocks.NewRawMessageIdentifierMock,
 		wire.Bind(new(badgeradapters.RawMessageIdentifier), new(*mocks.RawMessageIdentifierMock)),
+
+		identity.NewPrivate,
+		privateIdentityToPublicIdentity,
+
+		wire.Value(hops),
 	)
 
 	return badgeradapters.TestAdapters{}, nil

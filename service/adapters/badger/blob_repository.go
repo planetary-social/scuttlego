@@ -55,16 +55,12 @@ func (r BlobRepository) Delete(msgRef refs.Message) error {
 	}
 
 	if err := byMessageBlobRefsBucket.ForEach(func(item *badger.Item) error {
-		k, err := byMessageBlobRefsBucket.KeyInBucket(item)
+		keyInBucket, err := byMessageBlobRefsBucket.KeyInBucket(item)
 		if err != nil {
 			return errors.Wrap(err, "error determining item key in bucket")
 		}
 
-		if k.Len() != 1 {
-			return errors.New("invalid key length")
-		}
-
-		blobRef, err := refs.NewBlob(string(k.Components()[0].Bytes()))
+		blobRef, err := refs.NewBlob(string(keyInBucket.Bytes()))
 		if err != nil {
 			return errors.Wrap(err, "new blob ref error")
 		}
@@ -99,16 +95,12 @@ func (r BlobRepository) ListBlobs(msgRef refs.Message) ([]refs.Blob, error) {
 	var result []refs.Blob
 
 	if err := bucket.ForEach(func(item *badger.Item) error {
-		k, err := bucket.KeyInBucket(item)
+		keyInBucket, err := bucket.KeyInBucket(item)
 		if err != nil {
 			return errors.Wrap(err, "error determining item key in bucket")
 		}
 
-		if k.Len() != 1 {
-			return errors.New("invalid length")
-		}
-
-		blobRef, err := refs.NewBlob(string(k.Components()[0].Bytes()))
+		blobRef, err := refs.NewBlob(string(keyInBucket.Bytes()))
 		if err != nil {
 			return errors.Wrap(err, "new blob ref error")
 		}
@@ -131,16 +123,12 @@ func (r BlobRepository) ListMessages(blobRef refs.Blob) ([]refs.Message, error) 
 	var result []refs.Message
 
 	if err := bucket.ForEach(func(item *badger.Item) error {
-		k, err := bucket.KeyInBucket(item)
+		keyInBucket, err := bucket.KeyInBucket(item)
 		if err != nil {
 			return errors.Wrap(err, "error determining item key in bucket")
 		}
 
-		if k.Len() != 1 {
-			return errors.New("invalid length")
-		}
-
-		msgRef, err := refs.NewMessage(string(k.Components()[0].Bytes()))
+		msgRef, err := refs.NewMessage(string(keyInBucket.Bytes()))
 		if err != nil {
 			return errors.Wrap(err, "new blob ref error")
 		}

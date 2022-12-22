@@ -69,7 +69,7 @@ func (b Bucket) Iterator() *BucketIterator {
 }
 
 func (b Bucket) DeleteBucket() error {
-	if err := b.ForEach(func(item *badger.Item) error { // todo don't prefech values?
+	if err := b.ForEach(func(item *badger.Item) error { // todo don't prefech values? // todo do it faster somehow?
 		if err := b.tx.Delete(item.Key()); err != nil {
 			return errors.Wrap(err, "delete error")
 		}
@@ -89,21 +89,21 @@ func (b Bucket) targetKey(key []byte) ([]byte, error) {
 	return b.prefix.Append(keyComponent).Bytes(), nil
 }
 
-func (b Bucket) KeyInBucket(item *badger.Item) (Key, error) {
+func (b Bucket) KeyInBucket(item *badger.Item) (KeyComponent, error) {
 	itemKey, err := NewKeyFromBytes(item.KeyCopy(nil)) // todo copy only sometimes or later?
 	if err != nil {
-		return Key{}, errors.Wrap(err, "error parsing the key")
+		return KeyComponent{}, errors.Wrap(err, "error parsing the key")
 	}
 
 	if len(itemKey.components) != len(b.prefix.components)+1 {
-		return Key{}, errors.New("invalid item key length")
+		return KeyComponent{}, errors.New("invalid item key length")
 	}
 
 	for i := range b.prefix.components {
 		if !bytes.Equal(itemKey.components[i].b, b.prefix.components[i].b) {
-			return Key{}, errors.New("invalid item key component")
+			return KeyComponent{}, errors.New("invalid item key component")
 		}
 	}
 
-	return NewKey(itemKey.components[len(b.prefix.components):]...)
+	return itemKey.components[len(itemKey.components)-1], nil
 }

@@ -137,11 +137,7 @@ func (r WantListRepository) List() ([]string, error) {
 			return errors.Wrap(err, "error determining key in bucket")
 		}
 
-		if keyInBucket.Len() != 1 {
-			return errors.New("invalid key length")
-		}
-
-		id := r.fromKey(keyInBucket.Components()[0].Bytes())
+		id := r.fromKey(keyInBucket.Bytes())
 
 		if err := item.Value(func(val []byte) error {
 			until, err := r.fromValue(val)

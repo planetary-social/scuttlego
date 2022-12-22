@@ -76,6 +76,10 @@ func (b Bucket) Iterator() *BucketIterator {
 	return NewBucketIterator(b)
 }
 
+func (b Bucket) ChildBucket(component KeyComponent) Bucket {
+	return MustNewBucket(b.tx, b.prefix.Append(component))
+}
+
 func (b Bucket) DeleteBucket() error {
 	if err := b.ForEach(func(item *badger.Item) error { // todo don't prefech values? // todo do it faster somehow?
 		if err := b.tx.Delete(item.Key()); err != nil {

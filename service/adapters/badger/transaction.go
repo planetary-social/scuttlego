@@ -39,6 +39,7 @@ type TestAdapters struct {
 	MessageRepository     *MessageRepository
 	ReceiveLog            *ReceiveLogRepository
 	SocialGraphRepository *SocialGraphRepository
+	PubRepository         *PubRepository
 
 	// todo name either all ...repository or strip it from all names
 

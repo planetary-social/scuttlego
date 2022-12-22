@@ -84,6 +84,7 @@ func buildBadgerTestAdapters(tx *badger2.Txn) (badger.TestAdapters, error) {
 	public := privateIdentityToPublicIdentity(private)
 	graphHops := _wireHopsValue
 	socialGraphRepository := badger.NewSocialGraphRepository(tx, public, graphHops, banListRepository)
+	pubRepository := badger.NewPubRepository(tx)
 	testAdapters := badger.TestAdapters{
 		BanList:               banListRepository,
 		BlobRepository:        blobRepository,
@@ -92,6 +93,7 @@ func buildBadgerTestAdapters(tx *badger2.Txn) (badger.TestAdapters, error) {
 		MessageRepository:     messageRepository,
 		ReceiveLog:            receiveLogRepository,
 		SocialGraphRepository: socialGraphRepository,
+		PubRepository:         pubRepository,
 		BanListHasher:         banListHasherMock,
 		CurrentTimeProvider:   currentTimeProviderMock,
 	}

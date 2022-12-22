@@ -63,6 +63,7 @@ func buildBadgerTestAdapters(tx *badger.Txn) (badgeradapters.TestAdapters, error
 		badgeradapters.NewMessageRepository,
 		badgeradapters.NewReceiveLogRepository,
 		badgeradapters.NewSocialGraphRepository,
+		badgeradapters.NewPubRepository,
 
 		mocks.NewBanListHasherMock,
 		wire.Bind(new(badgeradapters.BanListHasher), new(*mocks.BanListHasherMock)),

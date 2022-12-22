@@ -11,7 +11,6 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/feeds"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/stretchr/testify/require"
-	"go.etcd.io/bbolt"
 )
 
 func TestBlobRepository_ListingDoesNotReturnErrorsIfBlobOrMessageIsNotKnown(t *testing.T) {
@@ -156,11 +155,6 @@ func TestBlobRepository_DeleteRemovesDataWithoutTouchingOtherEntriesIfMultipleMe
 	})
 	require.NoError(t, err)
 
-	//byMessageBucketExists(t, db, msgRef1, true)
-	//byMessageBucketExists(t, db, msgRef2, true)
-	//
-	//byBlobBucketsExist(t, db, blobs, true)
-
 	err = ts.TransactionProvider.View(func(adapters badger.TestAdapters) error {
 		msg1Blobs, err := adapters.BlobRepository.ListBlobs(msgRef1)
 		require.NoError(t, err)
@@ -205,60 +199,39 @@ func TestBlobRepository_DeleteRemovesDataWithoutTouchingOtherEntriesIfMultipleMe
 	})
 	require.NoError(t, err)
 
-	//byMessageBucketExists(t, db, msgRef1, false)
-	//byMessageBucketExists(t, db, msgRef2, true)
-	//
-	//byBlobBucketsExist(t, db, blobs, true)
-}
+	err = ts.TransactionProvider.View(func(adapters badger.TestAdapters) error {
+		msg1Blobs, err := adapters.BlobRepository.ListBlobs(msgRef1)
+		require.NoError(t, err)
+		require.Empty(t, msg1Blobs)
 
-func byMessageBucketExists(t *testing.T, db *bbolt.DB, msgRef refs.Message, exists bool) {
-	requireBucketExistsNoTx(
-		t,
-		db,
-		[]utils.BucketName{
-			utils.BucketName("blobs"),
-			utils.BucketName("by_message"),
-			utils.BucketName(msgRef.String()),
-		},
-		exists,
-	)
-}
+		msg2Blobs, err := adapters.BlobRepository.ListBlobs(msgRef2)
+		require.NoError(t, err)
+		require.Equal(t,
+			blobs.Blobs(),
+			msg2Blobs,
+		)
 
-func byBlobBucketsExist(t *testing.T, db *bbolt.DB, blobs feeds.BlobToSave, exists bool) {
-	err := db.View(func(tx *bbolt.Tx) error {
-		for _, b := range blobs.Blobs() {
-			requireBucketExists(
-				t,
-				tx,
-				[]utils.BucketName{
-					utils.BucketName("blobs"),
-					utils.BucketName("by_blob"),
-					utils.BucketName(b.String()),
-				},
-				exists,
+		for _, blob := range blobs.Blobs() {
+			blobMsgs, err := adapters.BlobRepository.ListMessages(blob)
+			require.NoError(t, err)
+
+			expectedBlobMsgs := []refs.Message{msgRef1, msgRef2}
+
+			sort.Slice(blobMsgs, func(i, j int) bool {
+				return blobMsgs[i].String() < blobMsgs[j].String()
+			})
+
+			sort.Slice(expectedBlobMsgs, func(i, j int) bool {
+				return expectedBlobMsgs[i].String() < expectedBlobMsgs[j].String()
+			})
+
+			require.Equal(t,
+				expectedBlobMsgs,
+				blobMsgs,
 			)
 		}
 
 		return nil
 	})
 	require.NoError(t, err)
-}
-
-func requireBucketExistsNoTx(t *testing.T, db *bbolt.DB, bucket []utils.BucketName, exists bool) {
-	err := db.View(func(tx *bbolt.Tx) error {
-		requireBucketExists(
-			t,
-			tx,
-			bucket,
-			exists,
-		)
-		return nil
-	})
-	require.NoError(t, err)
-}
-
-func requireBucketExists(t *testing.T, tx *bbolt.Tx, bucket []utils.BucketName, exists bool) {
-	b, err := utils.GetBucket(tx, bucket)
-	require.NoError(t, err)
-	require.Equal(t, exists, b != nil)
 }

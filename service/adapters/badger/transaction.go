@@ -29,19 +29,60 @@ func (t TransactionProvider) Transact(f func(adapters commands.Adapters) error) 
 	})
 }
 
+type TxAdaptersFactory func(tx *badger.Txn) (TxAdapters, error)
+
+type TxAdapters struct {
+	BanListRepository      *BanListRepository
+	BlobRepository         *BlobRepository
+	BlobWantListRepository *BlobWantListRepository
+	FeedWantListRepository *FeedWantListRepository
+	MessageRepository      *MessageRepository
+	ReceiveLogRepository   *ReceiveLogRepository
+	SocialGraphRepository  *SocialGraphRepository
+	PubRepository          *PubRepository
+}
+
+type TxTransactionProvider struct {
+	db      *badger.DB
+	factory TxAdaptersFactory
+}
+
+func NewTxTransactionProvider(db *badger.DB, factory TxAdaptersFactory) *TxTransactionProvider {
+	return &TxTransactionProvider{db: db, factory: factory}
+}
+
+func (t TxTransactionProvider) Update(f func(adapters TxAdapters) error) error {
+	return t.db.Update(func(tx *badger.Txn) error {
+		adapters, err := t.factory(tx)
+		if err != nil {
+			return errors.Wrap(err, "failed to build adapters")
+		}
+
+		return f(adapters)
+	})
+}
+func (t TxTransactionProvider) View(f func(adapters TxAdapters) error) error {
+	return t.db.View(func(tx *badger.Txn) error {
+		adapters, err := t.factory(tx)
+		if err != nil {
+			return errors.Wrap(err, "failed to build adapters")
+		}
+
+		return f(adapters)
+	})
+}
+
 type TestAdaptersFactory func(tx *badger.Txn) (TestAdapters, error)
 
 type TestAdapters struct {
-	BanList               *BanListRepository
-	BlobRepository        *BlobRepository
-	BlobWantList          *BlobWantListRepository
-	FeedWantList          *FeedWantListRepository
-	MessageRepository     *MessageRepository
-	ReceiveLog            *ReceiveLogRepository
-	SocialGraphRepository *SocialGraphRepository
-	PubRepository         *PubRepository
-
-	// todo name either all ...repository or strip it from all names
+	BanListRepository      *BanListRepository
+	BlobRepository         *BlobRepository
+	BlobWantListRepository *BlobWantListRepository
+	FeedWantListRepository *FeedWantListRepository
+	MessageRepository      *MessageRepository
+	ReceiveLogRepository   *ReceiveLogRepository
+	SocialGraphRepository  *SocialGraphRepository
+	PubRepository          *PubRepository
 
 	BanListHasher       *mocks.BanListHasherMock
 	CurrentTimeProvider *mocks.CurrentTimeProviderMock

@@ -18,24 +18,24 @@ func TestFeedWantListRepository_ListDoesNotReturnValuesForWhichUntilIsBeforeCurr
 		afterUntil := until.Add(fixtures.SomeDuration())
 		beforeUntil := until.Add(-fixtures.SomeDuration())
 
-		err := adapters.FeedWantList.Add(fixtures.SomeRefFeed(), until)
+		err := adapters.FeedWantListRepository.Add(fixtures.SomeRefFeed(), until)
 		require.NoError(t, err)
 
 		adapters.CurrentTimeProvider.CurrentTime = beforeUntil
 
-		l, err := adapters.FeedWantList.List()
+		l, err := adapters.FeedWantListRepository.List()
 		require.NoError(t, err)
 		require.NotEmpty(t, l, "if the deadline hasn't passed the value should be returned")
 
 		adapters.CurrentTimeProvider.CurrentTime = afterUntil
 
-		l, err = adapters.FeedWantList.List()
+		l, err = adapters.FeedWantListRepository.List()
 		require.NoError(t, err)
 		require.Empty(t, l, "if the deadline passed the value shouldn't be returned")
 
 		adapters.CurrentTimeProvider.CurrentTime = beforeUntil
 
-		l, err = adapters.FeedWantList.List()
+		l, err = adapters.FeedWantListRepository.List()
 		require.NoError(t, err)
 		require.Empty(t, l, "calling list should have cleaned up values for which the deadline has passed")
 
@@ -52,15 +52,15 @@ func TestFeedWantListRepository_LongerUntilOverwritesShorterUntil(t *testing.T) 
 		afterFirstUntil := firstUntil.Add(fixtures.SomeDuration())
 		secondUntil := afterFirstUntil.Add(fixtures.SomeDuration())
 
-		err := adapters.FeedWantList.Add(fixtures.SomeRefFeed(), firstUntil)
+		err := adapters.FeedWantListRepository.Add(fixtures.SomeRefFeed(), firstUntil)
 		require.NoError(t, err)
 
-		err = adapters.FeedWantList.Add(fixtures.SomeRefFeed(), secondUntil)
+		err = adapters.FeedWantListRepository.Add(fixtures.SomeRefFeed(), secondUntil)
 		require.NoError(t, err)
 
 		adapters.CurrentTimeProvider.CurrentTime = afterFirstUntil
 
-		l, err := adapters.FeedWantList.List()
+		l, err := adapters.FeedWantListRepository.List()
 		require.NoError(t, err)
 		require.NotEmpty(t, l, "if the deadline hasn't passed the value should be returned")
 
@@ -77,15 +77,15 @@ func TestFeedWantListRepository_ShorterUntilDoesNotOverwriteLongerUntil(t *testi
 		afterFirstUntil := firstUntil.Add(fixtures.SomeDuration())
 		secondUntil := afterFirstUntil.Add(fixtures.SomeDuration())
 
-		err := adapters.FeedWantList.Add(fixtures.SomeRefFeed(), secondUntil)
+		err := adapters.FeedWantListRepository.Add(fixtures.SomeRefFeed(), secondUntil)
 		require.NoError(t, err)
 
-		err = adapters.FeedWantList.Add(fixtures.SomeRefFeed(), firstUntil)
+		err = adapters.FeedWantListRepository.Add(fixtures.SomeRefFeed(), firstUntil)
 		require.NoError(t, err)
 
 		adapters.CurrentTimeProvider.CurrentTime = afterFirstUntil
 
-		l, err := adapters.FeedWantList.List()
+		l, err := adapters.FeedWantListRepository.List()
 		require.NoError(t, err)
 		require.NotEmpty(t, l, "if the deadline hasn't passed the value should be returned")
 
@@ -104,14 +104,14 @@ func TestFeedWantListRepository_Contains(t *testing.T) {
 
 		id := fixtures.SomeRefFeed()
 
-		ok, err := adapters.FeedWantList.Contains(id)
+		ok, err := adapters.FeedWantListRepository.Contains(id)
 		require.NoError(t, err)
 		require.False(t, ok)
 
-		err = adapters.FeedWantList.Add(id, until)
+		err = adapters.FeedWantListRepository.Add(id, until)
 		require.NoError(t, err)
 
-		ok, err = adapters.FeedWantList.Contains(id)
+		ok, err = adapters.FeedWantListRepository.Contains(id)
 		require.NoError(t, err)
 		require.True(t, ok)
 

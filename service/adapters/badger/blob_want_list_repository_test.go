@@ -18,24 +18,24 @@ func TestBlobWantListRepository_ListDoesNotReturnValuesForWhichUntilIsBeforeCurr
 		afterUntil := until.Add(fixtures.SomeDuration())
 		beforeUntil := until.Add(-fixtures.SomeDuration())
 
-		err := adapters.BlobWantList.Add(fixtures.SomeRefBlob(), until)
+		err := adapters.BlobWantListRepository.Add(fixtures.SomeRefBlob(), until)
 		require.NoError(t, err)
 
 		adapters.CurrentTimeProvider.CurrentTime = beforeUntil
 
-		l, err := adapters.BlobWantList.List()
+		l, err := adapters.BlobWantListRepository.List()
 		require.NoError(t, err)
 		require.NotEmpty(t, l, "if the deadline hasn't passed the value should be returned")
 
 		adapters.CurrentTimeProvider.CurrentTime = afterUntil
 
-		l, err = adapters.BlobWantList.List()
+		l, err = adapters.BlobWantListRepository.List()
 		require.NoError(t, err)
 		require.Empty(t, l, "if the deadline passed the value shouldn't be returned")
 
 		adapters.CurrentTimeProvider.CurrentTime = beforeUntil
 
-		l, err = adapters.BlobWantList.List()
+		l, err = adapters.BlobWantListRepository.List()
 		require.NoError(t, err)
 		require.Empty(t, l, "calling list should have cleaned up values for which the deadline has passed")
 
@@ -52,15 +52,15 @@ func TestBlobWantListRepository_LongerUntilOverwritesShorterUntil(t *testing.T) 
 		afterFirstUntil := firstUntil.Add(fixtures.SomeDuration())
 		secondUntil := afterFirstUntil.Add(fixtures.SomeDuration())
 
-		err := adapters.BlobWantList.Add(fixtures.SomeRefBlob(), firstUntil)
+		err := adapters.BlobWantListRepository.Add(fixtures.SomeRefBlob(), firstUntil)
 		require.NoError(t, err)
 
-		err = adapters.BlobWantList.Add(fixtures.SomeRefBlob(), secondUntil)
+		err = adapters.BlobWantListRepository.Add(fixtures.SomeRefBlob(), secondUntil)
 		require.NoError(t, err)
 
 		adapters.CurrentTimeProvider.CurrentTime = afterFirstUntil
 
-		l, err := adapters.BlobWantList.List()
+		l, err := adapters.BlobWantListRepository.List()
 		require.NoError(t, err)
 		require.NotEmpty(t, l, "if the deadline hasn't passed the value should be returned")
 
@@ -77,15 +77,15 @@ func TestBlobWantListRepository_ShorterUntilDoesNotOverwriteLongerUntil(t *testi
 		afterFirstUntil := firstUntil.Add(fixtures.SomeDuration())
 		secondUntil := afterFirstUntil.Add(fixtures.SomeDuration())
 
-		err := adapters.BlobWantList.Add(fixtures.SomeRefBlob(), secondUntil)
+		err := adapters.BlobWantListRepository.Add(fixtures.SomeRefBlob(), secondUntil)
 		require.NoError(t, err)
 
-		err = adapters.BlobWantList.Add(fixtures.SomeRefBlob(), firstUntil)
+		err = adapters.BlobWantListRepository.Add(fixtures.SomeRefBlob(), firstUntil)
 		require.NoError(t, err)
 
 		adapters.CurrentTimeProvider.CurrentTime = afterFirstUntil
 
-		l, err := adapters.BlobWantList.List()
+		l, err := adapters.BlobWantListRepository.List()
 		require.NoError(t, err)
 		require.NotEmpty(t, l, "if the deadline hasn't passed the value should be returned")
 
@@ -104,21 +104,21 @@ func TestBlobWantListRepository_ContainsAndDelete(t *testing.T) {
 
 		id := fixtures.SomeRefBlob()
 
-		ok, err := adapters.BlobWantList.Contains(id)
+		ok, err := adapters.BlobWantListRepository.Contains(id)
 		require.NoError(t, err)
 		require.False(t, ok)
 
-		err = adapters.BlobWantList.Add(id, until)
+		err = adapters.BlobWantListRepository.Add(id, until)
 		require.NoError(t, err)
 
-		ok, err = adapters.BlobWantList.Contains(id)
+		ok, err = adapters.BlobWantListRepository.Contains(id)
 		require.NoError(t, err)
 		require.True(t, ok)
 
-		err = adapters.BlobWantList.Delete(id)
+		err = adapters.BlobWantListRepository.Delete(id)
 		require.NoError(t, err)
 
-		ok, err = adapters.BlobWantList.Contains(id)
+		ok, err = adapters.BlobWantListRepository.Contains(id)
 		require.NoError(t, err)
 		require.False(t, ok)
 

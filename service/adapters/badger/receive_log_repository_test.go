@@ -20,22 +20,22 @@ func TestReceiveLog_GetMessage_ReturnsPredefinedErrorWhenNotFound(t *testing.T) 
 		sequence1 := fixtures.SomeReceiveLogSequence()
 		sequence2 := fixtures.SomeReceiveLogSequence()
 
-		_, err := adapters.ReceiveLog.GetMessage(sequence1)
+		_, err := adapters.ReceiveLogRepository.GetMessage(sequence1)
 		require.ErrorIs(t, err, common.ErrReceiveLogEntryNotFound)
 
-		_, err = adapters.ReceiveLog.GetMessage(sequence2)
+		_, err = adapters.ReceiveLogRepository.GetMessage(sequence2)
 		require.ErrorIs(t, err, common.ErrReceiveLogEntryNotFound)
 
-		err = adapters.ReceiveLog.PutUnderSpecificSequence(msg.Id(), sequence1)
+		err = adapters.ReceiveLogRepository.PutUnderSpecificSequence(msg.Id(), sequence1)
 		require.NoError(t, err)
 
 		err = adapters.MessageRepository.Put(msg)
 		require.NoError(t, err)
 
-		_, err = adapters.ReceiveLog.GetMessage(sequence1)
+		_, err = adapters.ReceiveLogRepository.GetMessage(sequence1)
 		require.NoError(t, err)
 
-		_, err = adapters.ReceiveLog.GetMessage(sequence2)
+		_, err = adapters.ReceiveLogRepository.GetMessage(sequence2)
 		require.ErrorIs(t, err, common.ErrReceiveLogEntryNotFound)
 
 		return nil
@@ -50,19 +50,19 @@ func TestReceiveLog_GetSequences_ReturnsPredefinedErrorWhenNotFound(t *testing.T
 	msg2 := fixtures.SomeRefMessage()
 
 	err := ts.TransactionProvider.Update(func(adapters badger.TestAdapters) error {
-		_, err := adapters.ReceiveLog.GetSequences(msg1)
+		_, err := adapters.ReceiveLogRepository.GetSequences(msg1)
 		require.ErrorIs(t, err, common.ErrReceiveLogEntryNotFound)
 
-		_, err = adapters.ReceiveLog.GetSequences(msg2)
+		_, err = adapters.ReceiveLogRepository.GetSequences(msg2)
 		require.ErrorIs(t, err, common.ErrReceiveLogEntryNotFound)
 
-		err = adapters.ReceiveLog.PutUnderSpecificSequence(msg1, fixtures.SomeReceiveLogSequence())
+		err = adapters.ReceiveLogRepository.PutUnderSpecificSequence(msg1, fixtures.SomeReceiveLogSequence())
 		require.NoError(t, err)
 
-		_, err = adapters.ReceiveLog.GetSequences(msg1)
+		_, err = adapters.ReceiveLogRepository.GetSequences(msg1)
 		require.NoError(t, err)
 
-		_, err = adapters.ReceiveLog.GetSequences(msg2)
+		_, err = adapters.ReceiveLogRepository.GetSequences(msg2)
 		require.ErrorIs(t, err, common.ErrReceiveLogEntryNotFound)
 
 		return nil
@@ -74,7 +74,7 @@ func TestReceiveLog_Get_ReturnsNoMessagesWhenEmpty(t *testing.T) {
 	ts := di.BuildBadgerTestAdapters(t)
 
 	err := ts.TransactionProvider.View(func(adapters badger.TestAdapters) error {
-		msgs, err := adapters.ReceiveLog.List(common.MustNewReceiveLogSequence(0), 10)
+		msgs, err := adapters.ReceiveLogRepository.List(common.MustNewReceiveLogSequence(0), 10)
 		require.NoError(t, err)
 		require.Empty(t, msgs)
 
@@ -87,7 +87,7 @@ func TestReceiveLog_Get_ReturnsErrorForInvalidLimit(t *testing.T) {
 	ts := di.BuildBadgerTestAdapters(t)
 
 	err := ts.TransactionProvider.View(func(adapters badger.TestAdapters) error {
-		_, err := adapters.ReceiveLog.List(common.MustNewReceiveLogSequence(0), 0)
+		_, err := adapters.ReceiveLogRepository.List(common.MustNewReceiveLogSequence(0), 0)
 		require.EqualError(t, err, "limit must be positive")
 
 		return nil
@@ -102,7 +102,7 @@ func TestReceiveLog_Put_InsertsCorrectMapping(t *testing.T) {
 	expectedSequence := common.MustNewReceiveLogSequence(0)
 
 	err := ts.TransactionProvider.Update(func(adapters badger.TestAdapters) error {
-		if err := adapters.ReceiveLog.Put(msg.Id()); err != nil {
+		if err := adapters.ReceiveLogRepository.Put(msg.Id()); err != nil {
 			return errors.Wrap(err, "could not put a message in receive log")
 		}
 
@@ -115,7 +115,7 @@ func TestReceiveLog_Put_InsertsCorrectMapping(t *testing.T) {
 	require.NoError(t, err)
 
 	err = ts.TransactionProvider.View(func(adapters badger.TestAdapters) error {
-		seqs, err := adapters.ReceiveLog.GetSequences(msg.Id())
+		seqs, err := adapters.ReceiveLogRepository.GetSequences(msg.Id())
 		require.NoError(t, err)
 		require.Equal(t, []common.ReceiveLogSequence{expectedSequence}, seqs)
 
@@ -124,7 +124,7 @@ func TestReceiveLog_Put_InsertsCorrectMapping(t *testing.T) {
 	require.NoError(t, err)
 
 	err = ts.TransactionProvider.View(func(adapters badger.TestAdapters) error {
-		_, err = adapters.ReceiveLog.GetMessage(expectedSequence)
+		_, err = adapters.ReceiveLogRepository.GetMessage(expectedSequence)
 		require.NoError(t, err)
 		// retrieved message won't have the same fields as the message we saved
 		// as the raw data set in fixtures.SomeMessage is gibberish
@@ -143,7 +143,7 @@ func TestReceiveLog_Get_ReturnsMessagesObeyingLimitAndStartSeq(t *testing.T) {
 		for i := 0; i < numMessages; i++ {
 			msg := fixtures.SomeMessage(fixtures.SomeSequence(), fixtures.SomeRefFeed())
 
-			if err := adapters.ReceiveLog.Put(msg.Id()); err != nil {
+			if err := adapters.ReceiveLogRepository.Put(msg.Id()); err != nil {
 				return errors.Wrap(err, "could not put a message in receive log")
 			}
 
@@ -158,7 +158,7 @@ func TestReceiveLog_Get_ReturnsMessagesObeyingLimitAndStartSeq(t *testing.T) {
 
 	t.Run("seq_0", func(t *testing.T) {
 		err = ts.TransactionProvider.View(func(adapters badger.TestAdapters) error {
-			msgs, err := adapters.ReceiveLog.List(common.MustNewReceiveLogSequence(0), 10)
+			msgs, err := adapters.ReceiveLogRepository.List(common.MustNewReceiveLogSequence(0), 10)
 			require.NoError(t, err)
 			require.Len(t, msgs, 10)
 
@@ -169,7 +169,7 @@ func TestReceiveLog_Get_ReturnsMessagesObeyingLimitAndStartSeq(t *testing.T) {
 
 	t.Run("seq_5", func(t *testing.T) {
 		err = ts.TransactionProvider.View(func(adapters badger.TestAdapters) error {
-			msgs, err := adapters.ReceiveLog.List(common.MustNewReceiveLogSequence(5), 10)
+			msgs, err := adapters.ReceiveLogRepository.List(common.MustNewReceiveLogSequence(5), 10)
 			require.NoError(t, err)
 			require.Len(t, msgs, 5)
 
@@ -186,7 +186,7 @@ func TestReceiveLog_PutUnderSpecificSequence_InsertsCorrectMapping(t *testing.T)
 	sequence := common.MustNewReceiveLogSequence(123)
 
 	err := ts.TransactionProvider.Update(func(adapters badger.TestAdapters) error {
-		if err := adapters.ReceiveLog.PutUnderSpecificSequence(msg.Id(), sequence); err != nil {
+		if err := adapters.ReceiveLogRepository.PutUnderSpecificSequence(msg.Id(), sequence); err != nil {
 			return errors.Wrap(err, "could not put a message in receive log")
 		}
 
@@ -199,7 +199,7 @@ func TestReceiveLog_PutUnderSpecificSequence_InsertsCorrectMapping(t *testing.T)
 	require.NoError(t, err)
 
 	err = ts.TransactionProvider.View(func(adapters badger.TestAdapters) error {
-		seqs, err := adapters.ReceiveLog.GetSequences(msg.Id())
+		seqs, err := adapters.ReceiveLogRepository.GetSequences(msg.Id())
 		require.NoError(t, err)
 		require.Equal(t, []common.ReceiveLogSequence{sequence}, seqs)
 
@@ -208,7 +208,7 @@ func TestReceiveLog_PutUnderSpecificSequence_InsertsCorrectMapping(t *testing.T)
 	require.NoError(t, err)
 
 	err = ts.TransactionProvider.View(func(adapters badger.TestAdapters) error {
-		_, err = adapters.ReceiveLog.GetMessage(sequence)
+		_, err = adapters.ReceiveLogRepository.GetMessage(sequence)
 		require.NoError(t, err)
 		// retrieved message won't have the same fields as the message we saved
 		// as the raw data set in fixtures.SomeMessage is gibberish
@@ -227,7 +227,7 @@ func TestReceiveLogRepository_PutUnderSpecificSequenceAdvancesInternalSequenceCo
 	msg2 := fixtures.SomeMessage(fixtures.SomeSequence(), fixtures.SomeRefFeed())
 
 	err := ts.TransactionProvider.Update(func(adapters badger.TestAdapters) error {
-		if err := adapters.ReceiveLog.PutUnderSpecificSequence(msg1.Id(), sequence); err != nil {
+		if err := adapters.ReceiveLogRepository.PutUnderSpecificSequence(msg1.Id(), sequence); err != nil {
 			return errors.Wrap(err, "could not put a message in receive log")
 		}
 
@@ -240,7 +240,7 @@ func TestReceiveLogRepository_PutUnderSpecificSequenceAdvancesInternalSequenceCo
 	require.NoError(t, err)
 
 	err = ts.TransactionProvider.View(func(adapters badger.TestAdapters) error {
-		msgs, err := adapters.ReceiveLog.List(common.MustNewReceiveLogSequence(0), 100)
+		msgs, err := adapters.ReceiveLogRepository.List(common.MustNewReceiveLogSequence(0), 100)
 		require.NoError(t, err)
 
 		require.Len(t, msgs, 1)
@@ -251,7 +251,7 @@ func TestReceiveLogRepository_PutUnderSpecificSequenceAdvancesInternalSequenceCo
 	require.NoError(t, err)
 
 	err = ts.TransactionProvider.Update(func(adapters badger.TestAdapters) error {
-		if err := adapters.ReceiveLog.Put(msg2.Id()); err != nil {
+		if err := adapters.ReceiveLogRepository.Put(msg2.Id()); err != nil {
 			return errors.Wrap(err, "could not put a message in receive log")
 		}
 
@@ -264,7 +264,7 @@ func TestReceiveLogRepository_PutUnderSpecificSequenceAdvancesInternalSequenceCo
 	require.NoError(t, err)
 
 	err = ts.TransactionProvider.View(func(adapters badger.TestAdapters) error {
-		msgs, err := adapters.ReceiveLog.List(common.MustNewReceiveLogSequence(0), 100)
+		msgs, err := adapters.ReceiveLogRepository.List(common.MustNewReceiveLogSequence(0), 100)
 		require.NoError(t, err)
 
 		require.Len(t, msgs, 2)
@@ -285,7 +285,7 @@ func TestReceiveLogRepository_PutUnderSpecificSequenceDoesNotAdvanceInternalSequ
 	sequence := common.MustNewReceiveLogSequence(0)
 
 	err := ts.TransactionProvider.Update(func(adapters badger.TestAdapters) error {
-		if err := adapters.ReceiveLog.Put(msg1.Id()); err != nil {
+		if err := adapters.ReceiveLogRepository.Put(msg1.Id()); err != nil {
 			return errors.Wrap(err, "could not put a message in receive log")
 		}
 
@@ -293,7 +293,7 @@ func TestReceiveLogRepository_PutUnderSpecificSequenceDoesNotAdvanceInternalSequ
 			return errors.Wrap(err, "could not put a message in message repository")
 		}
 
-		if err := adapters.ReceiveLog.Put(msg2.Id()); err != nil {
+		if err := adapters.ReceiveLogRepository.Put(msg2.Id()); err != nil {
 			return errors.Wrap(err, "could not put a message in receive log")
 		}
 
@@ -306,7 +306,7 @@ func TestReceiveLogRepository_PutUnderSpecificSequenceDoesNotAdvanceInternalSequ
 	require.NoError(t, err)
 
 	err = ts.TransactionProvider.View(func(adapters badger.TestAdapters) error {
-		msgs, err := adapters.ReceiveLog.List(common.MustNewReceiveLogSequence(0), 100)
+		msgs, err := adapters.ReceiveLogRepository.List(common.MustNewReceiveLogSequence(0), 100)
 		require.NoError(t, err)
 
 		require.Len(t, msgs, 2)
@@ -318,7 +318,7 @@ func TestReceiveLogRepository_PutUnderSpecificSequenceDoesNotAdvanceInternalSequ
 	require.NoError(t, err)
 
 	err = ts.TransactionProvider.Update(func(adapters badger.TestAdapters) error {
-		if err := adapters.ReceiveLog.PutUnderSpecificSequence(msg1.Id(), sequence); err != nil {
+		if err := adapters.ReceiveLogRepository.PutUnderSpecificSequence(msg1.Id(), sequence); err != nil {
 			return errors.Wrap(err, "could not put a message in receive log")
 		}
 
@@ -327,7 +327,7 @@ func TestReceiveLogRepository_PutUnderSpecificSequenceDoesNotAdvanceInternalSequ
 	require.NoError(t, err)
 
 	err = ts.TransactionProvider.Update(func(adapters badger.TestAdapters) error {
-		if err := adapters.ReceiveLog.Put(msg3.Id()); err != nil {
+		if err := adapters.ReceiveLogRepository.Put(msg3.Id()); err != nil {
 			return errors.Wrap(err, "could not put a message in receive log")
 		}
 
@@ -340,7 +340,7 @@ func TestReceiveLogRepository_PutUnderSpecificSequenceDoesNotAdvanceInternalSequ
 	require.NoError(t, err)
 
 	err = ts.TransactionProvider.View(func(adapters badger.TestAdapters) error {
-		msgs, err := adapters.ReceiveLog.List(common.MustNewReceiveLogSequence(0), 100)
+		msgs, err := adapters.ReceiveLogRepository.List(common.MustNewReceiveLogSequence(0), 100)
 		require.NoError(t, err)
 
 		require.Len(t, msgs, 3)
@@ -361,11 +361,11 @@ func TestReceiveLogRepository_OneMessageMayBeUnderMultipleSequences(t *testing.T
 	sequence2 := common.MustNewReceiveLogSequence(345)
 
 	err := ts.TransactionProvider.Update(func(adapters badger.TestAdapters) error {
-		if err := adapters.ReceiveLog.PutUnderSpecificSequence(msg.Id(), sequence1); err != nil {
+		if err := adapters.ReceiveLogRepository.PutUnderSpecificSequence(msg.Id(), sequence1); err != nil {
 			return errors.Wrap(err, "could not put a message in receive log")
 		}
 
-		if err := adapters.ReceiveLog.PutUnderSpecificSequence(msg.Id(), sequence2); err != nil {
+		if err := adapters.ReceiveLogRepository.PutUnderSpecificSequence(msg.Id(), sequence2); err != nil {
 			return errors.Wrap(err, "could not put a message in receive log")
 		}
 
@@ -378,7 +378,7 @@ func TestReceiveLogRepository_OneMessageMayBeUnderMultipleSequences(t *testing.T
 	require.NoError(t, err)
 
 	err = ts.TransactionProvider.View(func(adapters badger.TestAdapters) error {
-		seqs, err := adapters.ReceiveLog.GetSequences(msg.Id())
+		seqs, err := adapters.ReceiveLogRepository.GetSequences(msg.Id())
 		require.NoError(t, err)
 
 		require.Equal(t,

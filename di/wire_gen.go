@@ -86,16 +86,16 @@ func buildBadgerTestAdapters(tx *badger2.Txn) (badger.TestAdapters, error) {
 	socialGraphRepository := badger.NewSocialGraphRepository(tx, public, graphHops, banListRepository)
 	pubRepository := badger.NewPubRepository(tx)
 	testAdapters := badger.TestAdapters{
-		BanList:               banListRepository,
-		BlobRepository:        blobRepository,
-		BlobWantList:          blobWantListRepository,
-		FeedWantList:          feedWantListRepository,
-		MessageRepository:     messageRepository,
-		ReceiveLog:            receiveLogRepository,
-		SocialGraphRepository: socialGraphRepository,
-		PubRepository:         pubRepository,
-		BanListHasher:         banListHasherMock,
-		CurrentTimeProvider:   currentTimeProviderMock,
+		BanListRepository:      banListRepository,
+		BlobRepository:         blobRepository,
+		BlobWantListRepository: blobWantListRepository,
+		FeedWantListRepository: feedWantListRepository,
+		MessageRepository:      messageRepository,
+		ReceiveLogRepository:   receiveLogRepository,
+		SocialGraphRepository:  socialGraphRepository,
+		PubRepository:          pubRepository,
+		BanListHasher:          banListHasherMock,
+		CurrentTimeProvider:    currentTimeProviderMock,
 	}
 	return testAdapters, nil
 }

@@ -44,9 +44,12 @@ func (r MessageRepository) Put(msg message.Message) error {
 	if _, err := bucket.Get(key); err != nil {
 		if errors.Is(err, badger.ErrKeyNotFound) {
 			// todo test
-			if err := r.changeCount(func(count uint64) uint64 {
-				return count + 1
-			}); err != nil {
+			counter, err := r.getMessageCounter()
+			if err != nil {
+				return errors.Wrap(err, "could not get the counter")
+			}
+
+			if err := counter.Increment(); err != nil {
 				return errors.Wrap(err, "error incrementing count")
 			}
 		} else {
@@ -114,10 +117,13 @@ func (r MessageRepository) Delete(id refs.Message) error {
 	}
 
 	// todo test
-	if err := r.changeCount(func(count uint64) uint64 {
-		return count - 1
-	}); err != nil {
-		return errors.Wrap(err, "error decrementing count")
+	counter, err := r.getMessageCounter()
+	if err != nil {
+		return errors.Wrap(err, "could not get the counter")
+	}
+
+	if err := counter.Decrement(); err != nil {
+		return errors.Wrap(err, "error decrementing counter")
 	}
 
 	if err := bucket.Delete(key); err != nil {
@@ -128,63 +134,17 @@ func (r MessageRepository) Delete(id refs.Message) error {
 }
 
 func (r MessageRepository) Count() (int, error) {
-	bucket, err := r.createMetaBucket()
+	counter, err := r.getMessageCounter()
 	if err != nil {
-		return 0, errors.Wrap(err, "could not get the bucket")
+		return 0, errors.Wrap(err, "could not get the counter")
 	}
 
-	count, err := r.getCount(bucket)
+	count, err := counter.Get()
 	if err != nil {
 		return 0, errors.Wrap(err, "error getting count")
 	}
 
 	return int(count), nil
-}
-
-func (r MessageRepository) changeCount(fn func(count uint64) uint64) error {
-	bucket, err := r.createMetaBucket()
-	if err != nil {
-		return errors.Wrap(err, "could not get the bucket")
-	}
-
-	count, err := r.getCount(bucket)
-	if err != nil {
-		return errors.Wrap(err, "error getting existing count")
-	}
-
-	count = fn(count)
-
-	if err := bucket.Set([]byte(messageRepositoryMetaBucketCountKey), r.marshalCount(count)); err != nil {
-		return errors.Wrap(err, "error setting new count")
-	}
-
-	return nil
-}
-
-func (r MessageRepository) getCount(bucket utils.Bucket) (uint64, error) {
-	item, err := bucket.Get([]byte(messageRepositoryMetaBucketCountKey))
-	if err != nil {
-		if errors.Is(err, badger.ErrKeyNotFound) {
-			return 0, nil
-		}
-		return 0, errors.Wrap(err, "error getting the count")
-	}
-
-	var count uint64
-
-	if err := item.Value(func(val []byte) error {
-		tmp, err := r.unmarshalCount(val)
-		if err != nil {
-			return errors.Wrap(err, "error unmarshaling count")
-		}
-
-		count = tmp
-		return nil
-	}); err != nil {
-		return 0, errors.Wrap(err, "value error")
-	}
-
-	return count, nil
 }
 
 func (r MessageRepository) marshalCount(count uint64) []byte {
@@ -202,6 +162,15 @@ func (r MessageRepository) unmarshalCount(b []byte) (uint64, error) {
 
 func (r MessageRepository) messageKey(id refs.Message) []byte {
 	return []byte(id.String())
+}
+
+func (r MessageRepository) getMessageCounter() (utils.Counter, error) {
+	b, err := r.createMetaBucket()
+	if err != nil {
+		return utils.Counter{}, errors.Wrap(err, "error creating meta bucket")
+	}
+
+	return utils.NewCounter(b, utils.MustNewKeyComponent([]byte("message_count")))
 }
 
 func (r MessageRepository) createMessageBucket() (utils.Bucket, error) {

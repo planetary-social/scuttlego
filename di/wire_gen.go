@@ -58,23 +58,57 @@ import (
 
 // Injectors from wire.go:
 
-func BuildBadgerNoTxTestAdapters(t *testing.T) notx.TestAdapters {
+func BuildBadgerNoTxTestAdapters(t *testing.T) BadgerNoTxTestAdapters {
 	db := fixtures.Badger(t)
 	txAdaptersFactory := noTxTxAdaptersFactory()
 	transactionProvider := notx.NewTransactionProvider(db, txAdaptersFactory)
 	noTxBlobWantListRepository := notx.NewNoTxBlobWantListRepository(transactionProvider)
 	testAdapters := notx.TestAdapters{
-		ReadBlobWantListRepository: noTxBlobWantListRepository,
+		NoTxBlobWantListRepository: noTxBlobWantListRepository,
 	}
-	return testAdapters
+	banListHasherMock := mocks.NewBanListHasherMock()
+	currentTimeProviderMock := mocks.NewCurrentTimeProviderMock()
+	rawMessageIdentifierMock := mocks.NewRawMessageIdentifierMock()
+	testAdaptersDependencies := badger.TestAdaptersDependencies{
+		BanListHasher:        banListHasherMock,
+		CurrentTimeProvider:  currentTimeProviderMock,
+		RawMessageIdentifier: rawMessageIdentifierMock,
+	}
+	badgerTestAdaptersFactory := testAdaptersFactory()
+	testTransactionProvider := badger.NewTestTransactionProvider(db, testAdaptersDependencies, badgerTestAdaptersFactory)
+	badgerTestAdaptersDependencies := &badger.TestAdaptersDependencies{
+		BanListHasher:        banListHasherMock,
+		CurrentTimeProvider:  currentTimeProviderMock,
+		RawMessageIdentifier: rawMessageIdentifierMock,
+	}
+	badgerNoTxTestAdapters := BadgerNoTxTestAdapters{
+		NoTxTestAdapters:    testAdapters,
+		TransactionProvider: testTransactionProvider,
+		Dependencies:        badgerTestAdaptersDependencies,
+	}
+	return badgerNoTxTestAdapters
 }
 
 func BuildBadgerTestAdapters(t *testing.T) BadgerTestAdapters {
 	db := fixtures.Badger(t)
+	banListHasherMock := mocks.NewBanListHasherMock()
+	currentTimeProviderMock := mocks.NewCurrentTimeProviderMock()
+	rawMessageIdentifierMock := mocks.NewRawMessageIdentifierMock()
+	testAdaptersDependencies := badger.TestAdaptersDependencies{
+		BanListHasher:        banListHasherMock,
+		CurrentTimeProvider:  currentTimeProviderMock,
+		RawMessageIdentifier: rawMessageIdentifierMock,
+	}
 	badgerTestAdaptersFactory := testAdaptersFactory()
-	testTransactionProvider := badger.NewTestTransactionProvider(db, badgerTestAdaptersFactory)
+	testTransactionProvider := badger.NewTestTransactionProvider(db, testAdaptersDependencies, badgerTestAdaptersFactory)
+	badgerTestAdaptersDependencies := &badger.TestAdaptersDependencies{
+		BanListHasher:        banListHasherMock,
+		CurrentTimeProvider:  currentTimeProviderMock,
+		RawMessageIdentifier: rawMessageIdentifierMock,
+	}
 	badgerTestAdapters := BadgerTestAdapters{
 		TransactionProvider: testTransactionProvider,
+		Dependencies:        badgerTestAdaptersDependencies,
 	}
 	return badgerTestAdapters
 }
@@ -114,24 +148,24 @@ var (
 	_wireHopsValue = hops
 )
 
-func buildBadgerTestAdapters(tx *badger2.Txn) (badger.TestAdapters, error) {
-	banListHasherMock := mocks.NewBanListHasherMock()
-	banListRepository := badger.NewBanListRepository(tx, banListHasherMock)
-	blobRepository := badger.NewBlobRepository(tx)
-	currentTimeProviderMock := mocks.NewCurrentTimeProviderMock()
-	blobWantListRepository := badger.NewBlobWantListRepository(tx, currentTimeProviderMock)
-	feedWantListRepository := badger.NewFeedWantListRepository(tx, currentTimeProviderMock)
-	rawMessageIdentifierMock := mocks.NewRawMessageIdentifierMock()
-	messageRepository := badger.NewMessageRepository(tx, rawMessageIdentifierMock)
-	receiveLogRepository := badger.NewReceiveLogRepository(tx, messageRepository)
+func buildBadgerTestAdapters(txn *badger2.Txn, testAdaptersDependencies badger.TestAdaptersDependencies) (badger.TestAdapters, error) {
+	banListHasherMock := testAdaptersDependencies.BanListHasher
+	banListRepository := badger.NewBanListRepository(txn, banListHasherMock)
+	blobRepository := badger.NewBlobRepository(txn)
+	currentTimeProviderMock := testAdaptersDependencies.CurrentTimeProvider
+	blobWantListRepository := badger.NewBlobWantListRepository(txn, currentTimeProviderMock)
+	feedWantListRepository := badger.NewFeedWantListRepository(txn, currentTimeProviderMock)
+	rawMessageIdentifierMock := testAdaptersDependencies.RawMessageIdentifier
+	messageRepository := badger.NewMessageRepository(txn, rawMessageIdentifierMock)
+	receiveLogRepository := badger.NewReceiveLogRepository(txn, messageRepository)
 	private, err := identity.NewPrivate()
 	if err != nil {
 		return badger.TestAdapters{}, err
 	}
 	public := privateIdentityToPublicIdentity(private)
 	graphHops := _wireGraphHopsValue
-	socialGraphRepository := badger.NewSocialGraphRepository(tx, public, graphHops, banListRepository)
-	pubRepository := badger.NewPubRepository(tx)
+	socialGraphRepository := badger.NewSocialGraphRepository(txn, public, graphHops, banListRepository)
+	pubRepository := badger.NewPubRepository(txn)
 	testAdapters := badger.TestAdapters{
 		BanListRepository:      banListRepository,
 		BlobRepository:         blobRepository,
@@ -141,8 +175,6 @@ func buildBadgerTestAdapters(tx *badger2.Txn) (badger.TestAdapters, error) {
 		ReceiveLogRepository:   receiveLogRepository,
 		SocialGraphRepository:  socialGraphRepository,
 		PubRepository:          pubRepository,
-		BanListHasher:          banListHasherMock,
-		CurrentTimeProvider:    currentTimeProviderMock,
 	}
 	return testAdapters, nil
 }
@@ -607,8 +639,15 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 
 // wire.go:
 
+type BadgerNoTxTestAdapters struct {
+	NoTxTestAdapters    notx.TestAdapters
+	TransactionProvider *badger.TestTransactionProvider
+	Dependencies        *badger.TestAdaptersDependencies
+}
+
 type BadgerTestAdapters struct {
 	TransactionProvider *badger.TestTransactionProvider
+	Dependencies        *badger.TestAdaptersDependencies
 }
 
 type TxTestAdapters struct {

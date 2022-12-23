@@ -21,19 +21,19 @@ func TestFeedWantListRepository_ListDoesNotReturnValuesForWhichUntilIsBeforeCurr
 		err := adapters.FeedWantListRepository.Add(fixtures.SomeRefFeed(), until)
 		require.NoError(t, err)
 
-		adapters.CurrentTimeProvider.CurrentTime = beforeUntil
+		ts.Dependencies.CurrentTimeProvider.CurrentTime = beforeUntil
 
 		l, err := adapters.FeedWantListRepository.List()
 		require.NoError(t, err)
 		require.NotEmpty(t, l, "if the deadline hasn't passed the value should be returned")
 
-		adapters.CurrentTimeProvider.CurrentTime = afterUntil
+		ts.Dependencies.CurrentTimeProvider.CurrentTime = afterUntil
 
 		l, err = adapters.FeedWantListRepository.List()
 		require.NoError(t, err)
 		require.Empty(t, l, "if the deadline passed the value shouldn't be returned")
 
-		adapters.CurrentTimeProvider.CurrentTime = beforeUntil
+		ts.Dependencies.CurrentTimeProvider.CurrentTime = beforeUntil
 
 		l, err = adapters.FeedWantListRepository.List()
 		require.NoError(t, err)
@@ -58,7 +58,7 @@ func TestFeedWantListRepository_LongerUntilOverwritesShorterUntil(t *testing.T) 
 		err = adapters.FeedWantListRepository.Add(fixtures.SomeRefFeed(), secondUntil)
 		require.NoError(t, err)
 
-		adapters.CurrentTimeProvider.CurrentTime = afterFirstUntil
+		ts.Dependencies.CurrentTimeProvider.CurrentTime = afterFirstUntil
 
 		l, err := adapters.FeedWantListRepository.List()
 		require.NoError(t, err)
@@ -83,7 +83,7 @@ func TestFeedWantListRepository_ShorterUntilDoesNotOverwriteLongerUntil(t *testi
 		err = adapters.FeedWantListRepository.Add(fixtures.SomeRefFeed(), firstUntil)
 		require.NoError(t, err)
 
-		adapters.CurrentTimeProvider.CurrentTime = afterFirstUntil
+		ts.Dependencies.CurrentTimeProvider.CurrentTime = afterFirstUntil
 
 		l, err := adapters.FeedWantListRepository.List()
 		require.NoError(t, err)
@@ -100,7 +100,7 @@ func TestFeedWantListRepository_Contains(t *testing.T) {
 	err := ts.TransactionProvider.Update(func(adapters badger.TestAdapters) error {
 		until := time.Now()
 		now := until.Add(-fixtures.SomeDuration())
-		adapters.CurrentTimeProvider.CurrentTime = now
+		ts.Dependencies.CurrentTimeProvider.CurrentTime = now
 
 		id := fixtures.SomeRefFeed()
 

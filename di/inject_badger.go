@@ -5,6 +5,7 @@ import (
 	"github.com/google/wire"
 	badgeradapters "github.com/planetary-social/scuttlego/service/adapters/badger"
 	"github.com/planetary-social/scuttlego/service/adapters/badger/notx"
+	"github.com/planetary-social/scuttlego/service/adapters/mocks"
 )
 
 //nolint:unused
@@ -22,6 +23,14 @@ var badgerRepositoriesSet = wire.NewSet(
 	badgeradapters.NewReceiveLogRepository,
 	badgeradapters.NewSocialGraphRepository,
 	badgeradapters.NewPubRepository,
+)
+
+//nolint:unused
+var badgerTestAdaptersDependenciesSet = wire.NewSet(
+	wire.Struct(new(badgeradapters.TestAdaptersDependencies), "*"),
+	mocks.NewBanListHasherMock,
+	mocks.NewCurrentTimeProviderMock,
+	mocks.NewRawMessageIdentifierMock,
 )
 
 //nolint:unused
@@ -43,7 +52,7 @@ func noTxTxAdaptersFactory() notx.TxAdaptersFactory {
 }
 
 func testAdaptersFactory() badgeradapters.TestAdaptersFactory {
-	return func(tx *badger.Txn) (badgeradapters.TestAdapters, error) {
-		return buildBadgerTestAdapters(tx)
+	return func(tx *badger.Txn, dependencies badgeradapters.TestAdaptersDependencies) (badgeradapters.TestAdapters, error) {
+		return buildBadgerTestAdapters(tx, dependencies)
 	}
 }

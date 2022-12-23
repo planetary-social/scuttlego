@@ -39,21 +39,32 @@ import (
 	"go.etcd.io/bbolt"
 )
 
-type BadgerTestAdapters struct {
+type BadgerNoTxTestAdapters struct {
+	NoTxTestAdapters    notx.TestAdapters
 	TransactionProvider *badgeradapters.TestTransactionProvider
+	Dependencies        *badgeradapters.TestAdaptersDependencies
 }
 
-func BuildBadgerNoTxTestAdapters(t *testing.T) notx.TestAdapters {
+func BuildBadgerNoTxTestAdapters(t *testing.T) BadgerNoTxTestAdapters {
 	wire.Build(
+		wire.Struct(new(BadgerNoTxTestAdapters), "*"),
+
 		wire.Struct(new(notx.TestAdapters), "*"),
 
 		badgerNoTxTransactionProviderSet,
 		badgerNoTxRepositoriesSet,
+		testBadgerTransactionProviderSet,
+		badgerTestAdaptersDependenciesSet,
 
 		fixtures.Badger,
 	)
 
-	return notx.TestAdapters{}
+	return BadgerNoTxTestAdapters{}
+}
+
+type BadgerTestAdapters struct {
+	TransactionProvider *badgeradapters.TestTransactionProvider
+	Dependencies        *badgeradapters.TestAdaptersDependencies
 }
 
 func BuildBadgerTestAdapters(t *testing.T) BadgerTestAdapters {
@@ -61,6 +72,7 @@ func BuildBadgerTestAdapters(t *testing.T) BadgerTestAdapters {
 		wire.Struct(new(BadgerTestAdapters), "*"),
 
 		testBadgerTransactionProviderSet,
+		badgerTestAdaptersDependenciesSet,
 
 		fixtures.Badger,
 	)
@@ -92,19 +104,19 @@ func buildBadgerNoTxTxAdapters(tx *badger.Txn) (notx.TxAdapters, error) {
 	return notx.TxAdapters{}, nil
 }
 
-func buildBadgerTestAdapters(tx *badger.Txn) (badgeradapters.TestAdapters, error) {
+func buildBadgerTestAdapters(*badger.Txn, badgeradapters.TestAdaptersDependencies) (badgeradapters.TestAdapters, error) {
 	wire.Build(
 		wire.Struct(new(badgeradapters.TestAdapters), "*"),
 
 		badgerRepositoriesSet,
 
-		mocks.NewBanListHasherMock,
+		wire.FieldsOf(new(badgeradapters.TestAdaptersDependencies),
+			"BanListHasher",
+			"CurrentTimeProvider",
+			"RawMessageIdentifier",
+		),
 		wire.Bind(new(badgeradapters.BanListHasher), new(*mocks.BanListHasherMock)),
-
-		mocks.NewCurrentTimeProviderMock,
 		wire.Bind(new(commands.CurrentTimeProvider), new(*mocks.CurrentTimeProviderMock)),
-
-		mocks.NewRawMessageIdentifierMock,
 		wire.Bind(new(badgeradapters.RawMessageIdentifier), new(*mocks.RawMessageIdentifierMock)),
 
 		identity.NewPrivate,

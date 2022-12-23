@@ -50,5 +50,5 @@ func (t TransactionProvider) View(f func(adapters TxAdapters) error) error {
 }
 
 type TestAdapters struct {
-	ReadBlobWantListRepository *NoTxBlobWantListRepository
+	NoTxBlobWantListRepository *NoTxBlobWantListRepository
 }

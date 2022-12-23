@@ -29,7 +29,7 @@ func (t TransactionProvider) Transact(f func(adapters commands.Adapters) error) 
 	})
 }
 
-type TestAdaptersFactory func(tx *badger.Txn) (TestAdapters, error)
+type TestAdaptersFactory func(tx *badger.Txn, dependencies TestAdaptersDependencies) (TestAdapters, error)
 
 type TestAdapters struct {
 	BanListRepository      *BanListRepository
@@ -40,23 +40,27 @@ type TestAdapters struct {
 	ReceiveLogRepository   *ReceiveLogRepository
 	SocialGraphRepository  *SocialGraphRepository
 	PubRepository          *PubRepository
+}
 
-	BanListHasher       *mocks.BanListHasherMock
-	CurrentTimeProvider *mocks.CurrentTimeProviderMock
+type TestAdaptersDependencies struct {
+	BanListHasher        *mocks.BanListHasherMock
+	CurrentTimeProvider  *mocks.CurrentTimeProviderMock
+	RawMessageIdentifier *mocks.RawMessageIdentifierMock
 }
 
 type TestTransactionProvider struct {
-	db      *badger.DB
-	factory TestAdaptersFactory
+	db           *badger.DB
+	factory      TestAdaptersFactory
+	dependencies TestAdaptersDependencies
 }
 
-func NewTestTransactionProvider(db *badger.DB, factory TestAdaptersFactory) *TestTransactionProvider {
-	return &TestTransactionProvider{db: db, factory: factory}
+func NewTestTransactionProvider(db *badger.DB, dependencies TestAdaptersDependencies, factory TestAdaptersFactory) *TestTransactionProvider {
+	return &TestTransactionProvider{db: db, factory: factory, dependencies: dependencies}
 }
 
 func (t TestTransactionProvider) Update(f func(adapters TestAdapters) error) error {
 	return t.db.Update(func(tx *badger.Txn) error {
-		adapters, err := t.factory(tx)
+		adapters, err := t.factory(tx, t.dependencies)
 		if err != nil {
 			return errors.Wrap(err, "failed to build adapters")
 		}
@@ -66,7 +70,7 @@ func (t TestTransactionProvider) Update(f func(adapters TestAdapters) error) err
 }
 func (t TestTransactionProvider) View(f func(adapters TestAdapters) error) error {
 	return t.db.View(func(tx *badger.Txn) error {
-		adapters, err := t.factory(tx)
+		adapters, err := t.factory(tx, t.dependencies)
 		if err != nil {
 			return errors.Wrap(err, "failed to build adapters")
 		}

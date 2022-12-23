@@ -36,9 +36,9 @@ func TestBanListRepository_CreateFeedMappingInsertsMappingsAndRemoveFeedMappingR
 	feedRef := fixtures.SomeRefFeed()
 	banListHash := fixtures.SomeBanListHash()
 
-	err = ts.TransactionProvider.Update(func(adapters badgeradapters.TestAdapters) error {
-		adapters.BanListHasher.Mock(feedRef, banListHash)
+	ts.Dependencies.BanListHasher.Mock(feedRef, banListHash)
 
+	err = ts.TransactionProvider.Update(func(adapters badgeradapters.TestAdapters) error {
 		err := adapters.BanListRepository.CreateFeedMapping(feedRef)
 		require.NoError(t, err)
 
@@ -57,8 +57,6 @@ func TestBanListRepository_CreateFeedMappingInsertsMappingsAndRemoveFeedMappingR
 	require.NoError(t, err)
 
 	err = ts.TransactionProvider.Update(func(adapters badgeradapters.TestAdapters) error {
-		adapters.BanListHasher.Mock(feedRef, banListHash)
-
 		err := adapters.BanListRepository.RemoveFeedMapping(feedRef)
 		require.NoError(t, err)
 
@@ -130,9 +128,9 @@ func TestBanListRepository_ContainsFeedCorrectlyLooksUpHashes(t *testing.T) {
 	feedRef := fixtures.SomeRefFeed()
 	banListHash := fixtures.SomeBanListHash()
 
-	err := ts.TransactionProvider.View(func(adapters badgeradapters.TestAdapters) error {
-		adapters.BanListHasher.Mock(feedRef, banListHash)
+	ts.Dependencies.BanListHasher.Mock(feedRef, banListHash)
 
+	err := ts.TransactionProvider.View(func(adapters badgeradapters.TestAdapters) error {
 		ok, err := adapters.BanListRepository.ContainsFeed(feedRef)
 		require.NoError(t, err)
 		require.False(t, ok)
@@ -154,8 +152,6 @@ func TestBanListRepository_ContainsFeedCorrectlyLooksUpHashes(t *testing.T) {
 	require.NoError(t, err)
 
 	err = ts.TransactionProvider.View(func(adapters badgeradapters.TestAdapters) error {
-		adapters.BanListHasher.Mock(feedRef, banListHash)
-
 		ok, err := adapters.BanListRepository.ContainsFeed(feedRef)
 		require.NoError(t, err)
 		require.True(t, ok)

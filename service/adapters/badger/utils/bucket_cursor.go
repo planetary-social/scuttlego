@@ -8,9 +8,18 @@ type BucketIterator struct {
 }
 
 func NewBucketIterator(bucket Bucket) *BucketIterator {
+	return NewBucketIteratorWithModifiedOptions(bucket, nil)
+}
+
+func NewBucketIteratorWithModifiedOptions(bucket Bucket, fn func(options *badger.IteratorOptions)) *BucketIterator {
+	options := badger.DefaultIteratorOptions
+	options.Prefix = bucket.prefix.Bytes()
+	if fn != nil {
+		fn(&options)
+	}
 	return &BucketIterator{
 		bucket: bucket,
-		it:     bucket.tx.NewIterator(badger.DefaultIteratorOptions),
+		it:     bucket.tx.NewIterator(options),
 	}
 }
 
@@ -21,6 +30,10 @@ func (i BucketIterator) Seek(key []byte) {
 	}
 
 	i.it.Seek(targetKey)
+}
+
+func (i BucketIterator) Valid() bool {
+	return i.it.Valid()
 }
 
 func (i BucketIterator) ValidForBucket() bool {
@@ -37,4 +50,8 @@ func (i BucketIterator) Item() *badger.Item {
 
 func (i BucketIterator) Close() {
 	i.it.Close()
+}
+
+func (i BucketIterator) Rewind() {
+	i.it.Rewind()
 }

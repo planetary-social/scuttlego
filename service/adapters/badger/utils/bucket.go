@@ -76,6 +76,10 @@ func (b Bucket) Iterator() *BucketIterator {
 	return NewBucketIterator(b)
 }
 
+func (b Bucket) IteratorWithModifiedOptions(fn func(options *badger.IteratorOptions)) *BucketIterator {
+	return NewBucketIteratorWithModifiedOptions(b, fn)
+}
+
 func (b Bucket) ChildBucket(component KeyComponent) Bucket {
 	return MustNewBucket(b.tx, b.prefix.Append(component))
 }
@@ -118,4 +122,12 @@ func (b Bucket) KeyInBucket(item *badger.Item) (KeyComponent, error) {
 	}
 
 	return itemKey.components[len(itemKey.components)-1], nil
+}
+
+func (b Bucket) IsEmpty() bool {
+	it := b.Iterator()
+	defer it.Close()
+
+	it.Rewind()
+	return !it.Valid()
 }

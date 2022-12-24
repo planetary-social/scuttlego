@@ -1,31 +1,27 @@
-package bolt_test
+package badger_test
 
 import (
 	"testing"
 
 	"github.com/planetary-social/scuttlego/di"
 	"github.com/planetary-social/scuttlego/fixtures"
-	"github.com/planetary-social/scuttlego/service/adapters/bolt"
+	"github.com/planetary-social/scuttlego/service/adapters/badger"
 	"github.com/planetary-social/scuttlego/service/domain/feeds"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/stretchr/testify/require"
-	"go.etcd.io/bbolt"
 )
 
 func TestFeedRepository_GetMessageReturnsMessageWhichIsStoredInRepo(t *testing.T) {
-	db := fixtures.Bolt(t)
+	ts := di.BuildBadgerTestAdapters(t)
 
 	feedRef := fixtures.SomeRefFeed()
 	sequence := message.NewFirstSequence()
 	msg := fixtures.SomeMessage(sequence, feedRef)
 
-	err := db.Update(func(tx *bbolt.Tx) error {
-		adapters, err := di.BuildTxTestAdapters(tx)
-		require.NoError(t, err)
+	ts.Dependencies.BanListHasher.Mock(feedRef, fixtures.SomeBanListHash())
 
-		adapters.BanListHasher.Mock(feedRef, fixtures.SomeBanListHash())
-
-		err = adapters.FeedRepository.UpdateFeed(feedRef, func(feed *feeds.Feed) error {
+	err := ts.TransactionProvider.Update(func(adapters badger.TestAdapters) error {
+		err := adapters.FeedRepository.UpdateFeed(feedRef, func(feed *feeds.Feed) error {
 			return feed.AppendMessage(msg)
 		})
 		require.NoError(t, err)
@@ -34,12 +30,7 @@ func TestFeedRepository_GetMessageReturnsMessageWhichIsStoredInRepo(t *testing.T
 	})
 	require.NoError(t, err)
 
-	err = db.View(func(tx *bbolt.Tx) error {
-		adapters, err := di.BuildTxTestAdapters(tx)
-		require.NoError(t, err)
-
-		adapters.BanListHasher.Mock(feedRef, fixtures.SomeBanListHash())
-
+	err = ts.TransactionProvider.View(func(adapters badger.TestAdapters) error {
 		retrievedMsg, err := adapters.FeedRepository.GetMessage(feedRef, sequence)
 		require.NoError(t, err)
 
@@ -52,14 +43,11 @@ func TestFeedRepository_GetMessageReturnsMessageWhichIsStoredInRepo(t *testing.T
 }
 
 func TestFeedRepository_GetFeed_ReturnsAppropriateErrorWhenEmpty(t *testing.T) {
-	db := fixtures.Bolt(t)
+	ts := di.BuildBadgerTestAdapters(t)
 
-	err := db.Update(func(tx *bbolt.Tx) error {
-		adapters, err := di.BuildTxTestAdapters(tx)
-		require.NoError(t, err)
-
-		_, err = adapters.FeedRepository.GetFeed(fixtures.SomeRefFeed())
-		require.ErrorIs(t, err, bolt.ErrFeedNotFound)
+	err := ts.TransactionProvider.Update(func(adapters badger.TestAdapters) error {
+		_, err := adapters.FeedRepository.GetFeed(fixtures.SomeRefFeed())
+		require.ErrorIs(t, err, badger.ErrFeedNotFound)
 
 		return nil
 	})
@@ -67,17 +55,14 @@ func TestFeedRepository_GetFeed_ReturnsAppropriateErrorWhenEmpty(t *testing.T) {
 }
 
 func TestFeedRepository_DeleteFeed(t *testing.T) {
-	db := fixtures.Bolt(t)
+	ts := di.BuildBadgerTestAdapters(t)
 
 	feedRef := fixtures.SomeRefFeed()
 
-	err := db.Update(func(tx *bbolt.Tx) error {
-		adapters, err := di.BuildTxTestAdapters(tx)
-		require.NoError(t, err)
+	ts.Dependencies.BanListHasher.Mock(feedRef, fixtures.SomeBanListHash())
 
-		adapters.BanListHasher.Mock(feedRef, fixtures.SomeBanListHash())
-
-		err = adapters.FeedRepository.UpdateFeed(feedRef, func(feed *feeds.Feed) error {
+	err := ts.TransactionProvider.Update(func(adapters badger.TestAdapters) error {
+		err := adapters.FeedRepository.UpdateFeed(feedRef, func(feed *feeds.Feed) error {
 			return feed.AppendMessage(fixtures.SomeMessage(message.NewFirstSequence(), feedRef))
 		})
 		require.NoError(t, err)
@@ -86,10 +71,7 @@ func TestFeedRepository_DeleteFeed(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	err = db.View(func(tx *bbolt.Tx) error {
-		adapters, err := di.BuildTxTestAdapters(tx)
-		require.NoError(t, err)
-
+	err = ts.TransactionProvider.View(func(adapters badger.TestAdapters) error {
 		count, err := adapters.FeedRepository.Count()
 		require.NoError(t, err)
 		require.Equal(t, 1, count)
@@ -98,12 +80,7 @@ func TestFeedRepository_DeleteFeed(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	err = db.Update(func(tx *bbolt.Tx) error {
-		adapters, err := di.BuildTxTestAdapters(tx)
-		require.NoError(t, err)
-
-		adapters.BanListHasher.Mock(feedRef, fixtures.SomeBanListHash())
-
+	err = ts.TransactionProvider.Update(func(adapters badger.TestAdapters) error {
 		err = adapters.FeedRepository.DeleteFeed(feedRef)
 		require.NoError(t, err)
 
@@ -111,10 +88,7 @@ func TestFeedRepository_DeleteFeed(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	err = db.View(func(tx *bbolt.Tx) error {
-		adapters, err := di.BuildTxTestAdapters(tx)
-		require.NoError(t, err)
-
+	err = ts.TransactionProvider.View(func(adapters badger.TestAdapters) error {
 		count, err := adapters.FeedRepository.Count()
 		require.NoError(t, err)
 		require.Equal(t, 0, count)

@@ -23,6 +23,7 @@ var badgerRepositoriesSet = wire.NewSet(
 	badgeradapters.NewReceiveLogRepository,
 	badgeradapters.NewSocialGraphRepository,
 	badgeradapters.NewPubRepository,
+	badgeradapters.NewFeedRepository,
 )
 
 //nolint:unused

@@ -25,6 +25,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/app/queries"
 	"github.com/planetary-social/scuttlego/service/domain"
 	blobReplication "github.com/planetary-social/scuttlego/service/domain/blobs/replication"
+	"github.com/planetary-social/scuttlego/service/domain/feeds/content/transport"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/formats"
 	"github.com/planetary-social/scuttlego/service/domain/graph"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
@@ -110,6 +111,13 @@ func buildBadgerTestAdapters(*badger.Txn, badgeradapters.TestAdaptersDependencie
 
 		badgerRepositoriesSet,
 
+		formats.NewDefaultMessageHMAC,
+		formats.NewScuttlebutt,
+		transport.DefaultMappings,
+
+		transport.NewMarshaler,
+		wire.Bind(new(formats.Marshaler), new(*transport.Marshaler)),
+
 		wire.FieldsOf(new(badgeradapters.TestAdaptersDependencies),
 			"BanListHasher",
 			"CurrentTimeProvider",
@@ -121,6 +129,8 @@ func buildBadgerTestAdapters(*badger.Txn, badgeradapters.TestAdaptersDependencie
 
 		identity.NewPrivate,
 		privateIdentityToPublicIdentity,
+
+		fixtures.SomeLogger,
 
 		wire.Value(hops),
 	)

@@ -40,6 +40,7 @@ type TestAdapters struct {
 	ReceiveLogRepository   *ReceiveLogRepository
 	SocialGraphRepository  *SocialGraphRepository
 	PubRepository          *PubRepository
+	FeedRepository         *FeedRepository
 }
 
 type TestAdaptersDependencies struct {

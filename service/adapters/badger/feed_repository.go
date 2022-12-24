@@ -2,9 +2,9 @@ package badger
 
 import (
 	"encoding/binary"
-	"github.com/dgraph-io/badger/v3"
 
 	"github.com/boreq/errors"
+	"github.com/dgraph-io/badger/v3"
 	"github.com/planetary-social/scuttlego/service/adapters/badger/utils"
 	"github.com/planetary-social/scuttlego/service/app/commands"
 	"github.com/planetary-social/scuttlego/service/domain/feeds"
@@ -102,10 +102,17 @@ func (b FeedRepository) GetMessages(id refs.Feed, seq *message.Sequence, limit *
 
 	// todo not stupid implementation (with a cursor)
 
-	if err := bucket.ForEach(func(key, value []byte) error {
-		msgId, err := refs.NewMessage(string(value))
-		if err != nil {
-			return errors.Wrap(err, "failed to create a message ref")
+	if err := bucket.ForEach(func(item *badger.Item) error {
+		var msgId refs.Message
+		if err := item.Value(func(val []byte) error {
+			tmp, err := refs.NewMessage(string(val))
+			if err != nil {
+				return errors.Wrap(err, "failed to create a message ref")
+			}
+			msgId = tmp
+			return nil
+		}); err != nil {
+			return errors.Wrap(err, "error getting value")
 		}
 
 		msg, err := b.messageRepository.Get(msgId)
@@ -142,20 +149,27 @@ func (b FeedRepository) Count() (int, error) {
 func (b FeedRepository) DeleteFeed(ref refs.Feed) error {
 	bucket := b.getFeedBucket(ref)
 
-	err := bucket.ForEach(func(item *badger.Item) error {
+	if err := bucket.ForEach(func(item *badger.Item) error {
+		var msgId refs.Message
 
-	})
-	c := bucket.Cursor()
-
-	for k, value := c.First(); k != nil; k, value = c.Next() {
-		msgId, err := refs.NewMessage(string(value))
-		if err != nil {
-			return errors.Wrap(err, "failed to create a message ref")
+		if err := item.Value(func(val []byte) error {
+			tmp, err := refs.NewMessage(string(val))
+			if err != nil {
+				return errors.Wrap(err, "failed to create a message ref")
+			}
+			msgId = tmp
+			return nil
+		}); err != nil {
+			return errors.Wrap(err, "error getting value")
 		}
 
 		if err := b.removeMessageData(msgId); err != nil {
 			return errors.Wrap(err, "failed to remove message data")
 		}
+
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "foreach error")
 	}
 
 	if err := b.removeFeedData(ref); err != nil {
@@ -166,24 +180,24 @@ func (b FeedRepository) DeleteFeed(ref refs.Feed) error {
 }
 
 func (b FeedRepository) GetMessage(feed refs.Feed, sequence message.Sequence) (message.Message, error) {
-	bucket, err := b.getFeedBucket(feed)
+	bucket := b.getFeedBucket(feed)
+
+	item, err := bucket.Get(messageKey(sequence))
 	if err != nil {
-		return message.Message{}, errors.Wrap(err, "could not get the bucket")
+		return message.Message{}, errors.Wrap(err, "sequence not found")
 	}
 
-	if bucket == nil {
-		return message.Message{}, errors.New("bucket is nil")
-	}
+	var msgId refs.Message
 
-	key := messageKey(sequence)
-	messageRefAsBytes := bucket.Get(key)
-	if messageRefAsBytes == nil {
-		return message.Message{}, errors.New("message ref not found")
-	}
-
-	msgId, err := refs.NewMessage(string(messageRefAsBytes))
-	if err != nil {
-		return message.Message{}, errors.Wrap(err, "failed to create a message ref")
+	if err := item.Value(func(val []byte) error {
+		tmp, err := refs.NewMessage(string(val))
+		if err != nil {
+			return errors.Wrap(err, "failed to create a message ref")
+		}
+		msgId = tmp
+		return nil
+	}); err != nil {
+		return message.Message{}, errors.Wrap(err, "error getting value")
 	}
 
 	return b.messageRepository.Get(msgId)
@@ -219,8 +233,19 @@ func (b FeedRepository) removeFeedData(ref refs.Feed) error {
 		return errors.Wrap(err, "failed to remove the ban list mapping")
 	}
 
-	if err := b.deleteFeedBucket(ref); err != nil {
-		return errors.Wrap(err, "failed to remove from feed repository")
+	if !b.getFeedBucket(ref).IsEmpty() {
+		c, err := b.getFeedCounter()
+		if err != nil {
+			return errors.Wrap(err, "could not get the counter")
+		}
+
+		if err := c.Decrement(); err != nil {
+			return errors.Wrap(err, "error decrementing the feed counter")
+		}
+	}
+
+	if err := b.getFeedBucket(ref).DeleteBucket(); err != nil {
+		return errors.Wrap(err, "failed to remove from feed bucket")
 	}
 
 	return nil
@@ -229,18 +254,27 @@ func (b FeedRepository) removeFeedData(ref refs.Feed) error {
 func (b FeedRepository) loadFeed(ref refs.Feed) (*feeds.Feed, error) {
 	bucket := b.getFeedBucket(ref)
 
-	err := bucket.ForEach(func(item *badger.Item) error {
-
+	it := bucket.IteratorWithModifiedOptions(func(options *badger.IteratorOptions) {
+		options.Reverse = true
 	})
-	key, value := bucket.Cursor().Last()
+	defer it.Close()
 
-	if key == nil && value == nil {
-		return nil, nil // to be honest this should not be possible anyway as buckets are created only when saving
+	it.Rewind()
+	if !it.Valid() {
+		return nil, nil
 	}
 
-	msgId, err := refs.NewMessage(string(value))
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create a message ref")
+	var msgId refs.Message
+
+	if err := it.Item().Value(func(val []byte) error {
+		tmp, err := refs.NewMessage(string(val))
+		if err != nil {
+			return errors.Wrap(err, "failed to create a message ref")
+		}
+		msgId = tmp
+		return nil
+	}); err != nil {
+		return nil, errors.Wrap(err, "error getting value")
 	}
 
 	msg, err := b.messageRepository.Get(msgId)
@@ -261,6 +295,17 @@ func (b FeedRepository) saveFeed(ref refs.Feed, feed *feeds.Feed, saveInReceiveL
 
 	if len(msgsToPersist) != 0 {
 		bucket := b.getFeedBucket(ref)
+
+		if bucket.IsEmpty() {
+			c, err := b.getFeedCounter()
+			if err != nil {
+				return errors.Wrap(err, "could not get the counter")
+			}
+
+			if err := c.Increment(); err != nil {
+				return errors.Wrap(err, "error incrementing the feed counter")
+			}
+		}
 
 		if err := b.banListRepository.CreateFeedMapping(ref); err != nil {
 			return errors.Wrap(err, "failed to create the ban list mapping")

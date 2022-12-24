@@ -166,6 +166,15 @@ func buildBadgerTestAdapters(txn *badger2.Txn, testAdaptersDependencies badger.T
 	graphHops := _wireGraphHopsValue
 	socialGraphRepository := badger.NewSocialGraphRepository(txn, public, graphHops, banListRepository)
 	pubRepository := badger.NewPubRepository(txn)
+	messageContentMappings := transport.DefaultMappings()
+	logger := fixtures.SomeLogger()
+	marshaler, err := transport.NewMarshaler(messageContentMappings, logger)
+	if err != nil {
+		return badger.TestAdapters{}, err
+	}
+	messageHMAC := formats.NewDefaultMessageHMAC()
+	scuttlebutt := formats.NewScuttlebutt(marshaler, messageHMAC)
+	feedRepository := badger.NewFeedRepository(txn, socialGraphRepository, receiveLogRepository, messageRepository, pubRepository, blobRepository, banListRepository, scuttlebutt)
 	testAdapters := badger.TestAdapters{
 		BanListRepository:      banListRepository,
 		BlobRepository:         blobRepository,
@@ -175,6 +184,7 @@ func buildBadgerTestAdapters(txn *badger2.Txn, testAdaptersDependencies badger.T
 		ReceiveLogRepository:   receiveLogRepository,
 		SocialGraphRepository:  socialGraphRepository,
 		PubRepository:          pubRepository,
+		FeedRepository:         feedRepository,
 	}
 	return testAdapters, nil
 }

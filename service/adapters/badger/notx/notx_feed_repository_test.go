@@ -9,7 +9,6 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/feeds"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/stretchr/testify/require"
-	"go.etcd.io/bbolt"
 )
 
 func TestNoTxFeedRepository_GetMessage(t *testing.T) {
@@ -34,32 +33,51 @@ func TestNoTxFeedRepository_GetMessage(t *testing.T) {
 	require.Equal(t, msg, retrievedMsg)
 }
 
-func TestReadFeedRepository_Count(t *testing.T) {
-	db := fixtures.Bolt(t)
+func TestNoTxFeedRepository_Count(t *testing.T) {
+	ts := di.BuildBadgerNoTxTestAdapters(t)
 
-	adapters, err := di.BuildTestAdapters(db)
-	require.NoError(t, err)
-
-	count, err := adapters.FeedRepository.Count()
+	count, err := ts.NoTxTestAdapters.NoTxFeedRepository.Count()
 	require.NoError(t, err)
 	require.Equal(t, 0, count)
 
-	err = db.Update(func(tx *bbolt.Tx) error {
-		txadapters, err := di.BuildTxTestAdapters(tx)
-		require.NoError(t, err)
+	feedRef := fixtures.SomeRefFeed()
+	ts.Dependencies.BanListHasher.Mock(feedRef, fixtures.SomeBanListHash())
 
-		feedRef := fixtures.SomeRefFeed()
+	err = ts.TransactionProvider.Update(func(adapters badger.TestAdapters) error {
 		msg := fixtures.SomeMessage(message.NewFirstSequence(), feedRef)
 
-		txadapters.BanListHasher.Mock(feedRef, fixtures.SomeBanListHash())
-
-		return txadapters.FeedRepository.UpdateFeed(feedRef, func(feed *feeds.Feed) error {
+		return adapters.FeedRepository.UpdateFeed(feedRef, func(feed *feeds.Feed) error {
 			return feed.AppendMessage(msg)
 		})
 	})
 	require.NoError(t, err)
 
-	count, err = adapters.FeedRepository.Count()
+	count, err = ts.NoTxTestAdapters.NoTxFeedRepository.Count()
 	require.NoError(t, err)
 	require.Equal(t, 1, count)
+}
+
+func TestNoTxFeedRepository_GetMessages(t *testing.T) {
+	ts := di.BuildBadgerNoTxTestAdapters(t)
+
+	feedRef := fixtures.SomeRefFeed()
+	ts.Dependencies.BanListHasher.Mock(feedRef, fixtures.SomeBanListHash())
+
+	msgs, err := ts.NoTxTestAdapters.NoTxFeedRepository.GetMessages(feedRef, nil, nil)
+	require.NoError(t, err)
+	require.Empty(t, msgs)
+
+	msg := fixtures.SomeMessage(message.NewFirstSequence(), feedRef)
+	ts.Dependencies.RawMessageIdentifier.Mock(msg)
+
+	err = ts.TransactionProvider.Update(func(adapters badger.TestAdapters) error {
+		return adapters.FeedRepository.UpdateFeed(feedRef, func(feed *feeds.Feed) error {
+			return feed.AppendMessage(msg)
+		})
+	})
+	require.NoError(t, err)
+
+	msgs, err = ts.NoTxTestAdapters.NoTxFeedRepository.GetMessages(feedRef, nil, nil)
+	require.NoError(t, err)
+	require.Equal(t, []message.Message{msg}, msgs)
 }

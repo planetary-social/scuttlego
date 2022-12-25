@@ -12,6 +12,7 @@ import (
 var badgerNoTxRepositoriesSet = wire.NewSet(
 	notx.NewNoTxBlobWantListRepository,
 	notx.NewNoTxFeedRepository,
+	notx.NewNoTxMessageRepository,
 )
 
 //nolint:unused

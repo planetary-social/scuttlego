@@ -9,6 +9,7 @@ import (
 type TestAdapters struct {
 	NoTxBlobWantListRepository *NoTxBlobWantListRepository
 	NoTxFeedRepository         *NoTxFeedRepository
+	NoTxMessageRepository      *NoTxMessageRepository
 }
 
 type TxAdapters struct {

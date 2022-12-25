@@ -36,8 +36,16 @@ var badgerTestAdaptersDependenciesSet = wire.NewSet(
 )
 
 //nolint:unused
+var badgerNoTxTestTransactionProviderSet = wire.NewSet(
+	notx.NewTestTxAdaptersFactoryTransactionProvider,
+	wire.Bind(new(notx.TransactionProvider), new(*notx.TestTxAdaptersFactoryTransactionProvider)),
+
+	noTxTestTxAdaptersFactory,
+)
+
+//nolint:unused
 var badgerNoTxTransactionProviderSet = wire.NewSet(
-	notx.NewTransactionProvider,
+	notx.NewTxAdaptersFactoryTransactionProvider,
 	noTxTxAdaptersFactory,
 )
 
@@ -46,6 +54,12 @@ var testBadgerTransactionProviderSet = wire.NewSet(
 	badgeradapters.NewTestTransactionProvider,
 	testAdaptersFactory,
 )
+
+func noTxTestTxAdaptersFactory() notx.TestTxAdaptersFactory {
+	return func(tx *badger.Txn, dependencies badgeradapters.TestAdaptersDependencies) (notx.TxAdapters, error) {
+		return buildTestBadgerNoTxTxAdapters(tx, dependencies)
+	}
+}
 
 func noTxTxAdaptersFactory() notx.TxAdaptersFactory {
 	return func(tx *badger.Txn) (notx.TxAdapters, error) {

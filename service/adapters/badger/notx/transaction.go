@@ -6,7 +6,10 @@ import (
 	badgeradapters "github.com/planetary-social/scuttlego/service/adapters/badger"
 )
 
-type TxAdaptersFactory func(tx *badger.Txn) (TxAdapters, error)
+type TestAdapters struct {
+	NoTxBlobWantListRepository *NoTxBlobWantListRepository
+	NoTxFeedRepository         *NoTxFeedRepository
+}
 
 type TxAdapters struct {
 	BanListRepository      *badgeradapters.BanListRepository
@@ -20,16 +23,23 @@ type TxAdapters struct {
 	FeedRepository         *badgeradapters.FeedRepository
 }
 
-type TransactionProvider struct {
+type TransactionProvider interface {
+	Update(f func(adapters TxAdapters) error) error
+	View(f func(adapters TxAdapters) error) error
+}
+
+type TxAdaptersFactory func(tx *badger.Txn) (TxAdapters, error)
+
+type TxAdaptersFactoryTransactionProvider struct {
 	db      *badger.DB
 	factory TxAdaptersFactory
 }
 
-func NewTransactionProvider(db *badger.DB, factory TxAdaptersFactory) *TransactionProvider {
-	return &TransactionProvider{db: db, factory: factory}
+func NewTxAdaptersFactoryTransactionProvider(db *badger.DB, factory TxAdaptersFactory) *TxAdaptersFactoryTransactionProvider {
+	return &TxAdaptersFactoryTransactionProvider{db: db, factory: factory}
 }
 
-func (t TransactionProvider) Update(f func(adapters TxAdapters) error) error {
+func (t TxAdaptersFactoryTransactionProvider) Update(f func(adapters TxAdapters) error) error {
 	return t.db.Update(func(tx *badger.Txn) error {
 		adapters, err := t.factory(tx)
 		if err != nil {
@@ -39,7 +49,7 @@ func (t TransactionProvider) Update(f func(adapters TxAdapters) error) error {
 		return f(adapters)
 	})
 }
-func (t TransactionProvider) View(f func(adapters TxAdapters) error) error {
+func (t TxAdaptersFactoryTransactionProvider) View(f func(adapters TxAdapters) error) error {
 	return t.db.View(func(tx *badger.Txn) error {
 		adapters, err := t.factory(tx)
 		if err != nil {
@@ -50,7 +60,35 @@ func (t TransactionProvider) View(f func(adapters TxAdapters) error) error {
 	})
 }
 
-type TestAdapters struct {
-	NoTxBlobWantListRepository *NoTxBlobWantListRepository
-	NoTxFeedRepository         *NoTxFeedRepository
+type TestTxAdaptersFactory func(tx *badger.Txn, dependencies badgeradapters.TestAdaptersDependencies) (TxAdapters, error)
+
+type TestTxAdaptersFactoryTransactionProvider struct {
+	db           *badger.DB
+	factory      TestTxAdaptersFactory
+	dependencies badgeradapters.TestAdaptersDependencies
+}
+
+func NewTestTxAdaptersFactoryTransactionProvider(db *badger.DB, factory TestTxAdaptersFactory, dependencies badgeradapters.TestAdaptersDependencies) *TestTxAdaptersFactoryTransactionProvider {
+	return &TestTxAdaptersFactoryTransactionProvider{db: db, factory: factory, dependencies: dependencies}
+}
+
+func (t TestTxAdaptersFactoryTransactionProvider) Update(f func(adapters TxAdapters) error) error {
+	return t.db.Update(func(tx *badger.Txn) error {
+		adapters, err := t.factory(tx, t.dependencies)
+		if err != nil {
+			return errors.Wrap(err, "failed to build adapters")
+		}
+
+		return f(adapters)
+	})
+}
+func (t TestTxAdaptersFactoryTransactionProvider) View(f func(adapters TxAdapters) error) error {
+	return t.db.View(func(tx *badger.Txn) error {
+		adapters, err := t.factory(tx, t.dependencies)
+		if err != nil {
+			return errors.Wrap(err, "failed to build adapters")
+		}
+
+		return f(adapters)
+	})
 }

@@ -52,7 +52,7 @@ func BuildBadgerNoTxTestAdapters(t *testing.T) BadgerNoTxTestAdapters {
 
 		wire.Struct(new(notx.TestAdapters), "*"),
 
-		badgerNoTxTransactionProviderSet,
+		badgerNoTxTestTransactionProviderSet,
 		badgerNoTxRepositoriesSet,
 		testBadgerTransactionProviderSet,
 		badgerTestAdaptersDependenciesSet,
@@ -79,6 +79,39 @@ func BuildBadgerTestAdapters(t *testing.T) BadgerTestAdapters {
 	)
 
 	return BadgerTestAdapters{}
+}
+
+func buildTestBadgerNoTxTxAdapters(*badger.Txn, badgeradapters.TestAdaptersDependencies) (notx.TxAdapters, error) {
+	wire.Build(
+		wire.Struct(new(notx.TxAdapters), "*"),
+
+		badgerRepositoriesSet,
+
+		wire.FieldsOf(new(badgeradapters.TestAdaptersDependencies),
+			"BanListHasher",
+			"CurrentTimeProvider",
+			"RawMessageIdentifier",
+		),
+		wire.Bind(new(badgeradapters.BanListHasher), new(*mocks.BanListHasherMock)),
+		wire.Bind(new(commands.CurrentTimeProvider), new(*mocks.CurrentTimeProviderMock)),
+		wire.Bind(new(badgeradapters.RawMessageIdentifier), new(*mocks.RawMessageIdentifierMock)),
+
+		formats.NewDefaultMessageHMAC,
+		formats.NewScuttlebutt,
+		transport.DefaultMappings,
+
+		transport.NewMarshaler,
+		wire.Bind(new(formats.Marshaler), new(*transport.Marshaler)),
+
+		identity.NewPrivate,
+		privateIdentityToPublicIdentity,
+
+		fixtures.SomeLogger,
+
+		wire.Value(hops),
+	)
+
+	return notx.TxAdapters{}, nil
 }
 
 func buildBadgerNoTxTxAdapters(tx *badger.Txn) (notx.TxAdapters, error) {

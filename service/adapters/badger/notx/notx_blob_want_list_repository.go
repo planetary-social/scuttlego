@@ -7,10 +7,10 @@ import (
 )
 
 type NoTxBlobWantListRepository struct {
-	transaction *TransactionProvider
+	transaction TransactionProvider
 }
 
-func NewNoTxBlobWantListRepository(transaction *TransactionProvider) *NoTxBlobWantListRepository {
+func NewNoTxBlobWantListRepository(transaction TransactionProvider) *NoTxBlobWantListRepository {
 	return &NoTxBlobWantListRepository{transaction: transaction}
 }
 

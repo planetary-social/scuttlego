@@ -60,14 +60,7 @@ import (
 
 func BuildBadgerNoTxTestAdapters(t *testing.T) BadgerNoTxTestAdapters {
 	db := fixtures.Badger(t)
-	txAdaptersFactory := noTxTxAdaptersFactory()
-	transactionProvider := notx.NewTransactionProvider(db, txAdaptersFactory)
-	noTxBlobWantListRepository := notx.NewNoTxBlobWantListRepository(transactionProvider)
-	noTxFeedRepository := notx.NewNoTxFeedRepository(transactionProvider)
-	testAdapters := notx.TestAdapters{
-		NoTxBlobWantListRepository: noTxBlobWantListRepository,
-		NoTxFeedRepository:         noTxFeedRepository,
-	}
+	testTxAdaptersFactory := noTxTestTxAdaptersFactory()
 	banListHasherMock := mocks.NewBanListHasherMock()
 	currentTimeProviderMock := mocks.NewCurrentTimeProviderMock()
 	rawMessageIdentifierMock := mocks.NewRawMessageIdentifierMock()
@@ -75,6 +68,13 @@ func BuildBadgerNoTxTestAdapters(t *testing.T) BadgerNoTxTestAdapters {
 		BanListHasher:        banListHasherMock,
 		CurrentTimeProvider:  currentTimeProviderMock,
 		RawMessageIdentifier: rawMessageIdentifierMock,
+	}
+	testTxAdaptersFactoryTransactionProvider := notx.NewTestTxAdaptersFactoryTransactionProvider(db, testTxAdaptersFactory, testAdaptersDependencies)
+	noTxBlobWantListRepository := notx.NewNoTxBlobWantListRepository(testTxAdaptersFactoryTransactionProvider)
+	noTxFeedRepository := notx.NewNoTxFeedRepository(testTxAdaptersFactoryTransactionProvider)
+	testAdapters := notx.TestAdapters{
+		NoTxBlobWantListRepository: noTxBlobWantListRepository,
+		NoTxFeedRepository:         noTxFeedRepository,
 	}
 	badgerTestAdaptersFactory := testAdaptersFactory()
 	testTransactionProvider := badger.NewTestTransactionProvider(db, testAdaptersDependencies, badgerTestAdaptersFactory)
@@ -115,6 +115,51 @@ func BuildBadgerTestAdapters(t *testing.T) BadgerTestAdapters {
 	return badgerTestAdapters
 }
 
+func buildTestBadgerNoTxTxAdapters(txn *badger2.Txn, testAdaptersDependencies badger.TestAdaptersDependencies) (notx.TxAdapters, error) {
+	banListHasherMock := testAdaptersDependencies.BanListHasher
+	banListRepository := badger.NewBanListRepository(txn, banListHasherMock)
+	blobRepository := badger.NewBlobRepository(txn)
+	currentTimeProviderMock := testAdaptersDependencies.CurrentTimeProvider
+	blobWantListRepository := badger.NewBlobWantListRepository(txn, currentTimeProviderMock)
+	feedWantListRepository := badger.NewFeedWantListRepository(txn, currentTimeProviderMock)
+	rawMessageIdentifierMock := testAdaptersDependencies.RawMessageIdentifier
+	messageRepository := badger.NewMessageRepository(txn, rawMessageIdentifierMock)
+	receiveLogRepository := badger.NewReceiveLogRepository(txn, messageRepository)
+	private, err := identity.NewPrivate()
+	if err != nil {
+		return notx.TxAdapters{}, err
+	}
+	public := privateIdentityToPublicIdentity(private)
+	graphHops := _wireHopsValue
+	socialGraphRepository := badger.NewSocialGraphRepository(txn, public, graphHops, banListRepository)
+	pubRepository := badger.NewPubRepository(txn)
+	messageContentMappings := transport.DefaultMappings()
+	logger := fixtures.SomeLogger()
+	marshaler, err := transport.NewMarshaler(messageContentMappings, logger)
+	if err != nil {
+		return notx.TxAdapters{}, err
+	}
+	messageHMAC := formats.NewDefaultMessageHMAC()
+	scuttlebutt := formats.NewScuttlebutt(marshaler, messageHMAC)
+	feedRepository := badger.NewFeedRepository(txn, socialGraphRepository, receiveLogRepository, messageRepository, pubRepository, blobRepository, banListRepository, scuttlebutt)
+	txAdapters := notx.TxAdapters{
+		BanListRepository:      banListRepository,
+		BlobRepository:         blobRepository,
+		BlobWantListRepository: blobWantListRepository,
+		FeedWantListRepository: feedWantListRepository,
+		MessageRepository:      messageRepository,
+		ReceiveLogRepository:   receiveLogRepository,
+		SocialGraphRepository:  socialGraphRepository,
+		PubRepository:          pubRepository,
+		FeedRepository:         feedRepository,
+	}
+	return txAdapters, nil
+}
+
+var (
+	_wireHopsValue = hops
+)
+
 func buildBadgerNoTxTxAdapters(tx *badger2.Txn) (notx.TxAdapters, error) {
 	banListHasherMock := mocks.NewBanListHasherMock()
 	banListRepository := badger.NewBanListRepository(tx, banListHasherMock)
@@ -130,7 +175,7 @@ func buildBadgerNoTxTxAdapters(tx *badger2.Txn) (notx.TxAdapters, error) {
 		return notx.TxAdapters{}, err
 	}
 	public := privateIdentityToPublicIdentity(private)
-	graphHops := _wireHopsValue
+	graphHops := _wireGraphHopsValue
 	socialGraphRepository := badger.NewSocialGraphRepository(tx, public, graphHops, banListRepository)
 	pubRepository := badger.NewPubRepository(tx)
 	messageContentMappings := transport.DefaultMappings()
@@ -157,7 +202,7 @@ func buildBadgerNoTxTxAdapters(tx *badger2.Txn) (notx.TxAdapters, error) {
 }
 
 var (
-	_wireHopsValue = hops
+	_wireGraphHopsValue = hops
 )
 
 func buildBadgerTestAdapters(txn *badger2.Txn, testAdaptersDependencies badger.TestAdaptersDependencies) (badger.TestAdapters, error) {
@@ -175,7 +220,7 @@ func buildBadgerTestAdapters(txn *badger2.Txn, testAdaptersDependencies badger.T
 		return badger.TestAdapters{}, err
 	}
 	public := privateIdentityToPublicIdentity(private)
-	graphHops := _wireGraphHopsValue
+	graphHops := _wireHopsValue2
 	socialGraphRepository := badger.NewSocialGraphRepository(txn, public, graphHops, banListRepository)
 	pubRepository := badger.NewPubRepository(txn)
 	messageContentMappings := transport.DefaultMappings()
@@ -202,7 +247,7 @@ func buildBadgerTestAdapters(txn *badger2.Txn, testAdaptersDependencies badger.T
 }
 
 var (
-	_wireGraphHopsValue = hops
+	_wireHopsValue2 = hops
 )
 
 func BuildTxTestAdapters(tx *bbolt.Tx) (TxTestAdapters, error) {
@@ -222,7 +267,7 @@ func BuildTxTestAdapters(tx *bbolt.Tx) (TxTestAdapters, error) {
 		return TxTestAdapters{}, err
 	}
 	public := privateIdentityToPublicIdentity(private)
-	graphHops := _wireHopsValue2
+	graphHops := _wireHopsValue3
 	banListHasherMock := mocks.NewBanListHasherMock()
 	banListRepository := bolt.NewBanListRepository(tx, banListHasherMock)
 	socialGraphRepository := bolt.NewSocialGraphRepository(tx, public, graphHops, banListRepository)
@@ -250,7 +295,7 @@ func BuildTxTestAdapters(tx *bbolt.Tx) (TxTestAdapters, error) {
 }
 
 var (
-	_wireHopsValue2 = hops
+	_wireHopsValue3 = hops
 )
 
 func BuildTestAdapters(db *bbolt.DB) (TestAdapters, error) {
@@ -387,7 +432,7 @@ func BuildTestQueries(t *testing.T) (TestQueries, error) {
 }
 
 func BuildTransactableAdapters(tx *bbolt.Tx, public identity.Public, config Config) (commands.Adapters, error) {
-	graphHops := _wireHopsValue3
+	graphHops := _wireHopsValue4
 	banListHasher := adapters.NewBanListHasher()
 	banListRepository := bolt.NewBanListRepository(tx, banListHasher)
 	socialGraphRepository := bolt.NewSocialGraphRepository(tx, public, graphHops, banListRepository)
@@ -421,11 +466,11 @@ func BuildTransactableAdapters(tx *bbolt.Tx, public identity.Public, config Conf
 }
 
 var (
-	_wireHopsValue3 = hops
+	_wireHopsValue4 = hops
 )
 
 func BuildTxRepositories(tx *bbolt.Tx, public identity.Public, logger logging.Logger, messageHMAC formats.MessageHMAC) (bolt.TxRepositories, error) {
-	graphHops := _wireHopsValue4
+	graphHops := _wireHopsValue5
 	banListHasher := adapters.NewBanListHasher()
 	banListRepository := bolt.NewBanListRepository(tx, banListHasher)
 	socialGraphRepository := bolt.NewSocialGraphRepository(tx, public, graphHops, banListRepository)
@@ -460,7 +505,7 @@ func BuildTxRepositories(tx *bbolt.Tx, public identity.Public, logger logging.Lo
 }
 
 var (
-	_wireHopsValue4 = hops
+	_wireHopsValue5 = hops
 )
 
 // BuildService creates a new service which uses the provided context as a long-term context used as a base context for

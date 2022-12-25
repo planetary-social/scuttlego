@@ -7,15 +7,11 @@ import (
 )
 
 type NoTxFeedRepository struct {
-	transaction *TransactionProvider
+	transaction TransactionProvider
 }
 
-func NewNoTxFeedRepository(
-	transaction *TransactionProvider,
-) *NoTxFeedRepository {
-	return &NoTxFeedRepository{
-		transaction: transaction,
-	}
+func NewNoTxFeedRepository(transaction TransactionProvider) *NoTxFeedRepository {
+	return &NoTxFeedRepository{transaction: transaction}
 }
 
 func (b NoTxFeedRepository) GetMessages(id refs.Feed, seq *message.Sequence, limit *int) ([]message.Message, error) {

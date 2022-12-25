@@ -259,7 +259,7 @@ func (b FeedRepository) loadFeed(ref refs.Feed) (*feeds.Feed, error) {
 	})
 	defer it.Close()
 
-	it.Rewind()
+	it.Seek(bucket.Prefix().Bytes())
 	if !it.Valid() {
 		return nil, nil
 	}

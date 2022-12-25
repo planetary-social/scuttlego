@@ -131,3 +131,7 @@ func (b Bucket) IsEmpty() bool {
 	it.Rewind()
 	return !it.Valid()
 }
+
+func (b Bucket) Prefix() Key {
+	return b.prefix
+}

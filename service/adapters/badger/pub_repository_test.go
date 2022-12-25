@@ -357,12 +357,17 @@ func TestPubRepository_Delete_SamePubDifferentAuthorDifferentAddressDifferentMes
 			},
 		}
 
+		sources, err := adapters.PubRepository.ListAddresses(pubIden)
+		require.NoError(t, err)
+
 		sort.Slice(expectedAddresses, func(i, j int) bool {
 			return expectedAddresses[i].Address < expectedAddresses[j].Address
 		})
 
-		sources, err := adapters.PubRepository.ListAddresses(pubIden)
-		require.NoError(t, err)
+		sort.Slice(sources, func(i, j int) bool {
+			return sources[i].Address < sources[j].Address
+		})
+
 		require.Equal(t,
 			expectedAddresses,
 			sources,

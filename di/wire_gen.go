@@ -73,10 +73,12 @@ func BuildBadgerNoTxTestAdapters(t *testing.T) BadgerNoTxTestAdapters {
 	noTxBlobWantListRepository := notx.NewNoTxBlobWantListRepository(testTxAdaptersFactoryTransactionProvider)
 	noTxFeedRepository := notx.NewNoTxFeedRepository(testTxAdaptersFactoryTransactionProvider)
 	noTxMessageRepository := notx.NewNoTxMessageRepository(testTxAdaptersFactoryTransactionProvider)
+	noTxReceiveLogRepository := notx.NewNoTxReceiveLogRepository(testTxAdaptersFactoryTransactionProvider)
 	testAdapters := notx.TestAdapters{
 		NoTxBlobWantListRepository: noTxBlobWantListRepository,
 		NoTxFeedRepository:         noTxFeedRepository,
 		NoTxMessageRepository:      noTxMessageRepository,
+		NoTxReceiveLogRepository:   noTxReceiveLogRepository,
 	}
 	badgerTestAdaptersFactory := testAdaptersFactory()
 	testTransactionProvider := badger.NewTestTransactionProvider(db, testAdaptersDependencies, badgerTestAdaptersFactory)

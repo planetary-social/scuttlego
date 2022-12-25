@@ -10,6 +10,7 @@ type TestAdapters struct {
 	NoTxBlobWantListRepository *NoTxBlobWantListRepository
 	NoTxFeedRepository         *NoTxFeedRepository
 	NoTxMessageRepository      *NoTxMessageRepository
+	NoTxReceiveLogRepository   *NoTxReceiveLogRepository
 }
 
 type TxAdapters struct {

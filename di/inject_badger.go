@@ -13,6 +13,7 @@ var badgerNoTxRepositoriesSet = wire.NewSet(
 	notx.NewNoTxBlobWantListRepository,
 	notx.NewNoTxFeedRepository,
 	notx.NewNoTxMessageRepository,
+	notx.NewNoTxReceiveLogRepository,
 )
 
 //nolint:unused

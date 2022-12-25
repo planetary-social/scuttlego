@@ -1,17 +1,11 @@
 package badger
 
 import (
-	"encoding/binary"
-
 	"github.com/boreq/errors"
 	"github.com/dgraph-io/badger/v3"
 	"github.com/planetary-social/scuttlego/service/adapters/badger/utils"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
-)
-
-const (
-	messageRepositoryMetaBucketCountKey = "message_count"
 )
 
 type RawMessageIdentifier interface {
@@ -145,19 +139,6 @@ func (r MessageRepository) Count() (int, error) {
 	}
 
 	return int(count), nil
-}
-
-func (r MessageRepository) marshalCount(count uint64) []byte {
-	b := make([]byte, 8)
-	binary.LittleEndian.PutUint64(b, count)
-	return b
-}
-
-func (r MessageRepository) unmarshalCount(b []byte) (uint64, error) {
-	if len(b) != 8 {
-		return 0, errors.New("invalid length")
-	}
-	return binary.LittleEndian.Uint64(b), nil
 }
 
 func (r MessageRepository) messageKey(id refs.Message) []byte {

@@ -384,23 +384,12 @@ func (b FeedRepository) getFeedCounter() (utils.Counter, error) {
 	return utils.NewCounter(b.getMetaBucket(), utils.MustNewKeyComponent([]byte("feed_count")))
 }
 
-func (b FeedRepository) getFeedsBucket() utils.Bucket {
-	return utils.MustNewBucket(b.tx, b.feedsBucketPath())
-}
-
 func (b FeedRepository) getFeedBucket(ref refs.Feed) utils.Bucket {
 	return utils.MustNewBucket(b.tx, b.feedBucketPath(ref))
 }
 
 func (b FeedRepository) getMetaBucket() utils.Bucket {
 	return utils.MustNewBucket(b.tx, b.metaBucketPath())
-}
-
-func (b FeedRepository) feedsBucketPath() utils.Key {
-	return utils.MustNewKey(
-		utils.MustNewKeyComponent([]byte("feeds")),
-		utils.MustNewKeyComponent([]byte("entries")),
-	)
 }
 
 func (b FeedRepository) feedBucketPath(ref refs.Feed) utils.Key {

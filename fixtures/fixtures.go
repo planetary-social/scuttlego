@@ -206,6 +206,25 @@ func SomeMessage(seq message.Sequence, feed refs.Feed) message.Message {
 	)
 }
 
+func SomeMessageWithUniqueRawMessage(seq message.Sequence, feed refs.Feed) message.Message {
+	var previous *refs.Message
+	if !seq.IsFirst() {
+		tmp := SomeRefMessage()
+		previous = &tmp
+	}
+
+	return message.MustNewMessage(
+		SomeRefMessage(),
+		previous,
+		seq,
+		SomeRefIdentity(),
+		feed,
+		SomeTime(),
+		SomeContent(),
+		message.MustNewRawMessage(SomeBytes()),
+	)
+}
+
 func SomeConnectionId() rpc.ConnectionId {
 	return rpc.NewConnectionId(SomeNonNegativeInt())
 }

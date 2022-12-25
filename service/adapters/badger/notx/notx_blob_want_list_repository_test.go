@@ -22,8 +22,6 @@ func TestNoTxBlobWantListRepository_ListReturnsEmptyWantListIfDatabaseIsEmpty(t 
 func TestNoTxBlobWantListRepository_ListReturnsResultsNonEmptyWantListIfDatabaseIsNotEmpty(t *testing.T) {
 	ts := di.BuildBadgerNoTxTestAdapters(t)
 
-	fixtures.SomeRefBlob()
-
 	now := time.Now()
 	blobRef := fixtures.SomeRefBlob()
 
@@ -48,4 +46,57 @@ func TestNoTxBlobWantListRepository_ListReturnsResultsNonEmptyWantListIfDatabase
 		},
 		wantlist.List(),
 	)
+}
+
+func TestNoTxBlobWantListRepository_Contains(t *testing.T) {
+	ts := di.BuildBadgerNoTxTestAdapters(t)
+
+	now := time.Now()
+	blobRef := fixtures.SomeRefBlob()
+
+	ts.Dependencies.CurrentTimeProvider.CurrentTime = now
+
+	err := ts.TransactionProvider.Update(func(adapters badger.TestAdapters) error {
+		err := adapters.BlobWantListRepository.Add(blobRef, now.Add(1*time.Second))
+		require.NoError(t, err)
+
+		return nil
+	})
+	require.NoError(t, err)
+
+	ok, err := ts.NoTxTestAdapters.NoTxBlobWantListRepository.Contains(fixtures.SomeRefBlob())
+	require.NoError(t, err)
+	require.False(t, ok)
+
+	ok, err = ts.NoTxTestAdapters.NoTxBlobWantListRepository.Contains(blobRef)
+	require.NoError(t, err)
+	require.True(t, ok)
+}
+
+func TestNoTxBlobWantListRepository_Delete(t *testing.T) {
+	ts := di.BuildBadgerNoTxTestAdapters(t)
+
+	now := time.Now()
+	blobRef := fixtures.SomeRefBlob()
+
+	ts.Dependencies.CurrentTimeProvider.CurrentTime = now
+
+	err := ts.TransactionProvider.Update(func(adapters badger.TestAdapters) error {
+		err := adapters.BlobWantListRepository.Add(blobRef, now.Add(1*time.Second))
+		require.NoError(t, err)
+
+		return nil
+	})
+	require.NoError(t, err)
+
+	ok, err := ts.NoTxTestAdapters.NoTxBlobWantListRepository.Contains(blobRef)
+	require.NoError(t, err)
+	require.True(t, ok)
+
+	err = ts.NoTxTestAdapters.NoTxBlobWantListRepository.Delete(blobRef)
+	require.NoError(t, err)
+
+	ok, err = ts.NoTxTestAdapters.NoTxBlobWantListRepository.Contains(blobRef)
+	require.NoError(t, err)
+	require.False(t, ok)
 }

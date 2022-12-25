@@ -96,8 +96,17 @@ func buildBadgerNoTxTxAdapters(tx *badger.Txn) (notx.TxAdapters, error) {
 		mocks.NewRawMessageIdentifierMock,
 		wire.Bind(new(badgeradapters.RawMessageIdentifier), new(*mocks.RawMessageIdentifierMock)),
 
+		formats.NewDefaultMessageHMAC,
+		formats.NewScuttlebutt,
+		transport.DefaultMappings,
+
+		transport.NewMarshaler,
+		wire.Bind(new(formats.Marshaler), new(*transport.Marshaler)),
+
 		identity.NewPrivate,
 		privateIdentityToPublicIdentity,
+
+		fixtures.SomeLogger,
 
 		wire.Value(hops),
 	)
@@ -111,13 +120,6 @@ func buildBadgerTestAdapters(*badger.Txn, badgeradapters.TestAdaptersDependencie
 
 		badgerRepositoriesSet,
 
-		formats.NewDefaultMessageHMAC,
-		formats.NewScuttlebutt,
-		transport.DefaultMappings,
-
-		transport.NewMarshaler,
-		wire.Bind(new(formats.Marshaler), new(*transport.Marshaler)),
-
 		wire.FieldsOf(new(badgeradapters.TestAdaptersDependencies),
 			"BanListHasher",
 			"CurrentTimeProvider",
@@ -126,6 +128,13 @@ func buildBadgerTestAdapters(*badger.Txn, badgeradapters.TestAdaptersDependencie
 		wire.Bind(new(badgeradapters.BanListHasher), new(*mocks.BanListHasherMock)),
 		wire.Bind(new(commands.CurrentTimeProvider), new(*mocks.CurrentTimeProviderMock)),
 		wire.Bind(new(badgeradapters.RawMessageIdentifier), new(*mocks.RawMessageIdentifierMock)),
+
+		formats.NewDefaultMessageHMAC,
+		formats.NewScuttlebutt,
+		transport.DefaultMappings,
+
+		transport.NewMarshaler,
+		wire.Bind(new(formats.Marshaler), new(*transport.Marshaler)),
 
 		identity.NewPrivate,
 		privateIdentityToPublicIdentity,

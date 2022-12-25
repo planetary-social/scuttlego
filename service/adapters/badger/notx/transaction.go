@@ -17,6 +17,7 @@ type TxAdapters struct {
 	ReceiveLogRepository   *badgeradapters.ReceiveLogRepository
 	SocialGraphRepository  *badgeradapters.SocialGraphRepository
 	PubRepository          *badgeradapters.PubRepository
+	FeedRepository         *badgeradapters.FeedRepository
 }
 
 type TransactionProvider struct {
@@ -51,4 +52,5 @@ func (t TransactionProvider) View(f func(adapters TxAdapters) error) error {
 
 type TestAdapters struct {
 	NoTxBlobWantListRepository *NoTxBlobWantListRepository
+	NoTxFeedRepository         *NoTxFeedRepository
 }

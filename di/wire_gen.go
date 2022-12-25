@@ -63,8 +63,10 @@ func BuildBadgerNoTxTestAdapters(t *testing.T) BadgerNoTxTestAdapters {
 	txAdaptersFactory := noTxTxAdaptersFactory()
 	transactionProvider := notx.NewTransactionProvider(db, txAdaptersFactory)
 	noTxBlobWantListRepository := notx.NewNoTxBlobWantListRepository(transactionProvider)
+	noTxFeedRepository := notx.NewNoTxFeedRepository(transactionProvider)
 	testAdapters := notx.TestAdapters{
 		NoTxBlobWantListRepository: noTxBlobWantListRepository,
+		NoTxFeedRepository:         noTxFeedRepository,
 	}
 	banListHasherMock := mocks.NewBanListHasherMock()
 	currentTimeProviderMock := mocks.NewCurrentTimeProviderMock()
@@ -131,6 +133,15 @@ func buildBadgerNoTxTxAdapters(tx *badger2.Txn) (notx.TxAdapters, error) {
 	graphHops := _wireHopsValue
 	socialGraphRepository := badger.NewSocialGraphRepository(tx, public, graphHops, banListRepository)
 	pubRepository := badger.NewPubRepository(tx)
+	messageContentMappings := transport.DefaultMappings()
+	logger := fixtures.SomeLogger()
+	marshaler, err := transport.NewMarshaler(messageContentMappings, logger)
+	if err != nil {
+		return notx.TxAdapters{}, err
+	}
+	messageHMAC := formats.NewDefaultMessageHMAC()
+	scuttlebutt := formats.NewScuttlebutt(marshaler, messageHMAC)
+	feedRepository := badger.NewFeedRepository(tx, socialGraphRepository, receiveLogRepository, messageRepository, pubRepository, blobRepository, banListRepository, scuttlebutt)
 	txAdapters := notx.TxAdapters{
 		BanListRepository:      banListRepository,
 		BlobRepository:         blobRepository,
@@ -140,6 +151,7 @@ func buildBadgerNoTxTxAdapters(tx *badger2.Txn) (notx.TxAdapters, error) {
 		ReceiveLogRepository:   receiveLogRepository,
 		SocialGraphRepository:  socialGraphRepository,
 		PubRepository:          pubRepository,
+		FeedRepository:         feedRepository,
 	}
 	return txAdapters, nil
 }

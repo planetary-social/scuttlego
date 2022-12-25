@@ -18,7 +18,7 @@ func TestFeedRepository_GetMessageReturnsMessageWhichIsStoredInRepo(t *testing.T
 
 	feedRef := fixtures.SomeRefFeed()
 	sequence := message.NewFirstSequence()
-	msg := someMessageWithUniqueRawMessage(sequence, feedRef)
+	msg := fixtures.SomeMessageWithUniqueRawMessage(sequence, feedRef)
 
 	ts.Dependencies.BanListHasher.Mock(feedRef, fixtures.SomeBanListHash())
 	ts.Dependencies.RawMessageIdentifier.Mock(msg)
@@ -218,23 +218,4 @@ func TestFeedRepository_CountDoesNotUpdateIfFeedDoesNotExist(t *testing.T) {
 		return nil
 	})
 	require.NoError(t, err)
-}
-
-func someMessageWithUniqueRawMessage(seq message.Sequence, feed refs.Feed) message.Message {
-	var previous *refs.Message
-	if !seq.IsFirst() {
-		tmp := fixtures.SomeRefMessage()
-		previous = &tmp
-	}
-
-	return message.MustNewMessage(
-		fixtures.SomeRefMessage(),
-		previous,
-		seq,
-		fixtures.SomeRefIdentity(),
-		feed,
-		fixtures.SomeTime(),
-		fixtures.SomeContent(),
-		message.MustNewRawMessage(fixtures.SomeBytes()),
-	)
 }

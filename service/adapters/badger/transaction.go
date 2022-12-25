@@ -5,6 +5,7 @@ import (
 	"github.com/dgraph-io/badger/v3"
 	"github.com/planetary-social/scuttlego/service/adapters/mocks"
 	"github.com/planetary-social/scuttlego/service/app/commands"
+	"github.com/planetary-social/scuttlego/service/domain/identity"
 )
 
 type AdaptersFactory func(tx *badger.Txn) (commands.Adapters, error)
@@ -41,12 +42,14 @@ type TestAdapters struct {
 	SocialGraphRepository  *SocialGraphRepository
 	PubRepository          *PubRepository
 	FeedRepository         *FeedRepository
+	WantedFeedsRepository  *WantedFeedsRepository
 }
 
 type TestAdaptersDependencies struct {
 	BanListHasher        *mocks.BanListHasherMock
 	CurrentTimeProvider  *mocks.CurrentTimeProviderMock
 	RawMessageIdentifier *mocks.RawMessageIdentifierMock
+	LocalIdentity        identity.Public
 }
 
 type TestTransactionProvider struct {

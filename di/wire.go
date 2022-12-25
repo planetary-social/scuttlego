@@ -57,6 +57,7 @@ func BuildBadgerNoTxTestAdapters(t *testing.T) BadgerNoTxTestAdapters {
 		testBadgerTransactionProviderSet,
 		badgerTestAdaptersDependenciesSet,
 
+		fixtures.SomePublicIdentity,
 		fixtures.Badger,
 	)
 
@@ -75,6 +76,7 @@ func BuildBadgerTestAdapters(t *testing.T) BadgerTestAdapters {
 		testBadgerTransactionProviderSet,
 		badgerTestAdaptersDependenciesSet,
 
+		fixtures.SomePublicIdentity,
 		fixtures.Badger,
 	)
 
@@ -91,6 +93,7 @@ func buildTestBadgerNoTxTxAdapters(*badger.Txn, badgeradapters.TestAdaptersDepen
 			"BanListHasher",
 			"CurrentTimeProvider",
 			"RawMessageIdentifier",
+			"LocalIdentity",
 		),
 		wire.Bind(new(badgeradapters.BanListHasher), new(*mocks.BanListHasherMock)),
 		wire.Bind(new(commands.CurrentTimeProvider), new(*mocks.CurrentTimeProviderMock)),
@@ -102,9 +105,6 @@ func buildTestBadgerNoTxTxAdapters(*badger.Txn, badgeradapters.TestAdaptersDepen
 
 		transport.NewMarshaler,
 		wire.Bind(new(formats.Marshaler), new(*transport.Marshaler)),
-
-		identity.NewPrivate,
-		privateIdentityToPublicIdentity,
 
 		fixtures.SomeLogger,
 
@@ -157,6 +157,7 @@ func buildBadgerTestAdapters(*badger.Txn, badgeradapters.TestAdaptersDependencie
 			"BanListHasher",
 			"CurrentTimeProvider",
 			"RawMessageIdentifier",
+			"LocalIdentity",
 		),
 		wire.Bind(new(badgeradapters.BanListHasher), new(*mocks.BanListHasherMock)),
 		wire.Bind(new(commands.CurrentTimeProvider), new(*mocks.CurrentTimeProviderMock)),
@@ -168,9 +169,6 @@ func buildBadgerTestAdapters(*badger.Txn, badgeradapters.TestAdaptersDependencie
 
 		transport.NewMarshaler,
 		wire.Bind(new(formats.Marshaler), new(*transport.Marshaler)),
-
-		identity.NewPrivate,
-		privateIdentityToPublicIdentity,
 
 		fixtures.SomeLogger,
 

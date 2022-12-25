@@ -64,10 +64,12 @@ func BuildBadgerNoTxTestAdapters(t *testing.T) BadgerNoTxTestAdapters {
 	banListHasherMock := mocks.NewBanListHasherMock()
 	currentTimeProviderMock := mocks.NewCurrentTimeProviderMock()
 	rawMessageIdentifierMock := mocks.NewRawMessageIdentifierMock()
+	public := fixtures.SomePublicIdentity()
 	testAdaptersDependencies := badger.TestAdaptersDependencies{
 		BanListHasher:        banListHasherMock,
 		CurrentTimeProvider:  currentTimeProviderMock,
 		RawMessageIdentifier: rawMessageIdentifierMock,
+		LocalIdentity:        public,
 	}
 	testTxAdaptersFactoryTransactionProvider := notx.NewTestTxAdaptersFactoryTransactionProvider(db, testTxAdaptersFactory, testAdaptersDependencies)
 	noTxBlobWantListRepository := notx.NewNoTxBlobWantListRepository(testTxAdaptersFactoryTransactionProvider)
@@ -86,6 +88,7 @@ func BuildBadgerNoTxTestAdapters(t *testing.T) BadgerNoTxTestAdapters {
 		BanListHasher:        banListHasherMock,
 		CurrentTimeProvider:  currentTimeProviderMock,
 		RawMessageIdentifier: rawMessageIdentifierMock,
+		LocalIdentity:        public,
 	}
 	badgerNoTxTestAdapters := BadgerNoTxTestAdapters{
 		NoTxTestAdapters:    testAdapters,
@@ -100,10 +103,12 @@ func BuildBadgerTestAdapters(t *testing.T) BadgerTestAdapters {
 	banListHasherMock := mocks.NewBanListHasherMock()
 	currentTimeProviderMock := mocks.NewCurrentTimeProviderMock()
 	rawMessageIdentifierMock := mocks.NewRawMessageIdentifierMock()
+	public := fixtures.SomePublicIdentity()
 	testAdaptersDependencies := badger.TestAdaptersDependencies{
 		BanListHasher:        banListHasherMock,
 		CurrentTimeProvider:  currentTimeProviderMock,
 		RawMessageIdentifier: rawMessageIdentifierMock,
+		LocalIdentity:        public,
 	}
 	badgerTestAdaptersFactory := testAdaptersFactory()
 	testTransactionProvider := badger.NewTestTransactionProvider(db, testAdaptersDependencies, badgerTestAdaptersFactory)
@@ -111,6 +116,7 @@ func BuildBadgerTestAdapters(t *testing.T) BadgerTestAdapters {
 		BanListHasher:        banListHasherMock,
 		CurrentTimeProvider:  currentTimeProviderMock,
 		RawMessageIdentifier: rawMessageIdentifierMock,
+		LocalIdentity:        public,
 	}
 	badgerTestAdapters := BadgerTestAdapters{
 		TransactionProvider: testTransactionProvider,
@@ -129,11 +135,7 @@ func buildTestBadgerNoTxTxAdapters(txn *badger2.Txn, testAdaptersDependencies ba
 	rawMessageIdentifierMock := testAdaptersDependencies.RawMessageIdentifier
 	messageRepository := badger.NewMessageRepository(txn, rawMessageIdentifierMock)
 	receiveLogRepository := badger.NewReceiveLogRepository(txn, messageRepository)
-	private, err := identity.NewPrivate()
-	if err != nil {
-		return notx.TxAdapters{}, err
-	}
-	public := privateIdentityToPublicIdentity(private)
+	public := testAdaptersDependencies.LocalIdentity
 	graphHops := _wireHopsValue
 	socialGraphRepository := badger.NewSocialGraphRepository(txn, public, graphHops, banListRepository)
 	pubRepository := badger.NewPubRepository(txn)
@@ -219,11 +221,7 @@ func buildBadgerTestAdapters(txn *badger2.Txn, testAdaptersDependencies badger.T
 	rawMessageIdentifierMock := testAdaptersDependencies.RawMessageIdentifier
 	messageRepository := badger.NewMessageRepository(txn, rawMessageIdentifierMock)
 	receiveLogRepository := badger.NewReceiveLogRepository(txn, messageRepository)
-	private, err := identity.NewPrivate()
-	if err != nil {
-		return badger.TestAdapters{}, err
-	}
-	public := privateIdentityToPublicIdentity(private)
+	public := testAdaptersDependencies.LocalIdentity
 	graphHops := _wireHopsValue2
 	socialGraphRepository := badger.NewSocialGraphRepository(txn, public, graphHops, banListRepository)
 	pubRepository := badger.NewPubRepository(txn)
@@ -236,6 +234,7 @@ func buildBadgerTestAdapters(txn *badger2.Txn, testAdaptersDependencies badger.T
 	messageHMAC := formats.NewDefaultMessageHMAC()
 	scuttlebutt := formats.NewScuttlebutt(marshaler, messageHMAC)
 	feedRepository := badger.NewFeedRepository(txn, socialGraphRepository, receiveLogRepository, messageRepository, pubRepository, blobRepository, banListRepository, scuttlebutt)
+	wantedFeedsRepository := badger.NewWantedFeedsRepository(socialGraphRepository, feedWantListRepository, feedRepository, banListRepository)
 	testAdapters := badger.TestAdapters{
 		BanListRepository:      banListRepository,
 		BlobRepository:         blobRepository,
@@ -246,6 +245,7 @@ func buildBadgerTestAdapters(txn *badger2.Txn, testAdaptersDependencies badger.T
 		SocialGraphRepository:  socialGraphRepository,
 		PubRepository:          pubRepository,
 		FeedRepository:         feedRepository,
+		WantedFeedsRepository:  wantedFeedsRepository,
 	}
 	return testAdapters, nil
 }

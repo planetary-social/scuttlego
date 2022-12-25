@@ -11,6 +11,7 @@ type TestAdapters struct {
 	NoTxFeedRepository         *NoTxFeedRepository
 	NoTxMessageRepository      *NoTxMessageRepository
 	NoTxReceiveLogRepository   *NoTxReceiveLogRepository
+	NoTxWantedFeedsRepository  *NoTxWantedFeedsRepository
 }
 
 type TxAdapters struct {
@@ -23,6 +24,7 @@ type TxAdapters struct {
 	SocialGraphRepository  *badgeradapters.SocialGraphRepository
 	PubRepository          *badgeradapters.PubRepository
 	FeedRepository         *badgeradapters.FeedRepository
+	WantedFeedsRepository  *badgeradapters.WantedFeedsRepository
 }
 
 type TransactionProvider interface {

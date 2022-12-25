@@ -76,11 +76,13 @@ func BuildBadgerNoTxTestAdapters(t *testing.T) BadgerNoTxTestAdapters {
 	noTxFeedRepository := notx.NewNoTxFeedRepository(testTxAdaptersFactoryTransactionProvider)
 	noTxMessageRepository := notx.NewNoTxMessageRepository(testTxAdaptersFactoryTransactionProvider)
 	noTxReceiveLogRepository := notx.NewNoTxReceiveLogRepository(testTxAdaptersFactoryTransactionProvider)
+	noTxWantedFeedsRepository := notx.NewNoTxWantedFeedsRepository(testTxAdaptersFactoryTransactionProvider)
 	testAdapters := notx.TestAdapters{
 		NoTxBlobWantListRepository: noTxBlobWantListRepository,
 		NoTxFeedRepository:         noTxFeedRepository,
 		NoTxMessageRepository:      noTxMessageRepository,
 		NoTxReceiveLogRepository:   noTxReceiveLogRepository,
+		NoTxWantedFeedsRepository:  noTxWantedFeedsRepository,
 	}
 	badgerTestAdaptersFactory := testAdaptersFactory()
 	testTransactionProvider := badger.NewTestTransactionProvider(db, testAdaptersDependencies, badgerTestAdaptersFactory)
@@ -148,6 +150,7 @@ func buildTestBadgerNoTxTxAdapters(txn *badger2.Txn, testAdaptersDependencies ba
 	messageHMAC := formats.NewDefaultMessageHMAC()
 	scuttlebutt := formats.NewScuttlebutt(marshaler, messageHMAC)
 	feedRepository := badger.NewFeedRepository(txn, socialGraphRepository, receiveLogRepository, messageRepository, pubRepository, blobRepository, banListRepository, scuttlebutt)
+	wantedFeedsRepository := badger.NewWantedFeedsRepository(socialGraphRepository, feedWantListRepository, feedRepository, banListRepository)
 	txAdapters := notx.TxAdapters{
 		BanListRepository:      banListRepository,
 		BlobRepository:         blobRepository,
@@ -158,6 +161,7 @@ func buildTestBadgerNoTxTxAdapters(txn *badger2.Txn, testAdaptersDependencies ba
 		SocialGraphRepository:  socialGraphRepository,
 		PubRepository:          pubRepository,
 		FeedRepository:         feedRepository,
+		WantedFeedsRepository:  wantedFeedsRepository,
 	}
 	return txAdapters, nil
 }
@@ -193,6 +197,7 @@ func buildBadgerNoTxTxAdapters(tx *badger2.Txn) (notx.TxAdapters, error) {
 	messageHMAC := formats.NewDefaultMessageHMAC()
 	scuttlebutt := formats.NewScuttlebutt(marshaler, messageHMAC)
 	feedRepository := badger.NewFeedRepository(tx, socialGraphRepository, receiveLogRepository, messageRepository, pubRepository, blobRepository, banListRepository, scuttlebutt)
+	wantedFeedsRepository := badger.NewWantedFeedsRepository(socialGraphRepository, feedWantListRepository, feedRepository, banListRepository)
 	txAdapters := notx.TxAdapters{
 		BanListRepository:      banListRepository,
 		BlobRepository:         blobRepository,
@@ -203,6 +208,7 @@ func buildBadgerNoTxTxAdapters(tx *badger2.Txn) (notx.TxAdapters, error) {
 		SocialGraphRepository:  socialGraphRepository,
 		PubRepository:          pubRepository,
 		FeedRepository:         feedRepository,
+		WantedFeedsRepository:  wantedFeedsRepository,
 	}
 	return txAdapters, nil
 }

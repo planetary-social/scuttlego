@@ -88,16 +88,7 @@ func buildTestBadgerNoTxTxAdapters(*badger.Txn, badgeradapters.TestAdaptersDepen
 		wire.Struct(new(notx.TxAdapters), "*"),
 
 		badgerRepositoriesSet,
-
-		wire.FieldsOf(new(badgeradapters.TestAdaptersDependencies),
-			"BanListHasher",
-			"CurrentTimeProvider",
-			"RawMessageIdentifier",
-			"LocalIdentity",
-		),
-		wire.Bind(new(badgeradapters.BanListHasher), new(*mocks.BanListHasherMock)),
-		wire.Bind(new(commands.CurrentTimeProvider), new(*mocks.CurrentTimeProviderMock)),
-		wire.Bind(new(badgeradapters.RawMessageIdentifier), new(*mocks.RawMessageIdentifierMock)),
+		badgerUnpackTestDependenciesSet,
 
 		formats.NewDefaultMessageHMAC,
 		formats.NewScuttlebutt,
@@ -152,16 +143,7 @@ func buildBadgerTestAdapters(*badger.Txn, badgeradapters.TestAdaptersDependencie
 		wire.Struct(new(badgeradapters.TestAdapters), "*"),
 
 		badgerRepositoriesSet,
-
-		wire.FieldsOf(new(badgeradapters.TestAdaptersDependencies),
-			"BanListHasher",
-			"CurrentTimeProvider",
-			"RawMessageIdentifier",
-			"LocalIdentity",
-		),
-		wire.Bind(new(badgeradapters.BanListHasher), new(*mocks.BanListHasherMock)),
-		wire.Bind(new(commands.CurrentTimeProvider), new(*mocks.CurrentTimeProviderMock)),
-		wire.Bind(new(badgeradapters.RawMessageIdentifier), new(*mocks.RawMessageIdentifierMock)),
+		badgerUnpackTestDependenciesSet,
 
 		formats.NewDefaultMessageHMAC,
 		formats.NewScuttlebutt,

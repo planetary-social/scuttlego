@@ -6,6 +6,20 @@ import (
 	badgeradapters "github.com/planetary-social/scuttlego/service/adapters/badger"
 	"github.com/planetary-social/scuttlego/service/adapters/badger/notx"
 	"github.com/planetary-social/scuttlego/service/adapters/mocks"
+	"github.com/planetary-social/scuttlego/service/app/commands"
+)
+
+//nolint:unused
+var badgerUnpackTestDependenciesSet = wire.NewSet(
+	wire.FieldsOf(new(badgeradapters.TestAdaptersDependencies),
+		"BanListHasher",
+		"CurrentTimeProvider",
+		"RawMessageIdentifier",
+		"LocalIdentity",
+	),
+	wire.Bind(new(badgeradapters.BanListHasher), new(*mocks.BanListHasherMock)),
+	wire.Bind(new(commands.CurrentTimeProvider), new(*mocks.CurrentTimeProviderMock)),
+	wire.Bind(new(badgeradapters.RawMessageIdentifier), new(*mocks.RawMessageIdentifierMock)),
 )
 
 //nolint:unused
@@ -14,6 +28,7 @@ var badgerNoTxRepositoriesSet = wire.NewSet(
 	notx.NewNoTxFeedRepository,
 	notx.NewNoTxMessageRepository,
 	notx.NewNoTxReceiveLogRepository,
+	notx.NewNoTxWantedFeedsRepository,
 )
 
 //nolint:unused

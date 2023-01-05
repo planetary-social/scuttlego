@@ -15,7 +15,7 @@ import (
 	gossbrefs "go.mindeco.de/ssb-refs"
 )
 
-const batchSize = 5000
+const batchSize = 10
 
 type GoSSBRepoReader interface {
 	// GetMessages returns a channel on which receive log messages will be sent

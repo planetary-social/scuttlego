@@ -14,8 +14,8 @@ var migrationsSet = wire.NewSet(
 
 	migrations.NewMigrations,
 
-	migrationsadapters.NewBoltStorage,
-	wire.Bind(new(migrations.Storage), new(*migrationsadapters.BoltStorage)),
+	migrationsadapters.NewBadgerStorage,
+	wire.Bind(new(migrations.Storage), new(*migrationsadapters.BadgerStorage)),
 
 	migrationsadapters.NewGoSSBRepoReader,
 	wire.Bind(new(commands.GoSSBRepoReader), new(*migrationsadapters.GoSSBRepoReader)),

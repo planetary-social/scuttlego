@@ -6,6 +6,7 @@ import (
 	"github.com/google/wire"
 	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/adapters"
+	"github.com/planetary-social/scuttlego/service/adapters/badger"
 	"github.com/planetary-social/scuttlego/service/adapters/blobs"
 	"github.com/planetary-social/scuttlego/service/adapters/bolt"
 	ebtadapters "github.com/planetary-social/scuttlego/service/adapters/ebt"
@@ -112,6 +113,7 @@ var adaptersSet = wire.NewSet(
 
 	adapters.NewBanListHasher,
 	wire.Bind(new(bolt.BanListHasher), new(*adapters.BanListHasher)),
+	wire.Bind(new(badger.BanListHasher), new(*adapters.BanListHasher)),
 
 	ebtadapters.NewCreateHistoryStreamHandlerAdapter,
 	wire.Bind(new(ebt.MessageStreamer), new(*ebtadapters.CreateHistoryStreamHandlerAdapter)),

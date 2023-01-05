@@ -363,6 +363,21 @@ func BuildTransactableAdapters(*bbolt.Tx, identity.Public, Config) (commands.Ada
 	return commands.Adapters{}, nil
 }
 
+func buildBadgerTransactableAdapters(*badger.Txn, identity.Public, Config) (commands.Adapters, error) {
+	wire.Build(
+		wire.Struct(new(commands.Adapters), "*"),
+
+		badgerRepositoriesSet,
+		formatsSet,
+		extractFromConfigSet,
+		adaptersSet,
+
+		wire.Value(hops),
+	)
+
+	return commands.Adapters{}, nil
+}
+
 func BuildTxRepositories(*bbolt.Tx, identity.Public, logging.Logger, formats.MessageHMAC) (bolt.TxRepositories, error) {
 	wire.Build(
 		wire.Struct(new(bolt.TxRepositories), "*"),
@@ -388,11 +403,7 @@ func BuildService(context.Context, identity.Private, Config) (Service, func(), e
 		wire.Bind(new(commands.PeerManager), new(*domain.PeerManager)),
 		wire.Bind(new(queries.PeerManager), new(*domain.PeerManager)),
 
-		bolt.NewTransactionProvider,
-		wire.Bind(new(commands.TransactionProvider), new(*bolt.TransactionProvider)),
-		newAdaptersFactory,
-
-		newBolt,
+		newBadger,
 
 		newAdvertiser,
 		privateIdentityToPublicIdentity,
@@ -421,7 +432,9 @@ func BuildService(context.Context, identity.Private, Config) (Service, func(), e
 		blobReplicatorSet,
 		formatsSet,
 		pubSubSet,
-		boltAdaptersSet,
+		badgerNoTxRepositoriesSet,
+		badgerTransactionProviderSet,
+		badgerNoTxTransactionProviderSet,
 		blobsAdaptersSet,
 		adaptersSet,
 		extractFromConfigSet,

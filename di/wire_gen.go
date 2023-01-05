@@ -479,8 +479,46 @@ var (
 	_wireHopsValue4 = hops
 )
 
-func BuildTxRepositories(tx *bbolt.Tx, public identity.Public, logger logging.Logger, messageHMAC formats.MessageHMAC) (bolt.TxRepositories, error) {
+func buildBadgerTransactableAdapters(txn *badger2.Txn, public identity.Public, config Config) (commands.Adapters, error) {
 	graphHops := _wireHopsValue5
+	banListHasher := adapters.NewBanListHasher()
+	banListRepository := badger.NewBanListRepository(txn, banListHasher)
+	socialGraphRepository := badger.NewSocialGraphRepository(txn, public, graphHops, banListRepository)
+	messageContentMappings := transport.DefaultMappings()
+	logger := extractLoggerFromConfig(config)
+	marshaler, err := transport.NewMarshaler(messageContentMappings, logger)
+	if err != nil {
+		return commands.Adapters{}, err
+	}
+	messageHMAC := extractMessageHMACFromConfig(config)
+	scuttlebutt := formats.NewScuttlebutt(marshaler, messageHMAC)
+	v := newFormats(scuttlebutt)
+	rawMessageIdentifier := formats.NewRawMessageIdentifier(v)
+	messageRepository := badger.NewMessageRepository(txn, rawMessageIdentifier)
+	receiveLogRepository := badger.NewReceiveLogRepository(txn, messageRepository)
+	pubRepository := badger.NewPubRepository(txn)
+	blobRepository := badger.NewBlobRepository(txn)
+	feedRepository := badger.NewFeedRepository(txn, socialGraphRepository, receiveLogRepository, messageRepository, pubRepository, blobRepository, banListRepository, scuttlebutt)
+	currentTimeProvider := adapters.NewCurrentTimeProvider()
+	blobWantListRepository := badger.NewBlobWantListRepository(txn, currentTimeProvider)
+	feedWantListRepository := badger.NewFeedWantListRepository(txn, currentTimeProvider)
+	commandsAdapters := commands.Adapters{
+		Feed:         feedRepository,
+		ReceiveLog:   receiveLogRepository,
+		SocialGraph:  socialGraphRepository,
+		BlobWantList: blobWantListRepository,
+		FeedWantList: feedWantListRepository,
+		BanList:      banListRepository,
+	}
+	return commandsAdapters, nil
+}
+
+var (
+	_wireHopsValue5 = hops
+)
+
+func BuildTxRepositories(tx *bbolt.Tx, public identity.Public, logger logging.Logger, messageHMAC formats.MessageHMAC) (bolt.TxRepositories, error) {
+	graphHops := _wireHopsValue6
 	banListHasher := adapters.NewBanListHasher()
 	banListRepository := bolt.NewBanListRepository(tx, banListHasher)
 	socialGraphRepository := bolt.NewSocialGraphRepository(tx, public, graphHops, banListRepository)
@@ -515,7 +553,7 @@ func BuildTxRepositories(tx *bbolt.Tx, public identity.Public, logger logging.Lo
 }
 
 var (
-	_wireHopsValue5 = hops
+	_wireHopsValue6 = hops
 )
 
 // BuildService creates a new service which uses the provided context as a long-term context used as a base context for
@@ -538,13 +576,13 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	inviteDialer := invites.NewInviteDialer(dialer, networkKey, requestPubSub, connectionIdGenerator, currentTimeProvider, logger)
 	inviteRedeemer := invites2.NewInviteRedeemer(inviteDialer, logger)
 	redeemInviteHandler := commands.NewRedeemInviteHandler(inviteRedeemer, private, logger)
-	db, cleanup, err := newBolt(config)
+	db, cleanup, err := newBadger(config)
 	if err != nil {
 		return Service{}, nil, err
 	}
 	public := privateIdentityToPublicIdentity(private)
-	adaptersFactory := newAdaptersFactory(config, public)
-	transactionProvider := bolt.NewTransactionProvider(db, adaptersFactory)
+	adaptersFactory := badgerTransactableAdaptersFactory(config, public)
+	transactionProvider := badger.NewTransactionProvider(db, adaptersFactory)
 	messageContentMappings := transport.DefaultMappings()
 	marshaler, err := transport.NewMarshaler(messageContentMappings, logger)
 	if err != nil {
@@ -565,12 +603,13 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	rawMessageIdentifier := formats.NewRawMessageIdentifier(v)
 	messageBuffer := commands.NewMessageBuffer(transactionProvider, logger)
 	rawMessageHandler := commands.NewRawMessageHandler(rawMessageIdentifier, messageBuffer, logger)
-	txRepositoriesFactory := newTxRepositoriesFactory(public, logger, messageHMAC)
-	readWantedFeedsRepository := bolt.NewReadWantedFeedsRepository(db, txRepositoriesFactory)
-	wantedFeedsCache := replication.NewWantedFeedsCache(readWantedFeedsRepository)
-	readFeedRepository := bolt.NewReadFeedRepository(db, txRepositoriesFactory)
+	txAdaptersFactory := noTxTxAdaptersFactory()
+	txAdaptersFactoryTransactionProvider := notx.NewTxAdaptersFactoryTransactionProvider(db, txAdaptersFactory)
+	noTxWantedFeedsRepository := notx.NewNoTxWantedFeedsRepository(txAdaptersFactoryTransactionProvider)
+	wantedFeedsCache := replication.NewWantedFeedsCache(noTxWantedFeedsRepository)
+	noTxFeedRepository := notx.NewNoTxFeedRepository(txAdaptersFactoryTransactionProvider)
 	messagePubSub := pubsub.NewMessagePubSub()
-	createHistoryStreamHandler := queries.NewCreateHistoryStreamHandler(readFeedRepository, messagePubSub, logger)
+	createHistoryStreamHandler := queries.NewCreateHistoryStreamHandler(noTxFeedRepository, messagePubSub, logger)
 	createHistoryStreamHandlerAdapter := ebt2.NewCreateHistoryStreamHandlerAdapter(createHistoryStreamHandler)
 	sessionRunner := ebt.NewSessionRunner(logger, rawMessageHandler, wantedFeedsCache, createHistoryStreamHandlerAdapter)
 	replicator := ebt.NewReplicator(sessionTracker, sessionRunner, logger)
@@ -581,7 +620,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 		return Service{}, nil, err
 	}
 	negotiator := replication.NewNegotiator(logger, replicator, gossipReplicator)
-	readBlobWantListRepository := bolt.NewReadBlobWantListRepository(db, txRepositoriesFactory)
+	noTxBlobWantListRepository := notx.NewNoTxBlobWantListRepository(txAdaptersFactoryTransactionProvider)
 	filesystemStorage, err := newFilesystemStorage(logger, config)
 	if err != nil {
 		cleanup()
@@ -589,8 +628,8 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	}
 	blobsGetDownloader := replication2.NewBlobsGetDownloader(filesystemStorage, logger)
 	blobDownloadedPubSub := pubsub.NewBlobDownloadedPubSub()
-	hasHandler := replication2.NewHasHandler(filesystemStorage, readBlobWantListRepository, blobsGetDownloader, blobDownloadedPubSub, logger)
-	replicationManager := replication2.NewManager(readBlobWantListRepository, filesystemStorage, hasHandler, logger)
+	hasHandler := replication2.NewHasHandler(filesystemStorage, noTxBlobWantListRepository, blobsGetDownloader, blobDownloadedPubSub, logger)
+	replicationManager := replication2.NewManager(noTxBlobWantListRepository, filesystemStorage, hasHandler, logger)
 	replicationReplicator := replication2.NewReplicator(replicationManager)
 	peerRPCAdapter := rooms.NewPeerRPCAdapter(logger)
 	roomAttendantEventPubSub := pubsub.NewRoomAttendantEventPubSub()
@@ -604,8 +643,8 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	removeFromBanListHandler := commands.NewRemoveFromBanListHandler(transactionProvider)
 	roomsAliasRegisterHandler := commands.NewRoomsAliasRegisterHandler(dialer, private)
 	roomsAliasRevokeHandler := commands.NewRoomsAliasRevokeHandler(dialer)
-	boltStorage := migrations.NewBoltStorage(db)
-	runner := migrations2.NewRunner(boltStorage, logger)
+	badgerStorage := migrations.NewBadgerStorage(db)
+	runner := migrations2.NewRunner(badgerStorage, logger)
 	goSSBRepoReader := migrations.NewGoSSBRepoReader(logger)
 	migrationHandlerImportDataFromGoSSB := commands.NewMigrationHandlerImportDataFromGoSSB(goSSBRepoReader, transactionProvider, marshaler, logger)
 	commandsMigrations := commands.Migrations{
@@ -635,15 +674,15 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 		RoomsAliasRevoke:     roomsAliasRevokeHandler,
 		RunMigrations:        runMigrationsHandler,
 	}
-	readReceiveLogRepository := bolt.NewReadReceiveLogRepository(db, txRepositoriesFactory)
-	receiveLogHandler := queries.NewReceiveLogHandler(readReceiveLogRepository)
-	publishedLogHandler, err := queries.NewPublishedLogHandler(readFeedRepository, readReceiveLogRepository, public)
+	noTxReceiveLogRepository := notx.NewNoTxReceiveLogRepository(txAdaptersFactoryTransactionProvider)
+	receiveLogHandler := queries.NewReceiveLogHandler(noTxReceiveLogRepository)
+	publishedLogHandler, err := queries.NewPublishedLogHandler(noTxFeedRepository, noTxReceiveLogRepository, public)
 	if err != nil {
 		cleanup()
 		return Service{}, nil, err
 	}
-	readMessageRepository := bolt.NewReadMessageRepository(db, txRepositoriesFactory)
-	statusHandler := queries.NewStatusHandler(readMessageRepository, readFeedRepository, peerManager)
+	noTxMessageRepository := notx.NewNoTxMessageRepository(txAdaptersFactoryTransactionProvider)
+	statusHandler := queries.NewStatusHandler(noTxMessageRepository, noTxFeedRepository, peerManager)
 	getBlobHandler, err := queries.NewGetBlobHandler(filesystemStorage)
 	if err != nil {
 		cleanup()
@@ -655,7 +694,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 		cleanup()
 		return Service{}, nil, err
 	}
-	getMessageBySequenceHandler := queries.NewGetMessageBySequenceHandler(readFeedRepository)
+	getMessageBySequenceHandler := queries.NewGetMessageBySequenceHandler(noTxFeedRepository)
 	appQueries := app.Queries{
 		CreateHistoryStream:  createHistoryStreamHandler,
 		ReceiveLog:           receiveLogHandler,

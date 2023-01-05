@@ -7,6 +7,10 @@ import (
 	"github.com/planetary-social/scuttlego/service/adapters/badger/notx"
 	"github.com/planetary-social/scuttlego/service/adapters/mocks"
 	"github.com/planetary-social/scuttlego/service/app/commands"
+	"github.com/planetary-social/scuttlego/service/app/queries"
+	blobReplication "github.com/planetary-social/scuttlego/service/domain/blobs/replication"
+	"github.com/planetary-social/scuttlego/service/domain/identity"
+	"github.com/planetary-social/scuttlego/service/domain/replication"
 )
 
 //nolint:unused
@@ -25,24 +29,47 @@ var badgerUnpackTestDependenciesSet = wire.NewSet(
 //nolint:unused
 var badgerNoTxRepositoriesSet = wire.NewSet(
 	notx.NewNoTxBlobWantListRepository,
+	wire.Bind(new(blobReplication.WantListStorage), new(*notx.NoTxBlobWantListRepository)),
+	wire.Bind(new(blobReplication.WantListRepository), new(*notx.NoTxBlobWantListRepository)),
+
 	notx.NewNoTxFeedRepository,
+	wire.Bind(new(queries.FeedRepository), new(*notx.NoTxFeedRepository)),
+
 	notx.NewNoTxMessageRepository,
+	wire.Bind(new(queries.MessageRepository), new(*notx.NoTxMessageRepository)),
+
 	notx.NewNoTxReceiveLogRepository,
+	wire.Bind(new(queries.ReceiveLogRepository), new(*notx.NoTxReceiveLogRepository)),
+
 	notx.NewNoTxWantedFeedsRepository,
+	wire.Bind(new(replication.WantedFeedsRepository), new(*notx.NoTxWantedFeedsRepository)),
 )
 
 //nolint:unused
 var badgerRepositoriesSet = wire.NewSet(
 	badgeradapters.NewBanListRepository,
-	badgeradapters.NewBlobRepository,
+	wire.Bind(new(commands.BanListRepository), new(*badgeradapters.BanListRepository)),
+
 	badgeradapters.NewBlobWantListRepository,
+	wire.Bind(new(commands.BlobWantListRepository), new(*badgeradapters.BlobWantListRepository)),
+	wire.Bind(new(blobReplication.WantListRepository), new(*badgeradapters.BlobWantListRepository)),
+
 	badgeradapters.NewFeedWantListRepository,
-	badgeradapters.NewMessageRepository,
+	wire.Bind(new(commands.FeedWantListRepository), new(*badgeradapters.FeedWantListRepository)),
+
 	badgeradapters.NewReceiveLogRepository,
+	wire.Bind(new(commands.ReceiveLogRepository), new(*badgeradapters.ReceiveLogRepository)),
+
 	badgeradapters.NewSocialGraphRepository,
-	badgeradapters.NewPubRepository,
+	wire.Bind(new(commands.SocialGraphRepository), new(*badgeradapters.SocialGraphRepository)),
+
 	badgeradapters.NewFeedRepository,
+	wire.Bind(new(commands.FeedRepository), new(*badgeradapters.FeedRepository)),
+
 	badgeradapters.NewWantedFeedsRepository,
+	badgeradapters.NewPubRepository,
+	badgeradapters.NewMessageRepository,
+	badgeradapters.NewBlobRepository,
 )
 
 //nolint:unused
@@ -62,15 +89,25 @@ var badgerNoTxTestTransactionProviderSet = wire.NewSet(
 )
 
 //nolint:unused
-var badgerNoTxTransactionProviderSet = wire.NewSet(
-	notx.NewTxAdaptersFactoryTransactionProvider,
-	noTxTxAdaptersFactory,
-)
-
-//nolint:unused
 var testBadgerTransactionProviderSet = wire.NewSet(
 	badgeradapters.NewTestTransactionProvider,
 	testAdaptersFactory,
+)
+
+//nolint:unused
+var badgerTransactionProviderSet = wire.NewSet(
+	badgeradapters.NewTransactionProvider,
+	wire.Bind(new(commands.TransactionProvider), new(*badgeradapters.TransactionProvider)),
+
+	badgerTransactableAdaptersFactory,
+)
+
+//nolint:unused
+var badgerNoTxTransactionProviderSet = wire.NewSet(
+	notx.NewTxAdaptersFactoryTransactionProvider,
+	wire.Bind(new(notx.TransactionProvider), new(*notx.TxAdaptersFactoryTransactionProvider)),
+
+	noTxTxAdaptersFactory,
 )
 
 func noTxTestTxAdaptersFactory() notx.TestTxAdaptersFactory {
@@ -88,5 +125,11 @@ func noTxTxAdaptersFactory() notx.TxAdaptersFactory {
 func testAdaptersFactory() badgeradapters.TestAdaptersFactory {
 	return func(tx *badger.Txn, dependencies badgeradapters.TestAdaptersDependencies) (badgeradapters.TestAdapters, error) {
 		return buildBadgerTestAdapters(tx, dependencies)
+	}
+}
+
+func badgerTransactableAdaptersFactory(config Config, local identity.Public) badgeradapters.AdaptersFactory {
+	return func(tx *badger.Txn) (commands.Adapters, error) {
+		return buildBadgerTransactableAdapters(tx, local, config)
 	}
 }

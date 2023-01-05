@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/dgraph-io/badger/v3"
 	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/app/common"
 	"github.com/planetary-social/scuttlego/service/domain/bans"
@@ -205,6 +206,25 @@ func SomeMessage(seq message.Sequence, feed refs.Feed) message.Message {
 	)
 }
 
+func SomeMessageWithUniqueRawMessage(seq message.Sequence, feed refs.Feed) message.Message {
+	var previous *refs.Message
+	if !seq.IsFirst() {
+		tmp := SomeRefMessage()
+		previous = &tmp
+	}
+
+	return message.MustNewMessage(
+		SomeRefMessage(),
+		previous,
+		seq,
+		SomeRefIdentity(),
+		feed,
+		SomeTime(),
+		SomeContent(),
+		message.MustNewRawMessage(SomeBytes()),
+	)
+}
+
 func SomeConnectionId() rpc.ConnectionId {
 	return rpc.NewConnectionId(SomeNonNegativeInt())
 }
@@ -281,6 +301,25 @@ func Bolt(t *testing.T) *bbolt.DB {
 	file := File(t)
 
 	db, err := bbolt.Open(file, 0600, &bbolt.Options{Timeout: 5 * time.Second})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cleanup := func() {
+		err := db.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Cleanup(cleanup)
+
+	return db
+}
+
+func Badger(t *testing.T) *badger.DB {
+	dir := Directory(t)
+
+	db, err := badger.Open(badger.DefaultOptions(dir))
 	if err != nil {
 		t.Fatal(err)
 	}

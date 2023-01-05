@@ -6,13 +6,17 @@ package di
 import (
 	"context"
 	"path"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/boreq/errors"
+	"github.com/dgraph-io/badger/v3"
 	"github.com/google/wire"
 	"github.com/planetary-social/scuttlego/fixtures"
 	"github.com/planetary-social/scuttlego/logging"
+	badgeradapters "github.com/planetary-social/scuttlego/service/adapters/badger"
+	"github.com/planetary-social/scuttlego/service/adapters/badger/notx"
 	"github.com/planetary-social/scuttlego/service/adapters/bolt"
 	"github.com/planetary-social/scuttlego/service/adapters/mocks"
 	"github.com/planetary-social/scuttlego/service/adapters/pubsub"
@@ -21,6 +25,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/app/queries"
 	"github.com/planetary-social/scuttlego/service/domain"
 	blobReplication "github.com/planetary-social/scuttlego/service/domain/blobs/replication"
+	"github.com/planetary-social/scuttlego/service/domain/feeds/content/transport"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/formats"
 	"github.com/planetary-social/scuttlego/service/domain/graph"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
@@ -34,6 +39,126 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/rooms/tunnel"
 	"go.etcd.io/bbolt"
 )
+
+type BadgerNoTxTestAdapters struct {
+	NoTxTestAdapters    notx.TestAdapters
+	TransactionProvider *badgeradapters.TestTransactionProvider
+	Dependencies        *badgeradapters.TestAdaptersDependencies
+}
+
+func BuildBadgerNoTxTestAdapters(t *testing.T) BadgerNoTxTestAdapters {
+	wire.Build(
+		wire.Struct(new(BadgerNoTxTestAdapters), "*"),
+
+		wire.Struct(new(notx.TestAdapters), "*"),
+
+		badgerNoTxTestTransactionProviderSet,
+		badgerNoTxRepositoriesSet,
+		testBadgerTransactionProviderSet,
+		badgerTestAdaptersDependenciesSet,
+
+		fixtures.SomePublicIdentity,
+		fixtures.Badger,
+	)
+
+	return BadgerNoTxTestAdapters{}
+}
+
+type BadgerTestAdapters struct {
+	TransactionProvider *badgeradapters.TestTransactionProvider
+	Dependencies        *badgeradapters.TestAdaptersDependencies
+}
+
+func BuildBadgerTestAdapters(t *testing.T) BadgerTestAdapters {
+	wire.Build(
+		wire.Struct(new(BadgerTestAdapters), "*"),
+
+		testBadgerTransactionProviderSet,
+		badgerTestAdaptersDependenciesSet,
+
+		fixtures.SomePublicIdentity,
+		fixtures.Badger,
+	)
+
+	return BadgerTestAdapters{}
+}
+
+func buildTestBadgerNoTxTxAdapters(*badger.Txn, badgeradapters.TestAdaptersDependencies) (notx.TxAdapters, error) {
+	wire.Build(
+		wire.Struct(new(notx.TxAdapters), "*"),
+
+		badgerRepositoriesSet,
+		badgerUnpackTestDependenciesSet,
+
+		formats.NewDefaultMessageHMAC,
+		formats.NewScuttlebutt,
+		transport.DefaultMappings,
+
+		transport.NewMarshaler,
+		wire.Bind(new(formats.Marshaler), new(*transport.Marshaler)),
+
+		fixtures.SomeLogger,
+
+		wire.Value(hops),
+	)
+
+	return notx.TxAdapters{}, nil
+}
+
+func buildBadgerNoTxTxAdapters(tx *badger.Txn) (notx.TxAdapters, error) {
+	wire.Build(
+		wire.Struct(new(notx.TxAdapters), "*"),
+
+		badgerRepositoriesSet,
+
+		mocks.NewBanListHasherMock,
+		wire.Bind(new(badgeradapters.BanListHasher), new(*mocks.BanListHasherMock)),
+
+		mocks.NewCurrentTimeProviderMock,
+		wire.Bind(new(commands.CurrentTimeProvider), new(*mocks.CurrentTimeProviderMock)),
+
+		mocks.NewRawMessageIdentifierMock,
+		wire.Bind(new(badgeradapters.RawMessageIdentifier), new(*mocks.RawMessageIdentifierMock)),
+
+		formats.NewDefaultMessageHMAC,
+		formats.NewScuttlebutt,
+		transport.DefaultMappings,
+
+		transport.NewMarshaler,
+		wire.Bind(new(formats.Marshaler), new(*transport.Marshaler)),
+
+		identity.NewPrivate,
+		privateIdentityToPublicIdentity,
+
+		fixtures.SomeLogger,
+
+		wire.Value(hops),
+	)
+
+	return notx.TxAdapters{}, nil
+}
+
+func buildBadgerTestAdapters(*badger.Txn, badgeradapters.TestAdaptersDependencies) (badgeradapters.TestAdapters, error) {
+	wire.Build(
+		wire.Struct(new(badgeradapters.TestAdapters), "*"),
+
+		badgerRepositoriesSet,
+		badgerUnpackTestDependenciesSet,
+
+		formats.NewDefaultMessageHMAC,
+		formats.NewScuttlebutt,
+		transport.DefaultMappings,
+
+		transport.NewMarshaler,
+		wire.Bind(new(formats.Marshaler), new(*transport.Marshaler)),
+
+		fixtures.SomeLogger,
+
+		wire.Value(hops),
+	)
+
+	return badgeradapters.TestAdapters{}, nil
+}
 
 type TxTestAdapters struct {
 	MessageRepository     *bolt.MessageRepository
@@ -368,6 +493,24 @@ func newBolt(config Config) (*bbolt.DB, func(), error) {
 			config.Logger.WithError(err).Error("error closing the database")
 		}
 	}, nil
+}
+
+func newBadger(config Config) (*badger.DB, func(), error) {
+	badgerDirectory := filepath.Join(config.DataDirectory, "badger")
+
+	options := badger.DefaultOptions(badgerDirectory)
+
+	db, err := badger.Open(options)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "failed to open the database")
+	}
+
+	return db, func() {
+		if err := db.Close(); err != nil {
+			config.Logger.WithError(err).Error("error closing the database")
+		}
+	}, nil
+
 }
 
 func privateIdentityToPublicIdentity(p identity.Private) identity.Public {

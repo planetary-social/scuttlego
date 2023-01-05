@@ -1,6 +1,7 @@
 package di
 
 import (
+	"github.com/dgraph-io/badger/v3"
 	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/domain"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/formats"
@@ -37,6 +38,10 @@ type Config struct {
 	// PeerManagerConfig specifies the config for the peer manager which is responsible for establishing new
 	// connections and managing existing connections.
 	PeerManagerConfig domain.PeerManagerConfig
+
+	// ModifyBadgerOptions allows you to specify a function allowing you to modify certain Badger options.
+	// Optional, this value is ignored if not set.
+	ModifyBadgerOptions func(options BadgerOptions)
 }
 
 func (c *Config) SetDefaults() {
@@ -55,4 +60,25 @@ func (c *Config) SetDefaults() {
 	if c.Logger == nil {
 		c.Logger = logging.NewDevNullLogger()
 	}
+}
+
+type BadgerOptions interface {
+	SetNumGoroutines(val int)
+	SetNumCompactors(val int)
+}
+
+type BadgerOptionsAdapter struct {
+	options *badger.Options
+}
+
+func NewBadgerOptionsAdapter(options *badger.Options) BadgerOptionsAdapter {
+	return BadgerOptionsAdapter{options: options}
+}
+
+func (b BadgerOptionsAdapter) SetNumGoroutines(val int) {
+	b.options.NumGoroutines = val
+}
+
+func (b BadgerOptionsAdapter) SetNumCompactors(val int) {
+	b.options.NumCompactors = val
 }

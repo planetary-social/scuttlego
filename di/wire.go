@@ -513,6 +513,11 @@ func newBadger(config Config) (*badger.DB, func(), error) {
 
 	options := badger.DefaultOptions(badgerDirectory)
 
+	if config.ModifyBadgerOptions != nil {
+		adapter := NewBadgerOptionsAdapter(&options)
+		config.ModifyBadgerOptions(adapter)
+	}
+
 	db, err := badger.Open(options)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "failed to open the database")

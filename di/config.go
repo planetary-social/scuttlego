@@ -7,6 +7,11 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/transport/boxstream"
 )
 
+type BadgerOptions interface {
+	WithNumGoroutines(val int) BadgerOptions
+	WithNumCompactors(val int) BadgerOptions
+}
+
 type Config struct {
 	// DataDirectory specifies where the primary database and other data
 	// will be stored.
@@ -37,6 +42,11 @@ type Config struct {
 	// PeerManagerConfig specifies the config for the peer manager which is responsible for establishing new
 	// connections and managing existing connections.
 	PeerManagerConfig domain.PeerManagerConfig
+
+	// ModifyBadgerOptions allows you to specify a function allowing you to modify certain Badger options.
+	// Return the passed value after calling chosen methods on it.
+	// Optional, this value is ignored if not set.
+	ModifyBadgerOptions func(options BadgerOptions) BadgerOptions
 }
 
 func (c *Config) SetDefaults() {

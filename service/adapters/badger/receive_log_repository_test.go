@@ -70,6 +70,40 @@ func TestReceiveLog_GetSequences_ReturnsPredefinedErrorWhenNotFound(t *testing.T
 	require.NoError(t, err)
 }
 
+func TestReceiveLogRepository_CallingPutMultipleTimesInsertsMessageMultipleTimes(t *testing.T) {
+	ts := di.BuildBadgerTestAdapters(t)
+
+	msg := fixtures.SomeMessage(fixtures.SomeSequence(), fixtures.SomeRefFeed())
+
+	err := ts.TransactionProvider.Update(func(adapters badger.TestAdapters) error {
+		if err := adapters.ReceiveLogRepository.Put(msg.Id()); err != nil {
+			return errors.Wrap(err, "could not put a message in receive log")
+		}
+
+		if err := adapters.ReceiveLogRepository.Put(msg.Id()); err != nil {
+			return errors.Wrap(err, "could not put a message in receive log")
+		}
+
+		return nil
+	})
+	require.NoError(t, err)
+
+	err = ts.TransactionProvider.View(func(adapters badger.TestAdapters) error {
+		seqs, err := adapters.ReceiveLogRepository.GetSequences(msg.Id())
+		require.NoError(t, err)
+
+		require.Equal(t,
+			[]common.ReceiveLogSequence{
+				common.MustNewReceiveLogSequence(0),
+				common.MustNewReceiveLogSequence(1),
+			},
+			seqs)
+
+		return nil
+	})
+	require.NoError(t, err)
+}
+
 func TestReceiveLog_Get_ReturnsNoMessagesWhenEmpty(t *testing.T) {
 	ts := di.BuildBadgerTestAdapters(t)
 

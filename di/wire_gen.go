@@ -170,33 +170,29 @@ var (
 	_wireHopsValue = hops
 )
 
-func buildBadgerNoTxTxAdapters(tx *badger2.Txn) (notx.TxAdapters, error) {
-	banListHasherMock := mocks.NewBanListHasherMock()
-	banListRepository := badger.NewBanListRepository(tx, banListHasherMock)
-	blobRepository := badger.NewBlobRepository(tx)
-	currentTimeProviderMock := mocks.NewCurrentTimeProviderMock()
-	blobWantListRepository := badger.NewBlobWantListRepository(tx, currentTimeProviderMock)
-	feedWantListRepository := badger.NewFeedWantListRepository(tx, currentTimeProviderMock)
-	rawMessageIdentifierMock := mocks.NewRawMessageIdentifierMock()
-	messageRepository := badger.NewMessageRepository(tx, rawMessageIdentifierMock)
-	receiveLogRepository := badger.NewReceiveLogRepository(tx, messageRepository)
-	private, err := identity.NewPrivate()
-	if err != nil {
-		return notx.TxAdapters{}, err
-	}
-	public := privateIdentityToPublicIdentity(private)
-	graphHops := _wireGraphHopsValue
-	socialGraphRepository := badger.NewSocialGraphRepository(tx, public, graphHops, banListRepository)
-	pubRepository := badger.NewPubRepository(tx)
+func buildBadgerNoTxTxAdapters(txn *badger2.Txn, public identity.Public, config Config) (notx.TxAdapters, error) {
+	banListHasher := adapters.NewBanListHasher()
+	banListRepository := badger.NewBanListRepository(txn, banListHasher)
+	blobRepository := badger.NewBlobRepository(txn)
+	currentTimeProvider := adapters.NewCurrentTimeProvider()
+	blobWantListRepository := badger.NewBlobWantListRepository(txn, currentTimeProvider)
+	feedWantListRepository := badger.NewFeedWantListRepository(txn, currentTimeProvider)
 	messageContentMappings := transport.DefaultMappings()
-	logger := fixtures.SomeLogger()
+	logger := extractLoggerFromConfig(config)
 	marshaler, err := transport.NewMarshaler(messageContentMappings, logger)
 	if err != nil {
 		return notx.TxAdapters{}, err
 	}
-	messageHMAC := formats.NewDefaultMessageHMAC()
+	messageHMAC := extractMessageHMACFromConfig(config)
 	scuttlebutt := formats.NewScuttlebutt(marshaler, messageHMAC)
-	feedRepository := badger.NewFeedRepository(tx, socialGraphRepository, receiveLogRepository, messageRepository, pubRepository, blobRepository, banListRepository, scuttlebutt)
+	v := newFormats(scuttlebutt)
+	rawMessageIdentifier := formats.NewRawMessageIdentifier(v)
+	messageRepository := badger.NewMessageRepository(txn, rawMessageIdentifier)
+	receiveLogRepository := badger.NewReceiveLogRepository(txn, messageRepository)
+	graphHops := _wireGraphHopsValue
+	socialGraphRepository := badger.NewSocialGraphRepository(txn, public, graphHops, banListRepository)
+	pubRepository := badger.NewPubRepository(txn)
+	feedRepository := badger.NewFeedRepository(txn, socialGraphRepository, receiveLogRepository, messageRepository, pubRepository, blobRepository, banListRepository, scuttlebutt)
 	wantedFeedsRepository := badger.NewWantedFeedsRepository(socialGraphRepository, feedWantListRepository, feedRepository, banListRepository)
 	txAdapters := notx.TxAdapters{
 		BanListRepository:      banListRepository,
@@ -342,12 +338,12 @@ func BuildTestCommands(t *testing.T) (TestCommands, error) {
 	feedWantListRepositoryMock := mocks.NewFeedWantListRepositoryMock()
 	feedRepositoryMock := mocks.NewFeedRepositoryMock()
 	receiveLogRepositoryMock := mocks.NewReceiveLogRepositoryMock()
-	adapters := commands.Adapters{
+	commandsAdapters := commands.Adapters{
 		FeedWantList: feedWantListRepositoryMock,
 		Feed:         feedRepositoryMock,
 		ReceiveLog:   receiveLogRepositoryMock,
 	}
-	mockTransactionProvider := mocks.NewMockTransactionProvider(adapters)
+	mockTransactionProvider := mocks.NewMockTransactionProvider(commandsAdapters)
 	currentTimeProviderMock := mocks.NewCurrentTimeProviderMock()
 	downloadFeedHandler := commands.NewDownloadFeedHandler(mockTransactionProvider, currentTimeProviderMock)
 	inviteRedeemerMock := mocks.NewInviteRedeemerMock()
@@ -603,7 +599,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	rawMessageIdentifier := formats.NewRawMessageIdentifier(v)
 	messageBuffer := commands.NewMessageBuffer(transactionProvider, logger)
 	rawMessageHandler := commands.NewRawMessageHandler(rawMessageIdentifier, messageBuffer, logger)
-	txAdaptersFactory := noTxTxAdaptersFactory()
+	txAdaptersFactory := noTxTxAdaptersFactory(public, config)
 	txAdaptersFactoryTransactionProvider := notx.NewTxAdaptersFactoryTransactionProvider(db, txAdaptersFactory)
 	noTxWantedFeedsRepository := notx.NewNoTxWantedFeedsRepository(txAdaptersFactoryTransactionProvider)
 	wantedFeedsCache := replication.NewWantedFeedsCache(noTxWantedFeedsRepository)

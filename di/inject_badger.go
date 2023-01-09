@@ -116,9 +116,9 @@ func noTxTestTxAdaptersFactory() notx.TestTxAdaptersFactory {
 	}
 }
 
-func noTxTxAdaptersFactory() notx.TxAdaptersFactory {
+func noTxTxAdaptersFactory(local identity.Public, conf Config) notx.TxAdaptersFactory {
 	return func(tx *badger.Txn) (notx.TxAdapters, error) {
-		return buildBadgerNoTxTxAdapters(tx)
+		return buildBadgerNoTxTxAdapters(tx, local, conf)
 	}
 }
 

@@ -105,32 +105,14 @@ func buildTestBadgerNoTxTxAdapters(*badger.Txn, badgeradapters.TestAdaptersDepen
 	return notx.TxAdapters{}, nil
 }
 
-func buildBadgerNoTxTxAdapters(tx *badger.Txn) (notx.TxAdapters, error) {
+func buildBadgerNoTxTxAdapters(*badger.Txn, identity.Public, Config) (notx.TxAdapters, error) {
 	wire.Build(
 		wire.Struct(new(notx.TxAdapters), "*"),
 
 		badgerRepositoriesSet,
-
-		mocks.NewBanListHasherMock,
-		wire.Bind(new(badgeradapters.BanListHasher), new(*mocks.BanListHasherMock)),
-
-		mocks.NewCurrentTimeProviderMock,
-		wire.Bind(new(commands.CurrentTimeProvider), new(*mocks.CurrentTimeProviderMock)),
-
-		mocks.NewRawMessageIdentifierMock,
-		wire.Bind(new(badgeradapters.RawMessageIdentifier), new(*mocks.RawMessageIdentifierMock)),
-
-		formats.NewDefaultMessageHMAC,
-		formats.NewScuttlebutt,
-		transport.DefaultMappings,
-
-		transport.NewMarshaler,
-		wire.Bind(new(formats.Marshaler), new(*transport.Marshaler)),
-
-		identity.NewPrivate,
-		privateIdentityToPublicIdentity,
-
-		fixtures.SomeLogger,
+		formatsSet,
+		extractFromConfigSet,
+		adaptersSet,
 
 		wire.Value(hops),
 	)

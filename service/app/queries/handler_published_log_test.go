@@ -21,7 +21,7 @@ func TestPublishedLog_NilStartSeqIsNotUsedToDetermineMessageSequence(t *testing.
 	localFeed := refs.MustNewIdentityFromPublic(app.LocalIdentity).MainFeed()
 
 	query := queries.PublishedLog{
-		StartSeq: nil,
+		LastSeq: nil,
 	}
 
 	_, err = app.Queries.PublishedLog.Handle(query)
@@ -52,7 +52,7 @@ func TestPublishedLog_NotNilStartSeqIsUsedToDetermineMessageSequence(t *testing.
 	msg := fixtures.SomeMessage(sequence, localFeed)
 
 	query := queries.PublishedLog{
-		StartSeq: internal.Ptr(receiveLogSequence),
+		LastSeq: internal.Ptr(receiveLogSequence),
 	}
 
 	app.ReceiveLogRepository.MockMessage(receiveLogSequence, msg)
@@ -66,7 +66,7 @@ func TestPublishedLog_NotNilStartSeqIsUsedToDetermineMessageSequence(t *testing.
 		[]mocks.FeedRepositoryMockGetMessagesCall{
 			{
 				Id:    localFeed,
-				Seq:   internal.Ptr(sequence),
+				Seq:   internal.Ptr(sequence.Next()),
 				Limit: nil,
 			},
 		},
@@ -84,7 +84,7 @@ func TestPublishedLog_StartSequenceMustPointToMessageFromMainLocalFeed(t *testin
 	require.NotEqual(t, app.LocalIdentity, msg.Feed().Identity())
 
 	query := queries.PublishedLog{
-		StartSeq: internal.Ptr(seq),
+		LastSeq: internal.Ptr(seq),
 	}
 
 	app.ReceiveLogRepository.MockMessage(seq, msg)
@@ -105,7 +105,7 @@ func TestPublishedLog_FirstSequenceFromTheReturnedSequencesIsUsed(t *testing.T) 
 	receiveLogSequence2 := common.MustNewReceiveLogSequence(10)
 
 	query := queries.PublishedLog{
-		StartSeq: nil,
+		LastSeq: nil,
 	}
 
 	sequence := fixtures.SomeSequence()

@@ -10,10 +10,11 @@ import (
 )
 
 type PublishedLog struct {
-	// Only messages with a sequence greater or equal to the start sequence are
-	// returned. StartSeq must point to a message published by the current
-	// identity. If not such message is known nil should be passed.
-	StartSeq *common.ReceiveLogSequence
+	// Only messages with a sequence greater than the sequence of a message
+	// pointed to by the given receive log sequence are returned. Given receive
+	// log sequence must point to a message published by the current identity.
+	// If not such message is known nil should be passed.
+	LastSeq *common.ReceiveLogSequence
 }
 
 type PublishedLogHandler struct {
@@ -42,8 +43,8 @@ func NewPublishedLogHandler(
 func (h *PublishedLogHandler) Handle(query PublishedLog) ([]LogMessage, error) {
 	var startSeq *message.Sequence
 
-	if query.StartSeq != nil {
-		msg, err := h.receiveLogRepository.GetMessage(*query.StartSeq)
+	if query.LastSeq != nil {
+		msg, err := h.receiveLogRepository.GetMessage(*query.LastSeq)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to find a message in the receive log")
 		}
@@ -52,7 +53,7 @@ func (h *PublishedLogHandler) Handle(query PublishedLog) ([]LogMessage, error) {
 			return nil, errors.New("start sequence doesn't point to a message from this feed")
 		}
 
-		startSeq = internal.Ptr(msg.Sequence())
+		startSeq = internal.Ptr(msg.Sequence().Next())
 	}
 
 	msgs, err := h.feedRepository.GetMessages(h.feed, startSeq, nil)

@@ -63,6 +63,13 @@ func (l *Listener) ListenAndServe(ctx context.Context) error {
 		return errors.Wrap(err, "could not start a listener")
 	}
 
+	go func() {
+		<-ctx.Done()
+		if err := listener.Close(); err != nil {
+			l.logger.WithError(err).Error("error closing the listener")
+		}
+	}()
+
 	for {
 		conn, err := listener.Accept()
 		if err != nil {

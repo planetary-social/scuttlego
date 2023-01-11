@@ -34,7 +34,7 @@ func NewGoSSBRepoReader(
 	}
 }
 
-func (m GoSSBRepoReader) GetMessages(ctx context.Context, directory string, resumeAfterSequence *common.ReceiveLogSequence) (<-chan commands.GoSSBMessageOrError, error) {
+func (m GoSSBRepoReader) GetMessages(ctx context.Context, directory string, resumeFromSequence *common.ReceiveLogSequence) (<-chan commands.GoSSBMessageOrError, error) {
 	_, err := os.Stat(directory)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -60,7 +60,7 @@ func (m GoSSBRepoReader) GetMessages(ctx context.Context, directory string, resu
 		WithField("max_receive_log_sequence", receiveLog.Seq()).
 		Debug("created the receive log")
 
-	src, err := m.queryReceiveLog(receiveLog, resumeAfterSequence)
+	src, err := m.queryReceiveLog(receiveLog, resumeFromSequence)
 	if err != nil {
 		closeReceiveLog()
 		return nil, errors.Wrap(err, "error querying receive log")
@@ -151,13 +151,13 @@ func (m GoSSBRepoReader) createReceiveLog(directory string) (multimsg.AlterableL
 	return receiveLog, nil
 }
 
-func (m GoSSBRepoReader) queryReceiveLog(receiveLog multimsg.AlterableLog, resumeAfterSequence *common.ReceiveLogSequence) (luigi.Source, error) {
+func (m GoSSBRepoReader) queryReceiveLog(receiveLog multimsg.AlterableLog, resumeFromSequence *common.ReceiveLogSequence) (luigi.Source, error) {
 	query := []margaret.QuerySpec{
 		margaret.SeqWrap(true),
 	}
 
-	if resumeAfterSequence != nil {
-		query = append(query, margaret.Gt(int64(resumeAfterSequence.Int())))
+	if resumeFromSequence != nil {
+		query = append(query, margaret.Gte(int64(resumeFromSequence.Int())))
 	}
 
 	src, err := receiveLog.Query(query...)

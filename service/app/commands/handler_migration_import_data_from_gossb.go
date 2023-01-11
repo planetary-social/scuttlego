@@ -15,13 +15,18 @@ import (
 	gossbrefs "go.mindeco.de/ssb-refs"
 )
 
-const batchSize = 10
+const (
+	maxMessagesInMemory         = 1000
+	convertedMessagesBufferSize = 1000
+	maxMessagesPerTransaction   = 50
+	minSequenceProgressToSave   = 1000
+)
 
 type GoSSBRepoReader interface {
 	// GetMessages returns a channel on which receive log messages will be sent
 	// ordered by their receive log sequence. Some messages may be missing. If
-	// the provided value is not nil it will resume after the provided sequence.
-	GetMessages(ctx context.Context, directory string, resumeAfterSequence *common.ReceiveLogSequence) (<-chan GoSSBMessageOrError, error)
+	// the provided value is not nil it will resume from the provided sequence.
+	GetMessages(ctx context.Context, directory string, resumeFromSequence *common.ReceiveLogSequence) (<-chan GoSSBMessageOrError, error)
 }
 
 type GoSSBMessageOrError struct {
@@ -34,29 +39,29 @@ type GoSSBMessage struct {
 	Message            gossbrefs.Message
 }
 
-type SaveResumeAfterSequenceFn func(common.ReceiveLogSequence) error
+type SaveResumeFromSequenceFn func(common.ReceiveLogSequence) error
 
 type ImportDataFromGoSSB struct {
-	directory                 string
-	resumeAfterSequence       *common.ReceiveLogSequence
-	saveResumeAfterSequenceFn SaveResumeAfterSequenceFn
+	directory                string
+	resumeFromSequence       *common.ReceiveLogSequence
+	saveResumeFromSequenceFn SaveResumeFromSequenceFn
 }
 
 func NewImportDataFromGoSSB(
 	directory string,
-	resumeAfterSequence *common.ReceiveLogSequence,
-	saveResumeAfterSequenceFn SaveResumeAfterSequenceFn,
+	resumeFromSequence *common.ReceiveLogSequence,
+	saveResumeFromSequenceFn SaveResumeFromSequenceFn,
 ) (ImportDataFromGoSSB, error) {
 	if directory == "" {
 		return ImportDataFromGoSSB{}, errors.New("directory is an empty string")
 	}
-	if saveResumeAfterSequenceFn == nil {
-		return ImportDataFromGoSSB{}, errors.New("nil save resume after sequence function")
+	if saveResumeFromSequenceFn == nil {
+		return ImportDataFromGoSSB{}, errors.New("nil save resume from sequence function")
 	}
 	return ImportDataFromGoSSB{
-		directory:                 directory,
-		resumeAfterSequence:       resumeAfterSequence,
-		saveResumeAfterSequenceFn: saveResumeAfterSequenceFn,
+		directory:                directory,
+		resumeFromSequence:       resumeFromSequence,
+		saveResumeFromSequenceFn: saveResumeFromSequenceFn,
 	}, nil
 }
 
@@ -89,10 +94,10 @@ func NewMigrationHandlerImportDataFromGoSSB(
 func (h MigrationHandlerImportDataFromGoSSB) Handle(ctx context.Context, cmd ImportDataFromGoSSB) (ImportDataFromGoSSBResult, error) {
 	h.logger.
 		WithField("directory", cmd.directory).
-		WithField("resume_after_sequence", cmd.resumeAfterSequence).
+		WithField("resume_from_sequence", cmd.resumeFromSequence).
 		Debug("import starting")
 
-	msgs := make([]scuttlegoMessage, 0, batchSize)
+	msgs := newMessagesToImport()
 	successCounter := 0
 	errorCounter := 0
 	start := time.Now()
@@ -101,33 +106,59 @@ func (h MigrationHandlerImportDataFromGoSSB) Handle(ctx context.Context, cmd Imp
 		h.logger.
 			WithField("success_counter", successCounter).
 			WithField("error_counter", errorCounter).
-			WithField("elapsed_time_in_seconds", time.Since(start).String()).
+			WithField("elapsed_time", time.Since(start).String()).
 			Debug("import ended")
 	}()
 
-	gossbMessageCh, err := h.repoReader.GetMessages(ctx, cmd.directory, cmd.resumeAfterSequence)
+	gossbMessageCh, err := h.repoReader.GetMessages(ctx, cmd.directory, cmd.resumeFromSequence)
 	if err != nil {
 		return ImportDataFromGoSSBResult{}, errors.Wrap(err, "error getting message channel")
 	}
 
-	scuttlegoMessageCh := h.startConversionLoop(ctx, gossbMessageCh)
+	lastSequenceSaved := cmd.resumeFromSequence
 
-	for v := range scuttlegoMessageCh {
+	for v := range h.startConversionLoop(ctx, gossbMessageCh) {
 		if err := v.Err; err != nil {
 			return ImportDataFromGoSSBResult{}, errors.Wrap(err, "received an error")
 		}
 
-		msgs = append(msgs, v.Value)
+		if err := msgs.AddMessage(v.Value); err != nil {
+			return ImportDataFromGoSSBResult{}, errors.Wrap(err, "error adding message to buffer")
+		}
 
-		if len(msgs) >= batchSize {
-			if err := h.saveMessages(msgs, cmd.saveResumeAfterSequenceFn, &errorCounter, &successCounter); err != nil {
+		if msgs.MessageCount() >= maxMessagesInMemory {
+			if err := h.saveAllMessages(
+				msgs,
+				&errorCounter,
+				&successCounter,
+				cmd.saveResumeFromSequenceFn,
+				&lastSequenceSaved,
+			); err != nil {
 				return ImportDataFromGoSSBResult{}, errors.Wrap(err, "error saving messages")
 			}
-			msgs = msgs[:0]
+		} else {
+			if perFeedMsgs := msgs.Get(v.Value.Message.Feed()); perFeedMsgs.Len() >= maxMessagesPerTransaction {
+				if err := h.saveMessagesPerFeed(
+					msgs,
+					perFeedMsgs.Feed(),
+					&errorCounter,
+					&successCounter,
+					cmd.saveResumeFromSequenceFn,
+					&lastSequenceSaved,
+				); err != nil {
+					return ImportDataFromGoSSBResult{}, errors.Wrap(err, "error saving messages per feed")
+				}
+			}
 		}
 	}
 
-	if err := h.saveMessages(msgs, cmd.saveResumeAfterSequenceFn, &errorCounter, &successCounter); err != nil {
+	if err := h.saveAllMessages(
+		msgs,
+		&errorCounter,
+		&successCounter,
+		cmd.saveResumeFromSequenceFn,
+		&lastSequenceSaved,
+	); err != nil {
 		return ImportDataFromGoSSBResult{}, errors.Wrap(err, "error saving messages")
 	}
 
@@ -138,7 +169,7 @@ func (h MigrationHandlerImportDataFromGoSSB) Handle(ctx context.Context, cmd Imp
 }
 
 func (h MigrationHandlerImportDataFromGoSSB) startConversionLoop(ctx context.Context, in <-chan GoSSBMessageOrError) <-chan scuttlegoMessageOrError {
-	out := make(chan scuttlegoMessageOrError, batchSize)
+	out := make(chan scuttlegoMessageOrError, convertedMessagesBufferSize)
 
 	go func() {
 		defer close(out)
@@ -186,89 +217,144 @@ func (h MigrationHandlerImportDataFromGoSSB) startConversionLoop(ctx context.Con
 	return out
 }
 
-func (h MigrationHandlerImportDataFromGoSSB) saveMessages(
-	values []scuttlegoMessage,
-	saveResumeAfterSequenceFn SaveResumeAfterSequenceFn,
+func (h MigrationHandlerImportDataFromGoSSB) saveAllMessages(
+	values messagesToImport,
 	errorCounter *int,
 	successCounter *int,
+	saveResumeFromSequenceFn SaveResumeFromSequenceFn,
+	lastSavedSequencePtr **common.ReceiveLogSequence,
 ) error {
-	if len(values) == 0 {
+	for _, perFeedMsgs := range values {
+		if err := h.saveMessagesPerFeed(values, perFeedMsgs.Feed(), errorCounter, successCounter, saveResumeFromSequenceFn, lastSavedSequencePtr); err != nil {
+			return errors.Wrap(err, "error saving messages per feed")
+		}
+	}
+
+	return nil
+}
+
+func (h MigrationHandlerImportDataFromGoSSB) saveMessagesPerFeed(
+	msgs messagesToImport,
+	feed refs.Feed,
+	errorCounter *int,
+	successCounter *int,
+	saveResumeFromSequenceFn SaveResumeFromSequenceFn,
+	lastSequenceSavedPtr **common.ReceiveLogSequence,
+) error {
+	msgsPerFeed := msgs.Get(feed)
+
+	if msgsPerFeed.Len() == 0 {
 		return nil
 	}
 
-	tmpErrorCounter := 0
-	tmpSuccessCounter := 0
-
 	start := time.Now()
+	var feedErrors, feedSuccesses int
 
 	if err := h.transaction.Transact(func(adapters Adapters) error {
-		tmpErrorCounter = 0
-		tmpSuccessCounter = 0
+		feedErrors = 0
+		feedSuccesses = 0
 
-		for _, value := range values {
-			if err := h.saveMessage(adapters, value.Message, value.ReceiveLogSequence); err != nil {
-				if errors.Is(err, appendMessageError{}) {
-					tmpErrorCounter++
+		var successes []scuttlegoMessage
+
+		if err := adapters.Feed.UpdateFeedIgnoringReceiveLog(feed, func(feed *feeds.Feed) error {
+			for _, msg := range msgsPerFeed.messages {
+				if err := feed.AppendMessage(msg.Message); err != nil {
+					feedErrors += 1
 					continue
 				}
-				return errors.Wrapf(err, "error saving message '%s' with receive log sequence '%d'", value.Message.Id().String(), value.ReceiveLogSequence.Int())
+
+				feedSuccesses += 1
+				successes = append(successes, msg)
+			}
+			return nil
+		}); err != nil {
+			return errors.Wrap(err, "error updating the feed")
+		}
+
+		for _, msg := range successes {
+			foundMessage, err := adapters.ReceiveLog.GetMessage(msg.ReceiveLogSequence)
+			if err != nil {
+				if !errors.Is(err, common.ErrReceiveLogEntryNotFound) {
+					return errors.Wrap(err, "error getting message from receive log")
+				}
 			} else {
-				tmpSuccessCounter++
+				if !foundMessage.Id().Equal(msg.Message.Id()) {
+					return fmt.Errorf(
+						"duplicate message with receive log sequence '%d', old='%s', new='%s'",
+						msg.ReceiveLogSequence.Int(),
+						foundMessage.Id(),
+						msg.Message.Id(),
+					)
+				}
+			}
+
+			if err := adapters.ReceiveLog.PutUnderSpecificSequence(msg.Message.Id(), msg.ReceiveLogSequence); err != nil {
+				return errors.Wrap(err, "error updating the receive log")
 			}
 		}
+
 		return nil
 	}); err != nil {
 		return errors.Wrap(err, "transaction failed")
 	}
 
-	*errorCounter += tmpErrorCounter
-	*successCounter += tmpSuccessCounter
+	h.logger.
+		WithField("successes", feedSuccesses).
+		WithField("errors", feedErrors).
+		WithField("elapsed", time.Since(start).String()).
+		Trace("saved messages for feed")
 
-	lastMsgReceiveLogSequence := values[len(values)-1].ReceiveLogSequence
-	if err := saveResumeAfterSequenceFn(lastMsgReceiveLogSequence); err != nil {
-		return errors.Wrap(err, "error saving the receive log sequence")
+	*errorCounter += feedErrors
+	*successCounter += feedSuccesses
+
+	if err := h.maybePersistSequence(msgs, saveResumeFromSequenceFn, lastSequenceSavedPtr); err != nil {
+		return errors.Wrap(err, "error saving messages")
 	}
 
-	h.logger.
-		WithField("successes", tmpSuccessCounter).
-		WithField("errors", tmpErrorCounter).
-		WithField("elapsed", time.Since(start).String()).
-		WithField("last_message_receive_log_sequence", lastMsgReceiveLogSequence.Int()).
-		Debug("saved messages")
+	msgs.Delete(feed)
 
 	return nil
 }
 
-func (h MigrationHandlerImportDataFromGoSSB) saveMessage(
-	adapters Adapters,
-	msg message.Message,
-	receiveLogSequence common.ReceiveLogSequence,
+func (h MigrationHandlerImportDataFromGoSSB) maybePersistSequence(
+	msgs messagesToImport,
+	fn SaveResumeFromSequenceFn,
+	lastSavedSequencePtr **common.ReceiveLogSequence,
 ) error {
-	foundMessage, err := adapters.ReceiveLog.GetMessage(receiveLogSequence)
+	sequenceToSave, err := h.lowestReceiveLogSequence(msgs)
 	if err != nil {
-		if !errors.Is(err, common.ErrReceiveLogEntryNotFound) {
-			return errors.Wrap(err, "error getting message from receive log")
-		}
-	} else {
-		if !foundMessage.Id().Equal(msg.Id()) {
-			return fmt.Errorf("duplicate message, old='%s', new='%s'", foundMessage.Id(), msg.Id())
-		}
+		return errors.Wrap(err, "error determining sequence to persist")
 	}
 
-	if err := adapters.Feed.UpdateFeedIgnoringReceiveLog(msg.Feed(), func(feed *feeds.Feed) error {
-		if err := feed.AppendMessage(msg); err != nil {
-			return newAppendMessageError(err)
-		}
+	if lastSavedSequence := *lastSavedSequencePtr; lastSavedSequence != nil && sequenceToSave.Int() < lastSavedSequence.Int()+minSequenceProgressToSave {
 		return nil
-	}); err != nil {
-		return errors.Wrap(err, "error updating the feed")
 	}
 
-	if err := adapters.ReceiveLog.PutUnderSpecificSequence(msg.Id(), receiveLogSequence); err != nil {
-		return errors.Wrap(err, "error updating the receive log")
+	if err := fn(sequenceToSave); err != nil {
+		return errors.Wrap(err, "error saving the receive log sequence")
 	}
+
+	h.logger.WithField("sequence", sequenceToSave.Int()).Debug("saved the receive log sequence")
+	*lastSavedSequencePtr = &sequenceToSave
 
 	return nil
+}
+
+func (h MigrationHandlerImportDataFromGoSSB) lowestReceiveLogSequence(msgs messagesToImport) (common.ReceiveLogSequence, error) {
+	var lowest *common.ReceiveLogSequence
+
+	for _, v := range msgs {
+		if lowest == nil || lowest.Int() > v.messages[0].ReceiveLogSequence.Int() {
+			tmp := v.messages[0].ReceiveLogSequence
+			lowest = &tmp
+		}
+	}
+
+	if lowest == nil {
+		return common.ReceiveLogSequence{}, errors.New("empty messages")
+	}
+
+	return *lowest, nil
 }
 
 func (h MigrationHandlerImportDataFromGoSSB) convertMessage(gossbmsg gossbrefs.Message) (message.Message, error) {
@@ -333,36 +419,6 @@ func (h MigrationHandlerImportDataFromGoSSB) convertMessage(gossbmsg gossbrefs.M
 	return msg, nil
 }
 
-type appendMessageError struct {
-	error error
-}
-
-func newAppendMessageError(error error) error {
-	return &appendMessageError{error: error}
-}
-
-func (e appendMessageError) Error() string {
-	return "error appending a message"
-}
-
-func (e appendMessageError) Unwrap() error {
-	return e.error
-}
-
-func (e appendMessageError) As(target interface{}) bool {
-	if v, ok := target.(*appendMessageError); ok {
-		*v = e
-		return true
-	}
-	return false
-}
-
-func (e appendMessageError) Is(target error) bool {
-	_, ok1 := target.(*appendMessageError)
-	_, ok2 := target.(appendMessageError)
-	return ok1 || ok2
-}
-
 type scuttlegoMessage struct {
 	ReceiveLogSequence common.ReceiveLogSequence
 	Message            message.Message
@@ -371,4 +427,62 @@ type scuttlegoMessage struct {
 type scuttlegoMessageOrError struct {
 	Value scuttlegoMessage
 	Err   error
+}
+
+type messagesToImport map[string]*messagesToImportPerFeed
+
+func newMessagesToImport() messagesToImport {
+	return make(messagesToImport)
+}
+
+func (f messagesToImport) AddMessage(msg scuttlegoMessage) error {
+	return f.Get(msg.Message.Feed()).Add(msg)
+}
+
+func (f messagesToImport) Get(feed refs.Feed) *messagesToImportPerFeed {
+	key := feed.String()
+	v, ok := f[key]
+	if !ok {
+		v = newMessagesToImportPerFeed(feed)
+		f[key] = v
+	}
+	return v
+}
+
+func (f messagesToImport) Delete(feed refs.Feed) {
+	delete(f, feed.String())
+}
+
+func (f messagesToImport) MessageCount() int {
+	var result int
+	for _, messages := range f {
+		result += messages.Len()
+	}
+	return result
+}
+
+type messagesToImportPerFeed struct {
+	feed     refs.Feed
+	messages []scuttlegoMessage
+}
+
+func newMessagesToImportPerFeed(feed refs.Feed) *messagesToImportPerFeed {
+	return &messagesToImportPerFeed{feed: feed}
+}
+
+func (m *messagesToImportPerFeed) Add(msg scuttlegoMessage) error {
+	if !msg.Message.Feed().Equal(m.feed) {
+		return errors.New("incorrect feed")
+	}
+
+	m.messages = append(m.messages, msg)
+	return nil
+}
+
+func (m *messagesToImportPerFeed) Len() int {
+	return len(m.messages)
+}
+
+func (m *messagesToImportPerFeed) Feed() refs.Feed {
+	return m.feed
 }

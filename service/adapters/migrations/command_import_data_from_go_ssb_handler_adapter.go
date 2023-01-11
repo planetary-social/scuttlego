@@ -10,7 +10,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/app/common"
 )
 
-const resumeAfterSequenceKey = "resumeAfterSequence"
+const resumeFromSequenceKey = "resumeFromSequence"
 
 type CommandImportDataFromGoSSBHandlerAdapter struct {
 	directory string
@@ -28,19 +28,19 @@ func NewCommandImportDataFromGoSSBHandlerAdapter(
 }
 
 func (a *CommandImportDataFromGoSSBHandlerAdapter) Fn(ctx context.Context, state migrations.State, saveStateFunc migrations.SaveStateFunc) error {
-	resumeAfterSequence, err := a.loadState(state)
+	resumeFromSequence, err := a.loadState(state)
 	if err != nil {
 		return errors.Wrap(err, "error loading state")
 	}
 
-	saveResumeAfterSequenceFn := func(sequence common.ReceiveLogSequence) error {
+	saveResumeFromSequenceFn := func(sequence common.ReceiveLogSequence) error {
 		return a.saveState(sequence, saveStateFunc)
 	}
 
 	cmd, err := commands.NewImportDataFromGoSSB(
 		a.directory,
-		resumeAfterSequence,
-		saveResumeAfterSequenceFn,
+		resumeFromSequence,
+		saveResumeFromSequenceFn,
 	)
 	if err != nil {
 		return errors.Wrap(err, "could not create a command")
@@ -56,19 +56,19 @@ func (a *CommandImportDataFromGoSSBHandlerAdapter) Fn(ctx context.Context, state
 }
 
 func (a *CommandImportDataFromGoSSBHandlerAdapter) loadState(state migrations.State) (*common.ReceiveLogSequence, error) {
-	resumeAfterSequenceString, ok := state[resumeAfterSequenceKey]
+	resumeFromSequenceString, ok := state[resumeFromSequenceKey]
 	if ok {
-		resumeAfterSequenceInt, err := strconv.Atoi(resumeAfterSequenceString)
+		resumeFromSequenceInt, err := strconv.Atoi(resumeFromSequenceString)
 		if err != nil {
 			return nil, errors.Wrap(err, "error parsing resume after sequence string")
 		}
 
-		receiveAfterSequence, err := common.NewReceiveLogSequence(resumeAfterSequenceInt)
+		resumeFromSequence, err := common.NewReceiveLogSequence(resumeFromSequenceInt)
 		if err != nil {
 			return nil, errors.Wrap(err, "error creating resume after sequence object")
 		}
 
-		return &receiveAfterSequence, nil
+		return &resumeFromSequence, nil
 	}
 
 	return nil, nil
@@ -76,6 +76,6 @@ func (a *CommandImportDataFromGoSSBHandlerAdapter) loadState(state migrations.St
 
 func (a *CommandImportDataFromGoSSBHandlerAdapter) saveState(sequence common.ReceiveLogSequence, saveStateFunc migrations.SaveStateFunc) error {
 	return saveStateFunc(migrations.State{
-		resumeAfterSequenceKey: strconv.Itoa(sequence.Int()),
+		resumeFromSequenceKey: strconv.Itoa(sequence.Int()),
 	})
 }

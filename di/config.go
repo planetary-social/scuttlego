@@ -2,6 +2,7 @@ package di
 
 import (
 	"github.com/dgraph-io/badger/v3"
+	"github.com/dgraph-io/badger/v3/options"
 	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/domain"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/formats"
@@ -65,6 +66,8 @@ func (c *Config) SetDefaults() {
 type BadgerOptions interface {
 	SetNumGoroutines(val int)
 	SetNumCompactors(val int)
+	SetCompression(val options.CompressionType)
+	SetLogger(val badger.Logger)
 }
 
 type BadgerOptionsAdapter struct {
@@ -81,4 +84,12 @@ func (b BadgerOptionsAdapter) SetNumGoroutines(val int) {
 
 func (b BadgerOptionsAdapter) SetNumCompactors(val int) {
 	b.options.NumCompactors = val
+}
+
+func (b BadgerOptionsAdapter) SetCompression(val options.CompressionType) {
+	b.options.Compression = val
+}
+
+func (b BadgerOptionsAdapter) SetLogger(val badger.Logger) {
+	b.options.Logger = val
 }

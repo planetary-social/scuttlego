@@ -125,7 +125,9 @@ func (b Bucket) KeyInBucket(item *badger.Item) (KeyComponent, error) {
 }
 
 func (b Bucket) IsEmpty() bool {
-	it := b.Iterator()
+	it := b.IteratorWithModifiedOptions(func(options *badger.IteratorOptions) {
+		options.PrefetchValues = false
+	})
 	defer it.Close()
 
 	it.Rewind()

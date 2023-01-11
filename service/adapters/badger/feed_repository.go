@@ -256,6 +256,7 @@ func (b FeedRepository) loadFeed(ref refs.Feed) (*feeds.Feed, error) {
 
 	it := bucket.IteratorWithModifiedOptions(func(options *badger.IteratorOptions) {
 		options.Reverse = true
+		options.PrefetchSize = 1
 	})
 	defer it.Close()
 

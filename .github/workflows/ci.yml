@@ -35,9 +35,9 @@ jobs:
           path: |
             ${{ steps.golang-path.outputs.build }}
             ${{ steps.golang-path.outputs.module }}
-          key: ${{ runner.os }}-golang-${{ hashFiles('**/go.sum') }}
+          key: ${{ runner.os }}-golang
           restore-keys: |
-            ${{ runner.os }}-golang-
+            ${{ runner.os }}-golang
 
       - name: Check out code into the Go module directory
         uses: actions/checkout@v2

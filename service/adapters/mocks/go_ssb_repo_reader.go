@@ -8,8 +8,8 @@ import (
 )
 
 type GoSSBRepoReaderMockGetMessagesCall struct {
-	Directory           string
-	ResumeAfterSequence *common.ReceiveLogSequence
+	Directory          string
+	ResumeFromSequence *common.ReceiveLogSequence
 }
 
 type GoSSBRepoReaderMock struct {
@@ -21,12 +21,12 @@ func NewGoSSBRepoReaderMock() *GoSSBRepoReaderMock {
 	return &GoSSBRepoReaderMock{}
 }
 
-func (g *GoSSBRepoReaderMock) GetMessages(ctx context.Context, directory string, resumeAfterSequence *common.ReceiveLogSequence) (<-chan commands.GoSSBMessageOrError, error) {
+func (g *GoSSBRepoReaderMock) GetMessages(ctx context.Context, directory string, resumeFromSequence *common.ReceiveLogSequence) (<-chan commands.GoSSBMessageOrError, error) {
 	g.GoSSBRepoReaderMockGetMessagesCalls = append(
 		g.GoSSBRepoReaderMockGetMessagesCalls,
 		GoSSBRepoReaderMockGetMessagesCall{
-			Directory:           directory,
-			ResumeAfterSequence: resumeAfterSequence,
+			Directory:          directory,
+			ResumeFromSequence: resumeFromSequence,
 		},
 	)
 	ch := make(chan commands.GoSSBMessageOrError)

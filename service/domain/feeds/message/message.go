@@ -100,6 +100,19 @@ func MustNewMessage(
 	return msg
 }
 
+func NewMessageFromMessageWithoutId(id refs.Message, msgWithoutId MessageWithoutId) (Message, error) {
+	return NewMessage(
+		id,
+		msgWithoutId.Previous(),
+		msgWithoutId.Sequence(),
+		msgWithoutId.Author(),
+		msgWithoutId.Feed(),
+		msgWithoutId.Timestamp(),
+		msgWithoutId.Content(),
+		msgWithoutId.Raw(),
+	)
+}
+
 func (m Message) Id() refs.Message {
 	return m.id
 }

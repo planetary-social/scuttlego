@@ -7,7 +7,7 @@ import (
 )
 
 type RawMessageIdentifier interface {
-	IdentifyRawMessage(raw message.RawMessage) (message.Message, error)
+	VerifyRawMessage(raw message.RawMessage) (message.Message, error)
 }
 
 type RawMessageHandler struct {
@@ -29,7 +29,7 @@ func NewRawMessageHandler(
 }
 
 func (h *RawMessageHandler) Handle(rawMsg message.RawMessage) error {
-	msg, err := h.identifier.IdentifyRawMessage(rawMsg)
+	msg, err := h.identifier.VerifyRawMessage(rawMsg)
 	if err != nil {
 		return errors.Wrap(err, "failed to identify the raw message")
 	}

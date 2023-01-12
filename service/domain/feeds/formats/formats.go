@@ -25,7 +25,7 @@ func NewRawMessageIdentifier(formats []feeds.FeedFormat) *RawMessageIdentifier {
 	}
 }
 
-func (i RawMessageIdentifier) IdentifyRawMessage(raw message.RawMessage) (message.Message, error) {
+func (i RawMessageIdentifier) VerifyRawMessage(raw message.RawMessage) (message.Message, error) {
 	var result error
 
 	for _, format := range i.formats {
@@ -38,6 +38,21 @@ func (i RawMessageIdentifier) IdentifyRawMessage(raw message.RawMessage) (messag
 	}
 
 	return message.Message{}, errors.Wrap(result, "unknown message")
+}
+
+func (i RawMessageIdentifier) LoadRawMessage(raw message.VerifiedRawMessage) (message.MessageWithoutId, error) {
+	var result error
+
+	for _, format := range i.formats {
+		msg, err := format.Load(raw)
+		if err == nil {
+			return msg, nil
+		}
+
+		result = multierror.Append(result, err)
+	}
+
+	return message.MessageWithoutId{}, errors.Wrap(result, "unknown message")
 }
 
 // MessageHMACLength is implied to be constant due to an assumption that this

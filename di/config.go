@@ -68,6 +68,7 @@ type BadgerOptions interface {
 	SetNumCompactors(val int)
 	SetCompression(val options.CompressionType)
 	SetLogger(val badger.Logger)
+	SetValueLogFileSize(val int64)
 }
 
 type BadgerOptionsAdapter struct {
@@ -92,4 +93,8 @@ func (b BadgerOptionsAdapter) SetCompression(val options.CompressionType) {
 
 func (b BadgerOptionsAdapter) SetLogger(val badger.Logger) {
 	b.options.Logger = val
+}
+
+func (b BadgerOptionsAdapter) SetValueLogFileSize(val int64) {
+	b.options.ValueLogFileSize = val
 }

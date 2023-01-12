@@ -27,6 +27,11 @@ var badgerUnpackTestDependenciesSet = wire.NewSet(
 )
 
 //nolint:unused
+var badgerAdaptersSet = wire.NewSet(
+	badgeradapters.NewGarbageCollector,
+)
+
+//nolint:unused
 var badgerNoTxRepositoriesSet = wire.NewSet(
 	notx.NewNoTxBlobWantListRepository,
 	wire.Bind(new(blobReplication.WantListStorage), new(*notx.NoTxBlobWantListRepository)),

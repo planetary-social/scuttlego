@@ -743,7 +743,8 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 		cleanup()
 		return Service{}, nil, err
 	}
-	service := NewService(application, listener, networkDiscoverer, connectionEstablisher, requestSubscriber, roomAttendantEventSubscriber, advertiser, messageBuffer, createHistoryStreamHandler)
+	garbageCollector := badger.NewGarbageCollector(db, logger)
+	service := NewService(application, listener, networkDiscoverer, connectionEstablisher, requestSubscriber, roomAttendantEventSubscriber, advertiser, messageBuffer, createHistoryStreamHandler, garbageCollector)
 	return service, func() {
 		cleanup()
 	}, nil

@@ -417,6 +417,7 @@ func BuildService(context.Context, identity.Private, Config) (Service, func(), e
 		badgerNoTxRepositoriesSet,
 		badgerTransactionProviderSet,
 		badgerNoTxTransactionProviderSet,
+		badgerAdaptersSet,
 		blobsAdaptersSet,
 		adaptersSet,
 		extractFromConfigSet,

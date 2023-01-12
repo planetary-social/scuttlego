@@ -5,6 +5,7 @@ import (
 
 	"github.com/boreq/errors"
 	"github.com/hashicorp/go-multierror"
+	"github.com/planetary-social/scuttlego/service/adapters/badger"
 	"github.com/planetary-social/scuttlego/service/app"
 	"github.com/planetary-social/scuttlego/service/app/commands"
 	"github.com/planetary-social/scuttlego/service/app/queries"
@@ -24,6 +25,7 @@ type Service struct {
 	advertiser                   *local.Advertiser
 	messageBuffer                *commands.MessageBuffer
 	createHistoryStreamHandler   *queries.CreateHistoryStreamHandler
+	badgerGarbageCollector       *badger.GarbageCollector
 }
 
 func NewService(
@@ -36,6 +38,7 @@ func NewService(
 	advertiser *local.Advertiser,
 	messageBuffer *commands.MessageBuffer,
 	createHistoryStreamHandler *queries.CreateHistoryStreamHandler,
+	badgerGarbageCollector *badger.GarbageCollector,
 ) Service {
 	return Service{
 		App: app,
@@ -48,6 +51,7 @@ func NewService(
 		advertiser:                   advertiser,
 		messageBuffer:                messageBuffer,
 		createHistoryStreamHandler:   createHistoryStreamHandler,
+		badgerGarbageCollector:       badgerGarbageCollector,
 	}
 }
 
@@ -96,6 +100,11 @@ func (s Service) Run(ctx context.Context) error {
 	runners++
 	go func() {
 		errCh <- s.createHistoryStreamHandler.Run(ctx)
+	}()
+
+	runners++
+	go func() {
+		errCh <- s.badgerGarbageCollector.Run(ctx)
 	}()
 
 	var err error

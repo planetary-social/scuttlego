@@ -425,6 +425,10 @@ func (f formatMock) Verify(raw message.RawMessage) (message.Message, error) {
 	return message.Message{}, errors.New("not implemented")
 }
 
+func (f formatMock) Load(raw message.VerifiedRawMessage) (message.MessageWithoutId, error) {
+	return message.MessageWithoutId{}, errors.New("not implemented")
+}
+
 func (f formatMock) Sign(unsigned message.UnsignedMessage, private identity.Private) (message.Message, error) {
 	if f.SignResult.IsZero() {
 		return fixtures.SomeMessage(unsigned.Sequence(), unsigned.Feed()), nil

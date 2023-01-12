@@ -9,7 +9,7 @@ import (
 )
 
 type RawMessageIdentifier interface {
-	IdentifyRawMessage(raw message.RawMessage) (message.Message, error)
+	VerifyRawMessage(raw message.RawMessage) (message.Message, error)
 }
 
 type MessageRepository struct {
@@ -63,7 +63,7 @@ func (r MessageRepository) Get(id refs.Message) (message.Message, error) {
 		return message.Message{}, errors.Wrap(err, "could not create a raw message")
 	}
 
-	msg, err := r.identifier.IdentifyRawMessage(rawMsg)
+	msg, err := r.identifier.VerifyRawMessage(rawMsg)
 	if err != nil {
 		return message.Message{}, errors.Wrap(err, "could not identify the raw message")
 	}

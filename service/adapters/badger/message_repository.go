@@ -9,7 +9,7 @@ import (
 )
 
 type RawMessageIdentifier interface {
-	IdentifyRawMessage(raw message.RawMessage) (message.Message, error)
+	LoadRawMessage(raw message.VerifiedRawMessage) (message.MessageWithoutId, error)
 }
 
 type MessageRepository struct {
@@ -76,14 +76,19 @@ func (r MessageRepository) Get(id refs.Message) (message.Message, error) {
 	var result message.Message
 
 	if err := item.Value(func(value []byte) error {
-		rawMsg, err := message.NewRawMessage(value) // todo explicit copy? it is copied in constructor
+		rawMsg, err := message.NewVerifiedRawMessage(value) // todo explicit copy? it is copied in constructor
 		if err != nil {
 			return errors.Wrap(err, "could not create a raw message")
 		}
 
-		msg, err := r.identifier.IdentifyRawMessage(rawMsg)
+		msgWithoutId, err := r.identifier.LoadRawMessage(rawMsg)
 		if err != nil {
-			return errors.Wrap(err, "could not identify the raw message")
+			return errors.Wrap(err, "could not load the raw message")
+		}
+
+		msg, err := message.NewMessageFromMessageWithoutId(id, msgWithoutId)
+		if err != nil {
+			return errors.Wrap(err, "could not create a message")
 		}
 
 		result = msg

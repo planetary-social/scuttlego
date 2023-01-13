@@ -69,6 +69,8 @@ type BadgerOptions interface {
 	SetCompression(val options.CompressionType)
 	SetLogger(val badger.Logger)
 	SetValueLogFileSize(val int64)
+	SetBlockCacheSize(val int64)
+	SetIndexCacheSize(val int64)
 }
 
 type BadgerOptionsAdapter struct {
@@ -97,4 +99,12 @@ func (b BadgerOptionsAdapter) SetLogger(val badger.Logger) {
 
 func (b BadgerOptionsAdapter) SetValueLogFileSize(val int64) {
 	b.options.ValueLogFileSize = val
+}
+
+func (b BadgerOptionsAdapter) SetBlockCacheSize(val int64) {
+	b.options.BlockCacheSize = val
+}
+
+func (b BadgerOptionsAdapter) SetIndexCacheSize(val int64) {
+	b.options.IndexCacheSize = val
 }

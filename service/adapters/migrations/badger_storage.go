@@ -9,6 +9,12 @@ import (
 	"github.com/planetary-social/scuttlego/service/adapters/badger/utils"
 )
 
+const (
+	migrationsBucket       = "migrations"
+	migrationsBucketStatus = "status"
+	migrationsBucketState  = "state"
+)
+
 type BadgerStorage struct {
 	db *badger.DB
 }
@@ -129,4 +135,31 @@ func (b *BadgerStorage) stateBucket(tx *badger.Txn) utils.Bucket {
 		utils.MustNewKeyComponent([]byte(migrationsBucket)),
 		utils.MustNewKeyComponent([]byte(migrationsBucketState)),
 	))
+}
+
+const (
+	statusFailed   = "failed"
+	statusFinished = "finished"
+)
+
+func marshalStatus(status migrations.Status) (string, error) {
+	switch status {
+	case migrations.StatusFailed:
+		return statusFailed, nil
+	case migrations.StatusFinished:
+		return statusFinished, nil
+	default:
+		return "", errors.New("unknown status")
+	}
+}
+
+func unmarshalStatus(status string) (migrations.Status, error) {
+	switch status {
+	case statusFailed:
+		return migrations.StatusFailed, nil
+	case statusFinished:
+		return migrations.StatusFinished, nil
+	default:
+		return migrations.Status{}, errors.New("unknown status")
+	}
 }

@@ -5,19 +5,15 @@ package di
 
 import (
 	"context"
-	"path"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/boreq/errors"
 	"github.com/dgraph-io/badger/v3"
 	"github.com/google/wire"
 	"github.com/planetary-social/scuttlego/fixtures"
-	"github.com/planetary-social/scuttlego/logging"
 	badgeradapters "github.com/planetary-social/scuttlego/service/adapters/badger"
 	"github.com/planetary-social/scuttlego/service/adapters/badger/notx"
-	"github.com/planetary-social/scuttlego/service/adapters/bolt"
 	"github.com/planetary-social/scuttlego/service/adapters/mocks"
 	"github.com/planetary-social/scuttlego/service/adapters/pubsub"
 	"github.com/planetary-social/scuttlego/service/app"
@@ -37,7 +33,6 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/replication/gossip"
 	"github.com/planetary-social/scuttlego/service/domain/rooms"
 	"github.com/planetary-social/scuttlego/service/domain/rooms/tunnel"
-	"go.etcd.io/bbolt"
 )
 
 type BadgerNoTxTestAdapters struct {
@@ -140,65 +135,6 @@ func buildBadgerTestAdapters(*badger.Txn, badgeradapters.TestAdaptersDependencie
 	)
 
 	return badgeradapters.TestAdapters{}, nil
-}
-
-type TxTestAdapters struct {
-	MessageRepository     *bolt.MessageRepository
-	FeedRepository        *bolt.FeedRepository
-	BlobRepository        *bolt.BlobRepository
-	SocialGraphRepository *bolt.SocialGraphRepository
-	PubRepository         *bolt.PubRepository
-	ReceiveLog            *bolt.ReceiveLogRepository
-	BlobWantList          *bolt.BlobWantListRepository
-	FeedWantList          *bolt.FeedWantListRepository
-	BanList               *bolt.BanListRepository
-
-	CurrentTimeProvider *mocks.CurrentTimeProviderMock
-	BanListHasher       *mocks.BanListHasherMock
-}
-
-func BuildTxTestAdapters(*bbolt.Tx) (TxTestAdapters, error) {
-	wire.Build(
-		wire.Struct(new(TxTestAdapters), "*"),
-
-		txBoltAdaptersSet,
-		testAdaptersSet,
-
-		identity.NewPrivate,
-		privateIdentityToPublicIdentity,
-
-		formats.NewDefaultMessageHMAC,
-
-		fixtures.SomeLogger,
-
-		formatsSet,
-		wire.Value(hops),
-	)
-
-	return TxTestAdapters{}, nil
-}
-
-type TestAdapters struct {
-	MessageRepository *bolt.ReadMessageRepository
-	FeedRepository    *bolt.ReadFeedRepository
-	ReceiveLog        *bolt.ReadReceiveLogRepository
-}
-
-func BuildTestAdapters(*bbolt.DB) (TestAdapters, error) {
-	wire.Build(
-		wire.Struct(new(TestAdapters), "*"),
-
-		boltAdaptersSet,
-
-		identity.NewPrivate,
-		privateIdentityToPublicIdentity,
-
-		formats.NewDefaultMessageHMAC,
-
-		fixtures.SomeLogger,
-	)
-
-	return TestAdapters{}, nil
 }
 
 type TestCommands struct {
@@ -330,21 +266,6 @@ func BuildTestQueries(*testing.T) (TestQueries, error) {
 	return TestQueries{}, nil
 }
 
-func BuildTransactableAdapters(*bbolt.Tx, identity.Public, Config) (commands.Adapters, error) {
-	wire.Build(
-		wire.Struct(new(commands.Adapters), "*"),
-
-		txBoltAdaptersSet,
-		formatsSet,
-		extractFromConfigSet,
-		adaptersSet,
-
-		wire.Value(hops),
-	)
-
-	return commands.Adapters{}, nil
-}
-
 func buildBadgerTransactableAdapters(*badger.Txn, identity.Public, Config) (commands.Adapters, error) {
 	wire.Build(
 		wire.Struct(new(commands.Adapters), "*"),
@@ -358,20 +279,6 @@ func buildBadgerTransactableAdapters(*badger.Txn, identity.Public, Config) (comm
 	)
 
 	return commands.Adapters{}, nil
-}
-
-func BuildTxRepositories(*bbolt.Tx, identity.Public, logging.Logger, formats.MessageHMAC) (bolt.TxRepositories, error) {
-	wire.Build(
-		wire.Struct(new(bolt.TxRepositories), "*"),
-
-		txBoltAdaptersSet,
-		formatsSet,
-		adaptersSet,
-
-		wire.Value(hops),
-	)
-
-	return bolt.TxRepositories{}, nil
 }
 
 // BuildService creates a new service which uses the provided context as a long-term context used as a base context for
@@ -470,25 +377,6 @@ var hops = graph.MustNewHops(3)
 
 func newAdvertiser(l identity.Public, config Config) (*local.Advertiser, error) {
 	return local.NewAdvertiser(l, config.ListenAddress)
-}
-
-func newAdaptersFactory(config Config, local identity.Public) bolt.AdaptersFactory {
-	return func(tx *bbolt.Tx) (commands.Adapters, error) {
-		return BuildTransactableAdapters(tx, local, config)
-	}
-}
-
-func newBolt(config Config) (*bbolt.DB, func(), error) {
-	filename := path.Join(config.DataDirectory, "database.bolt")
-	b, err := bbolt.Open(filename, 0600, &bbolt.Options{Timeout: 5 * time.Second})
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "could not open the database, is something else reading it?")
-	}
-	return b, func() {
-		if err := b.Close(); err != nil {
-			config.Logger.WithError(err).Error("error closing the database")
-		}
-	}, nil
 }
 
 func newBadger(config Config) (*badger.DB, func(), error) {

@@ -25,7 +25,6 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/transport"
 	"github.com/sirupsen/logrus"
-	"go.etcd.io/bbolt"
 )
 
 func SomeLogger() logging.Logger {
@@ -295,25 +294,6 @@ func File(t *testing.T) string {
 	t.Cleanup(cleanup)
 
 	return file.Name()
-}
-
-func Bolt(t *testing.T) *bbolt.DB {
-	file := File(t)
-
-	db, err := bbolt.Open(file, 0600, &bbolt.Options{Timeout: 5 * time.Second})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	cleanup := func() {
-		err := db.Close()
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-	t.Cleanup(cleanup)
-
-	return db
 }
 
 func Badger(t *testing.T) *badger.DB {

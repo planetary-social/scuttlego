@@ -8,21 +8,17 @@ package di
 
 import (
 	"context"
-	"path"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/boreq/errors"
 	badger2 "github.com/dgraph-io/badger/v3"
 	"github.com/google/wire"
 	"github.com/planetary-social/scuttlego/fixtures"
-	"github.com/planetary-social/scuttlego/logging"
 	migrations2 "github.com/planetary-social/scuttlego/migrations"
 	"github.com/planetary-social/scuttlego/service/adapters"
 	"github.com/planetary-social/scuttlego/service/adapters/badger"
 	"github.com/planetary-social/scuttlego/service/adapters/badger/notx"
-	"github.com/planetary-social/scuttlego/service/adapters/bolt"
 	ebt2 "github.com/planetary-social/scuttlego/service/adapters/ebt"
 	"github.com/planetary-social/scuttlego/service/adapters/invites"
 	"github.com/planetary-social/scuttlego/service/adapters/migrations"
@@ -53,7 +49,6 @@ import (
 	network2 "github.com/planetary-social/scuttlego/service/ports/network"
 	pubsub2 "github.com/planetary-social/scuttlego/service/ports/pubsub"
 	rpc2 "github.com/planetary-social/scuttlego/service/ports/rpc"
-	"go.etcd.io/bbolt"
 )
 
 // Injectors from wire.go:
@@ -256,74 +251,6 @@ var (
 	_wireHopsValue2 = hops
 )
 
-func BuildTxTestAdapters(tx *bbolt.Tx) (TxTestAdapters, error) {
-	messageContentMappings := transport.DefaultMappings()
-	logger := fixtures.SomeLogger()
-	marshaler, err := transport.NewMarshaler(messageContentMappings, logger)
-	if err != nil {
-		return TxTestAdapters{}, err
-	}
-	messageHMAC := formats.NewDefaultMessageHMAC()
-	scuttlebutt := formats.NewScuttlebutt(marshaler, messageHMAC)
-	v := newFormats(scuttlebutt)
-	rawMessageIdentifier := formats.NewRawMessageIdentifier(v)
-	messageRepository := bolt.NewMessageRepository(tx, rawMessageIdentifier)
-	private, err := identity.NewPrivate()
-	if err != nil {
-		return TxTestAdapters{}, err
-	}
-	public := privateIdentityToPublicIdentity(private)
-	graphHops := _wireHopsValue3
-	banListHasherMock := mocks.NewBanListHasherMock()
-	banListRepository := bolt.NewBanListRepository(tx, banListHasherMock)
-	socialGraphRepository := bolt.NewSocialGraphRepository(tx, public, graphHops, banListRepository)
-	receiveLogRepository := bolt.NewReceiveLogRepository(tx, messageRepository)
-	pubRepository := bolt.NewPubRepository(tx)
-	blobRepository := bolt.NewBlobRepository(tx)
-	feedRepository := bolt.NewFeedRepository(tx, socialGraphRepository, receiveLogRepository, messageRepository, pubRepository, blobRepository, banListRepository, scuttlebutt)
-	currentTimeProviderMock := mocks.NewCurrentTimeProviderMock()
-	blobWantListRepository := bolt.NewBlobWantListRepository(tx, currentTimeProviderMock)
-	feedWantListRepository := bolt.NewFeedWantListRepository(tx, currentTimeProviderMock)
-	txTestAdapters := TxTestAdapters{
-		MessageRepository:     messageRepository,
-		FeedRepository:        feedRepository,
-		BlobRepository:        blobRepository,
-		SocialGraphRepository: socialGraphRepository,
-		PubRepository:         pubRepository,
-		ReceiveLog:            receiveLogRepository,
-		BlobWantList:          blobWantListRepository,
-		FeedWantList:          feedWantListRepository,
-		BanList:               banListRepository,
-		CurrentTimeProvider:   currentTimeProviderMock,
-		BanListHasher:         banListHasherMock,
-	}
-	return txTestAdapters, nil
-}
-
-var (
-	_wireHopsValue3 = hops
-)
-
-func BuildTestAdapters(db *bbolt.DB) (TestAdapters, error) {
-	private, err := identity.NewPrivate()
-	if err != nil {
-		return TestAdapters{}, err
-	}
-	public := privateIdentityToPublicIdentity(private)
-	logger := fixtures.SomeLogger()
-	messageHMAC := formats.NewDefaultMessageHMAC()
-	txRepositoriesFactory := newTxRepositoriesFactory(public, logger, messageHMAC)
-	readMessageRepository := bolt.NewReadMessageRepository(db, txRepositoriesFactory)
-	readFeedRepository := bolt.NewReadFeedRepository(db, txRepositoriesFactory)
-	readReceiveLogRepository := bolt.NewReadReceiveLogRepository(db, txRepositoriesFactory)
-	testAdapters := TestAdapters{
-		MessageRepository: readMessageRepository,
-		FeedRepository:    readFeedRepository,
-		ReceiveLog:        readReceiveLogRepository,
-	}
-	return testAdapters, nil
-}
-
 func BuildTestCommands(t *testing.T) (TestCommands, error) {
 	dialerMock := mocks.NewDialerMock()
 	private, err := identity.NewPrivate()
@@ -437,46 +364,8 @@ func BuildTestQueries(t *testing.T) (TestQueries, error) {
 	return testQueries, nil
 }
 
-func BuildTransactableAdapters(tx *bbolt.Tx, public identity.Public, config Config) (commands.Adapters, error) {
-	graphHops := _wireHopsValue4
-	banListHasher := adapters.NewBanListHasher()
-	banListRepository := bolt.NewBanListRepository(tx, banListHasher)
-	socialGraphRepository := bolt.NewSocialGraphRepository(tx, public, graphHops, banListRepository)
-	messageContentMappings := transport.DefaultMappings()
-	logger := extractLoggerFromConfig(config)
-	marshaler, err := transport.NewMarshaler(messageContentMappings, logger)
-	if err != nil {
-		return commands.Adapters{}, err
-	}
-	messageHMAC := extractMessageHMACFromConfig(config)
-	scuttlebutt := formats.NewScuttlebutt(marshaler, messageHMAC)
-	v := newFormats(scuttlebutt)
-	rawMessageIdentifier := formats.NewRawMessageIdentifier(v)
-	messageRepository := bolt.NewMessageRepository(tx, rawMessageIdentifier)
-	receiveLogRepository := bolt.NewReceiveLogRepository(tx, messageRepository)
-	pubRepository := bolt.NewPubRepository(tx)
-	blobRepository := bolt.NewBlobRepository(tx)
-	feedRepository := bolt.NewFeedRepository(tx, socialGraphRepository, receiveLogRepository, messageRepository, pubRepository, blobRepository, banListRepository, scuttlebutt)
-	currentTimeProvider := adapters.NewCurrentTimeProvider()
-	blobWantListRepository := bolt.NewBlobWantListRepository(tx, currentTimeProvider)
-	feedWantListRepository := bolt.NewFeedWantListRepository(tx, currentTimeProvider)
-	commandsAdapters := commands.Adapters{
-		Feed:         feedRepository,
-		ReceiveLog:   receiveLogRepository,
-		SocialGraph:  socialGraphRepository,
-		BlobWantList: blobWantListRepository,
-		FeedWantList: feedWantListRepository,
-		BanList:      banListRepository,
-	}
-	return commandsAdapters, nil
-}
-
-var (
-	_wireHopsValue4 = hops
-)
-
 func buildBadgerTransactableAdapters(txn *badger2.Txn, public identity.Public, config Config) (commands.Adapters, error) {
-	graphHops := _wireHopsValue5
+	graphHops := _wireHopsValue3
 	banListHasher := adapters.NewBanListHasher()
 	banListRepository := badger.NewBanListRepository(txn, banListHasher)
 	socialGraphRepository := badger.NewSocialGraphRepository(txn, public, graphHops, banListRepository)
@@ -510,46 +399,7 @@ func buildBadgerTransactableAdapters(txn *badger2.Txn, public identity.Public, c
 }
 
 var (
-	_wireHopsValue5 = hops
-)
-
-func BuildTxRepositories(tx *bbolt.Tx, public identity.Public, logger logging.Logger, messageHMAC formats.MessageHMAC) (bolt.TxRepositories, error) {
-	graphHops := _wireHopsValue6
-	banListHasher := adapters.NewBanListHasher()
-	banListRepository := bolt.NewBanListRepository(tx, banListHasher)
-	socialGraphRepository := bolt.NewSocialGraphRepository(tx, public, graphHops, banListRepository)
-	messageContentMappings := transport.DefaultMappings()
-	marshaler, err := transport.NewMarshaler(messageContentMappings, logger)
-	if err != nil {
-		return bolt.TxRepositories{}, err
-	}
-	scuttlebutt := formats.NewScuttlebutt(marshaler, messageHMAC)
-	v := newFormats(scuttlebutt)
-	rawMessageIdentifier := formats.NewRawMessageIdentifier(v)
-	messageRepository := bolt.NewMessageRepository(tx, rawMessageIdentifier)
-	receiveLogRepository := bolt.NewReceiveLogRepository(tx, messageRepository)
-	pubRepository := bolt.NewPubRepository(tx)
-	blobRepository := bolt.NewBlobRepository(tx)
-	feedRepository := bolt.NewFeedRepository(tx, socialGraphRepository, receiveLogRepository, messageRepository, pubRepository, blobRepository, banListRepository, scuttlebutt)
-	currentTimeProvider := adapters.NewCurrentTimeProvider()
-	blobWantListRepository := bolt.NewBlobWantListRepository(tx, currentTimeProvider)
-	feedWantListRepository := bolt.NewFeedWantListRepository(tx, currentTimeProvider)
-	wantedFeedsRepository := bolt.NewWantedFeedsRepository(socialGraphRepository, feedWantListRepository, feedRepository, banListRepository)
-	txRepositories := bolt.TxRepositories{
-		Feed:         feedRepository,
-		Graph:        socialGraphRepository,
-		ReceiveLog:   receiveLogRepository,
-		Message:      messageRepository,
-		Blob:         blobRepository,
-		BlobWantList: blobWantListRepository,
-		FeedWantList: feedWantListRepository,
-		WantedFeeds:  wantedFeedsRepository,
-	}
-	return txRepositories, nil
-}
-
-var (
-	_wireHopsValue6 = hops
+	_wireHopsValue3 = hops
 )
 
 // BuildService creates a new service which uses the provided context as a long-term context used as a base context for
@@ -763,27 +613,6 @@ type BadgerTestAdapters struct {
 	Dependencies        *badger.TestAdaptersDependencies
 }
 
-type TxTestAdapters struct {
-	MessageRepository     *bolt.MessageRepository
-	FeedRepository        *bolt.FeedRepository
-	BlobRepository        *bolt.BlobRepository
-	SocialGraphRepository *bolt.SocialGraphRepository
-	PubRepository         *bolt.PubRepository
-	ReceiveLog            *bolt.ReceiveLogRepository
-	BlobWantList          *bolt.BlobWantListRepository
-	FeedWantList          *bolt.FeedWantListRepository
-	BanList               *bolt.BanListRepository
-
-	CurrentTimeProvider *mocks.CurrentTimeProviderMock
-	BanListHasher       *mocks.BanListHasherMock
-}
-
-type TestAdapters struct {
-	MessageRepository *bolt.ReadMessageRepository
-	FeedRepository    *bolt.ReadFeedRepository
-	ReceiveLog        *bolt.ReadReceiveLogRepository
-}
-
 type TestCommands struct {
 	RoomsAliasRegister        *commands.RoomsAliasRegisterHandler
 	RoomsAliasRevoke          *commands.RoomsAliasRevokeHandler
@@ -830,25 +659,6 @@ var hops = graph.MustNewHops(3)
 
 func newAdvertiser(l identity.Public, config Config) (*local.Advertiser, error) {
 	return local.NewAdvertiser(l, config.ListenAddress)
-}
-
-func newAdaptersFactory(config Config, local2 identity.Public) bolt.AdaptersFactory {
-	return func(tx *bbolt.Tx) (commands.Adapters, error) {
-		return BuildTransactableAdapters(tx, local2, config)
-	}
-}
-
-func newBolt(config Config) (*bbolt.DB, func(), error) {
-	filename := path.Join(config.DataDirectory, "database.bolt")
-	b, err := bbolt.Open(filename, 0600, &bbolt.Options{Timeout: 5 * time.Second})
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "could not open the database, is something else reading it?")
-	}
-	return b, func() {
-		if err := b.Close(); err != nil {
-			config.Logger.WithError(err).Error("error closing the database")
-		}
-	}, nil
 }
 
 func newBadger(config Config) (*badger2.DB, func(), error) {

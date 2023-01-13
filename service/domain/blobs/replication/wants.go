@@ -78,6 +78,8 @@ func (p *WantsProcess) incomingLoop(ctx context.Context, ch chan<- messages.Blob
 			continue
 		}
 
+		p.logger.WithField("want_list_size", wl.Len()).Trace("want list loaded from storage")
+
 		for _, v := range wl.List() {
 			v, err := messages.NewBlobWithWantDistance(v.Id, v.Distance)
 			if err != nil {
@@ -129,7 +131,7 @@ func (p *WantsProcess) outgoingLoop(ctx context.Context, ch <-chan messages.Blob
 		}
 
 		if distance, ok := hasOrWant.SizeOrWantDistance().WantDistance(); ok {
-			logger.WithField("distance", distance.Int()).Debug("received want")
+			logger.WithField("distance", distance.Int()).Trace("received want")
 
 			if err := p.onReceiveWant(hasOrWant.Id()); err != nil {
 				logger.WithError(err).Error("error processing a want")
@@ -172,7 +174,7 @@ func (p *WantsProcess) respondToWant(id refs.Blob) error {
 	size, err := p.blobStorage.Size(id)
 	if err != nil {
 		if errors.Is(err, ErrBlobNotFound) {
-			p.logger.WithField("blob", id).Debug("we don't have this blob")
+			p.logger.WithField("blob", id).Trace("we don't have this blob")
 			return nil
 		}
 		return errors.Wrap(err, "could not get blob size")

@@ -189,7 +189,7 @@ func (s *Session) SendNotes() error {
 
 	s.logger.
 		WithField("number_of_notes", len(notesToSend.Notes())).
-		Debug("sending notes")
+		Trace("sending notes")
 
 	return s.stream.SendNotes(notesToSend)
 }
@@ -201,7 +201,7 @@ func (s *Session) handleIncomingMessage(ctx context.Context, incoming IncomingMe
 
 	notes, ok := incoming.Notes()
 	if ok {
-		s.logger.WithField("number_of_notes", len(notes.Notes())).Debug("received notes")
+		s.logger.WithField("number_of_notes", len(notes.Notes())).Trace("received notes")
 		return s.handleIncomingNotes(ctx, notes)
 	}
 

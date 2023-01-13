@@ -48,6 +48,10 @@ func (wl WantList) List() []WantedBlob {
 	return result
 }
 
+func (wl WantList) Len() int {
+	return len(wl.wants)
+}
+
 type WantedBlob struct {
 	Id       refs.Blob
 	Distance WantDistance

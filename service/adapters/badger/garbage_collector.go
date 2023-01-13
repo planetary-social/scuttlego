@@ -9,6 +9,8 @@ import (
 	"github.com/planetary-social/scuttlego/logging"
 )
 
+const badgerGarbageCollectionErrorDelay = 1 * time.Minute
+
 type GarbageCollector struct {
 	db     *badger.DB
 	logger logging.Logger
@@ -26,7 +28,7 @@ func (g *GarbageCollector) Run(ctx context.Context) error {
 			}
 
 			select {
-			case <-time.After(10 * time.Second):
+			case <-time.After(badgerGarbageCollectionErrorDelay):
 				continue
 			case <-ctx.Done():
 				return ctx.Err()

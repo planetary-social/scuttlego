@@ -1,6 +1,10 @@
 package common
 
-import "github.com/boreq/errors"
+import (
+	"strconv"
+
+	"github.com/boreq/errors"
+)
 
 // ReceiveLogSequence is zero-indexed. This type has nothing to do with the
 // sequence field of Scuttlebutt messages. It is a part of the system which
@@ -28,6 +32,10 @@ func MustNewReceiveLogSequence(seq int) ReceiveLogSequence {
 
 func (r ReceiveLogSequence) Int() int {
 	return r.seq
+}
+
+func (r ReceiveLogSequence) String() string {
+	return strconv.Itoa(r.seq)
 }
 
 var ErrReceiveLogEntryNotFound = errors.New("receive log entry not found")

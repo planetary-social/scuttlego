@@ -16,7 +16,7 @@ func NewNoTxWantedFeedsRepository(transaction TransactionProvider) *NoTxWantedFe
 func (b NoTxWantedFeedsRepository) GetWantedFeeds() (replication.WantedFeeds, error) {
 	var result replication.WantedFeeds
 
-	if err := b.transaction.View(func(adapters TxAdapters) error {
+	if err := b.transaction.Update(func(adapters TxAdapters) error {
 		tmp, err := adapters.WantedFeedsRepository.GetWantedFeeds()
 		if err != nil {
 			return errors.Wrap(err, "could not get wanted feeds")

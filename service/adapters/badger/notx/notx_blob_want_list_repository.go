@@ -17,10 +17,10 @@ func NewNoTxBlobWantListRepository(transaction TransactionProvider) *NoTxBlobWan
 func (b NoTxBlobWantListRepository) List() (blobs.WantList, error) {
 	var result []blobs.WantedBlob
 
-	if err := b.transaction.View(func(adapters TxAdapters) error {
+	if err := b.transaction.Update(func(adapters TxAdapters) error {
 		list, err := adapters.BlobWantListRepository.List()
 		if err != nil {
-			return errors.Wrap(err, "could not get blobs")
+			return errors.Wrap(err, "could not get blobs from tx repo")
 		}
 
 		for _, v := range list {
@@ -44,7 +44,7 @@ func (b NoTxBlobWantListRepository) Contains(id refs.Blob) (bool, error) {
 	if err := b.transaction.View(func(adapters TxAdapters) error {
 		contains, err := adapters.BlobWantListRepository.Contains(id)
 		if err != nil {
-			return errors.Wrap(err, "could not get blobs")
+			return errors.Wrap(err, "could not call contains on tx repo")
 		}
 
 		result = contains

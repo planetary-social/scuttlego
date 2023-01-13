@@ -14,7 +14,6 @@ require (
 	go.cryptoscope.co/netwrap v0.1.1
 	go.cryptoscope.co/secretstream v1.2.10
 	go.cryptoscope.co/ssb v0.2.2-0.20220218153308-74274366774e
-	go.etcd.io/bbolt v1.3.6
 	go.mindeco.de/ssb-refs v0.4.2-0.20210908123826-f7ca13c14896
 	golang.org/x/crypto v0.0.0-20220210151621-f4118a5b28e2
 )

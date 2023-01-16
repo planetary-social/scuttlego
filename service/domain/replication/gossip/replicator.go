@@ -47,6 +47,14 @@ func (r GossipReplicator) Replicate(ctx context.Context, peer transport.Peer) er
 	return nil
 }
 
+func (r GossipReplicator) ReplicateSelf(ctx context.Context, peer transport.Peer) error {
+	feedsToReplicateCh := r.manager.GetFeedsToReplicateSelf(ctx, peer.Identity())
+	r.startWorkers(peer, feedsToReplicateCh)
+	<-ctx.Done()
+
+	return nil
+}
+
 func (r GossipReplicator) startWorkers(peer transport.Peer, ch <-chan ReplicateFeedTask) {
 	for i := 0; i < numWorkers; i++ {
 		go r.worker(peer, ch)

@@ -25,12 +25,12 @@ func BuildTestReplication(t *testing.T) (TestReplication, error) {
 	wantedFeedsCache := replication.NewWantedFeedsCache(wantedFeedsRepositoryMock)
 	messageStreamerMock := NewMessageStreamerMock()
 	sessionRunner := ebt.NewSessionRunner(devNullLogger, rawMessageHandlerMock, wantedFeedsCache, messageStreamerMock)
-	replicator := ebt.NewReplicator(sessionTracker, sessionRunner, devNullLogger)
 	manager := gossip.NewManager(devNullLogger, wantedFeedsCache)
 	gossipReplicator, err := gossip.NewGossipReplicator(manager, rawMessageHandlerMock, devNullLogger)
 	if err != nil {
 		return TestReplication{}, err
 	}
+	replicator := ebt.NewReplicator(sessionTracker, sessionRunner, gossipReplicator, devNullLogger)
 	negotiator := replication.NewNegotiator(devNullLogger, replicator, gossipReplicator)
 	testReplication := TestReplication{
 		Negotiator:         negotiator,

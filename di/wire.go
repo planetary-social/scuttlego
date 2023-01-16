@@ -340,6 +340,7 @@ var replicatorSet = wire.NewSet(
 
 	gossip.NewGossipReplicator,
 	wire.Bind(new(replication.CreateHistoryStreamReplicator), new(*gossip.GossipReplicator)),
+	wire.Bind(new(ebt.SelfCreateHistoryStreamReplicator), new(*gossip.GossipReplicator)),
 
 	ebt.NewReplicator,
 	wire.Bind(new(replication.EpidemicBroadcastTreesReplicator), new(ebt.Replicator)),

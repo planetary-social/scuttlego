@@ -107,10 +107,10 @@ func (m *MessageBuffer) persist() error {
 	}
 
 	for key, updatedSequence := range updatedSequences {
-		m.logger.WithField("key", key).WithField("sequence", updatedSequence.Int()).Debug("dropping after")
+		m.logger.WithField("key", key).WithField("sequence", updatedSequence.Int()).Trace("dropping after")
 		m.messages[key].LeaveOnlyAfter(updatedSequence)
 		if m.messages[key].Len() == 0 {
-			m.logger.WithField("key", key).Debug("deleting")
+			m.logger.WithField("key", key).Trace("deleting")
 			delete(m.messages, key)
 		}
 	}
@@ -168,10 +168,10 @@ func (m *MessageBuffer) persistTransaction(adapters Adapters) (map[string]messag
 			msgs := feedMessages.ConsecutiveSliceStartingWith(seq)
 
 			feedLogger.
-				WithField("sequence_in_database", seq).
+				WithField("sequence_in_database", seq.Int()).
 				WithField("sequences_in_buffer", feedMessages.Sequences()).
 				WithField("messages_that_can_be_persisted", len(msgs)).
-				Debug("persisting messages")
+				Trace("persisting messages")
 
 			if len(msgs) > 0 {
 				counterSuccesses++
@@ -226,7 +226,7 @@ func (m *MessageBuffer) cleanup() {
 		WithField("messages_after", messagesAfter).
 		WithField("feeds_before", feedsBefore).
 		WithField("feeds_after", feedsAfter).
-		Debug("cleanup complete")
+		Trace("cleanup complete")
 }
 
 func (m *MessageBuffer) getSequence(feed *feeds.Feed) *message.Sequence {

@@ -14,9 +14,12 @@ func NewBucketIterator(bucket Bucket) *BucketIterator {
 func NewBucketIteratorWithModifiedOptions(bucket Bucket, fn func(options *badger.IteratorOptions)) *BucketIterator {
 	options := badger.DefaultIteratorOptions
 	options.Prefix = bucket.prefix.Bytes()
+	options.PrefetchValues = false
+
 	if fn != nil {
 		fn(&options)
 	}
+
 	return &BucketIterator{
 		bucket: bucket,
 		it:     bucket.tx.NewIterator(options),

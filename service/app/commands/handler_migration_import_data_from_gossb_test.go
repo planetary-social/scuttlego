@@ -3,6 +3,7 @@ package commands_test
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"testing"
 	"time"
 
@@ -155,21 +156,33 @@ func TestMigrationHandlerImportDataFromGoSSB_ErrorsWhenAppendingMessagesAreIgnor
 		tc.GoSSBRepoReader.GoSSBRepoReaderMockGetMessagesCalls,
 	)
 
-	require.Equal(
-		t,
-		[]mocks.FeedRepositoryMockUpdateFeedIgnoringReceiveLogCall{
-			{
-				Feed: refs.MustNewFeed(msg1.Author().Sigil()),
-				MessagesToPersist: []refs.Message{
-					refs.MustNewMessage(msg1.Key().String()),
-				},
-			},
-			{
-				Feed:              refs.MustNewFeed(msg2.Author().Sigil()),
-				MessagesToPersist: nil,
+	expectedUpdateFeedIgnoringReceiveLogCalls := []mocks.FeedRepositoryMockUpdateFeedIgnoringReceiveLogCall{
+		{
+			Feed: refs.MustNewFeed(msg1.Author().Sigil()),
+			MessagesToPersist: []refs.Message{
+				refs.MustNewMessage(msg1.Key().String()),
 			},
 		},
-		tc.FeedRepository.UpdateFeedIgnoringReceiveLogCalls(),
+		{
+			Feed:              refs.MustNewFeed(msg2.Author().Sigil()),
+			MessagesToPersist: nil,
+		},
+	}
+
+	actualUpdateFeedIgnoringReceiveLogCalls := tc.FeedRepository.UpdateFeedIgnoringReceiveLogCalls()
+
+	sort.Slice(expectedUpdateFeedIgnoringReceiveLogCalls, func(i, j int) bool {
+		return expectedUpdateFeedIgnoringReceiveLogCalls[i].Feed.String() < expectedUpdateFeedIgnoringReceiveLogCalls[j].Feed.String()
+	})
+
+	sort.Slice(actualUpdateFeedIgnoringReceiveLogCalls, func(i, j int) bool {
+		return actualUpdateFeedIgnoringReceiveLogCalls[i].Feed.String() < actualUpdateFeedIgnoringReceiveLogCalls[j].Feed.String()
+	})
+
+	require.Equal(
+		t,
+		expectedUpdateFeedIgnoringReceiveLogCalls,
+		actualUpdateFeedIgnoringReceiveLogCalls,
 	)
 
 	require.Equal(

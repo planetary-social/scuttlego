@@ -15,6 +15,8 @@ import (
 func TestGetBlob(t *testing.T) {
 	id := fixtures.SomeRefBlob()
 	data := fixtures.SomeBytes()
+	correctSize := blobs.MustNewSize(int64(len(data)))
+	incorrectSize := blobs.MustNewSize(correctSize.InBytes() + int64(fixtures.SomePositiveInt()))
 
 	testCases := []struct {
 		Name          string
@@ -34,7 +36,7 @@ func TestGetBlob(t *testing.T) {
 			Name: "id_and_correct_size",
 			Query: queries.GetBlob{
 				Id:   id,
-				Size: internal.Ptr(blobs.MustNewSize(int64(len(data)))),
+				Size: internal.Ptr(correctSize),
 				Max:  nil,
 			},
 			ExpectedError: nil,
@@ -43,7 +45,7 @@ func TestGetBlob(t *testing.T) {
 			Name: "id_and_incorrect_size",
 			Query: queries.GetBlob{
 				Id:   id,
-				Size: internal.Ptr(blobs.MustNewSize(10)),
+				Size: internal.Ptr(incorrectSize),
 				Max:  nil,
 			},
 			ExpectedError: errors.New("blob size doesn't match the provided size"),
@@ -53,7 +55,7 @@ func TestGetBlob(t *testing.T) {
 			Query: queries.GetBlob{
 				Id:   id,
 				Size: nil,
-				Max:  internal.Ptr(blobs.MustNewSize(int64(len(data)) + 1)),
+				Max:  internal.Ptr(blobs.MustNewSize(correctSize.InBytes() + 1)),
 			},
 			ExpectedError: nil,
 		},
@@ -62,7 +64,7 @@ func TestGetBlob(t *testing.T) {
 			Query: queries.GetBlob{
 				Id:   id,
 				Size: nil,
-				Max:  internal.Ptr(blobs.MustNewSize(int64(len(data)))),
+				Max:  internal.Ptr(correctSize),
 			},
 			ExpectedError: nil,
 		},
@@ -71,7 +73,7 @@ func TestGetBlob(t *testing.T) {
 			Query: queries.GetBlob{
 				Id:   id,
 				Size: nil,
-				Max:  internal.Ptr(blobs.MustNewSize(int64(len(data)) - 1)),
+				Max:  internal.Ptr(blobs.MustNewSize(correctSize.InBytes() - 1)),
 			},
 			ExpectedError: errors.New("blob is larger than the provided max size"),
 		},
@@ -93,6 +95,7 @@ func TestGetBlob(t *testing.T) {
 
 			q.BlobStorage.MockBlob(id, data)
 
+			t.Log(testCase.Query.Size)
 			rc, err := q.Queries.GetBlob.Handle(testCase.Query)
 			if testCase.ExpectedError != nil {
 				require.EqualError(t, err, testCase.ExpectedError.Error())

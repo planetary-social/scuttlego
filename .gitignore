@@ -1,2 +1,3 @@
 .idea/
 _tests/
+cmd/ssb-test/

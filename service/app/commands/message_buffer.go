@@ -168,7 +168,7 @@ func (m *MessageBuffer) persistTransaction(adapters Adapters) (map[string]messag
 			msgs := feedMessages.ConsecutiveSliceStartingWith(seq)
 
 			feedLogger.
-				WithField("sequence_in_database", seq.Int()).
+				WithField("sequence_in_database", seq).
 				WithField("sequences_in_buffer", feedMessages.Sequences()).
 				WithField("messages_that_can_be_persisted", len(msgs)).
 				Trace("persisting messages")

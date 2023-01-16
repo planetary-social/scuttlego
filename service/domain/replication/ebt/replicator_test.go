@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/planetary-social/scuttlego/fixtures"
+	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/domain/messages"
 	"github.com/planetary-social/scuttlego/service/domain/replication"
 	"github.com/planetary-social/scuttlego/service/domain/replication/ebt"
@@ -148,7 +149,7 @@ type testReplicator struct {
 func newTestReplicator(t *testing.T) testReplicator {
 	tracker := newTrackerMock()
 	runner := newRunnerMock()
-	logger := fixtures.TestLogger(t)
+	logger := logging.NewDevNullLogger()
 	selfReplicator := newSelfCreateHistoryStreamReplicatorMock()
 	replicator := ebt.NewReplicator(tracker, runner, selfReplicator, logger)
 

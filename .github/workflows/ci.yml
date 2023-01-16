@@ -16,6 +16,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v2
+
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
@@ -35,12 +38,9 @@ jobs:
           path: |
             ${{ steps.golang-path.outputs.build }}
             ${{ steps.golang-path.outputs.module }}
-          key: ${{ runner.os }}-golang
+          key: ${{ runner.os }}-golang-${{ hashFiles('**/go.sum') }}
           restore-keys: |
-            ${{ runner.os }}-golang
-
-      - name: Check out code into the Go module directory
-        uses: actions/checkout@v2
+            ${{ runner.os }}-golang-
 
       - name: Run tests
         run: make ci

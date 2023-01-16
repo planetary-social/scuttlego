@@ -78,6 +78,13 @@ type ReplicationManager interface {
 	// received tasks. The caller must call the completion function for each
 	// task.
 	GetFeedsToReplicate(ctx context.Context, remote identity.Public) <-chan ReplicateFeedTask
+
+	// GetFeedsToReplicateSelf returns a channel on which replication tasks are
+	// received. The channel stays open as long as the passed context isn't
+	// cancelled. Cancelling the context cancels all child contexts in the
+	// received tasks. The caller must call the completion function for each
+	// task.
+	GetFeedsToReplicateSelf(ctx context.Context, remote identity.Public) <-chan ReplicateFeedTask
 }
 
 // Manager distributes replication tasks to replicators. Replicators consume
@@ -112,16 +119,24 @@ func NewManager(logger logging.Logger, storage ContactsStorage) *Manager {
 func (m *Manager) GetFeedsToReplicate(ctx context.Context, remote identity.Public) <-chan ReplicateFeedTask {
 	ch := make(chan ReplicateFeedTask)
 
-	go m.sendFeedsToReplicateLoop(ctx, ch, remote)
+	go m.sendFeedsToReplicateLoop(ctx, ch, remote, false)
 
 	return ch
 }
 
-func (m *Manager) sendFeedsToReplicateLoop(ctx context.Context, ch chan ReplicateFeedTask, remote identity.Public) {
+func (m *Manager) GetFeedsToReplicateSelf(ctx context.Context, remote identity.Public) <-chan ReplicateFeedTask {
+	ch := make(chan ReplicateFeedTask)
+
+	go m.sendFeedsToReplicateLoop(ctx, ch, remote, true)
+
+	return ch
+}
+
+func (m *Manager) sendFeedsToReplicateLoop(ctx context.Context, ch chan ReplicateFeedTask, remote identity.Public, localOnly bool) {
 	defer close(ch)
 
 	for {
-		if err := m.sendFeedToReplicate(ctx, ch, remote); err != nil {
+		if err := m.sendFeedToReplicate(ctx, ch, remote, localOnly); err != nil {
 			m.logger.WithError(err).Error("send feed to replicate failed")
 		}
 
@@ -134,7 +149,7 @@ func (m *Manager) sendFeedsToReplicateLoop(ctx context.Context, ch chan Replicat
 	}
 }
 
-func (m *Manager) sendFeedToReplicate(ctx context.Context, ch chan ReplicateFeedTask, remote identity.Public) error {
+func (m *Manager) sendFeedToReplicate(ctx context.Context, ch chan ReplicateFeedTask, remote identity.Public, localOnly bool) error {
 	contacts, err := m.storage.GetContacts()
 	if err != nil {
 		return errors.Wrap(err, "could not get contacts")
@@ -142,6 +157,10 @@ func (m *Manager) sendFeedToReplicate(ctx context.Context, ch chan ReplicateFeed
 
 	for i := range contacts {
 		contact := contacts[i]
+
+		if localOnly && contact.Hops.Int() > 0 {
+			continue
+		}
 
 		shouldSendTask, err := m.startReplication(remote, contact)
 		if err != nil {

@@ -21,6 +21,13 @@ var (
 	ebtReplicateFormat = messages.EbtReplicateFormatClassic
 )
 
+type SelfCreateHistoryStreamReplicator interface {
+	// ReplicateSelf should keep attempting to perform replication as long as
+	// the context isn't closed. Returning an error implies that replication
+	// should not restart.
+	ReplicateSelf(ctx context.Context, peer transport.Peer) error
+}
+
 type Tracker interface {
 	OpenSession(id rpc.ConnectionId) (SessionEndedFn, error)
 
@@ -37,16 +44,23 @@ type Runner interface {
 }
 
 type Replicator struct {
-	tracker Tracker
-	runner  Runner
-	logger  logging.Logger
+	tracker                           Tracker
+	runner                            Runner
+	selfCreateHistoryStreamReplicator SelfCreateHistoryStreamReplicator
+	logger                            logging.Logger
 }
 
-func NewReplicator(tracker Tracker, runner Runner, logger logging.Logger) Replicator {
+func NewReplicator(
+	tracker Tracker,
+	runner Runner,
+	selfCreateHistoryStreamReplicator SelfCreateHistoryStreamReplicator,
+	logger logging.Logger,
+) Replicator {
 	return Replicator{
-		tracker: tracker,
-		runner:  runner,
-		logger:  logger,
+		tracker:                           tracker,
+		runner:                            runner,
+		selfCreateHistoryStreamReplicator: selfCreateHistoryStreamReplicator,
+		logger:                            logger,
 	}
 }
 
@@ -75,8 +89,12 @@ func (r Replicator) Replicate(ctx context.Context, peer transport.Peer) error {
 			return errors.Wrap(err, "error starting the ebt session")
 		}
 
+		go r.replicateSelf(ctx, peer)
+
 		return r.runner.HandleStream(ctx, NewOutgoingStreamAdapter(rs))
 	}
+
+	go r.replicateSelf(ctx, peer)
 
 	logger.Debug("waiting for an EBT session")
 	ok, err := r.tracker.WaitForSession(ctx, connectionId, waitForRemoteToStartEbtSessionFor)
@@ -87,6 +105,12 @@ func (r Replicator) Replicate(ctx context.Context, peer transport.Peer) error {
 		return replication.ErrPeerDoesNotSupportEBT
 	}
 	return nil
+}
+
+func (r Replicator) replicateSelf(ctx context.Context, peer transport.Peer) {
+	if err := r.selfCreateHistoryStreamReplicator.ReplicateSelf(ctx, peer); err != nil {
+		r.logger.WithError(err).Error("error replicating self")
+	}
 }
 
 func (r Replicator) HandleIncoming(ctx context.Context, version int, format messages.EbtReplicateFormat, stream Stream) error {

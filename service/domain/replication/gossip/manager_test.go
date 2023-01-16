@@ -146,6 +146,47 @@ func TestManager_TheSamePeerWillNotBeAskedForAFeedAgainRightAwayIfAllMessagesThe
 	})
 }
 
+func TestManager_OnlyLocalFeedWillBeSentFromGetFeedsToReplicateSelf(t *testing.T) {
+	t.Parallel()
+
+	m := newTestManager()
+
+	contact1 := replication.Contact{
+		Who:       fixtures.SomeRefFeed(),
+		Hops:      graph.MustNewHops(0),
+		FeedState: replication.NewEmptyFeedState(),
+	}
+
+	contact2 := replication.Contact{
+		Who:       fixtures.SomeRefFeed(),
+		Hops:      graph.MustNewHops(fixtures.SomePositiveInt()),
+		FeedState: replication.NewEmptyFeedState(),
+	}
+
+	m.Storage.Contacts = []replication.Contact{
+		contact1,
+		contact2,
+	}
+
+	ctx := fixtures.TestContext(t)
+
+	feedsCh := m.Manager.GetFeedsToReplicateSelf(ctx, fixtures.SomePublicIdentity())
+
+	select {
+	case task := <-feedsCh:
+		require.Equal(t, contact1.Who, task.Id)
+	case <-time.After(1 * time.Second):
+		t.Fatal("peer should have been asked to replicate the local feed")
+	}
+
+	select {
+	case <-feedsCh:
+		t.Fatal("peer should not replicate other feeds")
+	case <-time.After(1 * time.Second):
+		// correct, nothing received
+	}
+}
+
 type testManager struct {
 	Manager *gossip.Manager
 	Storage *storageMock

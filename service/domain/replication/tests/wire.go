@@ -32,6 +32,7 @@ func BuildTestReplication(t *testing.T) (TestReplication, error) {
 
 		gossip.NewGossipReplicator,
 		wire.Bind(new(replication.CreateHistoryStreamReplicator), new(*gossip.GossipReplicator)),
+		wire.Bind(new(ebt.SelfCreateHistoryStreamReplicator), new(*gossip.GossipReplicator)),
 
 		ebt.NewSessionTracker,
 		wire.Bind(new(ebt.Tracker), new(*ebt.SessionTracker)),

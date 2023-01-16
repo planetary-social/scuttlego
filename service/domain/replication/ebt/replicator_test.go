@@ -2,6 +2,7 @@ package ebt_test
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -59,6 +60,42 @@ func TestReplicator_ReplicateInitiatesTheSessionIfConnectionWasNotInitiatedByRem
 	require.Equal(t, 1, tr.Runner.HandleStreamCallsCount)
 }
 
+func TestReplicator_ReplicateCallsReplicateSelfIfConnectionWasInitiatedByRemote(t *testing.T) {
+	tr := newTestReplicator(t)
+
+	connectionId := fixtures.SomeConnectionId()
+	ctx := fixtures.TestContext(t)
+	ctx = rpc.PutConnectionIdInContext(ctx, connectionId)
+	connThatWasInitiatedByRemote := newConnectionMock(true)
+	peer := transport.MustNewPeer(fixtures.SomePublicIdentity(), connThatWasInitiatedByRemote)
+
+	tr.Tracker.WaitForSessionResult = true
+
+	err := tr.Replicator.Replicate(ctx, peer)
+	require.NoError(t, err)
+
+	require.Eventually(t, func() bool {
+		return len(tr.SelfReplicator.ReplicateSelfCalls()) > 0
+	}, 1*time.Second, 10*time.Millisecond)
+}
+
+func TestReplicator_ReplicateCallsReplicateSelfIfConnectionWasNotInitiatedByRemote(t *testing.T) {
+	tr := newTestReplicator(t)
+
+	connectionId := fixtures.SomeConnectionId()
+	ctx := fixtures.TestContext(t)
+	ctx = rpc.PutConnectionIdInContext(ctx, connectionId)
+	connectionThatWasNotInitiatedByRemote := newConnectionMock(false)
+	peer := transport.MustNewPeer(fixtures.SomePublicIdentity(), connectionThatWasNotInitiatedByRemote)
+
+	err := tr.Replicator.Replicate(ctx, peer)
+	require.NoError(t, err)
+
+	require.Eventually(t, func() bool {
+		return len(tr.SelfReplicator.ReplicateSelfCalls()) > 0
+	}, 1*time.Second, 10*time.Millisecond)
+}
+
 func TestReplicator_ReplicateReturnsAnErrorAndDoesNotWaitIfOpenSessionReturnsAnError(t *testing.T) {
 	tr := newTestReplicator(t)
 
@@ -102,21 +139,24 @@ func TestReplicator_ReplicateReturnsErrPeerDoesNotSupportEbtIfRemoteNeverOpensAS
 }
 
 type testReplicator struct {
-	Tracker    *trackerMock
-	Runner     *runnerMock
-	Replicator ebt.Replicator
+	Tracker        *trackerMock
+	Runner         *runnerMock
+	SelfReplicator *selfCreateHistoryStreamReplicatorMock
+	Replicator     ebt.Replicator
 }
 
 func newTestReplicator(t *testing.T) testReplicator {
 	tracker := newTrackerMock()
 	runner := newRunnerMock()
 	logger := fixtures.TestLogger(t)
-	replicator := ebt.NewReplicator(tracker, runner, logger)
+	selfReplicator := newSelfCreateHistoryStreamReplicatorMock()
+	replicator := ebt.NewReplicator(tracker, runner, selfReplicator, logger)
 
 	return testReplicator{
-		Tracker:    tracker,
-		Runner:     runner,
-		Replicator: replicator,
+		Tracker:        tracker,
+		Runner:         runner,
+		SelfReplicator: selfReplicator,
+		Replicator:     replicator,
 	}
 }
 
@@ -181,4 +221,34 @@ func newRunnerMock() *runnerMock {
 func (r *runnerMock) HandleStream(ctx context.Context, stream ebt.Stream) error {
 	r.HandleStreamCallsCount++
 	return nil
+}
+
+type replicateSelfCall struct {
+	Peer transport.Peer
+}
+
+type selfCreateHistoryStreamReplicatorMock struct {
+	replicateSelfCalls     []replicateSelfCall
+	replicateSelfCallsLock sync.Mutex
+}
+
+func newSelfCreateHistoryStreamReplicatorMock() *selfCreateHistoryStreamReplicatorMock {
+	return &selfCreateHistoryStreamReplicatorMock{}
+}
+
+func (s *selfCreateHistoryStreamReplicatorMock) ReplicateSelf(ctx context.Context, peer transport.Peer) error {
+	s.replicateSelfCallsLock.Lock()
+	s.replicateSelfCalls = append(s.replicateSelfCalls, replicateSelfCall{Peer: peer})
+	s.replicateSelfCallsLock.Unlock()
+
+	<-ctx.Done()
+	return ctx.Err()
+}
+
+func (s *selfCreateHistoryStreamReplicatorMock) ReplicateSelfCalls() []replicateSelfCall {
+	s.replicateSelfCallsLock.Lock()
+	defer s.replicateSelfCallsLock.Unlock()
+	tmp := make([]replicateSelfCall, len(s.replicateSelfCalls))
+	copy(tmp, s.replicateSelfCalls)
+	return tmp
 }

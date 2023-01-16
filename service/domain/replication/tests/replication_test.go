@@ -2,6 +2,8 @@ package tests
 
 import (
 	"context"
+	"sort"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -74,6 +76,101 @@ func TestReplicationFallsBackToCreateHistoryStream(t *testing.T) {
 		}
 
 		if !requests[1].Name().Equal(messages.CreateHistoryStreamProcedure.Name()) {
+			return false
+		}
+
+		return true
+	}, 1*time.Second, 10*time.Millisecond)
+
+	replicateCancel()
+
+	select {
+	case err := <-errCh:
+		require.NoError(t, err)
+	case <-time.After(1 * time.Second):
+		t.Fatal("timeout")
+	}
+}
+
+func TestReplicationPullsOwnStreamUsingCreateHistoryStreamEvenIfEpidemicBroadcastTreesAreUsed(t *testing.T) {
+	tr, err := BuildTestReplication(t)
+	require.NoError(t, err)
+
+	ctx := fixtures.TestContext(t)
+	ctx = rpc.PutConnectionIdInContext(ctx, fixtures.SomeConnectionId())
+
+	conn := mocks.NewConnectionMock(ctx)
+	conn.SetWasInitiatedByRemote(false)
+	peer := transport.MustNewPeer(fixtures.SomePublicIdentity(), conn)
+
+	localFeed := fixtures.SomeRefFeed()
+
+	tr.ContactsRepository.GetWantedFeedsReturnValue = replication.NewWantedFeeds([]replication.Contact{
+		{
+			Who:       localFeed,
+			Hops:      graph.MustNewHops(0),
+			FeedState: replication.NewEmptyFeedState(),
+		},
+		{
+			Who:       fixtures.SomeRefFeed(),
+			Hops:      graph.MustNewHops(fixtures.SomePositiveInt()),
+			FeedState: replication.NewEmptyFeedState(),
+		},
+	}, nil)
+
+	var requests []*rpc.Request
+	var requestsLock sync.Mutex
+
+	replicateCtx, replicateCancel := context.WithCancel(ctx)
+	defer replicateCancel()
+
+	conn.Mock(func(req *rpc.Request) []rpc.ResponseWithError {
+		t.Log("handler received: ", req.Name().String())
+
+		requestsLock.Lock()
+		requests = append(requests, req)
+		requestsLock.Unlock()
+
+		<-replicateCtx.Done()
+
+		return []rpc.ResponseWithError{
+			{
+				Value: nil,
+				Err:   rpc.NewRemoteError([]byte(replicateCtx.Err().Error())),
+			},
+		}
+	})
+
+	errCh := make(chan error)
+	go func() {
+		errCh <- tr.Negotiator.Replicate(replicateCtx, peer)
+	}()
+
+	require.Eventually(t, func() bool {
+		requestsLock.Lock()
+		defer requestsLock.Unlock()
+
+		sort.Slice(requests, func(i, j int) bool {
+			return requests[i].Name().String() < requests[j].Name().String()
+
+		})
+
+		if len(requests) != 2 {
+			return false
+		}
+
+		ebtRequest := requests[1]
+		chsRequest := requests[0]
+
+		if !ebtRequest.Name().Equal(messages.EbtReplicateProcedure.Name()) {
+			return false
+		}
+
+		if !chsRequest.Name().Equal(messages.CreateHistoryStreamProcedure.Name()) {
+			return false
+		}
+
+		if !strings.Contains(string(chsRequest.Arguments()), localFeed.String()) {
 			return false
 		}
 

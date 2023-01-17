@@ -116,6 +116,15 @@ func (m *FeedMessages) Feed() refs.Feed {
 	return m.feed
 }
 
+func (m *FeedMessages) Remove(msgToRemove message.Message) {
+	for i, msg := range m.messages {
+		if msg.Msg.Id().Equal(msgToRemove.Id()) {
+			m.messages = append(m.messages[:i], m.messages[i+1:]...)
+			return
+		}
+	}
+}
+
 type sortedMessage struct {
 	Msg message.Message
 	T   time.Time

@@ -1,5 +1,6 @@
 package commands
 
 type Migrations struct {
-	MigrationImportDataFromGoSSB *MigrationHandlerImportDataFromGoSSB
+	MigrationDeleteGoSSBRepositoryInOldFormat *MigrationHandlerDeleteGoSSBRepositoryInOldFormat
+	MigrationImportDataFromGoSSB              *MigrationHandlerImportDataFromGoSSB
 }

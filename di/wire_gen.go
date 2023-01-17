@@ -492,12 +492,15 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	badgerStorage := migrations.NewBadgerStorage(db)
 	runner := migrations2.NewRunner(badgerStorage, logger)
 	goSSBRepoReader := migrations.NewGoSSBRepoReader(logger)
+	migrationHandlerDeleteGoSSBRepositoryInOldFormat := commands.NewMigrationHandlerDeleteGoSSBRepositoryInOldFormat(goSSBRepoReader, logger)
 	migrationHandlerImportDataFromGoSSB := commands.NewMigrationHandlerImportDataFromGoSSB(goSSBRepoReader, transactionProvider, marshaler, logger)
 	commandsMigrations := commands.Migrations{
-		MigrationImportDataFromGoSSB: migrationHandlerImportDataFromGoSSB,
+		MigrationDeleteGoSSBRepositoryInOldFormat: migrationHandlerDeleteGoSSBRepositoryInOldFormat,
+		MigrationImportDataFromGoSSB:              migrationHandlerImportDataFromGoSSB,
 	}
+	commandDeleteGoSsbRepositoryInOldFormatAdapter := newCommandDeleteGoSsbRepositoryInOldFormatAdapter(config, commandsMigrations)
 	commandImportDataFromGoSSBHandlerAdapter := newCommandImportDataFromGoSSBHandlerAdapter(config, commandsMigrations)
-	v2 := newMigrationsList(commandImportDataFromGoSSBHandlerAdapter)
+	v2 := newMigrationsList(commandDeleteGoSsbRepositoryInOldFormatAdapter, commandImportDataFromGoSSBHandlerAdapter)
 	migrationsMigrations, err := migrations2.NewMigrations(v2)
 	if err != nil {
 		cleanup()

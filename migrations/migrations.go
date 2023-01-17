@@ -22,6 +22,19 @@ type SaveStateFunc func(state State) error
 // error it should not be executed again.
 type MigrationFunc func(ctx context.Context, state State, saveStateFunc SaveStateFunc) error
 
+type ProgressCallback interface {
+	// OnRunning is only called when a migration is actually being executed.
+	OnRunning(migrationIndex int, migrationsCount int)
+
+	// OnError is called when the migration process for one of the migrations
+	// fails with an error.
+	OnError(migrationIndex int, migrationsCount int, err error)
+
+	// OnDone is always called once all migrations were successfully executed
+	// even if no migrations were run.
+	OnDone(migrationsCount int)
+}
+
 type Migration struct {
 	name string
 	fn   MigrationFunc
@@ -89,6 +102,10 @@ func (m Migrations) List() []Migration {
 	return m.migrations
 }
 
+func (m Migrations) Count() int {
+	return len(m.migrations)
+}
+
 type Status struct {
 	s string
 }
@@ -122,16 +139,25 @@ func NewRunner(storage Storage, logger logging.Logger) *Runner {
 	return &Runner{storage: storage, logger: logger.New("migrations_runner")}
 }
 
-func (r Runner) Run(ctx context.Context, migrations Migrations) error {
-	for _, migration := range migrations.List() {
-		if err := r.runMigration(ctx, migration); err != nil {
-			return errors.Wrapf(err, "error running migration '%s'", migration.Name())
+func (r Runner) Run(ctx context.Context, migrations Migrations, callback ProgressCallback) error {
+	for i, migration := range migrations.List() {
+		onRunning := func() {
+			callback.OnRunning(i, migrations.Count())
+		}
+
+		if err := r.runMigration(ctx, migration, onRunning); err != nil {
+			err = errors.Wrapf(err, "error running migration '%s'", migration.Name())
+			callback.OnError(i, migrations.Count(), err)
+			return err
 		}
 	}
+
+	callback.OnDone(migrations.Count())
+
 	return nil
 }
 
-func (r Runner) runMigration(ctx context.Context, migration Migration) error {
+func (r Runner) runMigration(ctx context.Context, migration Migration, onRunning func()) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -148,6 +174,8 @@ func (r Runner) runMigration(ctx context.Context, migration Migration) error {
 		logger.Debug("not running this migration")
 		return nil
 	}
+
+	onRunning()
 
 	state, err := r.loadState(migration)
 	if err != nil {

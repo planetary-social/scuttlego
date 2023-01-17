@@ -293,6 +293,25 @@ func TestFeedMessages_ConsecutiveSliceStartingWith(t *testing.T) {
 
 }
 
+func TestFeedMessages_RemoveRemovesMessages(t *testing.T) {
+	feed := fixtures.SomeRefFeed()
+
+	v := messagebuffer.NewFeedMessages(feed)
+
+	msg1 := fixtures.SomeMessage(fixtures.SomeSequence(), feed)
+	msg2 := fixtures.SomeMessage(fixtures.SomeSequence(), feed)
+
+	err := v.Add(fixtures.SomeTime(), msg1)
+	require.NoError(t, err)
+
+	err = v.Add(fixtures.SomeTime(), msg2)
+	require.NoError(t, err)
+
+	require.Equal(t, 2, v.Len())
+	v.Remove(msg2)
+	require.Equal(t, 1, v.Len())
+}
+
 func messagesToSequences(msgs []message.Message) []message.Sequence {
 	var result []message.Sequence
 	for _, msg := range msgs {

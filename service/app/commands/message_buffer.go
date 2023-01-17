@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"github.com/planetary-social/scuttlego/service/domain/graph"
 	"sync"
 	"time"
 
@@ -138,29 +139,16 @@ func (m *MessageBuffer) persistTransaction(adapters Adapters) (map[string]messag
 		counterAll++
 
 		feedRef := feedMessages.Feed()
-		authorRef, err := refs.NewIdentityFromPublic(feedRef.Identity()) // todo cleanup
-		if err != nil {
-			return nil, errors.Wrap(err, "error creating an identity")
-		}
-
 		feedLogger := m.logger.WithField("feed", feedRef)
 
-		feedIsBanned, err := adapters.BanList.ContainsFeed(feedRef)
+		shouldSave, err := m.shouldSave(adapters, socialGraph, feedRef)
 		if err != nil {
-			return nil, errors.Wrap(err, "error checking if the feed is banned")
+			return nil, errors.Wrap(err, "error checking if this feed should be saved")
 		}
 
-		if feedIsBanned {
-			return nil, errors.New("feed is banned")
-		}
-
-		wantListContains, err := adapters.FeedWantList.Contains(feedRef)
-		if err != nil {
-			return nil, errors.Wrap(err, "error checking the want list")
-		}
-
-		if !socialGraph.HasContact(authorRef) && !wantListContains {
-			continue // do nothing as this contact is not in our social graph
+		if !shouldSave {
+			delete(m.messages, key)
+			continue
 		}
 
 		if err := adapters.Feed.UpdateFeed(feedRef, func(feed *feeds.Feed) error {
@@ -202,6 +190,33 @@ func (m *MessageBuffer) persistTransaction(adapters Adapters) (map[string]messag
 		Debug("update complete")
 
 	return updatedSequences, nil
+}
+
+func (m *MessageBuffer) shouldSave(adapters Adapters, socialGraph graph.SocialGraph, feedRef refs.Feed) (bool, error) {
+	authorRef, err := refs.NewIdentityFromPublic(feedRef.Identity()) // todo cleanup
+	if err != nil {
+		return false, errors.Wrap(err, "error creating an identity")
+	}
+
+	feedIsBanned, err := adapters.BanList.ContainsFeed(feedRef)
+	if err != nil {
+		return false, errors.Wrap(err, "error checking if the feed is banned")
+	}
+
+	if feedIsBanned {
+		return false, nil
+	}
+
+	wantListContains, err := adapters.FeedWantList.Contains(feedRef)
+	if err != nil {
+		return false, errors.Wrap(err, "error checking the want list")
+	}
+
+	if !socialGraph.HasContact(authorRef) && !wantListContains {
+		return false, nil
+	}
+
+	return true, nil
 }
 
 func (m *MessageBuffer) cleanup() {

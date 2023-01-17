@@ -22,6 +22,7 @@ var migrationsSet = wire.NewSet(
 
 	newMigrationsList,
 
+	newCommandDeleteGoSsbRepositoryInOldFormatAdapter,
 	newCommandImportDataFromGoSSBHandlerAdapter,
 
 	migrationCommandsSet,
@@ -29,8 +30,19 @@ var migrationsSet = wire.NewSet(
 
 var migrationCommandsSet = wire.NewSet(
 	wire.Struct(new(commands.Migrations), "*"),
+	commands.NewMigrationHandlerDeleteGoSSBRepositoryInOldFormat,
 	commands.NewMigrationHandlerImportDataFromGoSSB,
 )
+
+func newCommandDeleteGoSsbRepositoryInOldFormatAdapter(
+	config Config,
+	m commands.Migrations,
+) *migrationsadapters.CommandDeleteGoSsbRepositoryInOldFormatAdapter {
+	return migrationsadapters.NewCommandDeleteGoSsbRepositoryInOldFormatAdapter(
+		config.GoSSBDataDirectory,
+		m,
+	)
+}
 
 func newCommandImportDataFromGoSSBHandlerAdapter(
 	config Config,
@@ -43,11 +55,16 @@ func newCommandImportDataFromGoSSBHandlerAdapter(
 }
 
 func newMigrationsList(
+	commandDeleteGoSsbRepositoryInOldFormatAdapter *migrationsadapters.CommandDeleteGoSsbRepositoryInOldFormatAdapter,
 	commandImportDataFromGoSSBHandlerAdapter *migrationsadapters.CommandImportDataFromGoSSBHandlerAdapter,
 ) []migrations.Migration {
 	return []migrations.Migration{
 		migrations.MustNewMigration(
-			"0001_import_data_from_gossb",
+			"delete_gossb_repository_in_old_format",
+			commandDeleteGoSsbRepositoryInOldFormatAdapter.Fn,
+		),
+		migrations.MustNewMigration(
+			"import_data_from_gossb",
 			commandImportDataFromGoSSBHandlerAdapter.Fn,
 		),
 	}

@@ -65,6 +65,10 @@ func NewImportDataFromGoSSB(
 	}, nil
 }
 
+func (cmd ImportDataFromGoSSB) IsZero() bool {
+	return cmd.directory == ""
+}
+
 type ImportDataFromGoSSBResult struct {
 	Successes int
 	Errors    int
@@ -92,6 +96,10 @@ func NewMigrationHandlerImportDataFromGoSSB(
 }
 
 func (h MigrationHandlerImportDataFromGoSSB) Handle(ctx context.Context, cmd ImportDataFromGoSSB) (ImportDataFromGoSSBResult, error) {
+	if cmd.IsZero() {
+		return ImportDataFromGoSSBResult{}, errors.New("zero value of command")
+	}
+
 	h.logger.
 		WithField("directory", cmd.directory).
 		WithField("resume_from_sequence", cmd.resumeFromSequence).

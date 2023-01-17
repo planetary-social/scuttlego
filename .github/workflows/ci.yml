@@ -37,7 +37,7 @@ jobs:
           path: |
             ${{ steps.golang-path.outputs.build }}
             ${{ steps.golang-path.outputs.module }}
-          key: ${{ runner.os }}-golang-${{ hashFiles('**/go.sum') }}
+          key: ${{ runner.os }}-golang-${{ hashFiles('**/go.sum', 'Makefile') }}
           restore-keys: |
             ${{ runner.os }}-golang-
 

@@ -167,8 +167,8 @@ func (m *MessageBuffer) persistTransaction(adapters Adapters) (map[string]messag
 
 			for _, msg := range msgs {
 				if err := feed.AppendMessage(msg); err != nil {
-					// TODO if error then drop all messages?
-					return errors.Wrap(err, "error updating feed")
+					feedMessages.Remove(msg)
+					return nil // probably a forked feed
 				}
 			}
 

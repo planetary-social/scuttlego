@@ -2,7 +2,6 @@ package commands
 
 import (
 	"context"
-	"github.com/planetary-social/scuttlego/service/domain/graph"
 	"sync"
 	"time"
 
@@ -10,6 +9,7 @@ import (
 	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/domain/feeds"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
+	"github.com/planetary-social/scuttlego/service/domain/graph"
 	"github.com/planetary-social/scuttlego/service/domain/messagebuffer"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 )

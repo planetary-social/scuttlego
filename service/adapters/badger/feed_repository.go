@@ -2,6 +2,7 @@ package badger
 
 import (
 	"encoding/binary"
+	"fmt"
 
 	"github.com/boreq/errors"
 	"github.com/dgraph-io/badger/v3"
@@ -100,19 +101,17 @@ func (b FeedRepository) GetMessages(id refs.Feed, seq *message.Sequence, limit *
 
 	bucket := b.getFeedBucket(id)
 
-	// todo not stupid implementation (with a cursor)
-
+	// todo not stupid implementation (with seek)
 	if err := bucket.ForEach(func(item *badger.Item) error {
-		var msgId refs.Message
-		if err := item.Value(func(val []byte) error {
-			tmp, err := refs.NewMessage(string(val))
-			if err != nil {
-				return errors.Wrap(err, "failed to create a message ref")
-			}
-			msgId = tmp
-			return nil
-		}); err != nil {
+		valueCopy, err := item.ValueCopy(nil)
+		if err != nil {
 			return errors.Wrap(err, "error getting value")
+
+		}
+
+		msgId, err := refs.NewMessage(string(valueCopy))
+		if err != nil {
+			return errors.Wrap(err, "failed to create a message ref")
 		}
 
 		msg, err := b.messageRepository.Get(msgId)
@@ -150,17 +149,14 @@ func (b FeedRepository) DeleteFeed(ref refs.Feed) error {
 	bucket := b.getFeedBucket(ref)
 
 	if err := bucket.ForEach(func(item *badger.Item) error {
-		var msgId refs.Message
-
-		if err := item.Value(func(val []byte) error {
-			tmp, err := refs.NewMessage(string(val))
-			if err != nil {
-				return errors.Wrap(err, "failed to create a message ref")
-			}
-			msgId = tmp
-			return nil
-		}); err != nil {
+		valueCopy, err := item.ValueCopy(nil)
+		if err != nil {
 			return errors.Wrap(err, "error getting value")
+		}
+
+		msgId, err := refs.NewMessage(string(valueCopy))
+		if err != nil {
+			return errors.Wrap(err, "failed to create a message ref")
 		}
 
 		if err := b.removeMessageData(msgId); err != nil {
@@ -182,7 +178,7 @@ func (b FeedRepository) DeleteFeed(ref refs.Feed) error {
 func (b FeedRepository) GetMessage(feed refs.Feed, sequence message.Sequence) (message.Message, error) {
 	bucket := b.getFeedBucket(feed)
 
-	item, err := bucket.Get(messageKey(sequence))
+	item, err := bucket.Get(b.marshalMessageKey(sequence))
 	if err != nil {
 		return message.Message{}, errors.Wrap(err, "sequence not found")
 	}
@@ -265,22 +261,19 @@ func (b FeedRepository) loadFeed(ref refs.Feed) (*feeds.Feed, error) {
 		return nil, nil
 	}
 
-	var msgId refs.Message
-
-	if err := it.Item().Value(func(val []byte) error {
-		tmp, err := refs.NewMessage(string(val))
-		if err != nil {
-			return errors.Wrap(err, "failed to create a message ref")
-		}
-		msgId = tmp
-		return nil
-	}); err != nil {
+	valueCopy, err := it.Item().ValueCopy(nil)
+	if err != nil {
 		return nil, errors.Wrap(err, "error getting value")
+	}
+
+	msgId, err := refs.NewMessage(string(valueCopy))
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create a message ref")
 	}
 
 	msg, err := b.messageRepository.Get(msgId)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get the message")
+		return nil, errors.Wrapf(err, "failed to get message '%s'", msgId)
 	}
 
 	feed, err := feeds.NewFeedFromHistory(msg, b.formatScuttlebutt)
@@ -289,6 +282,50 @@ func (b FeedRepository) loadFeed(ref refs.Feed) (*feeds.Feed, error) {
 	}
 
 	return feed, nil
+}
+
+type FeedMessage struct {
+	Sequence message.Sequence
+	Id       refs.Message
+}
+
+func (b FeedRepository) GetFeedMessages(ref refs.Feed) ([]FeedMessage, error) {
+	bucket := b.getFeedBucket(ref)
+
+	var result []FeedMessage
+
+	if err := bucket.ForEach(func(item *badger.Item) error {
+		keyInBucket, err := bucket.KeyInBucket(item)
+		if err != nil {
+			return errors.Wrap(err, "error getting key in bucket")
+		}
+
+		sequence, err := b.unmarshalMessageKey(keyInBucket.Bytes())
+		if err != nil {
+			return errors.Wrap(err, "error unmarshaling sequence")
+		}
+
+		valueCopy, err := item.ValueCopy(nil)
+		if err != nil {
+			return errors.Wrap(err, "error getting value copy")
+		}
+
+		id, err := refs.NewMessage(string(valueCopy))
+		if err != nil {
+			return errors.Wrap(err, "error creating a message ref")
+		}
+
+		result = append(result, FeedMessage{
+			Sequence: sequence,
+			Id:       id,
+		})
+
+		return nil
+	}); err != nil {
+		return nil, errors.Wrap(err, "foreach error")
+	}
+
+	return result, nil
 }
 
 func (b FeedRepository) saveFeed(ref refs.Feed, feed *feeds.Feed, saveInReceiveLog bool) error {
@@ -359,7 +396,7 @@ func (b FeedRepository) saveMessageInRepositories(msg feeds.MessageToPersist, sa
 }
 
 func (b FeedRepository) saveMessageInBucket(bucket utils.Bucket, msg message.Message) error {
-	key := messageKey(msg.Sequence())
+	key := b.marshalMessageKey(msg.Sequence())
 	value := []byte(msg.Id().String())
 
 	if err := bucket.Set(key, value); err != nil {
@@ -375,10 +412,20 @@ func (b FeedRepository) saveContact(contact feeds.ContactToSave) error {
 	})
 }
 
-func messageKey(seq message.Sequence) []byte {
-	buf := make([]byte, 8)
+const messageKeyLen = 8
+
+func (b FeedRepository) marshalMessageKey(seq message.Sequence) []byte {
+	buf := make([]byte, messageKeyLen)
 	binary.BigEndian.PutUint64(buf, uint64(seq.Int()))
 	return buf
+}
+
+func (b FeedRepository) unmarshalMessageKey(marshaledKey []byte) (message.Sequence, error) {
+	if l := len(marshaledKey); l != messageKeyLen {
+		return message.Sequence{}, fmt.Errorf("invalid message key length '%d'", l)
+	}
+	v := binary.BigEndian.Uint64(marshaledKey)
+	return message.NewSequence(int(v))
 }
 
 func (b FeedRepository) getFeedCounter() (utils.Counter, error) {

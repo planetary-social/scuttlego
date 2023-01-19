@@ -135,7 +135,7 @@ func (b BanListRepository) RemoveFeedMapping(ref refs.Feed) error {
 	}
 
 	if err := bucket.Delete(hash.Bytes()); err != nil {
-		return errors.Wrap(err, "bucket put failed")
+		return errors.Wrap(err, "bucket delete failed")
 	}
 
 	return nil

@@ -34,7 +34,11 @@ func (r *RawMessageIdentifierMock) LoadRawMessage(raw message.VerifiedRawMessage
 }
 
 func (r *RawMessageIdentifierMock) Mock(msg message.Message) {
-	r.v[hex.EncodeToString(msg.Raw().Bytes())] = msg
+	key := hex.EncodeToString(msg.Raw().Bytes())
+	if _, ok := r.v[key]; ok {
+		panic("message with identical raw bytes was already mocked")
+	}
+	r.v[key] = msg
 }
 
 func (r *RawMessageIdentifierMock) convert(msg message.Message) (message.MessageWithoutId, error) {

@@ -23,16 +23,16 @@ type item struct {
 type stateFunc func(l *lexer) (stateFunc, error)
 
 type lexer struct {
-	s       string
+	b       []byte
 	pos     int
 	prevPos int
 	current item
 	items   []item
 }
 
-func newLexer(s string) *lexer {
+func newLexer(b []byte) *lexer {
 	return &lexer{
-		s: s,
+		b: b,
 	}
 }
 
@@ -53,7 +53,7 @@ func (l *lexer) lex() error {
 }
 
 func (l *lexer) next() (rune, bool) {
-	r, size := utf8.DecodeRune([]byte(l.s[l.pos:]))
+	r, size := utf8.DecodeRune(l.b[l.pos:])
 
 	if r == utf8.RuneError {
 		return 0, false
@@ -66,7 +66,7 @@ func (l *lexer) next() (rune, bool) {
 }
 
 func (l *lexer) previous() rune {
-	r, _ := utf8.DecodeLastRune([]byte(l.s[:l.prevPos]))
+	r, _ := utf8.DecodeLastRune(l.b[:l.prevPos])
 	return r
 }
 
@@ -172,16 +172,14 @@ func lexWithoutQuotes(l *lexer) (stateFunc, error) {
 }
 
 func lexEndOfValue(l *lexer) (stateFunc, error) {
-	for {
-		r, ok := l.next()
-		if !ok {
-			return nil, nil
-		}
-
-		if unicode.IsSpace(r) {
-			l.skip()
-		}
-
-		return lexLabel, nil
+	r, ok := l.next()
+	if !ok {
+		return nil, nil
 	}
+
+	if unicode.IsSpace(r) {
+		l.skip()
+	}
+
+	return lexLabel, nil
 }

@@ -2,7 +2,6 @@ package debugger
 
 import (
 	"bufio"
-	"fmt"
 	"os"
 
 	"github.com/boreq/errors"
@@ -25,11 +24,9 @@ func LoadLog(s string) (Log, error) {
 	scanner.Buffer(nil, maxTokenLength)
 
 	for scanner.Scan() {
-		line, err := loadLine(scanner.Text())
+		line, err := loadLine(scanner.Bytes())
 		if err != nil {
-			fmt.Println("skipping", scanner.Text())
-			continue
-			//return nil, errors.Wrap(err, "failed to load a line")
+			return nil, errors.Wrap(err, "failed to load a line")
 		}
 
 		log = append(log, line)
@@ -42,8 +39,8 @@ func LoadLog(s string) (Log, error) {
 	return log, nil
 }
 
-func loadLine(s string) (Entry, error) {
-	l := newLexer(s)
+func loadLine(b []byte) (Entry, error) {
+	l := newLexer(b)
 	if err := l.lex(); err != nil {
 		return nil, errors.Wrap(err, "lex failed")
 	}

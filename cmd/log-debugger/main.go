@@ -49,7 +49,7 @@ func run() error {
 
 	port := 8080
 
-	fmt.Println(fmt.Sprintf("http://localhost:%d", port))
+	fmt.Printf("http://localhost:%d\n", port)
 
 	return http.ListenAndServe(fmt.Sprintf(":%d", port), http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		if strings.HasPrefix(request.URL.Path, "/assets") {

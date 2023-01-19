@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style>
+        html {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        body {
+            padding: 1em;
+        }
+
+        .rpc-message {
+            font-size: 12px;
+            margin: 1em 0;
+            display: flex;
+            align-items: center;
+        }
+
+        .rpc-message .content {
+            flex: 1;
+            overflow: scroll;
+        }
+
+        .rpc-message .content .header {
+            color: #fff;
+            display: flex;
+            padding: .5em;
+        }
+
+        .rpc-message .content .header .fields {
+            list-style-type: none;
+            margin: 0;
+            padding: 0;
+            flex: 1;
+        }
+
+        .rpc-message .content .header .fields li {
+            padding: 0;
+            margin: 0;
+            display: inline-block;
+        }
+
+        .rpc-message .content .header .fields li .key, .rpc-message .content .header .fields li .value {
+            display: inline-block;
+        }
+
+        .rpc-message .content .header .fields li .value {
+            font-weight: bold;
+            margin-right: 1em;
+        }
+
+        .rpc-message .content .header .fields li::before {
+            display: none;
+        }
+
+        .rpc-message .content .body {
+            margin: 0;
+            padding: .5em;
+            overflow: scroll;
+        }
+
+        .rpc-message .arrow {
+            width: 150px;
+        }
+
+        .rpc-message .arrow img {
+            width: 50px;
+        }
+
+        .rpc-message.left .header {
+            background-color: #5fb2e6;
+        }
+
+        .rpc-message.left .body {
+            background-color: #d2e9f8;
+        }
+
+        .rpc-message.left .arrow {
+            text-align: left;
+            padding-left: 1em;
+        }
+
+        .rpc-message.right .header {
+            background-color: #e79f27;
+        }
+
+        .rpc-message.right .body {
+            background-color: #fcf3e4;
+        }
+
+        .rpc-message.right .arrow {
+            text-align: right;
+            padding-right: 1em;
+        }
+
+        .rpc-message.right .arrow img {
+            transform: scaleX(-1);
+        }
+    </style>
+</head>
+
+<body>
+    <h1>
+        {{ .LogFilename }}
+    </h1>
+
+    <div class="peers">
+        {{ range $key, $value := .Peers }}
+            <div class="peer">
+                <h2>
+                    {{ $key }}
+                </h2>
+
+                <div class="sessions">
+                    {{ range $value }}
+                        <div class="session">
+                            <h3>
+                                {{ .Number }}
+
+                                {{ if eq .InitiatedBy InitiatedByRemote }}
+                                    (initiated by remote)
+                                {{ else }}
+                                    (initiated by local)
+                                {{ end }}
+                            </h3>
+
+                            {{ range .Messages }}
+                                {{ if eq .Type MessageTypeSent }}
+                                    <div class="rpc-message left">
+                                {{ else }}
+                                    <div class="rpc-message right">
+                                {{ end }}
+
+                                    {{ if ne .Type MessageTypeSent }}
+                                        <div class="arrow">
+                                            <img src="/assets/images/arrow.png">
+                                        </div>
+                                    {{ end }}
+
+                                    <div class="content">
+                                        <div class="header">
+                                            <ul class="fields">
+                                                <li>
+                                                    <div class="key">
+                                                        Request number:
+                                                    </div>
+                                                    <div class="value">
+                                                        {{ .RequestNumber }}
+                                                    </div>
+                                                </li>
+                                                <li>
+                                                    <div class="key">
+                                                        Flags:
+                                                    </div>
+                                                    <div class="value">
+                                                        {{ .Flags }}
+                                                    </div>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                        <pre class="body">{{ .Body }}</pre>
+                                    </div>
+
+                                    {{ if eq .Type MessageTypeSent }}
+                                        <div class="arrow">
+                                            <img src="/assets/images/arrow.png">
+                                        </div>
+                                    {{ end }}
+                                </div>
+                            {{else}}
+                                No messages.
+                            {{end}}
+                        </div>
+                    {{else}}
+                        No sessions.
+                    {{end}}
+                </div>
+            </div>
+        {{else}}
+            No peers.
+        {{end}}
+    </div>
+</body>
+
+</html>

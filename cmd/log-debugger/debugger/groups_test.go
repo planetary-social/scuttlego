@@ -37,9 +37,9 @@ func TestSessionsInitiatedByRemote(t *testing.T) {
 	require.Equal(t,
 		debugger.Sessions{
 			-1: {
-				Number:       -1,
-				InititatedBy: debugger.InitiatedByRemoteNode,
-				Messages:     msgs,
+				Number:      -1,
+				InitiatedBy: debugger.InitiatedByRemoteNode,
+				Messages:    msgs,
 			},
 		},
 		sessions,
@@ -76,9 +76,9 @@ func TestSessionsInitiatedByLocal(t *testing.T) {
 	require.Equal(t,
 		debugger.Sessions{
 			1: {
-				Number:       1,
-				InititatedBy: debugger.InitiatedByLocalNode,
-				Messages:     msgs,
+				Number:      1,
+				InitiatedBy: debugger.InitiatedByLocalNode,
+				Messages:    msgs,
 			},
 		},
 		sessions,

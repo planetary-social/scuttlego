@@ -50,9 +50,9 @@ func (s Sessions) AddMessage(message Message) error {
 	v, ok := s[sessionNumber]
 	if !ok {
 		v = Session{
-			Number:       sessionNumber,
-			InititatedBy: s.determineInitiatedBy(sessionNumber),
-			Messages:     nil,
+			Number:      sessionNumber,
+			InitiatedBy: s.determineInitiatedBy(sessionNumber),
+			Messages:    nil,
 		}
 	}
 
@@ -85,9 +85,9 @@ type Session struct {
 	// logging party. This means that streams initiated by the local node have
 	// positive stream numbers and streams initiated by the remote have negative
 	// numbers.
-	Number       int
-	InititatedBy InitiatedBy
-	Messages     []Message
+	Number      int
+	InitiatedBy InitiatedBy
+	Messages    []Message
 }
 
 type Message struct {

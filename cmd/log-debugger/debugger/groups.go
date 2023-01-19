@@ -1,6 +1,8 @@
 package debugger
 
 import (
+	"bytes"
+	"encoding/json"
 	"strconv"
 	"strings"
 
@@ -111,12 +113,19 @@ func NewMessage(entry Entry) (Message, error) {
 		return Message{}, errors.Wrap(err, "error parsing stream number")
 	}
 
+	body := entry[FieldBody]
+
+	bodyBuf := &bytes.Buffer{}
+	if err := json.Indent(bodyBuf, []byte(body), "", "    "); err == nil {
+		body = bodyBuf.String()
+	}
+
 	return Message{
 		Type: messageType,
 
 		Flags:         entry[FieldHeaderFlags],
 		RequestNumber: requestNumber,
-		Body:          entry[FieldBody],
+		Body:          body,
 
 		Entry: entry,
 	}, nil

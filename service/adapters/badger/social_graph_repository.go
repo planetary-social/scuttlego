@@ -86,14 +86,14 @@ func (s *SocialGraphRepository) GetContacts(node refs.Identity) ([]*feeds.Contac
 			return errors.Wrap(err, "error determining key in bucket")
 		}
 
-		targetRef, err := refs.NewIdentity(string(keyInBucket.Bytes())) // todo is this certainly a copy or are we reusing the slice illegally
+		targetRef, err := refs.NewIdentity(string(keyInBucket.Bytes()))
 		if err != nil {
 			return errors.Wrap(err, "could not create contact ref")
 		}
 
 		var contact *feeds.Contact
 		if err := item.Value(func(val []byte) error {
-			tmp, err := s.loadContact(node, targetRef, val) // todo is this a copy
+			tmp, err := s.loadContact(node, targetRef, val)
 			if err != nil {
 				return errors.Wrap(err, "failed to load the contact")
 			}

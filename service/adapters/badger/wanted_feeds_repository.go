@@ -53,7 +53,7 @@ func (b WantedFeedsRepository) GetWantedFeeds() (replication.WantedFeeds, error)
 
 	wantList, err := b.feedWantList.List()
 	if err != nil {
-		return replication.WantedFeeds{}, errors.Wrap(err, "could not get contacts")
+		return replication.WantedFeeds{}, errors.Wrap(err, "could not get the feed want list")
 	}
 
 	for _, feedRef := range wantList {
@@ -86,7 +86,7 @@ func (b WantedFeedsRepository) getFeedState(feed refs.Feed) (replication.FeedSta
 		if errors.Is(err, ErrFeedNotFound) {
 			return replication.NewEmptyFeedState(), nil
 		}
-		return replication.FeedState{}, errors.Wrap(err, "could not get a feed")
+		return replication.FeedState{}, errors.Wrapf(err, "could not load feed '%s'", feed)
 	}
 	seq, ok := f.Sequence()
 	if !ok {

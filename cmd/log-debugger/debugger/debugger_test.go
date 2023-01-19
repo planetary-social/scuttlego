@@ -1,10 +1,9 @@
 package debugger
 
 import (
-	"path/filepath"
-	"runtime"
 	"testing"
 
+	"github.com/planetary-social/scuttlego/fixtures"
 	"github.com/stretchr/testify/require"
 )
 
@@ -14,7 +13,7 @@ const (
 )
 
 func TestLoadLog_LoadsLogFileCorrectly(t *testing.T) {
-	testLogFilename := filepath.Join(getTestFileDirectory(), testdataDirectoryName, testLogName)
+	testLogFilename := fixtures.TestFileRelativePath(testdataDirectoryName, testLogName)
 
 	log, err := LoadLog(testLogFilename)
 	require.NoError(t, err)
@@ -101,9 +100,4 @@ func TestLoadLog_LoadsLogFileCorrectly(t *testing.T) {
 		},
 		log,
 	)
-}
-
-func getTestFileDirectory() string {
-	_, filename, _, _ := runtime.Caller(0)
-	return filepath.Dir(filename)
 }

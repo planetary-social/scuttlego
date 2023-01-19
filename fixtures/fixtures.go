@@ -7,6 +7,8 @@ import (
 	"math"
 	"math/rand"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strconv"
 	"testing"
 	"time"
@@ -313,6 +315,13 @@ func Badger(t *testing.T) *badger.DB {
 	t.Cleanup(cleanup)
 
 	return db
+}
+
+func TestFileRelativePath(elem ...string) string {
+	_, filename, _, _ := runtime.Caller(1)
+	elems := []string{filepath.Dir(filename)}
+	elems = append(elems, elem...)
+	return filepath.Join(elems...)
 }
 
 type testingLogger struct {

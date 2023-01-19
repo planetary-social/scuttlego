@@ -3,6 +3,7 @@ package badger_test
 import (
 	"testing"
 
+	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/di"
 	"github.com/planetary-social/scuttlego/fixtures"
 	"github.com/planetary-social/scuttlego/internal"
@@ -94,6 +95,77 @@ func TestFeedRepository_FeedRepositoryCorrectlyLoadsFeeds(t *testing.T) {
 		sequence, ok := feed.Sequence()
 		require.True(t, ok)
 		require.Equal(t, numMessages, sequence.Int())
+
+		return nil
+	})
+	require.NoError(t, err)
+}
+
+func TestFeedRepository_GetFeedMessagesReturnsAllMessages(t *testing.T) {
+	ts := di.BuildBadgerTestAdapters(t)
+
+	feedRef := fixtures.SomeRefFeed()
+	authorRef := refs.MustNewIdentity(feedRef.String())
+
+	msg1RawMessage := message.MustNewRawMessage(fixtures.SomeBytes())
+	msg1 := message.MustNewMessage(
+		fixtures.SomeRefMessage(),
+		nil,
+		message.MustNewSequence(1),
+		authorRef,
+		feedRef,
+		fixtures.SomeTime(),
+		fixtures.SomeContent(),
+		msg1RawMessage,
+	)
+
+	msg2RawMessage := message.MustNewRawMessage(fixtures.SomeBytes())
+	msg2 := message.MustNewMessage(
+		fixtures.SomeRefMessage(),
+		internal.Ptr(msg1.Id()),
+		message.MustNewSequence(2),
+		authorRef,
+		feedRef,
+		fixtures.SomeTime(),
+		fixtures.SomeContent(),
+		msg2RawMessage,
+	)
+
+	ts.Dependencies.BanListHasher.Mock(feedRef, fixtures.SomeBanListHash())
+
+	err := ts.TransactionProvider.Update(func(adapters badger.TestAdapters) error {
+		err := adapters.FeedRepository.UpdateFeed(feedRef, func(feed *feeds.Feed) error {
+			err := feed.AppendMessage(msg1)
+			require.NoError(t, err)
+
+			err = feed.AppendMessage(msg2)
+			require.NoError(t, err)
+
+			return nil
+		})
+		require.NoError(t, err)
+
+		return nil
+	})
+	require.NoError(t, err)
+
+	err = ts.TransactionProvider.Update(func(adapters badger.TestAdapters) error {
+		msgs, err := adapters.FeedRepository.GetFeedMessages(feedRef)
+		require.NoError(t, err)
+
+		require.Equal(t,
+			[]badger.FeedMessage{
+				{
+					Sequence: msg1.Sequence(),
+					Id:       msg1.Id(),
+				},
+				{
+					Sequence: msg2.Sequence(),
+					Id:       msg2.Id(),
+				},
+			},
+			msgs,
+		)
 
 		return nil
 	})
@@ -214,6 +286,102 @@ func TestFeedRepository_CountDoesNotUpdateIfFeedDoesNotExist(t *testing.T) {
 		count, err := adapters.FeedRepository.Count()
 		require.NoError(t, err)
 		require.Equal(t, 0, count)
+
+		return nil
+	})
+	require.NoError(t, err)
+}
+
+func TestFeedRepository_DeleteRemovesBanListMapping(t *testing.T) {
+	ts := di.BuildBadgerTestAdapters(t)
+
+	feedRef := fixtures.SomeRefFeed()
+	authorRef := refs.MustNewIdentityFromPublic(feedRef.Identity())
+	banListHash := fixtures.SomeBanListHash()
+
+	msg1 := message.MustNewMessage(
+		fixtures.SomeRefMessage(),
+		nil,
+		message.MustNewSequence(1),
+		authorRef,
+		feedRef,
+		fixtures.SomeTime(),
+		fixtures.SomeContent(),
+		message.MustNewRawMessage(fixtures.SomeBytes()),
+	)
+
+	msg2 := message.MustNewMessage(
+		fixtures.SomeRefMessage(),
+		internal.Ptr(msg1.Id()),
+		message.MustNewSequence(2),
+		authorRef,
+		feedRef,
+		fixtures.SomeTime(),
+		fixtures.SomeContent(),
+		message.MustNewRawMessage(fixtures.SomeBytes()),
+	)
+
+	msgs := []message.Message{
+		msg1,
+		msg2,
+	}
+
+	ts.Dependencies.BanListHasher.Mock(feedRef, banListHash)
+	for _, msg := range msgs {
+		ts.Dependencies.RawMessageIdentifier.Mock(msg)
+	}
+
+	err := ts.TransactionProvider.Update(func(adapters badger.TestAdapters) error {
+		err := adapters.FeedRepository.UpdateFeed(feedRef, func(feed *feeds.Feed) error {
+			for _, msg := range msgs {
+				if err := feed.AppendMessage(msg); err != nil {
+					return errors.Wrap(err, "append error")
+				}
+			}
+			return nil
+		})
+		require.NoError(t, err)
+
+		return nil
+	})
+	require.NoError(t, err)
+
+	err = ts.TransactionProvider.View(func(adapters badger.TestAdapters) error {
+		_, err := adapters.FeedRepository.GetFeed(feedRef)
+		require.NoError(t, err)
+
+		_, err = adapters.BanListRepository.LookupMapping(banListHash)
+		require.NoError(t, err)
+
+		for _, msg := range msgs {
+			retrievedMsg, err := adapters.MessageRepository.Get(msg.Id())
+			require.NoError(t, err)
+			require.Equal(t, msg, retrievedMsg)
+		}
+
+		return nil
+	})
+	require.NoError(t, err)
+
+	err = ts.TransactionProvider.Update(func(adapters badger.TestAdapters) error {
+		err := adapters.FeedRepository.DeleteFeed(feedRef)
+		require.NoError(t, err)
+
+		return nil
+	})
+	require.NoError(t, err)
+
+	err = ts.TransactionProvider.View(func(adapters badger.TestAdapters) error {
+		_, err := adapters.FeedRepository.GetFeed(feedRef)
+		require.EqualError(t, err, "feed not found")
+
+		_, err = adapters.BanListRepository.LookupMapping(banListHash)
+		require.EqualError(t, err, "ban list mapping not found")
+
+		for _, msg := range msgs {
+			_, err = adapters.MessageRepository.Get(msg.Id())
+			require.EqualError(t, err, "message not found: Key not found")
+		}
 
 		return nil
 	})

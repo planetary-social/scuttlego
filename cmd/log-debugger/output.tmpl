@@ -56,6 +56,10 @@
             display: none;
         }
 
+        .rpc-message .content .header .timestamp {
+            font-weight: bold;
+        }
+
         .rpc-message .content .body {
             margin: 0;
             padding: .5em;
@@ -160,6 +164,9 @@
                                                     </div>
                                                 </li>
                                             </ul>
+                                            <div class="timestamp">
+                                                {{ .Timestamp.Format "2006-01-02 15:04:05 Z07:00"  }}
+                                            </div>
                                         </div>
                                         <pre class="body">{{ .Body }}</pre>
                                     </div>

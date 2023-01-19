@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/boreq/errors"
 )
@@ -18,6 +19,7 @@ const (
 	FieldHeaderNumber = "header.number"
 	FieldHeaderFlags  = "header.flags"
 	FieldBody         = "body"
+	FieldTs           = "ts"
 
 	FieldNameValueSuffix = ".raw"
 )
@@ -93,7 +95,8 @@ type Session struct {
 }
 
 type Message struct {
-	Type MessageType
+	Type      MessageType
+	Timestamp time.Time
 
 	Flags         string
 	RequestNumber int
@@ -120,8 +123,14 @@ func NewMessage(entry Entry) (Message, error) {
 		body = bodyBuf.String()
 	}
 
+	t, err := time.Parse("2006-01-02 15:04:05.999999999 (MST)", entry[FieldTs])
+	if err != nil {
+		return Message{}, errors.Wrap(err, "error parsing the timestamp")
+	}
+
 	return Message{
-		Type: messageType,
+		Type:      messageType,
+		Timestamp: t,
 
 		Flags:         entry[FieldHeaderFlags],
 		RequestNumber: requestNumber,

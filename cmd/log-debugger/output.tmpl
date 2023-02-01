@@ -12,58 +12,71 @@
             padding: 1em;
         }
 
-        .rpc-message {
+        .rpc-message, .log-entry {
             font-size: 12px;
             margin: 1em 0;
             display: flex;
             align-items: center;
         }
 
-        .rpc-message .content {
+        .rpc-message .content, .log-entry .content {
             flex: 1;
             overflow: scroll;
         }
 
-        .rpc-message .content .header {
+        .rpc-message .content .header, .log-entry .content .header {
             color: #fff;
             display: flex;
             padding: .5em;
         }
 
-        .rpc-message .content .header .fields {
+        .rpc-message .content .header .fields, .log-entry .content .header .fields {
             list-style-type: none;
             margin: 0;
             padding: 0;
             flex: 1;
         }
 
-        .rpc-message .content .header .fields li {
+        .rpc-message .content .header .fields li, .log-entry .content .header .fields li {
             padding: 0;
             margin: 0;
             display: inline-block;
         }
 
-        .rpc-message .content .header .fields li .key, .rpc-message .content .header .fields li .value {
+        .rpc-message .content .header .fields li .key, .rpc-message .content .header .fields li .value,
+        .log-entry .content .header .fields li .key, .log-entry .header .fields li .value {
             display: inline-block;
         }
 
-        .rpc-message .content .header .fields li .value {
+        .rpc-message .content .header .fields li .value,
+        .log-entry .content .header .fields li .value {
             font-weight: bold;
             margin-right: 1em;
         }
 
-        .rpc-message .content .header .fields li::before {
+        .rpc-message .content .header .fields li::before,
+        .log-entry .content .header .fields li::before {
             display: none;
         }
 
-        .rpc-message .content .header .timestamp {
+        .rpc-message .content .header .timestamp,
+        .log-entry .content .header .timestamp {
             font-weight: bold;
         }
 
-        .rpc-message .content .body {
+        .rpc-message .content .body,
+        .log-entry .body {
             margin: 0;
             padding: .5em;
             overflow: scroll;
+        }
+
+        .log-entry .header {
+            background-color: #7f8c8d;
+        }
+
+        .log-entry .body {
+            background-color: #ecf0f1;
         }
 
         .rpc-message .arrow {
@@ -135,9 +148,32 @@
                         <div class="events">
                             {{ range $stream.Events }}
                                 {{ if not .Message }}
-                                    {{ range $label, $value := .Entry }}
-                                        {{ $label }} = {{ $value }}
-                                    {{ end }}
+                                    <div class="log-entry">
+                                        <div class="content">
+                                            <div class="header">
+                                                <ul class="fields">
+                                                    {{ range $label, $value := .Entry }}
+                                                        {{ if ne $label "msg" }}
+                                                            {{ if ne $label "time" }}
+                                                                <li>
+                                                                    <div class="key">
+                                                                        {{ $label }}:
+                                                                    </div>
+                                                                    <div class="value">
+                                                                        {{ $value }}
+                                                                    </div>
+                                                                </li>
+                                                            {{ end }}
+                                                        {{ end }}
+                                                    {{ end }}
+                                                </ul>
+                                                <div class="timestamp">
+                                                    {{ .Timestamp.Format "2006-01-02 15:04:05 Z07:00"  }}
+                                                </div>
+                                            </div>
+                                            <pre class="body">{{ index .Entry "msg" }}</pre>
+                                        </div>
+                                    </div>
                                 {{ else }}
                                     <div class="rpc-message {{ if eq .Message.Type MessageTypeSent }}left{{ else }}right{{ end }}">
                                         {{ if ne .Message.Type MessageTypeSent }}

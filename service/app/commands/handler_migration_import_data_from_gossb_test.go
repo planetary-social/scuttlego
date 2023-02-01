@@ -14,8 +14,8 @@ import (
 	"github.com/planetary-social/scuttlego/service/app/common"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
+	gossbrefs "github.com/ssbc/go-ssb-refs"
 	"github.com/stretchr/testify/require"
-	gossbrefs "go.mindeco.de/ssb-refs"
 )
 
 func TestMigrationHandlerImportDataFromGoSSB_MessageReturnedFromRepoReaderIsSaved(t *testing.T) {

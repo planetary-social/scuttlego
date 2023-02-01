@@ -12,6 +12,7 @@ import (
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/cmd/log-debugger/debugger"
+	"github.com/planetary-social/scuttlego/cmd/log-debugger/debugger/log"
 )
 
 //go:embed output.tmpl
@@ -30,12 +31,12 @@ func main() {
 func run() error {
 	logFilename := os.Args[1]
 
-	log, err := debugger.LoadLog(logFilename)
+	log, err := log.LoadLog(logFilename)
 	if err != nil {
 		return errors.Wrap(err, "failed to load the log")
 	}
 
-	g := debugger.NewGroups()
+	g := debugger.NewPeers()
 	for _, entry := range log {
 		if err := g.Add(entry); err != nil {
 			return errors.Wrap(err, "error adding an entry")
@@ -64,10 +65,10 @@ func run() error {
 	}))
 }
 
-func createReport(logFilename string, g *debugger.Groups) ([]byte, error) {
+func createReport(logFilename string, peers debugger.Peers) ([]byte, error) {
 	var funcMap = template.FuncMap{
-		"InitiatedByRemote": func() debugger.InitiatedBy { return debugger.InitiatedByRemoteNode },
-		"MessageTypeSent":   func() debugger.MessageType { return debugger.MessageTypeSent },
+		//"InitiatedByRemote": func() debugger.StreamInitiatedBy { return debugger.InitiatedByRemoteNode },
+		"MessageTypeSent": func() debugger.MessageType { return debugger.MessageTypeSent },
 	}
 
 	tmpl, err := template.New("output").Funcs(funcMap).Parse(outputTemplate)
@@ -79,10 +80,10 @@ func createReport(logFilename string, g *debugger.Groups) ([]byte, error) {
 
 	if err = tmpl.Execute(buf, struct {
 		LogFilename string
-		Peers       map[string]debugger.Sessions
+		Peers       debugger.Peers
 	}{
 		LogFilename: logFilename,
-		Peers:       g.Peers,
+		Peers:       peers,
 	}); err != nil {
 		return nil, errors.Wrap(err, "error executing the template")
 	}

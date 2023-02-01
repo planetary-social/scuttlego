@@ -31,10 +31,13 @@ type Config struct {
 	// Optional, defaults to formats.NewDefaultMessageHMAC().
 	MessageHMAC formats.MessageHMAC
 
-	// Logger is the logger used for logging by this library. It is most
-	// likely useful to configure at least to log errors.
-	// Optional, defaults to logging.NewDevNullLogger().
-	Logger logging.Logger
+	// LoggingSystem is the logger used for logging by this library.
+	// Optional, defaults to logging.NewDevNullLoggingSystem().
+	LoggingSystem logging.LoggingSystem
+
+	// LoggingLevel is the log level used for logging by this library.
+	// Optional, defaults to logging.LevelError.
+	LoggingLevel logging.Level
 
 	// PeerManagerConfig specifies the config for the peer manager which is responsible for establishing new
 	// connections and managing existing connections.
@@ -58,8 +61,8 @@ func (c *Config) SetDefaults() {
 		c.MessageHMAC = formats.NewDefaultMessageHMAC()
 	}
 
-	if c.Logger == nil {
-		c.Logger = logging.NewDevNullLogger()
+	if c.LoggingSystem == nil {
+		c.LoggingSystem = logging.NewDevNullLoggingSystem()
 	}
 }
 
@@ -71,6 +74,7 @@ type BadgerOptions interface {
 	SetValueLogFileSize(val int64)
 	SetBlockCacheSize(val int64)
 	SetIndexCacheSize(val int64)
+	SetSyncWrites(val bool)
 }
 
 type BadgerOptionsAdapter struct {
@@ -107,4 +111,8 @@ func (b BadgerOptionsAdapter) SetBlockCacheSize(val int64) {
 
 func (b BadgerOptionsAdapter) SetIndexCacheSize(val int64) {
 	b.options.IndexCacheSize = val
+}
+
+func (b BadgerOptionsAdapter) SetSyncWrites(val bool) {
+	b.options.SyncWrites = val
 }

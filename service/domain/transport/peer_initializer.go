@@ -2,14 +2,11 @@ package transport
 
 import (
 	"context"
-	"fmt"
 	"io"
-	"math/rand"
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
-	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/planetary-social/scuttlego/service/domain/transport/boxstream"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/transport"
@@ -55,14 +52,14 @@ func (i PeerInitializer) InitializeClientPeer(ctx context.Context, rwc io.ReadWr
 }
 
 func (i PeerInitializer) initializePeer(ctx context.Context, boxStream *boxstream.Stream, wasInitiatedByRemote bool) (Peer, error) {
-	logger, err := i.peerLogger(boxStream)
-	if err != nil {
-		return Peer{}, errors.Wrap(err, "failed to create a peer logger")
-	}
+	connectionId := i.connectionIdGenerator.Generate()
+
+	ctx = logging.AddToLoggingContext(ctx, logging.ConnectionIdContextLabel, connectionId)
+	ctx = logging.AddToLoggingContext(ctx, logging.PeerIdContextLabel, boxStream.Remote().String())
+
+	logger := i.logger.WithCtx(ctx)
 
 	raw := transport.NewRawConnection(boxStream, logger)
-
-	connectionId := i.connectionIdGenerator.Generate()
 
 	rpcConn, err := rpc.NewConnection(ctx, connectionId, wasInitiatedByRemote, raw, i.requestHandler, logger)
 	if err != nil {
@@ -75,15 +72,4 @@ func (i PeerInitializer) initializePeer(ctx context.Context, boxStream *boxstrea
 	}
 
 	return peer, nil
-}
-
-func (i PeerInitializer) peerLogger(boxStream *boxstream.Stream) (logging.Logger, error) {
-	ref, err := refs.NewIdentityFromPublic(boxStream.Remote())
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create an identity ref")
-	}
-
-	correlationId := fmt.Sprintf("peer-%d", rand.Int())
-
-	return i.logger.New(correlationId).WithField("id", ref.String()), nil
 }

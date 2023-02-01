@@ -1,15 +1,21 @@
 package logging
 
-import "github.com/sirupsen/logrus"
+import (
+	"context"
+)
 
 type Logger interface {
 	New(name string) Logger
+	WithCtx(ctx context.Context) Logger // todo maybe remove and just use ...Ctx funcs?
 	WithError(err error) Logger
 	WithField(key string, v any) Logger
 
 	Error(message string)
+	ErrorCtx(ctx context.Context, message string)
 	Debug(message string)
+	DebugCtx(ctx context.Context, message string)
 	Trace(message string)
+	TraceCtx(ctx context.Context, message string)
 }
 
 type Level int
@@ -20,52 +26,93 @@ const (
 	LevelTrace
 )
 
-type LogrusLogger struct {
-	name   string
-	logger logrus.Ext1FieldLogger
-	level  Level
+type LoggingSystem interface {
+	WithField(key string, v any) LoggingSystem
+	Error(message string)
+	Debug(message string)
+	Trace(message string)
 }
 
-func NewLogrusLogger(logger logrus.Ext1FieldLogger, name string, level Level) LogrusLogger {
-	return LogrusLogger{
+type ContextLogger struct {
+	name   string
+	logger LoggingSystem
+	level  Level
+	ctx    context.Context
+}
+
+func newContextLogger(logger LoggingSystem, name string, level Level, ctx context.Context) Logger {
+	return ContextLogger{
 		name:   name,
 		logger: logger,
 		level:  level,
+		ctx:    ctx,
 	}
 }
 
-func (l LogrusLogger) New(name string) Logger {
-	return NewLogrusLogger(l.logger, l.name+"."+name, l.level)
+func NewContextLogger(logger LoggingSystem, name string, level Level) Logger {
+	return newContextLogger(logger, name, level, nil)
 }
 
-func (l LogrusLogger) WithError(err error) Logger {
-	return NewLogrusLogger(l.logger.WithError(err), l.name, l.level)
+func (l ContextLogger) New(name string) Logger {
+	return newContextLogger(l.logger, l.name+"."+name, l.level, l.ctx)
 }
 
-func (l LogrusLogger) WithField(key string, v any) Logger {
-	return NewLogrusLogger(l.logger.WithField(key, v), l.name, l.level)
+func (l ContextLogger) WithCtx(ctx context.Context) Logger {
+	return newContextLogger(l.logger, l.name, l.level, ctx)
 }
 
-func (l LogrusLogger) Error(message string) {
+func (l ContextLogger) WithError(err error) Logger {
+	return newContextLogger(l.logger.WithField("error", err), l.name, l.level, l.ctx)
+}
+
+func (l ContextLogger) WithField(key string, v any) Logger {
+	return newContextLogger(l.logger.WithField(key, v), l.name, l.level, l.ctx)
+}
+
+func (l ContextLogger) Error(message string) {
 	if l.level >= LevelError {
-		l.withName().Error(message)
+		l.withContextFields(l.withName(l.logger), l.ctx).Error(message)
 	}
 }
 
-func (l LogrusLogger) Debug(message string) {
+func (l ContextLogger) ErrorCtx(ctx context.Context, message string) {
+	l.withContextFields(l.logger, ctx).Error(message)
+}
+
+func (l ContextLogger) Debug(message string) {
 	if l.level >= LevelDebug {
-		l.withName().Debug(message)
+		l.withContextFields(l.withName(l.logger), l.ctx).Debug(message)
 	}
 }
 
-func (l LogrusLogger) Trace(message string) {
+func (l ContextLogger) DebugCtx(ctx context.Context, message string) {
+	l.withContextFields(l.logger, ctx).Debug(message)
+}
+
+func (l ContextLogger) Trace(message string) {
 	if l.level >= LevelTrace {
-		l.withName().Trace(message)
+		l.withContextFields(l.withName(l.logger), l.ctx).Trace(message)
 	}
 }
 
-func (l LogrusLogger) withName() logrus.Ext1FieldLogger {
-	return l.logger.WithField("name", l.name)
+func (l ContextLogger) TraceCtx(ctx context.Context, message string) {
+	l.withContextFields(l.logger, ctx).Trace(message)
+}
+
+func (l ContextLogger) withName(logger LoggingSystem) LoggingSystem {
+	return logger.WithField("name", l.name)
+}
+
+func (l ContextLogger) withContextFields(logger LoggingSystem, ctx context.Context) LoggingSystem {
+	if ctx == nil {
+		return logger
+	}
+
+	for label, value := range GetLoggingContext(ctx) {
+		logger = logger.WithField(label, value)
+	}
+
+	return logger
 }
 
 type DevNullLogger struct {
@@ -75,23 +122,36 @@ func NewDevNullLogger() DevNullLogger {
 	return DevNullLogger{}
 }
 
-func (l DevNullLogger) New(name string) Logger {
-	return l
+func (d DevNullLogger) New(name string) Logger {
+	return d
 }
 
-func (l DevNullLogger) WithError(err error) Logger {
-	return l
+func (d DevNullLogger) WithCtx(ctx context.Context) Logger {
+	return d
 }
 
-func (l DevNullLogger) WithField(key string, v any) Logger {
-	return l
+func (d DevNullLogger) WithError(err error) Logger {
+	return d
 }
 
-func (l DevNullLogger) Error(message string) {
+func (d DevNullLogger) WithField(key string, v any) Logger {
+	return d
 }
 
-func (l DevNullLogger) Debug(message string) {
+func (d DevNullLogger) Error(message string) {
 }
 
-func (l DevNullLogger) Trace(message string) {
+func (d DevNullLogger) Debug(message string) {
+}
+
+func (d DevNullLogger) Trace(message string) {
+}
+
+func (d DevNullLogger) ErrorCtx(ctx context.Context, message string) {
+}
+
+func (d DevNullLogger) DebugCtx(ctx context.Context, message string) {
+}
+
+func (d DevNullLogger) TraceCtx(ctx context.Context, message string) {
 }

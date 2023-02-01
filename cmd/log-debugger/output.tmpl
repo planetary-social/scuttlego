@@ -107,89 +107,99 @@
 </head>
 
 <body>
-    <h1>
-        {{ .LogFilename }}
-    </h1>
+<h1>
+    {{ .LogFilename }}
+</h1>
 
-    <div class="peers">
-        {{ range $key, $value := .Peers }}
-            <div class="peer">
+<div class="peers">
+    {{ range $peerId, $connections := .Peers }}
+    <div class="peer">
+        <h2>
+            Peer {{ $peerId }}
+        </h2>
+
+        <div class="connections">
+            {{ range $connectionId, $connection := $connections }}
+            <div class="connection">
                 <h2>
-                    {{ $key }}
+                    Connection {{ $connectionId }}
                 </h2>
 
-                <div class="sessions">
-                    {{ range $value }}
-                        <div class="session">
-                            <h3>
-                                {{ .Number }}
+                <div class="streams">
+                    {{ range $streamId, $stream := $connection }}
+                    <div class="stream">
+                        <h2>
+                            Stream {{ $streamId }}
+                        </h2>
 
-                                {{ if eq .InitiatedBy InitiatedByRemote }}
-                                    (initiated by remote)
-                                {{ else }}
-                                    (initiated by local)
-                                {{ end }}
-                            </h3>
-
-                            {{ range .Messages }}
-                                {{ if eq .Type MessageTypeSent }}
-                                    <div class="rpc-message left">
-                                {{ else }}
-                                    <div class="rpc-message right">
-                                {{ end }}
-
-                                    {{ if ne .Type MessageTypeSent }}
-                                        <div class="arrow">
-                                            <img src="/assets/images/arrow.png">
-                                        </div>
+                        <div class="events">
+                            {{ range $stream.Events }}
+                                {{ if not .Message }}
+                                    {{ range $label, $value := .Entry }}
+                                        {{ $label }} = {{ $value }}
                                     {{ end }}
-
-                                    <div class="content">
-                                        <div class="header">
-                                            <ul class="fields">
-                                                <li>
-                                                    <div class="key">
-                                                        Request number:
-                                                    </div>
-                                                    <div class="value">
-                                                        {{ .RequestNumber }}
-                                                    </div>
-                                                </li>
-                                                <li>
-                                                    <div class="key">
-                                                        Flags:
-                                                    </div>
-                                                    <div class="value">
-                                                        {{ .Flags }}
-                                                    </div>
-                                                </li>
-                                            </ul>
-                                            <div class="timestamp">
-                                                {{ .Timestamp.Format "2006-01-02 15:04:05 Z07:00"  }}
+                                {{ else }}
+                                    <div class="rpc-message {{ if eq .Message.Type MessageTypeSent }}left{{ else }}right{{ end }}">
+                                        {{ if ne .Message.Type MessageTypeSent }}
+                                            <div class="arrow">
+                                                <img src="/assets/images/arrow.png">
                                             </div>
-                                        </div>
-                                        <pre class="body">{{ .Body }}</pre>
-                                    </div>
+                                        {{ end }}
 
-                                    {{ if eq .Type MessageTypeSent }}
-                                        <div class="arrow">
-                                            <img src="/assets/images/arrow.png">
+                                        <div class="content">
+                                            <div class="header">
+                                                <ul class="fields">
+                                                    <li>
+                                                        <div class="key">
+                                                            Request number:
+                                                        </div>
+                                                        <div class="value">
+                                                            {{ .Message.RequestNumber }}
+                                                        </div>
+                                                    </li>
+                                                    <li>
+                                                        <div class="key">
+                                                            Flags:
+                                                        </div>
+                                                        <div class="value">
+                                                            {{ .Message.Flags }}
+                                                        </div>
+                                                    </li>
+                                                </ul>
+                                                <div class="timestamp">
+                                                    {{ .Timestamp.Format "2006-01-02 15:04:05 Z07:00"  }}
+                                                </div>
+                                            </div>
+                                            <pre class="body">{{ .Message.Body }}</pre>
                                         </div>
-                                    {{ end }}
-                                </div>
+
+                                        {{ if eq .Message.Type MessageTypeSent }}
+                                            <div class="arrow">
+                                                <img src="/assets/images/arrow.png">
+                                            </div>
+                                        {{ end }}
+                                    </div>
+                                {{end}}
                             {{else}}
-                                No messages.
+                                No events.
                             {{end}}
                         </div>
-                    {{else}}
-                        No sessions.
-                    {{end}}
+                    </div>
                 </div>
+                {{else}}
+                    No streams.
+                {{end}}
             </div>
+        </div>
         {{else}}
-            No peers.
+            No connections.
         {{end}}
     </div>
+</div>
+{{else}}
+    No peers.
+{{end}}
+</div>
 </body>
 
 </html>

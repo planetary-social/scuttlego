@@ -30,7 +30,7 @@ import (
 )
 
 func SomeLogger() logging.Logger {
-	return logging.NewLogrusLogger(logrus.New(), "test", logging.LevelTrace)
+	return logging.NewContextLogger(logging.NewLogrusLoggingSystem(logrus.New()), "test", logging.LevelTrace)
 }
 
 func TestLogger(t *testing.T) logging.Logger {
@@ -338,6 +338,10 @@ func (t testingLogger) New(name string) logging.Logger {
 	return testingLogger{name: t.name + "." + name, t: t.t, log: t.log}
 }
 
+func (t testingLogger) WithCtx(ctx context.Context) logging.Logger {
+	return t
+}
+
 func (t testingLogger) WithError(err error) logging.Logger {
 	return t.withField("err", err)
 }
@@ -358,6 +362,21 @@ func (t testingLogger) Debug(message string) {
 }
 
 func (t testingLogger) Trace(message string) {
+	t.t.Helper()
+	t.withField("level", "trace").log(message)
+}
+
+func (t testingLogger) ErrorCtx(ctx context.Context, message string) {
+	t.t.Helper()
+	t.withField("level", "error").log(message)
+}
+
+func (t testingLogger) DebugCtx(ctx context.Context, message string) {
+	t.t.Helper()
+	t.withField("level", "debug").log(message)
+}
+
+func (t testingLogger) TraceCtx(ctx context.Context, message string) {
 	t.t.Helper()
 	t.withField("level", "trace").log(message)
 }

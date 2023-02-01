@@ -40,7 +40,7 @@ func NewIncomingMessageWithNotes(notes messages.EbtReplicateNotes) IncomingMessa
 	}
 }
 
-func NewIncomingMessageWithMesage(msg message.RawMessage) IncomingMessage {
+func NewIncomingMessageWithMessage(msg message.RawMessage) IncomingMessage {
 	return IncomingMessage{
 		msg: &msg,
 	}
@@ -137,7 +137,7 @@ func NewSession(
 		sentNotes:     NewSentNotes(),
 		feedRequester: feedRequester,
 
-		logger:            logger.New("session"),
+		logger:            logger.New("session").WithCtx(ctx),
 		rawMessageHandler: rawMessageHandler,
 		contactsStorage:   contactsStorage,
 	}

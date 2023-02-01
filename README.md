@@ -58,8 +58,9 @@ If you find an issue, please report it on the [issue tracker][issue-tracker].
 
 ## Acknowledgements
 
-This implementation uses [go-ssb][go-ssb] and associated libraries under the
-hood. The elements which were reused are:
+This implementation calls [go-ssb][go-ssb] and associated libraries under the
+hood. The elements which didn't have to be reimplemented from scratch thanks to
+that are mainly:
 
 - the handshake mechanism
 - the box stream protocol
@@ -68,7 +69,7 @@ hood. The elements which were reused are:
 
 [ssb]: https://scuttlebutt.nz/
 
-[go-ssb]: https://github.com/cryptoscope/ssb
+[go-ssb]: https://github.com/ssbc/go-ssb
 
 [protocol-guide]: https://ssbc.github.io/scuttlebutt-protocol-guide/
 

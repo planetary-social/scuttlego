@@ -58,14 +58,18 @@ If you find an issue, please report it on the [issue tracker][issue-tracker].
 
 ## Acknowledgements
 
-This implementation calls [go-ssb][go-ssb] and associated libraries under the
-hood. The elements which didn't have to be reimplemented from scratch thanks to
-that are mainly:
+This implementation depends on [go-ssb][go-ssb] and associated libraries under
+the hood. The elements which didn't have to be reimplemented from scratch thanks
+to that are mainly:
 
 - the handshake mechanism
 - the box stream protocol
 - the verification and signing of messages
 - broadcasting and receiving local UDP advertisements
+
+We are ever grateful for the work done by the authors and contributors of go-ssb
+and associated libraries as without them scuttlego most likely wouldn't have
+been completed.
 
 [ssb]: https://scuttlebutt.nz/
 

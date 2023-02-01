@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/planetary-social/scuttlego/logging"
 	"strconv"
 	"time"
 
@@ -17,9 +18,9 @@ const (
 
 	FieldTimestamp    = "time"
 	FieldMessage      = "msg"
-	FieldPeerId       = "ctx.peer_id"
-	FieldConnectionId = "ctx.connection_id"
-	FieldStreamId     = "ctx.stream_id"
+	FieldPeerId       = logging.PeerIdContextLabel
+	FieldConnectionId = logging.ConnectionIdContextLabel
+	FieldStreamId     = logging.StreamIdContextLabel
 
 	MessageLogFieldRequestNumber = "header.number"
 	MessageLogFieldFlags         = "header.flags"

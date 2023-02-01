@@ -10,11 +10,11 @@ import (
 	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/app/commands"
 	"github.com/planetary-social/scuttlego/service/app/common"
-	"go.cryptoscope.co/luigi"
-	"go.cryptoscope.co/margaret"
-	"go.cryptoscope.co/ssb/message/multimsg"
-	"go.cryptoscope.co/ssb/repo"
-	refs "go.mindeco.de/ssb-refs"
+	"github.com/ssbc/go-luigi"
+	refs "github.com/ssbc/go-ssb-refs"
+	"github.com/ssbc/go-ssb/message/multimsg"
+	"github.com/ssbc/go-ssb/repo"
+	"github.com/ssbc/margaret"
 )
 
 // getMessagesChannelSize ensures that there is some buffering happening to

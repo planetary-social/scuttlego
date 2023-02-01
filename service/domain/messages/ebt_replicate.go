@@ -6,7 +6,7 @@ import (
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
-	"go.cryptoscope.co/ssb"
+	"github.com/ssbc/go-ssb"
 )
 
 var (

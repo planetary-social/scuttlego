@@ -6,7 +6,7 @@ import (
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
-	"go.cryptoscope.co/secretstream/secrethandshake"
+	"github.com/ssbc/go-secretstream/secrethandshake"
 )
 
 const (

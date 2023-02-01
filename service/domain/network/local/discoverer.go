@@ -9,8 +9,8 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/identity"
 	"github.com/planetary-social/scuttlego/service/domain/network"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
-	"go.cryptoscope.co/netwrap"
-	ssbnetwork "go.cryptoscope.co/ssb/network"
+	"github.com/ssbc/go-netwrap"
+	ssbnetwork "github.com/ssbc/go-ssb/network"
 )
 
 type IdentityWithAddress struct {

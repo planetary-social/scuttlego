@@ -7,7 +7,7 @@ import (
 	"github.com/boreq/errors"
 	"github.com/hashicorp/go-multierror"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
-	"go.cryptoscope.co/secretstream/boxstream"
+	"github.com/ssbc/go-secretstream/boxstream"
 )
 
 const maxBoxStreamBodyLength = boxstream.MaxSegmentSize

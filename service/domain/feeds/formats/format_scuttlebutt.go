@@ -8,8 +8,8 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
-	"go.cryptoscope.co/ssb/message/legacy"
-	ssbrefs "go.mindeco.de/ssb-refs"
+	ssbrefs "github.com/ssbc/go-ssb-refs"
+	"github.com/ssbc/go-ssb/message/legacy"
 )
 
 type Scuttlebutt struct {

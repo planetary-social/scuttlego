@@ -387,6 +387,7 @@ func newBadger(logger logging.Logger, config Config) (*badger.DB, func(), error)
 	badgerDirectory := filepath.Join(config.DataDirectory, "badger")
 
 	options := badger.DefaultOptions(badgerDirectory)
+	options.Logger = badgeradapters.NewLogger(logger, badgeradapters.LoggerLevelWarning)
 
 	if config.ModifyBadgerOptions != nil {
 		adapter := NewBadgerOptionsAdapter(&options)
@@ -410,6 +411,6 @@ func privateIdentityToPublicIdentity(p identity.Private) identity.Public {
 	return p.Public()
 }
 
-func newContextLogger(loggingSystem logging.LoggingSystem, level logging.Level) logging.Logger {
-	return logging.NewContextLogger(loggingSystem, "scuttlego", level)
+func newContextLogger(loggingSystem logging.LoggingSystem) logging.Logger {
+	return logging.NewContextLogger(loggingSystem, "scuttlego")
 }

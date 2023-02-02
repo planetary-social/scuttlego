@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/planetary-social/scuttlego/logging"
 	"strconv"
 	"time"
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/cmd/log-debugger/debugger/log"
+	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/domain/messages"
 )
 
@@ -89,7 +89,7 @@ func NewEvent(e log.Entry) (*Event, error) {
 	} else {
 		streamIdString := e[FieldStreamId]
 		if streamIdString == "" {
-			return nil, errors.New("empty stream id")
+			return nil, nil
 		}
 
 		event.StreamId = streamIdString

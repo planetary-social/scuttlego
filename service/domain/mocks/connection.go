@@ -91,3 +91,7 @@ func (r responseStreamMock) WriteMessage(body []byte) error {
 func (r responseStreamMock) Channel() <-chan rpc.ResponseWithError {
 	return r.chReceive
 }
+
+func (r responseStreamMock) Ctx() context.Context {
+	return context.TODO()
+}

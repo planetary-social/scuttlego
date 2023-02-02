@@ -39,7 +39,7 @@ func run() error {
 	g := debugger.NewPeers()
 	for _, entry := range log {
 		if err := g.Add(entry); err != nil {
-			return errors.Wrap(err, "error adding an entry")
+			return errors.Wrapf(err, "error adding an entry '%+v'", entry)
 		}
 	}
 

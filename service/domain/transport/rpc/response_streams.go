@@ -19,6 +19,7 @@ type MessageSender interface {
 type ResponseStream interface {
 	WriteMessage(body []byte) error
 	Channel() <-chan ResponseWithError
+	Ctx() context.Context
 }
 
 var (
@@ -201,6 +202,7 @@ func newResponseStream(ctx context.Context, number int, typ ProcedureType, raw M
 		return nil, errors.New("number must be positive")
 	}
 
+	ctx = logging.AddToLoggingContext(ctx, logging.StreamIdContextLabel, number)
 	ctx, cancel := context.WithCancel(ctx)
 
 	return &responseStream{
@@ -245,6 +247,10 @@ func (rs responseStream) WriteMessage(body []byte) error {
 	}
 
 	return nil
+}
+
+func (rs responseStream) Ctx() context.Context {
+	return rs.ctx
 }
 
 func (rs responseStream) Channel() <-chan ResponseWithError {

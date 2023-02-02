@@ -18,14 +18,6 @@ type Logger interface {
 	TraceCtx(ctx context.Context, message string)
 }
 
-type Level int
-
-const (
-	LevelError Level = iota
-	LevelDebug
-	LevelTrace
-)
-
 type LoggingSystem interface {
 	WithField(key string, v any) LoggingSystem
 	Error(message string)
@@ -36,43 +28,39 @@ type LoggingSystem interface {
 type ContextLogger struct {
 	name   string
 	logger LoggingSystem
-	level  Level
 	ctx    context.Context
 }
 
-func newContextLogger(logger LoggingSystem, name string, level Level, ctx context.Context) Logger {
+func newContextLogger(logger LoggingSystem, name string, ctx context.Context) Logger {
 	return ContextLogger{
 		name:   name,
 		logger: logger,
-		level:  level,
 		ctx:    ctx,
 	}
 }
 
-func NewContextLogger(logger LoggingSystem, name string, level Level) Logger {
-	return newContextLogger(logger, name, level, nil)
+func NewContextLogger(logger LoggingSystem, name string) Logger {
+	return newContextLogger(logger, name, nil)
 }
 
 func (l ContextLogger) New(name string) Logger {
-	return newContextLogger(l.logger, l.name+"."+name, l.level, l.ctx)
+	return newContextLogger(l.logger, l.name+"."+name, l.ctx)
 }
 
 func (l ContextLogger) WithCtx(ctx context.Context) Logger {
-	return newContextLogger(l.logger, l.name, l.level, ctx)
+	return newContextLogger(l.logger, l.name, ctx)
 }
 
 func (l ContextLogger) WithError(err error) Logger {
-	return newContextLogger(l.logger.WithField("error", err), l.name, l.level, l.ctx)
+	return newContextLogger(l.logger.WithField("error", err), l.name, l.ctx)
 }
 
 func (l ContextLogger) WithField(key string, v any) Logger {
-	return newContextLogger(l.logger.WithField(key, v), l.name, l.level, l.ctx)
+	return newContextLogger(l.logger.WithField(key, v), l.name, l.ctx)
 }
 
 func (l ContextLogger) Error(message string) {
-	if l.level >= LevelError {
-		l.withContextFields(l.withName(l.logger), l.ctx).Error(message)
-	}
+	l.withContextFields(l.withName(l.logger), l.ctx).Error(message)
 }
 
 func (l ContextLogger) ErrorCtx(ctx context.Context, message string) {
@@ -80,9 +68,7 @@ func (l ContextLogger) ErrorCtx(ctx context.Context, message string) {
 }
 
 func (l ContextLogger) Debug(message string) {
-	if l.level >= LevelDebug {
-		l.withContextFields(l.withName(l.logger), l.ctx).Debug(message)
-	}
+	l.withContextFields(l.withName(l.logger), l.ctx).Debug(message)
 }
 
 func (l ContextLogger) DebugCtx(ctx context.Context, message string) {
@@ -90,9 +76,7 @@ func (l ContextLogger) DebugCtx(ctx context.Context, message string) {
 }
 
 func (l ContextLogger) Trace(message string) {
-	if l.level >= LevelTrace {
-		l.withContextFields(l.withName(l.logger), l.ctx).Trace(message)
-	}
+	l.withContextFields(l.withName(l.logger), l.ctx).Trace(message)
 }
 
 func (l ContextLogger) TraceCtx(ctx context.Context, message string) {

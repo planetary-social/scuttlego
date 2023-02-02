@@ -35,10 +35,6 @@ type Config struct {
 	// Optional, defaults to logging.NewDevNullLoggingSystem().
 	LoggingSystem logging.LoggingSystem
 
-	// LoggingLevel is the log level used for logging by this library.
-	// Optional, defaults to logging.LevelError.
-	LoggingLevel logging.Level
-
 	// PeerManagerConfig specifies the config for the peer manager which is responsible for establishing new
 	// connections and managing existing connections.
 	PeerManagerConfig domain.PeerManagerConfig

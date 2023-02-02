@@ -26,7 +26,7 @@ func LoadLog(s string) (Log, error) {
 	for scanner.Scan() {
 		line, err := loadLine(scanner.Bytes())
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to load a line")
+			return nil, errors.Wrapf(err, "failed to load the line '%s'", scanner.Text())
 		}
 
 		log = append(log, line)

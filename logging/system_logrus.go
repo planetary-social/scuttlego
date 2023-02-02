@@ -7,7 +7,6 @@ import (
 type LogrusLoggingSystem struct {
 	name   string
 	logger logrus.Ext1FieldLogger
-	level  Level
 }
 
 func NewLogrusLoggingSystem(logger logrus.Ext1FieldLogger) LogrusLoggingSystem {

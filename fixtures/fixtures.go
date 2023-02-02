@@ -30,7 +30,9 @@ import (
 )
 
 func SomeLogger() logging.Logger {
-	return logging.NewContextLogger(logging.NewLogrusLoggingSystem(logrus.New()), "test", logging.LevelTrace)
+	logger := logrus.New()
+	logger.SetLevel(logrus.TraceLevel)
+	return logging.NewContextLogger(logging.NewLogrusLoggingSystem(logger), "test")
 }
 
 func TestLogger(t *testing.T) logging.Logger {
@@ -101,7 +103,7 @@ func SomeTime() time.Time {
 }
 
 func SomeDuration() time.Duration {
-	return time.Duration(time.Duration(SomePositiveInt32()) * time.Second)
+	return time.Duration(SomePositiveInt32()) * time.Second
 }
 
 func SomePublicIdentity() identity.Public {

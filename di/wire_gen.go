@@ -413,8 +413,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	requestPubSub := pubsub.NewRequestPubSub()
 	connectionIdGenerator := rpc.NewConnectionIdGenerator()
 	loggingSystem := extractLoggingSystemFromConfig(config)
-	level := extractLoggingLevelFromConfig(config)
-	logger := newContextLogger(loggingSystem, level)
+	logger := newContextLogger(loggingSystem)
 	peerInitializer := transport2.NewPeerInitializer(handshaker, requestPubSub, connectionIdGenerator, logger)
 	dialer, err := network.NewDialer(peerInitializer, logger)
 	if err != nil {
@@ -669,6 +668,7 @@ func newBadger(logger logging.Logger, config Config) (*badger2.DB, func(), error
 	badgerDirectory := filepath.Join(config.DataDirectory, "badger")
 
 	options := badger2.DefaultOptions(badgerDirectory)
+	options.Logger = badger.NewLogger(logger, badger.LoggerLevelWarning)
 
 	if config.ModifyBadgerOptions != nil {
 		adapter := NewBadgerOptionsAdapter(&options)
@@ -692,6 +692,6 @@ func privateIdentityToPublicIdentity(p identity.Private) identity.Public {
 	return p.Public()
 }
 
-func newContextLogger(loggingSystem logging.LoggingSystem, level logging.Level) logging.Logger {
-	return logging.NewContextLogger(loggingSystem, "scuttlego", level)
+func newContextLogger(loggingSystem logging.LoggingSystem) logging.Logger {
+	return logging.NewContextLogger(loggingSystem, "scuttlego")
 }

@@ -14,7 +14,6 @@ var extractFromConfigSet = wire.NewSet(
 	extractMessageHMACFromConfig,
 	extractLoggingSystemFromConfig,
 	extractPeerManagerConfigFromConfig,
-	extractLoggingLevelFromConfig,
 )
 
 func extractNetworkKeyFromConfig(config Config) boxstream.NetworkKey {
@@ -31,8 +30,4 @@ func extractLoggingSystemFromConfig(config Config) logging.LoggingSystem {
 
 func extractPeerManagerConfigFromConfig(config Config) domain.PeerManagerConfig {
 	return config.PeerManagerConfig
-}
-
-func extractLoggingLevelFromConfig(config Config) logging.Level {
-	return config.LoggingLevel
 }

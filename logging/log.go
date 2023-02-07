@@ -62,21 +62,20 @@ func (l ContextLogger) WithField(key string, v any) Logger {
 }
 
 func (l ContextLogger) Error(message string) {
-	l.withFields(nil).Error(message)
+	l.withFields().Error(message)
 }
 
 func (l ContextLogger) Debug(message string) {
-	l.withFields(nil).Debug(message)
+	l.withFields().Debug(message)
 }
 
 func (l ContextLogger) Trace(message string) {
-	l.withFields(nil).Trace(message)
+	l.withFields().Trace(message)
 }
 
-func (l ContextLogger) withFields(ctx context.Context) LoggingSystem {
+func (l ContextLogger) withFields() LoggingSystem {
 	logger := l.logger.WithField(loggerFieldName, l.name)
 	logger = addContextFields(logger, l.ctx)
-	logger = addContextFields(logger, ctx)
 	return logger
 }
 

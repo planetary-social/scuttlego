@@ -5,7 +5,6 @@ import (
 )
 
 type LogrusLoggingSystem struct {
-	name   string
 	logger logrus.Ext1FieldLogger
 }
 

@@ -32,7 +32,7 @@ func GetLoggingContext(ctx context.Context) LoggingContext {
 }
 
 func copyLoggingContext(loggingContext LoggingContext) LoggingContext {
-	result := make(LoggingContext)
+	result := make(LoggingContext, len(loggingContext))
 	for key, value := range loggingContext {
 		result[key] = value
 	}

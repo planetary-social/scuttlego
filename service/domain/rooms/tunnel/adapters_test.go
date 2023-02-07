@@ -289,6 +289,7 @@ func (m *cancelFuncMock) Cancel() {
 }
 
 type responseStreamMock struct {
+	ctx               context.Context
 	ch                chan rpc.ResponseWithError
 	WriteMessageCalls [][]byte
 }
@@ -310,7 +311,8 @@ func newResponseStreamMock(ctx context.Context, messagesToReceive []rpc.Response
 		<-ctx.Done()
 	}()
 	return &responseStreamMock{
-		ch: ch,
+		ctx: ctx,
+		ch:  ch,
 	}
 }
 
@@ -321,6 +323,10 @@ func (r *responseStreamMock) WriteMessage(body []byte) error {
 
 func (r *responseStreamMock) Channel() <-chan rpc.ResponseWithError {
 	return r.ch
+}
+
+func (r *responseStreamMock) Ctx() context.Context {
+	return r.ctx
 }
 
 type streamMock struct {

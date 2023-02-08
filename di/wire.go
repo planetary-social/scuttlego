@@ -383,11 +383,11 @@ func newAdvertiser(l identity.Public, config Config) (*local.Advertiser, error) 
 	return local.NewAdvertiser(l, config.ListenAddress)
 }
 
-func newBadger(logger logging.LoggingSystem, config Config) (*badger.DB, func(), error) {
+func newBadger(system logging.LoggingSystem, logger logging.Logger, config Config) (*badger.DB, func(), error) {
 	badgerDirectory := filepath.Join(config.DataDirectory, "badger")
 
 	options := badger.DefaultOptions(badgerDirectory)
-	options.Logger = badgeradapters.NewLogger(logger, badgeradapters.LoggerLevelWarning)
+	options.Logger = badgeradapters.NewLogger(system, badgeradapters.LoggerLevelWarning)
 
 	if config.ModifyBadgerOptions != nil {
 		adapter := NewBadgerOptionsAdapter(&options)
@@ -401,7 +401,7 @@ func newBadger(logger logging.LoggingSystem, config Config) (*badger.DB, func(),
 
 	return db, func() {
 		if err := db.Close(); err != nil {
-			logger.WithField("error", err).Error("error closing the database")
+			logger.WithError(err).Error("error closing the database")
 		}
 	}, nil
 

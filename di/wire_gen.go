@@ -422,7 +422,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	inviteDialer := invites.NewInviteDialer(dialer, networkKey, requestPubSub, connectionIdGenerator, currentTimeProvider, logger)
 	inviteRedeemer := invites2.NewInviteRedeemer(inviteDialer, logger)
 	redeemInviteHandler := commands.NewRedeemInviteHandler(inviteRedeemer, private, logger)
-	db, cleanup, err := newBadger(loggingSystem, config)
+	db, cleanup, err := newBadger(loggingSystem, logger, config)
 	if err != nil {
 		return Service{}, nil, err
 	}
@@ -664,11 +664,11 @@ func newAdvertiser(l identity.Public, config Config) (*local.Advertiser, error) 
 	return local.NewAdvertiser(l, config.ListenAddress)
 }
 
-func newBadger(logger logging.LoggingSystem, config Config) (*badger2.DB, func(), error) {
+func newBadger(system logging.LoggingSystem, logger logging.Logger, config Config) (*badger2.DB, func(), error) {
 	badgerDirectory := filepath.Join(config.DataDirectory, "badger")
 
 	options := badger2.DefaultOptions(badgerDirectory)
-	options.Logger = badger.NewLogger(logger, badger.LoggerLevelWarning)
+	options.Logger = badger.NewLogger(system, badger.LoggerLevelWarning)
 
 	if config.ModifyBadgerOptions != nil {
 		adapter := NewBadgerOptionsAdapter(&options)
@@ -682,7 +682,7 @@ func newBadger(logger logging.LoggingSystem, config Config) (*badger2.DB, func()
 
 	return db, func() {
 		if err := db.Close(); err != nil {
-			logger.WithField("error", err).Error("error closing the database")
+			logger.WithError(err).Error("error closing the database")
 		}
 	}, nil
 

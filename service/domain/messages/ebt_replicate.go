@@ -267,3 +267,12 @@ func (e EbtReplicateNote) Equal(o EbtReplicateNote) bool {
 		e.replicate == o.replicate &&
 		e.sequence == o.sequence
 }
+
+func (e *EbtReplicateNote) MarshalJSON() ([]byte, error) {
+	note := ssb.Note{
+		Seq:       int64(e.Sequence()),
+		Replicate: e.Replicate(),
+		Receive:   e.Receive(),
+	}
+	return json.Marshal(note)
+}

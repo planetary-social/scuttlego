@@ -52,7 +52,7 @@ func NewConnection(
 		raw:                  raw,
 		responseStreams:      NewResponseStreams(raw, logger),
 		requestStreams:       NewRequestStreams(ctx, raw, handler, logger),
-		logger:               logger.WithField("id", id).New("connection"),
+		logger:               logger.New("connection"),
 		id:                   id,
 	}
 

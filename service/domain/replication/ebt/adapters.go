@@ -144,7 +144,7 @@ func parseIncomingMsg(b []byte) (IncomingMessage, error) {
 
 	rawMessage, err := message.NewRawMessage(b)
 	if err == nil {
-		return NewIncomingMessageWithMesage(rawMessage), nil
+		return NewIncomingMessageWithMessage(rawMessage), nil
 	}
 	returnErr = multierror.Append(returnErr, errors.Wrap(err, "could not create a new raw message"))
 

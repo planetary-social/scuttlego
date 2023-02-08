@@ -12,7 +12,7 @@ import (
 var extractFromConfigSet = wire.NewSet(
 	extractNetworkKeyFromConfig,
 	extractMessageHMACFromConfig,
-	extractLoggerFromConfig,
+	extractLoggingSystemFromConfig,
 	extractPeerManagerConfigFromConfig,
 )
 
@@ -24,8 +24,8 @@ func extractMessageHMACFromConfig(config Config) formats.MessageHMAC {
 	return config.MessageHMAC
 }
 
-func extractLoggerFromConfig(config Config) logging.Logger {
-	return config.Logger
+func extractLoggingSystemFromConfig(config Config) logging.LoggingSystem {
+	return config.LoggingSystem
 }
 
 func extractPeerManagerConfigFromConfig(config Config) domain.PeerManagerConfig {

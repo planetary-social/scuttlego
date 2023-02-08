@@ -89,9 +89,9 @@ func (r Replicator) Replicate(ctx context.Context, peer transport.Peer) error {
 			return errors.Wrap(err, "error starting the ebt session")
 		}
 
-		go r.replicateSelf(ctx, peer)
+		go r.replicateSelf(rs.Ctx(), peer)
 
-		return r.runner.HandleStream(ctx, NewOutgoingStreamAdapter(rs))
+		return r.runner.HandleStream(rs.Ctx(), NewOutgoingStreamAdapter(rs))
 	}
 
 	go r.replicateSelf(ctx, peer)

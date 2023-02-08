@@ -1,6 +1,8 @@
 package rpc
 
-import "sync/atomic"
+import (
+	"sync/atomic"
+)
 
 type ConnectionIdGenerator struct {
 	lastId uint64

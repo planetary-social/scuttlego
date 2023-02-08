@@ -4,6 +4,7 @@ go 1.19
 
 require (
 	github.com/boreq/errors v0.1.0
+	github.com/boreq/guinea v0.1.0
 	github.com/dgraph-io/badger/v3 v3.2103.5
 	github.com/google/wire v0.5.0
 	github.com/hashicorp/go-multierror v1.1.1

@@ -12,6 +12,7 @@ import (
 	"github.com/dgraph-io/badger/v3"
 	"github.com/google/wire"
 	"github.com/planetary-social/scuttlego/fixtures"
+	"github.com/planetary-social/scuttlego/logging"
 	badgeradapters "github.com/planetary-social/scuttlego/service/adapters/badger"
 	"github.com/planetary-social/scuttlego/service/adapters/badger/notx"
 	"github.com/planetary-social/scuttlego/service/adapters/mocks"
@@ -100,7 +101,7 @@ func buildTestBadgerNoTxTxAdapters(*badger.Txn, badgeradapters.TestAdaptersDepen
 	return notx.TxAdapters{}, nil
 }
 
-func buildBadgerNoTxTxAdapters(*badger.Txn, identity.Public, Config) (notx.TxAdapters, error) {
+func buildBadgerNoTxTxAdapters(*badger.Txn, identity.Public, Config, logging.Logger) (notx.TxAdapters, error) {
 	wire.Build(
 		wire.Struct(new(notx.TxAdapters), "*"),
 
@@ -266,7 +267,7 @@ func BuildTestQueries(*testing.T) (TestQueries, error) {
 	return TestQueries{}, nil
 }
 
-func buildBadgerTransactableAdapters(*badger.Txn, identity.Public, Config) (commands.Adapters, error) {
+func buildBadgerTransactableAdapters(*badger.Txn, identity.Public, Config, logging.Logger) (commands.Adapters, error) {
 	wire.Build(
 		wire.Struct(new(commands.Adapters), "*"),
 
@@ -314,6 +315,8 @@ func BuildService(context.Context, identity.Private, Config) (Service, func(), e
 
 		commands.NewTransactionRawMessagePublisher,
 		wire.Bind(new(commands.RawMessagePublisher), new(*commands.TransactionRawMessagePublisher)),
+
+		newContextLogger,
 
 		portsSet,
 		applicationSet,
@@ -380,10 +383,11 @@ func newAdvertiser(l identity.Public, config Config) (*local.Advertiser, error) 
 	return local.NewAdvertiser(l, config.ListenAddress)
 }
 
-func newBadger(config Config) (*badger.DB, func(), error) {
+func newBadger(logger logging.Logger, config Config) (*badger.DB, func(), error) {
 	badgerDirectory := filepath.Join(config.DataDirectory, "badger")
 
 	options := badger.DefaultOptions(badgerDirectory)
+	options.Logger = badgeradapters.NewLogger(logger, badgeradapters.LoggerLevelWarning)
 
 	if config.ModifyBadgerOptions != nil {
 		adapter := NewBadgerOptionsAdapter(&options)
@@ -397,7 +401,7 @@ func newBadger(config Config) (*badger.DB, func(), error) {
 
 	return db, func() {
 		if err := db.Close(); err != nil {
-			config.Logger.WithError(err).Error("error closing the database")
+			logger.WithError(err).Error("error closing the database")
 		}
 	}, nil
 
@@ -405,4 +409,8 @@ func newBadger(config Config) (*badger.DB, func(), error) {
 
 func privateIdentityToPublicIdentity(p identity.Private) identity.Public {
 	return p.Public()
+}
+
+func newContextLogger(loggingSystem logging.LoggingSystem) logging.Logger {
+	return logging.NewContextLogger(loggingSystem, "scuttlego")
 }

@@ -172,7 +172,7 @@ func newConnectionMock(wasInitiatedByRemote bool) *connectionMock {
 
 func (c *connectionMock) PerformRequest(ctx context.Context, req *rpc.Request) (rpc.ResponseStream, error) {
 	c.PerformRequestCalls = append(c.PerformRequestCalls, req)
-	return nil, nil
+	return newResponseStreamMock(ctx), nil
 }
 
 func (c *connectionMock) Context() context.Context {
@@ -185,6 +185,28 @@ func (c *connectionMock) Close() error {
 
 func (c connectionMock) WasInitiatedByRemote() bool {
 	return c.wasInitiatedByRemote
+}
+
+type responseStreamMock struct {
+	ctx context.Context
+}
+
+func newResponseStreamMock(ctx context.Context) *responseStreamMock {
+	return &responseStreamMock{ctx: ctx}
+}
+
+func (r responseStreamMock) WriteMessage(body []byte) error {
+	return nil
+}
+
+func (r responseStreamMock) Channel() <-chan rpc.ResponseWithError {
+	ch := make(chan rpc.ResponseWithError)
+	close(ch)
+	return ch
+}
+
+func (r responseStreamMock) Ctx() context.Context {
+	return r.ctx
 }
 
 type trackerMock struct {

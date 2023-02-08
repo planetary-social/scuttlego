@@ -191,7 +191,7 @@ func TestSession_ErrorsWhenProcessingRawMessagesDontTerminateTheSession(t *testi
 
 	go func() {
 		s.Stream.ReceiveIncomingMessage(s.Ctx,
-			ebt.NewIncomingMessageWithMesage(
+			ebt.NewIncomingMessageWithMessage(
 				fixtures.SomeRawMessage(),
 			),
 		)

@@ -85,6 +85,8 @@ func (s *RequestStreams) HandleIncomingRequest(ctx context.Context, msg *transpo
 
 	requestNumber := msg.Header.RequestNumber()
 
+	ctx = logging.AddToLoggingContext(ctx, logging.StreamIdContextLabel, -msg.Header.RequestNumber())
+
 	// Unfortunately we are not able to distinguish "start of stream" messages
 	// from "part of stream" messages in the case of duplex connections. This is
 	// a problem which exists at the design level of the Secure Scuttlebutt's

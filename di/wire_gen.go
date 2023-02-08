@@ -15,6 +15,7 @@ import (
 	badger2 "github.com/dgraph-io/badger/v3"
 	"github.com/google/wire"
 	"github.com/planetary-social/scuttlego/fixtures"
+	"github.com/planetary-social/scuttlego/logging"
 	migrations2 "github.com/planetary-social/scuttlego/migrations"
 	"github.com/planetary-social/scuttlego/service/adapters"
 	"github.com/planetary-social/scuttlego/service/adapters/badger"
@@ -165,7 +166,7 @@ var (
 	_wireHopsValue = hops
 )
 
-func buildBadgerNoTxTxAdapters(txn *badger2.Txn, public identity.Public, config Config) (notx.TxAdapters, error) {
+func buildBadgerNoTxTxAdapters(txn *badger2.Txn, public identity.Public, config Config, logger logging.Logger) (notx.TxAdapters, error) {
 	banListHasher := adapters.NewBanListHasher()
 	banListRepository := badger.NewBanListRepository(txn, banListHasher)
 	blobRepository := badger.NewBlobRepository(txn)
@@ -173,7 +174,6 @@ func buildBadgerNoTxTxAdapters(txn *badger2.Txn, public identity.Public, config 
 	blobWantListRepository := badger.NewBlobWantListRepository(txn, currentTimeProvider)
 	feedWantListRepository := badger.NewFeedWantListRepository(txn, currentTimeProvider)
 	messageContentMappings := transport.DefaultMappings()
-	logger := extractLoggerFromConfig(config)
 	marshaler, err := transport.NewMarshaler(messageContentMappings, logger)
 	if err != nil {
 		return notx.TxAdapters{}, err
@@ -364,13 +364,12 @@ func BuildTestQueries(t *testing.T) (TestQueries, error) {
 	return testQueries, nil
 }
 
-func buildBadgerTransactableAdapters(txn *badger2.Txn, public identity.Public, config Config) (commands.Adapters, error) {
+func buildBadgerTransactableAdapters(txn *badger2.Txn, public identity.Public, config Config, logger logging.Logger) (commands.Adapters, error) {
 	graphHops := _wireHopsValue3
 	banListHasher := adapters.NewBanListHasher()
 	banListRepository := badger.NewBanListRepository(txn, banListHasher)
 	socialGraphRepository := badger.NewSocialGraphRepository(txn, public, graphHops, banListRepository)
 	messageContentMappings := transport.DefaultMappings()
-	logger := extractLoggerFromConfig(config)
 	marshaler, err := transport.NewMarshaler(messageContentMappings, logger)
 	if err != nil {
 		return commands.Adapters{}, err
@@ -413,7 +412,8 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	}
 	requestPubSub := pubsub.NewRequestPubSub()
 	connectionIdGenerator := rpc.NewConnectionIdGenerator()
-	logger := extractLoggerFromConfig(config)
+	loggingSystem := extractLoggingSystemFromConfig(config)
+	logger := newContextLogger(loggingSystem)
 	peerInitializer := transport2.NewPeerInitializer(handshaker, requestPubSub, connectionIdGenerator, logger)
 	dialer, err := network.NewDialer(peerInitializer, logger)
 	if err != nil {
@@ -422,12 +422,12 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	inviteDialer := invites.NewInviteDialer(dialer, networkKey, requestPubSub, connectionIdGenerator, currentTimeProvider, logger)
 	inviteRedeemer := invites2.NewInviteRedeemer(inviteDialer, logger)
 	redeemInviteHandler := commands.NewRedeemInviteHandler(inviteRedeemer, private, logger)
-	db, cleanup, err := newBadger(config)
+	db, cleanup, err := newBadger(logger, config)
 	if err != nil {
 		return Service{}, nil, err
 	}
 	public := privateIdentityToPublicIdentity(private)
-	adaptersFactory := badgerTransactableAdaptersFactory(config, public)
+	adaptersFactory := badgerTransactableAdaptersFactory(config, public, logger)
 	transactionProvider := badger.NewTransactionProvider(db, adaptersFactory)
 	messageContentMappings := transport.DefaultMappings()
 	marshaler, err := transport.NewMarshaler(messageContentMappings, logger)
@@ -449,7 +449,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	rawMessageIdentifier := formats.NewRawMessageIdentifier(v)
 	messageBuffer := commands.NewMessageBuffer(transactionProvider, logger)
 	rawMessageHandler := commands.NewRawMessageHandler(rawMessageIdentifier, messageBuffer, logger)
-	txAdaptersFactory := noTxTxAdaptersFactory(public, config)
+	txAdaptersFactory := noTxTxAdaptersFactory(public, config, logger)
 	txAdaptersFactoryTransactionProvider := notx.NewTxAdaptersFactoryTransactionProvider(db, txAdaptersFactory)
 	noTxWantedFeedsRepository := notx.NewNoTxWantedFeedsRepository(txAdaptersFactoryTransactionProvider)
 	wantedFeedsCache := replication.NewWantedFeedsCache(noTxWantedFeedsRepository)
@@ -664,10 +664,11 @@ func newAdvertiser(l identity.Public, config Config) (*local.Advertiser, error) 
 	return local.NewAdvertiser(l, config.ListenAddress)
 }
 
-func newBadger(config Config) (*badger2.DB, func(), error) {
+func newBadger(logger logging.Logger, config Config) (*badger2.DB, func(), error) {
 	badgerDirectory := filepath.Join(config.DataDirectory, "badger")
 
 	options := badger2.DefaultOptions(badgerDirectory)
+	options.Logger = badger.NewLogger(logger, badger.LoggerLevelWarning)
 
 	if config.ModifyBadgerOptions != nil {
 		adapter := NewBadgerOptionsAdapter(&options)
@@ -681,7 +682,7 @@ func newBadger(config Config) (*badger2.DB, func(), error) {
 
 	return db, func() {
 		if err := db.Close(); err != nil {
-			config.Logger.WithError(err).Error("error closing the database")
+			logger.WithError(err).Error("error closing the database")
 		}
 	}, nil
 
@@ -689,4 +690,8 @@ func newBadger(config Config) (*badger2.DB, func(), error) {
 
 func privateIdentityToPublicIdentity(p identity.Private) identity.Public {
 	return p.Public()
+}
+
+func newContextLogger(loggingSystem logging.LoggingSystem) logging.Logger {
+	return logging.NewContextLogger(loggingSystem, "scuttlego")
 }

@@ -3,6 +3,7 @@ package di
 import (
 	"github.com/dgraph-io/badger/v3"
 	"github.com/google/wire"
+	"github.com/planetary-social/scuttlego/logging"
 	badgeradapters "github.com/planetary-social/scuttlego/service/adapters/badger"
 	"github.com/planetary-social/scuttlego/service/adapters/badger/notx"
 	"github.com/planetary-social/scuttlego/service/adapters/mocks"
@@ -121,9 +122,9 @@ func noTxTestTxAdaptersFactory() notx.TestTxAdaptersFactory {
 	}
 }
 
-func noTxTxAdaptersFactory(local identity.Public, conf Config) notx.TxAdaptersFactory {
+func noTxTxAdaptersFactory(local identity.Public, conf Config, logger logging.Logger) notx.TxAdaptersFactory {
 	return func(tx *badger.Txn) (notx.TxAdapters, error) {
-		return buildBadgerNoTxTxAdapters(tx, local, conf)
+		return buildBadgerNoTxTxAdapters(tx, local, conf, logger)
 	}
 }
 
@@ -133,8 +134,8 @@ func testAdaptersFactory() badgeradapters.TestAdaptersFactory {
 	}
 }
 
-func badgerTransactableAdaptersFactory(config Config, local identity.Public) badgeradapters.AdaptersFactory {
+func badgerTransactableAdaptersFactory(config Config, local identity.Public, logger logging.Logger) badgeradapters.AdaptersFactory {
 	return func(tx *badger.Txn) (commands.Adapters, error) {
-		return buildBadgerTransactableAdapters(tx, local, config)
+		return buildBadgerTransactableAdapters(tx, local, config, logger)
 	}
 }

@@ -11,7 +11,7 @@ const (
 
 type Logger interface {
 	New(name string) Logger
-	WithCtx(ctx context.Context) Logger // todo maybe remove and just use ...Ctx funcs?
+	WithCtx(ctx context.Context) Logger
 	WithError(err error) Logger
 	WithField(key string, v any) Logger
 

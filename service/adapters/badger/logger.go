@@ -18,11 +18,11 @@ const (
 )
 
 type Logger struct {
-	logger logging.Logger
+	logger logging.LoggingSystem
 	level  LoggerLevel
 }
 
-func NewLogger(logger logging.Logger, level LoggerLevel) Logger {
+func NewLogger(logger logging.LoggingSystem, level LoggerLevel) Logger {
 	return Logger{logger: logger, level: level}
 }
 

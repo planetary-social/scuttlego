@@ -70,7 +70,6 @@ type BadgerOptions interface {
 	SetValueLogFileSize(val int64)
 	SetBlockCacheSize(val int64)
 	SetIndexCacheSize(val int64)
-	SetSyncWrites(val bool)
 }
 
 type BadgerOptionsAdapter struct {
@@ -107,8 +106,4 @@ func (b BadgerOptionsAdapter) SetBlockCacheSize(val int64) {
 
 func (b BadgerOptionsAdapter) SetIndexCacheSize(val int64) {
 	b.options.IndexCacheSize = val
-}
-
-func (b BadgerOptionsAdapter) SetSyncWrites(val bool) {
-	b.options.SyncWrites = val
 }

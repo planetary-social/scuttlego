@@ -368,21 +368,6 @@ func (t testingLogger) Trace(message string) {
 	t.withField("level", "trace").log(message)
 }
 
-func (t testingLogger) ErrorCtx(ctx context.Context, message string) {
-	t.t.Helper()
-	t.withField("level", "error").log(message)
-}
-
-func (t testingLogger) DebugCtx(ctx context.Context, message string) {
-	t.t.Helper()
-	t.withField("level", "debug").log(message)
-}
-
-func (t testingLogger) TraceCtx(ctx context.Context, message string) {
-	t.t.Helper()
-	t.withField("level", "trace").log(message)
-}
-
 func (t testingLogger) withField(key string, v any) testingLogger {
 	prev := t.log
 	return testingLogger{name: t.name, t: t.t, log: func(args ...any) {

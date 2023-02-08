@@ -4,6 +4,11 @@ import (
 	"context"
 )
 
+const (
+	loggerFieldName  = "name"
+	loggerFieldError = "error"
+)
+
 type Logger interface {
 	New(name string) Logger
 	WithCtx(ctx context.Context) Logger // todo maybe remove and just use ...Ctx funcs?
@@ -11,11 +16,8 @@ type Logger interface {
 	WithField(key string, v any) Logger
 
 	Error(message string)
-	ErrorCtx(ctx context.Context, message string)
 	Debug(message string)
-	DebugCtx(ctx context.Context, message string)
 	Trace(message string)
-	TraceCtx(ctx context.Context, message string)
 }
 
 type LoggingSystem interface {
@@ -52,7 +54,7 @@ func (l ContextLogger) WithCtx(ctx context.Context) Logger {
 }
 
 func (l ContextLogger) WithError(err error) Logger {
-	return newContextLogger(l.logger.WithField("error", err), l.name, l.ctx)
+	return newContextLogger(l.logger.WithField(loggerFieldError, err), l.name, l.ctx)
 }
 
 func (l ContextLogger) WithField(key string, v any) Logger {
@@ -60,42 +62,20 @@ func (l ContextLogger) WithField(key string, v any) Logger {
 }
 
 func (l ContextLogger) Error(message string) {
-	l.withContextFields(l.withName(l.logger), l.ctx).Error(message)
-}
-
-func (l ContextLogger) ErrorCtx(ctx context.Context, message string) {
-	l.withContextFields(l.logger, ctx).Error(message)
+	l.withFields().Error(message)
 }
 
 func (l ContextLogger) Debug(message string) {
-	l.withContextFields(l.withName(l.logger), l.ctx).Debug(message)
-}
-
-func (l ContextLogger) DebugCtx(ctx context.Context, message string) {
-	l.withContextFields(l.logger, ctx).Debug(message)
+	l.withFields().Debug(message)
 }
 
 func (l ContextLogger) Trace(message string) {
-	l.withContextFields(l.withName(l.logger), l.ctx).Trace(message)
+	l.withFields().Trace(message)
 }
 
-func (l ContextLogger) TraceCtx(ctx context.Context, message string) {
-	l.withContextFields(l.logger, ctx).Trace(message)
-}
-
-func (l ContextLogger) withName(logger LoggingSystem) LoggingSystem {
-	return logger.WithField("name", l.name)
-}
-
-func (l ContextLogger) withContextFields(logger LoggingSystem, ctx context.Context) LoggingSystem {
-	if ctx == nil {
-		return logger
-	}
-
-	for label, value := range GetLoggingContext(ctx) {
-		logger = logger.WithField(label, value)
-	}
-
+func (l ContextLogger) withFields() LoggingSystem {
+	logger := l.logger.WithField(loggerFieldName, l.name)
+	logger = addContextFields(logger, l.ctx)
 	return logger
 }
 
@@ -131,11 +111,14 @@ func (d DevNullLogger) Debug(message string) {
 func (d DevNullLogger) Trace(message string) {
 }
 
-func (d DevNullLogger) ErrorCtx(ctx context.Context, message string) {
-}
+func addContextFields(logger LoggingSystem, ctx context.Context) LoggingSystem {
+	if ctx == nil {
+		return logger
+	}
 
-func (d DevNullLogger) DebugCtx(ctx context.Context, message string) {
-}
+	for label, value := range GetLoggingContext(ctx) {
+		logger = logger.WithField(label, value)
+	}
 
-func (d DevNullLogger) TraceCtx(ctx context.Context, message string) {
+	return logger
 }

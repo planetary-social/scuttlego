@@ -7,6 +7,14 @@ import (
 	"github.com/dgraph-io/badger/v3"
 )
 
+type Item interface {
+	KeyCopy([]byte) []byte
+	ValueCopy([]byte) ([]byte, error)
+
+	DangerousKey(func(key []byte) error) error
+	DangerousValue(func(value []byte) error) error
+}
+
 type Bucket struct {
 	tx     *badger.Txn
 	prefix Key
@@ -50,22 +58,23 @@ func (b Bucket) Delete(key []byte) error {
 	return b.tx.Delete(targetKey)
 }
 
-func (b Bucket) Get(key []byte) (*badger.Item, error) {
+func (b Bucket) Get(key []byte) (Item, error) {
 	targetKey, err := b.targetKey(key)
 	if err != nil {
 		return nil, errors.Wrap(err, "error creating a target key")
 	}
 
-	return b.tx.Get(targetKey)
+	item, err := b.tx.Get(targetKey)
+	return newItemAdapter(item), err
 }
 
-func (b Bucket) ForEach(fn func(item *badger.Item) error) error {
+func (b Bucket) ForEach(fn func(item Item) error) error {
 	it := b.tx.NewIterator(badger.DefaultIteratorOptions)
 	defer it.Close()
 
 	prefix := b.prefix.Bytes()
 	for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
-		if err := fn(it.Item()); err != nil {
+		if err := fn(newItemAdapter(it.Item())); err != nil {
 			return errors.Wrap(err, "function returned an error")
 		}
 	}
@@ -85,7 +94,7 @@ func (b Bucket) ChildBucket(component KeyComponent) Bucket {
 }
 
 func (b Bucket) DeleteBucket() error {
-	if err := b.ForEach(func(item *badger.Item) error { // todo don't prefech values? // todo do it faster somehow?
+	if err := b.ForEach(func(item Item) error { // todo don't prefech values? // todo do it faster somehow?
 		if err := b.tx.Delete(item.KeyCopy(nil)); err != nil {
 			return errors.Wrap(err, "delete error")
 		}
@@ -105,7 +114,7 @@ func (b Bucket) targetKey(key []byte) ([]byte, error) {
 	return b.prefix.Append(keyComponent).Bytes(), nil
 }
 
-func (b Bucket) KeyInBucket(item *badger.Item) (KeyComponent, error) {
+func (b Bucket) KeyInBucket(item Item) (KeyComponent, error) {
 	itemKey, err := NewKeyFromBytes(item.KeyCopy(nil)) // todo copy only sometimes or later?
 	if err != nil {
 		return KeyComponent{}, errors.Wrap(err, "error parsing the key")
@@ -136,4 +145,28 @@ func (b Bucket) IsEmpty() bool {
 
 func (b Bucket) Prefix() Key {
 	return b.prefix
+}
+
+type itemAdapter struct {
+	item *badger.Item
+}
+
+func newItemAdapter(item *badger.Item) itemAdapter {
+	return itemAdapter{item: item}
+}
+
+func (i itemAdapter) KeyCopy(dst []byte) []byte {
+	return i.item.KeyCopy(dst)
+}
+
+func (i itemAdapter) ValueCopy(dst []byte) ([]byte, error) {
+	return i.item.ValueCopy(dst)
+}
+
+func (i itemAdapter) DangerousKey(f func(key []byte) error) error {
+	return f(i.item.Key())
+}
+
+func (i itemAdapter) DangerousValue(f func(value []byte) error) error {
+	return i.item.Value(f)
 }

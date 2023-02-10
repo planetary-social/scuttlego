@@ -37,13 +37,13 @@ func (b *BadgerStorage) LoadState(name string) (migrations.State, error) {
 			return errors.Wrap(err, "could not get the item")
 		}
 
-		if err := item.Value(func(val []byte) error {
-			if err := json.Unmarshal(val, &state); err != nil {
-				return errors.Wrap(err, "error unmarshaling state")
-			}
-			return nil
-		}); err != nil {
+		value, err := item.ValueCopy(nil)
+		if err != nil {
 			return errors.Wrap(err, "error getting value")
+		}
+
+		if err := json.Unmarshal(value, &state); err != nil {
+			return errors.Wrap(err, "error unmarshaling state")
 		}
 
 		return nil
@@ -86,16 +86,16 @@ func (b *BadgerStorage) LoadStatus(name string) (migrations.Status, error) {
 			return errors.Wrap(err, "could not get the item")
 		}
 
-		if err := item.Value(func(val []byte) error {
-			tmp, err := unmarshalStatus(string(val))
-			if err != nil {
-				return errors.Wrap(err, "error unmarshaling status")
-			}
-			status = tmp
-			return nil
-		}); err != nil {
+		value, err := item.ValueCopy(nil)
+		if err != nil {
 			return errors.Wrap(err, "error getting value")
 		}
+
+		tmp, err := unmarshalStatus(string(value))
+		if err != nil {
+			return errors.Wrap(err, "error unmarshaling status")
+		}
+		status = tmp
 
 		return nil
 	}); err != nil {

@@ -47,8 +47,8 @@ func (i BucketIterator) Next() {
 	i.it.Next()
 }
 
-func (i BucketIterator) Item() *badger.Item {
-	return i.it.Item()
+func (i BucketIterator) Item() Item {
+	return newItemAdapter(i.it.Item())
 }
 
 func (i BucketIterator) Close() {

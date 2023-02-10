@@ -54,20 +54,17 @@ func (c Counter) get() (uint64, error) {
 		return 0, errors.Wrap(err, "error getting sequence")
 	}
 
-	var existingSequence uint64
-
-	if err := item.Value(func(val []byte) error {
-		tmp, err := c.unmarshal(val)
-		if err != nil {
-			return errors.Wrap(err, "unmarshal error")
-		}
-		existingSequence = tmp
-		return err
-	}); err != nil {
+	value, err := item.ValueCopy(nil)
+	if err != nil {
 		return 0, errors.Wrap(err, "error getting value")
 	}
 
-	return existingSequence, nil
+	counterValue, err := c.unmarshal(value)
+	if err != nil {
+		return 0, errors.Wrap(err, "unmarshal error")
+	}
+
+	return counterValue, nil
 }
 
 func (c Counter) set(v uint64) error {

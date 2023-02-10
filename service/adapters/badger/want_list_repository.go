@@ -56,20 +56,17 @@ func (r WantListRepository) shouldSet(bucket utils.Bucket, key []byte, until tim
 		return false, errors.Wrap(err, "error getting the existing item")
 	}
 
-	var shouldSet bool
-
-	if err := item.Value(func(val []byte) error {
-		t, err := r.fromValue(val)
-		if err != nil {
-			return errors.Wrap(err, "failed to convert the value")
-		}
-
-		shouldSet = !t.After(until)
-
-		return nil
-	}); err != nil {
-		return false, errors.Wrap(err, "error checking value")
+	value, err := item.ValueCopy(nil)
+	if err != nil {
+		return false, errors.Wrap(err, "error getting the value")
 	}
+
+	t, err := r.fromValue(value)
+	if err != nil {
+		return false, errors.Wrap(err, "failed to convert the value")
+	}
+
+	shouldSet := !t.After(until)
 
 	return shouldSet, nil
 }
@@ -88,21 +85,18 @@ func (r WantListRepository) Contains(id string) (bool, error) {
 		return false, errors.Wrap(err, "error getting the value")
 	}
 
-	var valueIsStillValid bool
-
-	if err := item.Value(func(val []byte) error {
-		until, err := r.fromValue(val)
-		if err != nil {
-			return errors.Wrap(err, "could not convert the value")
-		}
-
-		now := r.currentTimeProvider.Get()
-		valueIsStillValid = !now.After(until)
-
-		return nil
-	}); err != nil {
-		return false, errors.Wrap(err, "error checking value")
+	value, err := item.ValueCopy(nil)
+	if err != nil {
+		return false, errors.Wrap(err, "error getting the value")
 	}
+
+	until, err := r.fromValue(value)
+	if err != nil {
+		return false, errors.Wrap(err, "could not convert the value")
+	}
+
+	now := r.currentTimeProvider.Get()
+	valueIsStillValid := !now.After(until)
 
 	return valueIsStillValid, nil
 }
@@ -131,7 +125,7 @@ func (r WantListRepository) List() ([]string, error) {
 
 	now := r.currentTimeProvider.Get()
 
-	if err := bucket.ForEach(func(item *badger.Item) error {
+	if err := bucket.ForEach(func(item utils.Item) error {
 		keyInBucket, err := bucket.KeyInBucket(item)
 		if err != nil {
 			return errors.Wrap(err, "error determining key in bucket")
@@ -139,24 +133,22 @@ func (r WantListRepository) List() ([]string, error) {
 
 		id := r.fromKey(keyInBucket.Bytes())
 
-		if err := item.Value(func(val []byte) error {
-			until, err := r.fromValue(val)
-			if err != nil {
-				return errors.Wrap(err, "could not read the value")
-			}
-
-			if now.After(until) {
-				toDelete = append(toDelete, id)
-				return nil
-			}
-
-			result = append(result, id)
-
-			return nil
-		}); err != nil {
-			return errors.Wrap(err, "error checking value")
+		val, err := item.ValueCopy(nil)
+		if err != nil {
+			return errors.Wrap(err, "could not get the value")
 		}
 
+		until, err := r.fromValue(val)
+		if err != nil {
+			return errors.Wrap(err, "could not read the value")
+		}
+
+		if now.After(until) {
+			toDelete = append(toDelete, id)
+			return nil
+		}
+
+		result = append(result, id)
 		return nil
 	}); err != nil {
 		return nil, errors.Wrap(err, "for each failed")

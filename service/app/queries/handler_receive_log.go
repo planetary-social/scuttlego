@@ -36,11 +36,11 @@ func (r ReceiveLog) IsZero() bool {
 }
 
 type ReceiveLogHandler struct {
-	repository ReceiveLogRepository
+	transaction TransactionProvider
 }
 
-func NewReceiveLogHandler(repository ReceiveLogRepository) *ReceiveLogHandler {
-	return &ReceiveLogHandler{repository: repository}
+func NewReceiveLogHandler(transaction TransactionProvider) *ReceiveLogHandler {
+	return &ReceiveLogHandler{transaction: transaction}
 }
 
 func (h *ReceiveLogHandler) Handle(query ReceiveLog) ([]LogMessage, error) {
@@ -48,5 +48,18 @@ func (h *ReceiveLogHandler) Handle(query ReceiveLog) ([]LogMessage, error) {
 		return nil, errors.New("zero value of query")
 	}
 
-	return h.repository.List(query.StartSeq(), query.Limit())
+	var result []LogMessage
+
+	if err := h.transaction.Transact(func(adapters Adapters) error {
+		tmp, err := adapters.ReceiveLog.List(query.StartSeq(), query.Limit())
+		if err != nil {
+			return errors.Wrap(err, "error listing messages")
+		}
+		result = tmp
+		return nil
+	}); err != nil {
+		return nil, errors.Wrap(err, "transaction failed")
+	}
+
+	return result, nil
 }

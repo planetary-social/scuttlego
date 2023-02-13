@@ -69,11 +69,9 @@ func BuildBadgerNoTxTestAdapters(t *testing.T) BadgerNoTxTestAdapters {
 	}
 	testTxAdaptersFactoryTransactionProvider := notx.NewTestTxAdaptersFactoryTransactionProvider(db, testTxAdaptersFactory, testAdaptersDependencies)
 	noTxBlobWantListRepository := notx.NewNoTxBlobWantListRepository(testTxAdaptersFactoryTransactionProvider)
-	noTxReceiveLogRepository := notx.NewNoTxReceiveLogRepository(testTxAdaptersFactoryTransactionProvider)
 	noTxWantedFeedsRepository := notx.NewNoTxWantedFeedsRepository(testTxAdaptersFactoryTransactionProvider)
 	testAdapters := notx.TestAdapters{
 		NoTxBlobWantListRepository: noTxBlobWantListRepository,
-		NoTxReceiveLogRepository:   noTxReceiveLogRepository,
 		NoTxWantedFeedsRepository:  noTxWantedFeedsRepository,
 	}
 	badgerTestAdaptersFactory := testAdaptersFactory()
@@ -317,7 +315,7 @@ func BuildTestQueries(t *testing.T) (TestQueries, error) {
 	messagePubSubMock := mocks.NewMessagePubSubMock(messagePubSub)
 	logger := fixtures.TestLogger(t)
 	createHistoryStreamHandler := queries.NewCreateHistoryStreamHandler(mockQueriesTransactionProvider, messagePubSubMock, logger)
-	receiveLogHandler := queries.NewReceiveLogHandler(receiveLogRepositoryMock)
+	receiveLogHandler := queries.NewReceiveLogHandler(mockQueriesTransactionProvider)
 	private, err := identity.NewPrivate()
 	if err != nil {
 		return TestQueries{}, err
@@ -557,8 +555,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 		RoomsAliasRevoke:     roomsAliasRevokeHandler,
 		RunMigrations:        runMigrationsHandler,
 	}
-	noTxReceiveLogRepository := notx.NewNoTxReceiveLogRepository(txAdaptersFactoryTransactionProvider)
-	receiveLogHandler := queries.NewReceiveLogHandler(noTxReceiveLogRepository)
+	receiveLogHandler := queries.NewReceiveLogHandler(queriesTransactionProvider)
 	publishedLogHandler, err := queries.NewPublishedLogHandler(queriesTransactionProvider, public)
 	if err != nil {
 		cleanup()

@@ -38,9 +38,6 @@ var badgerNoTxRepositoriesSet = wire.NewSet(
 	wire.Bind(new(blobReplication.WantListStorage), new(*notx.NoTxBlobWantListRepository)),
 	wire.Bind(new(blobReplication.WantListRepository), new(*notx.NoTxBlobWantListRepository)),
 
-	notx.NewNoTxReceiveLogRepository,
-	wire.Bind(new(queries.ReceiveLogRepository), new(*notx.NoTxReceiveLogRepository)),
-
 	notx.NewNoTxWantedFeedsRepository,
 	wire.Bind(new(replication.WantedFeedsRepository), new(*notx.NoTxWantedFeedsRepository)),
 )

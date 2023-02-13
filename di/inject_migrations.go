@@ -28,6 +28,7 @@ var migrationsSet = wire.NewSet(
 	migrationCommandsSet,
 )
 
+//nolint:unused
 var migrationCommandsSet = wire.NewSet(
 	wire.Struct(new(commands.Migrations), "*"),
 	commands.NewMigrationHandlerDeleteGoSSBRepositoryInOldFormat,

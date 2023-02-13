@@ -3,9 +3,11 @@ package di
 import (
 	"github.com/dgraph-io/badger/v3"
 	"github.com/dgraph-io/badger/v3/options"
+	"github.com/planetary-social/scuttlego/internal"
 	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/domain"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/formats"
+	"github.com/planetary-social/scuttlego/service/domain/graph"
 	"github.com/planetary-social/scuttlego/service/domain/transport/boxstream"
 )
 
@@ -39,6 +41,11 @@ type Config struct {
 	// connections and managing existing connections.
 	PeerManagerConfig domain.PeerManagerConfig
 
+	// Hops specifies how far away the feeds which are automatically replicated
+	// based on contact messages can be in the social graph.
+	// Optional, defaults to 3 (followees of your followees).
+	Hops *graph.Hops
+
 	// ModifyBadgerOptions allows you to specify a function allowing you to modify certain Badger options.
 	// Optional, this value is ignored if not set.
 	ModifyBadgerOptions func(options BadgerOptions)
@@ -59,6 +66,10 @@ func (c *Config) SetDefaults() {
 
 	if c.LoggingSystem == nil {
 		c.LoggingSystem = logging.NewDevNullLoggingSystem()
+	}
+
+	if c.Hops == nil {
+		c.Hops = internal.Ptr(graph.MustNewHops(3))
 	}
 }
 

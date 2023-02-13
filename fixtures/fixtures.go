@@ -21,6 +21,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/blobs"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/content"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
+	"github.com/planetary-social/scuttlego/service/domain/graph"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
 	"github.com/planetary-social/scuttlego/service/domain/invites"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
@@ -258,13 +259,8 @@ func SomeInvite() invites.Invite {
 	return invites.MustNewInviteFromString("one.planetary.pub:8008:@CIlwTOK+m6v1hT2zUVOCJvvZq7KE/65ErN6yA2yrURY=.ed25519~KVvak/aZeQJQUrn1imLIvwU+EVTkCzGW8TJWTmK8lOk=")
 }
 
-func randomBase64(bytes int) string {
-	r := make([]byte, bytes)
-	_, err := cryptorand.Read(r)
-	if err != nil {
-		panic(err)
-	}
-	return base64.StdEncoding.EncodeToString(r)
+func SomeHops() graph.Hops {
+	return graph.MustNewHops(SomePositiveInt())
 }
 
 func Directory(t *testing.T) string {
@@ -377,4 +373,13 @@ func (t testingLogger) withField(key string, v any) testingLogger {
 		tmp = append(tmp, args...)
 		prev(tmp)
 	}}
+}
+
+func randomBase64(bytes int) string {
+	r := make([]byte, bytes)
+	_, err := cryptorand.Read(r)
+	if err != nil {
+		panic(err)
+	}
+	return base64.StdEncoding.EncodeToString(r)
 }

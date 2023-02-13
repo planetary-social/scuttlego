@@ -24,7 +24,6 @@ import (
 	blobReplication "github.com/planetary-social/scuttlego/service/domain/blobs/replication"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/content/transport"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/formats"
-	"github.com/planetary-social/scuttlego/service/domain/graph"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
 	"github.com/planetary-social/scuttlego/service/domain/invites"
 	domainmocks "github.com/planetary-social/scuttlego/service/domain/mocks"
@@ -94,8 +93,7 @@ func buildTestBadgerNoTxTxAdapters(*badger.Txn, badgeradapters.TestAdaptersDepen
 		wire.Bind(new(formats.Marshaler), new(*transport.Marshaler)),
 
 		fixtures.SomeLogger,
-
-		wire.Value(hops),
+		fixtures.SomeHops,
 	)
 
 	return notx.TxAdapters{}, nil
@@ -109,8 +107,6 @@ func buildBadgerNoTxTxAdapters(*badger.Txn, identity.Public, Config, logging.Log
 		formatsSet,
 		extractFromConfigSet,
 		adaptersSet,
-
-		wire.Value(hops),
 	)
 
 	return notx.TxAdapters{}, nil
@@ -131,8 +127,7 @@ func buildBadgerTestAdapters(*badger.Txn, badgeradapters.TestAdaptersDependencie
 		wire.Bind(new(formats.Marshaler), new(*transport.Marshaler)),
 
 		fixtures.SomeLogger,
-
-		wire.Value(hops),
+		fixtures.SomeHops,
 	)
 
 	return badgeradapters.TestAdapters{}, nil
@@ -285,8 +280,6 @@ func buildBadgerCommandsAdapters(*badger.Txn, identity.Public, Config, logging.L
 		formatsSet,
 		extractFromConfigSet,
 		adaptersSet,
-
-		wire.Value(hops),
 	)
 
 	return commands.Adapters{}, nil
@@ -300,8 +293,6 @@ func buildBadgerQueriesAdapters(*badger.Txn, identity.Public, Config, logging.Lo
 		formatsSet,
 		extractFromConfigSet,
 		adaptersSet,
-
-		wire.Value(hops),
 	)
 
 	return queries.Adapters{}, nil
@@ -401,8 +392,6 @@ var blobReplicatorSet = wire.NewSet(
 	blobReplication.NewHasHandler,
 	wire.Bind(new(blobReplication.HasBlobHandler), new(*blobReplication.HasHandler)),
 )
-
-var hops = graph.MustNewHops(3)
 
 func newAdvertiser(l identity.Public, config Config) (*local.Advertiser, error) {
 	return local.NewAdvertiser(l, config.ListenAddress)

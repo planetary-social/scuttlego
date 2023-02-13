@@ -32,7 +32,6 @@ import (
 	replication2 "github.com/planetary-social/scuttlego/service/domain/blobs/replication"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/content/transport"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/formats"
-	"github.com/planetary-social/scuttlego/service/domain/graph"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
 	invites2 "github.com/planetary-social/scuttlego/service/domain/invites"
 	mocks2 "github.com/planetary-social/scuttlego/service/domain/mocks"
@@ -128,8 +127,8 @@ func buildTestBadgerNoTxTxAdapters(txn *badger2.Txn, testAdaptersDependencies ba
 	messageRepository := badger.NewMessageRepository(txn, rawMessageIdentifierMock)
 	receiveLogRepository := badger.NewReceiveLogRepository(txn, messageRepository)
 	public := testAdaptersDependencies.LocalIdentity
-	graphHops := _wireHopsValue
-	socialGraphRepository := badger.NewSocialGraphRepository(txn, public, graphHops, banListRepository)
+	hops := fixtures.SomeHops()
+	socialGraphRepository := badger.NewSocialGraphRepository(txn, public, hops, banListRepository)
 	pubRepository := badger.NewPubRepository(txn)
 	messageContentMappings := transport.DefaultMappings()
 	logger := fixtures.SomeLogger()
@@ -156,10 +155,6 @@ func buildTestBadgerNoTxTxAdapters(txn *badger2.Txn, testAdaptersDependencies ba
 	return txAdapters, nil
 }
 
-var (
-	_wireHopsValue = hops
-)
-
 func buildBadgerNoTxTxAdapters(txn *badger2.Txn, public identity.Public, config Config, logger logging.Logger) (notx.TxAdapters, error) {
 	banListHasher := adapters.NewBanListHasher()
 	banListRepository := badger.NewBanListRepository(txn, banListHasher)
@@ -178,8 +173,8 @@ func buildBadgerNoTxTxAdapters(txn *badger2.Txn, public identity.Public, config 
 	rawMessageIdentifier := formats.NewRawMessageIdentifier(v)
 	messageRepository := badger.NewMessageRepository(txn, rawMessageIdentifier)
 	receiveLogRepository := badger.NewReceiveLogRepository(txn, messageRepository)
-	graphHops := _wireGraphHopsValue
-	socialGraphRepository := badger.NewSocialGraphRepository(txn, public, graphHops, banListRepository)
+	hops := extractHopsFromConfig(config)
+	socialGraphRepository := badger.NewSocialGraphRepository(txn, public, hops, banListRepository)
 	pubRepository := badger.NewPubRepository(txn)
 	feedRepository := badger.NewFeedRepository(txn, socialGraphRepository, receiveLogRepository, messageRepository, pubRepository, blobRepository, banListRepository, scuttlebutt)
 	wantedFeedsRepository := badger.NewWantedFeedsRepository(socialGraphRepository, feedWantListRepository, feedRepository, banListRepository)
@@ -198,10 +193,6 @@ func buildBadgerNoTxTxAdapters(txn *badger2.Txn, public identity.Public, config 
 	return txAdapters, nil
 }
 
-var (
-	_wireGraphHopsValue = hops
-)
-
 func buildBadgerTestAdapters(txn *badger2.Txn, testAdaptersDependencies badger.TestAdaptersDependencies) (badger.TestAdapters, error) {
 	banListHasherMock := testAdaptersDependencies.BanListHasher
 	banListRepository := badger.NewBanListRepository(txn, banListHasherMock)
@@ -213,8 +204,8 @@ func buildBadgerTestAdapters(txn *badger2.Txn, testAdaptersDependencies badger.T
 	messageRepository := badger.NewMessageRepository(txn, rawMessageIdentifierMock)
 	receiveLogRepository := badger.NewReceiveLogRepository(txn, messageRepository)
 	public := testAdaptersDependencies.LocalIdentity
-	graphHops := _wireHopsValue2
-	socialGraphRepository := badger.NewSocialGraphRepository(txn, public, graphHops, banListRepository)
+	hops := fixtures.SomeHops()
+	socialGraphRepository := badger.NewSocialGraphRepository(txn, public, hops, banListRepository)
 	pubRepository := badger.NewPubRepository(txn)
 	messageContentMappings := transport.DefaultMappings()
 	logger := fixtures.SomeLogger()
@@ -240,10 +231,6 @@ func buildBadgerTestAdapters(txn *badger2.Txn, testAdaptersDependencies badger.T
 	}
 	return testAdapters, nil
 }
-
-var (
-	_wireHopsValue2 = hops
-)
 
 func BuildTestCommands(t *testing.T) (TestCommands, error) {
 	dialerMock := mocks.NewDialerMock()
@@ -365,10 +352,10 @@ func BuildTestQueries(t *testing.T) (TestQueries, error) {
 }
 
 func buildBadgerCommandsAdapters(txn *badger2.Txn, public identity.Public, config Config, logger logging.Logger) (commands.Adapters, error) {
-	graphHops := _wireHopsValue3
+	hops := extractHopsFromConfig(config)
 	banListHasher := adapters.NewBanListHasher()
 	banListRepository := badger.NewBanListRepository(txn, banListHasher)
-	socialGraphRepository := badger.NewSocialGraphRepository(txn, public, graphHops, banListRepository)
+	socialGraphRepository := badger.NewSocialGraphRepository(txn, public, hops, banListRepository)
 	messageContentMappings := transport.DefaultMappings()
 	marshaler, err := transport.NewMarshaler(messageContentMappings, logger)
 	if err != nil {
@@ -397,15 +384,11 @@ func buildBadgerCommandsAdapters(txn *badger2.Txn, public identity.Public, confi
 	return commandsAdapters, nil
 }
 
-var (
-	_wireHopsValue3 = hops
-)
-
 func buildBadgerQueriesAdapters(txn *badger2.Txn, public identity.Public, config Config, logger logging.Logger) (queries.Adapters, error) {
-	graphHops := _wireHopsValue4
+	hops := extractHopsFromConfig(config)
 	banListHasher := adapters.NewBanListHasher()
 	banListRepository := badger.NewBanListRepository(txn, banListHasher)
-	socialGraphRepository := badger.NewSocialGraphRepository(txn, public, graphHops, banListRepository)
+	socialGraphRepository := badger.NewSocialGraphRepository(txn, public, hops, banListRepository)
 	messageContentMappings := transport.DefaultMappings()
 	marshaler, err := transport.NewMarshaler(messageContentMappings, logger)
 	if err != nil {
@@ -427,10 +410,6 @@ func buildBadgerQueriesAdapters(txn *badger2.Txn, public identity.Public, config
 	}
 	return queriesAdapters, nil
 }
-
-var (
-	_wireHopsValue4 = hops
-)
 
 // BuildService creates a new service which uses the provided context as a long-term context used as a base context for
 // e.g. established connections.
@@ -687,8 +666,6 @@ type TestQueries struct {
 var replicatorSet = wire.NewSet(gossip.NewManager, wire.Bind(new(gossip.ReplicationManager), new(*gossip.Manager)), gossip.NewGossipReplicator, wire.Bind(new(replication.CreateHistoryStreamReplicator), new(*gossip.GossipReplicator)), wire.Bind(new(ebt.SelfCreateHistoryStreamReplicator), new(*gossip.GossipReplicator)), ebt.NewReplicator, wire.Bind(new(replication.EpidemicBroadcastTreesReplicator), new(ebt.Replicator)), replication.NewWantedFeedsCache, wire.Bind(new(gossip.ContactsStorage), new(*replication.WantedFeedsCache)), wire.Bind(new(ebt.ContactsStorage), new(*replication.WantedFeedsCache)), ebt.NewSessionTracker, wire.Bind(new(ebt.Tracker), new(*ebt.SessionTracker)), ebt.NewSessionRunner, wire.Bind(new(ebt.Runner), new(*ebt.SessionRunner)), replication.NewNegotiator, wire.Bind(new(domain.MessageReplicator), new(*replication.Negotiator)))
 
 var blobReplicatorSet = wire.NewSet(replication2.NewManager, wire.Bind(new(replication2.ReplicationManager), new(*replication2.Manager)), wire.Bind(new(commands.BlobReplicationManager), new(*replication2.Manager)), replication2.NewReplicator, wire.Bind(new(domain.BlobReplicator), new(*replication2.Replicator)), replication2.NewBlobsGetDownloader, wire.Bind(new(replication2.Downloader), new(*replication2.BlobsGetDownloader)), replication2.NewHasHandler, wire.Bind(new(replication2.HasBlobHandler), new(*replication2.HasHandler)))
-
-var hops = graph.MustNewHops(3)
 
 func newAdvertiser(l identity.Public, config Config) (*local.Advertiser, error) {
 	return local.NewAdvertiser(l, config.ListenAddress)

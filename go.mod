@@ -12,8 +12,8 @@ require (
 	github.com/ssbc/go-luigi v0.3.7-0.20230119190114-bd28e676fa99
 	github.com/ssbc/go-netwrap v0.1.5-0.20221019160355-cd323bb2e29d
 	github.com/ssbc/go-secretstream v1.2.11-0.20221111164233-4b41f899f844
-	github.com/ssbc/go-ssb v0.2.2-0.20230201061938-55f48949535c
-	github.com/ssbc/go-ssb-refs v0.5.2-0.20221019090322-8b558c2f31de
+	github.com/ssbc/go-ssb v0.2.2-0.20230212123438-2cdd828cd8c8
+	github.com/ssbc/go-ssb-refs v0.5.2
 	github.com/ssbc/margaret v0.4.4-0.20230125145533-1439efe21dc4
 	github.com/stretchr/testify v1.8.1
 	golang.org/x/crypto v0.4.0
@@ -45,8 +45,8 @@ require (
 	github.com/libp2p/go-reuseport v0.2.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/ssbc/go-gabbygrove v0.0.0-20221025092911-c274a44c3523 // indirect
-	github.com/ssbc/go-metafeed v1.1.3-0.20221019090205-458925e39156 // indirect
+	github.com/ssbc/go-gabbygrove v0.2.2 // indirect
+	github.com/ssbc/go-metafeed v1.1.3 // indirect
 	github.com/ssbc/go-muxrpc/v2 v2.0.14-0.20221111190521-10382533750c // indirect
 	github.com/ssbc/go-ssb-multiserver v0.1.5-0.20221019203850-917ae0e23d57 // indirect
 	github.com/ugorji/go/codec v1.2.8 // indirect

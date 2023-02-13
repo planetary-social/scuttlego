@@ -73,31 +73,27 @@ func (r MessageRepository) Get(id refs.Message) (message.Message, error) {
 		return message.Message{}, errors.Wrap(err, "error getting message")
 	}
 
-	var result message.Message
-
-	if err := item.Value(func(value []byte) error {
-		rawMsg, err := message.NewVerifiedRawMessage(value) // todo explicit copy? it is copied in constructor
-		if err != nil {
-			return errors.Wrap(err, "could not create a raw message")
-		}
-
-		msgWithoutId, err := r.identifier.LoadRawMessage(rawMsg)
-		if err != nil {
-			return errors.Wrap(err, "could not load the raw message")
-		}
-
-		msg, err := message.NewMessageFromMessageWithoutId(id, msgWithoutId)
-		if err != nil {
-			return errors.Wrap(err, "could not create a message")
-		}
-
-		result = msg
-		return nil
-	}); err != nil {
-		return message.Message{}, errors.Wrap(err, "error getting the message value")
+	value, err := item.ValueCopy(nil)
+	if err != nil {
+		return message.Message{}, errors.New("could not get the vlaue")
 	}
 
-	return result, nil
+	rawMsg, err := message.NewVerifiedRawMessage(value)
+	if err != nil {
+		return message.Message{}, errors.Wrap(err, "could not create a raw message")
+	}
+
+	msgWithoutId, err := r.identifier.LoadRawMessage(rawMsg)
+	if err != nil {
+		return message.Message{}, errors.Wrap(err, "could not load the raw message")
+	}
+
+	msg, err := message.NewMessageFromMessageWithoutId(id, msgWithoutId)
+	if err != nil {
+		return message.Message{}, errors.Wrap(err, "could not create a message")
+	}
+
+	return msg, nil
 }
 
 func (r MessageRepository) Delete(id refs.Message) error {

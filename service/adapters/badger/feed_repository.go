@@ -101,7 +101,7 @@ func (b FeedRepository) GetMessages(id refs.Feed, seq *message.Sequence, limit *
 	bucket := b.getFeedBucket(id)
 
 	// todo not stupid implementation (with seek)
-	if err := bucket.ForEach(func(item *badger.Item) error {
+	if err := bucket.ForEach(func(item utils.Item) error {
 		valueCopy, err := item.ValueCopy(nil)
 		if err != nil {
 			return errors.Wrap(err, "error getting value")
@@ -147,7 +147,7 @@ func (b FeedRepository) Count() (int, error) {
 func (b FeedRepository) DeleteFeed(ref refs.Feed) error {
 	bucket := b.getFeedBucket(ref)
 
-	if err := bucket.ForEach(func(item *badger.Item) error {
+	if err := bucket.ForEach(func(item utils.Item) error {
 		valueCopy, err := item.ValueCopy(nil)
 		if err != nil {
 			return errors.Wrap(err, "error getting value")
@@ -182,17 +182,14 @@ func (b FeedRepository) GetMessage(feed refs.Feed, sequence message.Sequence) (m
 		return message.Message{}, errors.Wrap(err, "sequence not found")
 	}
 
-	var msgId refs.Message
+	value, err := item.ValueCopy(nil)
+	if err != nil {
+		return message.Message{}, errors.Wrap(err, "error getting item value")
+	}
 
-	if err := item.Value(func(val []byte) error {
-		tmp, err := refs.NewMessage(string(val))
-		if err != nil {
-			return errors.Wrap(err, "failed to create a message ref")
-		}
-		msgId = tmp
-		return nil
-	}); err != nil {
-		return message.Message{}, errors.Wrap(err, "error getting value")
+	msgId, err := refs.NewMessage(string(value))
+	if err != nil {
+		return message.Message{}, errors.Wrap(err, "failed to create a message ref")
 	}
 
 	return b.messageRepository.Get(msgId)
@@ -293,7 +290,7 @@ func (b FeedRepository) GetFeedMessages(ref refs.Feed) ([]FeedMessage, error) {
 
 	var result []FeedMessage
 
-	if err := bucket.ForEach(func(item *badger.Item) error {
+	if err := bucket.ForEach(func(item utils.Item) error {
 		keyInBucket, err := bucket.KeyInBucket(item)
 		if err != nil {
 			return errors.Wrap(err, "error getting key in bucket")

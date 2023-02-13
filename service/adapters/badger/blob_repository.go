@@ -54,7 +54,7 @@ func (r BlobRepository) Delete(msgRef refs.Message) error {
 		return errors.Wrap(err, "could not get blob refs bucket")
 	}
 
-	if err := byMessageBlobRefsBucket.ForEach(func(item *badger.Item) error {
+	if err := byMessageBlobRefsBucket.ForEach(func(item utils.Item) error {
 		keyInBucket, err := byMessageBlobRefsBucket.KeyInBucket(item)
 		if err != nil {
 			return errors.Wrap(err, "error determining item key in bucket")
@@ -94,7 +94,7 @@ func (r BlobRepository) ListBlobs(msgRef refs.Message) ([]refs.Blob, error) {
 
 	var result []refs.Blob
 
-	if err := bucket.ForEach(func(item *badger.Item) error {
+	if err := bucket.ForEach(func(item utils.Item) error {
 		keyInBucket, err := bucket.KeyInBucket(item)
 		if err != nil {
 			return errors.Wrap(err, "error determining item key in bucket")
@@ -122,7 +122,7 @@ func (r BlobRepository) ListMessages(blobRef refs.Blob) ([]refs.Message, error) 
 
 	var result []refs.Message
 
-	if err := bucket.ForEach(func(item *badger.Item) error {
+	if err := bucket.ForEach(func(item utils.Item) error {
 		keyInBucket, err := bucket.KeyInBucket(item)
 		if err != nil {
 			return errors.Wrap(err, "error determining item key in bucket")

@@ -156,14 +156,14 @@ func (b BanListRepository) LookupMapping(hash bans.Hash) (commands.BannableRef, 
 		return commands.BannableRef{}, errors.Wrap(err, "get failed")
 	}
 
-	var v storedBannableRef
-	if err := item.Value(func(val []byte) error {
-		if err := json.Unmarshal(val, &v); err != nil {
-			return errors.Wrap(err, "unmarshal failed")
-		}
-		return nil
-	}); err != nil {
+	value, err := item.ValueCopy(nil)
+	if err != nil {
 		return commands.BannableRef{}, errors.Wrap(err, "error getting item value")
+	}
+
+	var v storedBannableRef
+	if err := json.Unmarshal(value, &v); err != nil {
+		return commands.BannableRef{}, errors.Wrap(err, "unmarshal failed")
 	}
 
 	switch v.Typ {

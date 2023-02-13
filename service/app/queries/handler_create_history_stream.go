@@ -151,7 +151,6 @@ func (h *CreateHistoryStreamHandler) processRequest(ctx context.Context, query C
 	}
 
 	if query.Old {
-
 		var msgs []message.Message
 
 		if err := h.transaction.Transact(func(adapters Adapters) error {

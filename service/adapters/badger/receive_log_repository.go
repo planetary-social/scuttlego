@@ -134,17 +134,14 @@ func (r ReceiveLogRepository) List(startSeq common.ReceiveLogSequence, limit int
 			return nil, errors.New("could not load the key")
 		}
 
-		var msg message.Message
+		val, err := item.ValueCopy(nil)
+		if err != nil {
+			return nil, errors.New("could not get the value")
+		}
 
-		if err := item.Value(func(val []byte) error {
-			tmp, err := r.loadMessage(val)
-			if err != nil {
-				return errors.New("could not load a message")
-			}
-			msg = tmp
-			return nil
-		}); err != nil {
-			return nil, errors.Wrap(err, "getting value error")
+		msg, err := r.loadMessage(val)
+		if err != nil {
+			return nil, errors.New("could not load a message")
 		}
 
 		result = append(result, queries.LogMessage{
@@ -174,17 +171,14 @@ func (r ReceiveLogRepository) GetMessage(seq common.ReceiveLogSequence) (message
 		return message.Message{}, errors.Wrap(err, "error getting the item")
 	}
 
-	var msg message.Message
-
-	if err := item.Value(func(val []byte) error {
-		tmp, err := r.loadMessage(val)
-		if err != nil {
-			return errors.New("could not load a message")
-		}
-		msg = tmp
-		return nil
-	}); err != nil {
+	value, err := item.ValueCopy(nil)
+	if err != nil {
 		return message.Message{}, errors.Wrap(err, "getting value error")
+	}
+
+	msg, err := r.loadMessage(value)
+	if err != nil {
+		return message.Message{}, errors.New("could not load a message")
 	}
 
 	return msg, nil
@@ -198,7 +192,7 @@ func (r ReceiveLogRepository) GetSequences(ref refs.Message) ([]common.ReceiveLo
 
 	var sequences []common.ReceiveLogSequence
 
-	if err := bucket.ForEach(func(item *badger.Item) error {
+	if err := bucket.ForEach(func(item utils.Item) error {
 		keyInBucket, err := bucket.KeyInBucket(item)
 		if err != nil {
 			return errors.Wrap(err, "unable to determine key in bucket")

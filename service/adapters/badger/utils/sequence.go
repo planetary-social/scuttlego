@@ -56,17 +56,14 @@ func (s Sequence) get() (uint64, error) {
 		return 0, errors.Wrap(err, "error getting sequence")
 	}
 
-	var existingSequence uint64
-
-	if err := item.Value(func(val []byte) error {
-		tmp, err := s.unmarshal(val)
-		if err != nil {
-			return errors.Wrap(err, "unmarshal error")
-		}
-		existingSequence = tmp
-		return err
-	}); err != nil {
+	val, err := item.ValueCopy(nil)
+	if err != nil {
 		return 0, errors.Wrap(err, "error getting value")
+	}
+
+	existingSequence, err := s.unmarshal(val)
+	if err != nil {
+		return 0, errors.Wrap(err, "unmarshal error")
 	}
 
 	return existingSequence, nil

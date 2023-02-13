@@ -80,7 +80,7 @@ func (s *SocialGraphRepository) GetContacts(node refs.Identity) ([]*feeds.Contac
 
 	var result []*feeds.Contact
 
-	if err := bucket.ForEach(func(item *badger.Item) error {
+	if err := bucket.ForEach(func(item utils.Item) error {
 		keyInBucket, err := bucket.KeyInBucket(item)
 		if err != nil {
 			return errors.Wrap(err, "error determining key in bucket")
@@ -91,16 +91,14 @@ func (s *SocialGraphRepository) GetContacts(node refs.Identity) ([]*feeds.Contac
 			return errors.Wrap(err, "could not create contact ref")
 		}
 
-		var contact *feeds.Contact
-		if err := item.Value(func(val []byte) error {
-			tmp, err := s.loadContact(node, targetRef, val)
-			if err != nil {
-				return errors.Wrap(err, "failed to load the contact")
-			}
-			contact = tmp
-			return nil
-		}); err != nil {
-			return errors.Wrap(err, "value error")
+		val, err := item.ValueCopy(nil)
+		if err != nil {
+			return errors.Wrap(err, "could not get the value")
+		}
+
+		contact, err := s.loadContact(node, targetRef, val)
+		if err != nil {
+			return errors.Wrap(err, "failed to load the contact")
 		}
 
 		result = append(result, contact)
@@ -121,17 +119,14 @@ func (s *SocialGraphRepository) loadOrCreateContact(bucket utils.Bucket, author,
 		return nil, errors.Wrap(err, "error reading the existing contact")
 	}
 
-	var contact *feeds.Contact
+	value, err := item.ValueCopy(nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not get the value")
+	}
 
-	if err := item.Value(func(val []byte) error {
-		tmp, err := s.loadContact(author, target, val)
-		if err != nil {
-			return errors.Wrap(err, "error loading the contact")
-		}
-		contact = tmp
-		return nil
-	}); err != nil {
-		return nil, errors.Wrap(err, "error reading the value")
+	contact, err := s.loadContact(author, target, value)
+	if err != nil {
+		return nil, errors.Wrap(err, "error loading the contact")
 	}
 
 	return contact, nil

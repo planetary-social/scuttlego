@@ -52,7 +52,7 @@ func (r PubRepository) Put(pub feeds.PubToSave) error {
 func (r PubRepository) Delete(msgRef refs.Message) error {
 	pubsBucket := r.createBucketByMessagePubs(msgRef)
 
-	if err := pubsBucket.ForEach(func(item *badger.Item) error {
+	if err := pubsBucket.ForEach(func(item utils.Item) error {
 		pubIdentityKey, err := pubsBucket.KeyInBucket(item)
 		if err != nil {
 			return errors.Wrap(err, "error determining key in bucket")
@@ -84,7 +84,7 @@ func (r PubRepository) ListPubs(msgRef refs.Message) ([]refs.Identity, error) {
 
 	var result []refs.Identity
 
-	if err := pubsBucket.ForEach(func(item *badger.Item) error {
+	if err := pubsBucket.ForEach(func(item utils.Item) error {
 		pubIdentityKey, err := pubsBucket.KeyInBucket(item)
 		if err != nil {
 			return errors.Wrap(err, "error determining key in bucket")
@@ -120,7 +120,7 @@ func (r PubRepository) ListAddresses(pubIdentityRef refs.Identity) ([]PubAddress
 
 	var result []PubAddress
 
-	if err := byPubIdentityBucket.ForEach(func(item *badger.Item) error {
+	if err := byPubIdentityBucket.ForEach(func(item utils.Item) error {
 		key, err := utils.NewKeyFromBytes(item.KeyCopy(nil))
 		if err != nil {
 			return errors.Wrap(err, "error creating a key")
@@ -187,7 +187,7 @@ func (r PubRepository) mergeListAddressesResults(result []PubAddress, address st
 func (r PubRepository) removeFromByPub(pubIdentityRef refs.Identity, msgRef refs.Message) error {
 	byPubIdentityBucket := utils.MustNewBucket(r.tx, r.bucketPathByPub(pubIdentityRef))
 
-	if err := byPubIdentityBucket.ForEach(func(item *badger.Item) error {
+	if err := byPubIdentityBucket.ForEach(func(item utils.Item) error {
 		key, err := utils.NewKeyFromBytes(item.KeyCopy(nil))
 		if err != nil {
 			return errors.Wrap(err, "error creating a key")

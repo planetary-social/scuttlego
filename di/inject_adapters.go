@@ -19,7 +19,6 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/transport/boxstream"
 )
 
-//nolint:unused
 var mockQueryAdaptersSet = wire.NewSet(
 	mocks.NewFeedRepositoryMock,
 	wire.Bind(new(queries.FeedRepository), new(*mocks.FeedRepositoryMock)),
@@ -31,7 +30,6 @@ var mockQueryAdaptersSet = wire.NewSet(
 	wire.Bind(new(queries.MessageRepository), new(*mocks.MessageRepositoryMock)),
 )
 
-//nolint:unused
 var blobsAdaptersSet = wire.NewSet(
 	newFilesystemStorage,
 	wire.Bind(new(blobReplication.BlobStorage), new(*blobs.FilesystemStorage)),
@@ -45,7 +43,6 @@ func newFilesystemStorage(logger logging.Logger, config Config) (*blobs.Filesyst
 	return blobs.NewFilesystemStorage(path.Join(config.GoSSBDataDirectory, "blobs"), logger)
 }
 
-//nolint:unused
 var adaptersSet = wire.NewSet(
 	adapters.NewCurrentTimeProvider,
 	wire.Bind(new(commands.CurrentTimeProvider), new(*adapters.CurrentTimeProvider)),
@@ -60,12 +57,4 @@ var adaptersSet = wire.NewSet(
 
 	invitesadapters.NewInviteDialer,
 	wire.Bind(new(invites.InviteDialer), new(*invitesadapters.InviteDialer)),
-)
-
-//nolint:unused
-var testAdaptersSet = wire.NewSet(
-	mocks.NewCurrentTimeProviderMock,
-	wire.Bind(new(commands.CurrentTimeProvider), new(*mocks.CurrentTimeProviderMock)),
-
-	mocks.NewBanListHasherMock,
 )

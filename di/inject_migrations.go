@@ -7,7 +7,6 @@ import (
 	"github.com/planetary-social/scuttlego/service/app/commands"
 )
 
-//nolint:unused
 var migrationsSet = wire.NewSet(
 	migrations.NewRunner,
 	wire.Bind(new(commands.MigrationsRunner), new(*migrations.Runner)),
@@ -28,7 +27,6 @@ var migrationsSet = wire.NewSet(
 	migrationCommandsSet,
 )
 
-//nolint:unused
 var migrationCommandsSet = wire.NewSet(
 	wire.Struct(new(commands.Migrations), "*"),
 	commands.NewMigrationHandlerDeleteGoSSBRepositoryInOldFormat,

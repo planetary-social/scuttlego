@@ -125,8 +125,6 @@ func TestReplicationPullsOwnStreamUsingCreateHistoryStreamEvenIfEpidemicBroadcas
 	defer replicateCancel()
 
 	conn.Mock(func(req *rpc.Request) []rpc.ResponseWithError {
-		t.Log("handler received: ", req.Name().String())
-
 		requestsLock.Lock()
 		requests = append(requests, req)
 		requestsLock.Unlock()

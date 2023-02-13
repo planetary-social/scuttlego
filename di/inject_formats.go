@@ -9,7 +9,6 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/feeds/formats"
 )
 
-//nolint:unused
 var formatsSet = wire.NewSet(
 	newFormats,
 

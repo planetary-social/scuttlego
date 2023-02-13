@@ -14,7 +14,6 @@ import (
 	portsnetwork "github.com/planetary-social/scuttlego/service/ports/network"
 )
 
-//nolint:unused
 var networkingSet = wire.NewSet(
 	domaintransport.NewPeerInitializer,
 	wire.Bind(new(portsnetwork.ServerPeerInitializer), new(*domaintransport.PeerInitializer)),

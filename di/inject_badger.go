@@ -14,7 +14,6 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/replication"
 )
 
-//nolint:unused
 var badgerUnpackTestDependenciesSet = wire.NewSet(
 	wire.FieldsOf(new(badgeradapters.TestAdaptersDependencies),
 		"BanListHasher",
@@ -27,12 +26,10 @@ var badgerUnpackTestDependenciesSet = wire.NewSet(
 	wire.Bind(new(badgeradapters.RawMessageIdentifier), new(*mocks.RawMessageIdentifierMock)),
 )
 
-//nolint:unused
 var badgerAdaptersSet = wire.NewSet(
 	badgeradapters.NewGarbageCollector,
 )
 
-//nolint:unused
 var badgerNoTxRepositoriesSet = wire.NewSet(
 	notx.NewNoTxBlobWantListRepository,
 	wire.Bind(new(blobReplication.WantListStorage), new(*notx.NoTxBlobWantListRepository)),
@@ -42,7 +39,6 @@ var badgerNoTxRepositoriesSet = wire.NewSet(
 	wire.Bind(new(replication.WantedFeedsRepository), new(*notx.NoTxWantedFeedsRepository)),
 )
 
-//nolint:unused
 var badgerRepositoriesSet = wire.NewSet(
 	badgeradapters.NewBanListRepository,
 	wire.Bind(new(commands.BanListRepository), new(*badgeradapters.BanListRepository)),
@@ -73,7 +69,6 @@ var badgerRepositoriesSet = wire.NewSet(
 	badgeradapters.NewBlobRepository,
 )
 
-//nolint:unused
 var badgerTestAdaptersDependenciesSet = wire.NewSet(
 	wire.Struct(new(badgeradapters.TestAdaptersDependencies), "*"),
 	mocks.NewBanListHasherMock,
@@ -81,7 +76,6 @@ var badgerTestAdaptersDependenciesSet = wire.NewSet(
 	mocks.NewRawMessageIdentifierMock,
 )
 
-//nolint:unused
 var badgerNoTxTestTransactionProviderSet = wire.NewSet(
 	notx.NewTestTxAdaptersFactoryTransactionProvider,
 	wire.Bind(new(notx.TransactionProvider), new(*notx.TestTxAdaptersFactoryTransactionProvider)),
@@ -89,13 +83,11 @@ var badgerNoTxTestTransactionProviderSet = wire.NewSet(
 	noTxTestTxAdaptersFactory,
 )
 
-//nolint:unused
 var testBadgerTransactionProviderSet = wire.NewSet(
 	badgeradapters.NewTestTransactionProvider,
 	testAdaptersFactory,
 )
 
-//nolint:unused
 var badgerTransactionProviderSet = wire.NewSet(
 	badgeradapters.NewCommandsTransactionProvider,
 	wire.Bind(new(commands.TransactionProvider), new(*badgeradapters.CommandsTransactionProvider)),
@@ -108,7 +100,6 @@ var badgerTransactionProviderSet = wire.NewSet(
 	badgerQueriesAdaptersFactory,
 )
 
-//nolint:unused
 var badgerNoTxTransactionProviderSet = wire.NewSet(
 	notx.NewTxAdaptersFactoryTransactionProvider,
 	wire.Bind(new(notx.TransactionProvider), new(*notx.TxAdaptersFactoryTransactionProvider)),

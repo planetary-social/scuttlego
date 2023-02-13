@@ -2,6 +2,7 @@ package fixtures
 
 import (
 	"context"
+	cryptorand "crypto/rand"
 	"encoding/base64"
 	"fmt"
 	"math"
@@ -148,7 +149,7 @@ func SomeAlias() aliases.Alias {
 
 func SomeBytes() []byte {
 	r := make([]byte, 10+rand.Intn(100))
-	_, err := rand.Read(r)
+	_, err := cryptorand.Read(r)
 	if err != nil {
 		panic(err)
 	}
@@ -157,7 +158,7 @@ func SomeBytes() []byte {
 
 func SomeBytesOfLength(n int) []byte {
 	r := make([]byte, n)
-	_, err := rand.Read(r)
+	_, err := cryptorand.Read(r)
 	if err != nil {
 		panic(err)
 	}
@@ -246,7 +247,7 @@ func SomeError() error {
 
 func SomeBanListHash() bans.Hash {
 	r := make([]byte, 32)
-	_, err := rand.Read(r)
+	_, err := cryptorand.Read(r)
 	if err != nil {
 		panic(err)
 	}
@@ -259,7 +260,7 @@ func SomeInvite() invites.Invite {
 
 func randomBase64(bytes int) string {
 	r := make([]byte, bytes)
-	_, err := rand.Read(r)
+	_, err := cryptorand.Read(r)
 	if err != nil {
 		panic(err)
 	}

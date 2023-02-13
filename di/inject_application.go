@@ -20,6 +20,7 @@ var applicationSet = wire.NewSet(
 	queriesSet,
 )
 
+//nolint:unused
 var commandsSet = wire.NewSet(
 	wire.Struct(new(app.Commands), "*"),
 
@@ -63,6 +64,7 @@ var commandsSet = wire.NewSet(
 	wire.Bind(new(portsrpc.AcceptTunnelConnectHandler), new(*commands.AcceptTunnelConnectHandler)),
 )
 
+//nolint:unused
 var queriesSet = wire.NewSet(
 	wire.Struct(new(app.Queries), "*"),
 

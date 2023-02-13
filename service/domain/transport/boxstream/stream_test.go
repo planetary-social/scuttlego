@@ -1,8 +1,8 @@
 package boxstream_test
 
 import (
+	"crypto/rand"
 	"io"
-	"math/rand"
 	"strings"
 	"testing"
 

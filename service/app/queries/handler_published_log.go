@@ -2,7 +2,9 @@ package queries
 
 import (
 	"github.com/boreq/errors"
+	"github.com/planetary-social/scuttlego/internal"
 	"github.com/planetary-social/scuttlego/service/app/common"
+	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 )
@@ -16,8 +18,8 @@ type PublishedLog struct {
 }
 
 type PublishedLogHandler struct {
-	feed        refs.Feed
 	transaction TransactionProvider
+	feed        refs.Feed
 }
 
 func NewPublishedLogHandler(
@@ -39,47 +41,36 @@ func (h *PublishedLogHandler) Handle(query PublishedLog) ([]LogMessage, error) {
 	var result []LogMessage
 
 	if err := h.transaction.Transact(func(adapters Adapters) error {
-		feed, err := adapters.Feed.GetFeed(h.feed)
-		if err != nil {
-			if errors.Is(err, common.ErrFeedNotFound) {
-				return nil
-			}
-			return errors.Wrap(err, "could not get the feed")
-		}
+		var startSeq *message.Sequence
 
-		messageSequence, ok := feed.Sequence()
-		if !ok {
-			return errors.New("we got a feed but the sequence was missing")
-		}
-
-		for {
-			msg, err := adapters.Feed.GetMessage(h.feed, messageSequence)
+		if query.LastSeq != nil {
+			msg, err := adapters.ReceiveLog.GetMessage(*query.LastSeq)
 			if err != nil {
-				return errors.Wrap(err, "could not get the message")
+				return errors.Wrap(err, "failed to find a message in the receive log")
 			}
 
+			if !msg.Feed().Equal(h.feed) {
+				return errors.New("start sequence doesn't point to a message from this feed")
+			}
+
+			startSeq = internal.Ptr(msg.Sequence().Next())
+		}
+
+		msgs, err := adapters.Feed.GetMessages(h.feed, startSeq, nil)
+		if err != nil {
+			return errors.Wrap(err, "error getting messages")
+		}
+
+		for _, msg := range msgs {
 			receiveLogSequences, err := adapters.ReceiveLog.GetSequences(msg.Id())
 			if err != nil {
 				return errors.Wrap(err, "failed to look up message sequences")
 			}
 
-			receiveLogSequence := receiveLogSequences[0]
-
-			if query.LastSeq != nil && query.LastSeq.Int() <= receiveLogSequence.Int() {
-				break
-			}
-
 			result = append(result, LogMessage{
 				Message:  msg,
-				Sequence: receiveLogSequence,
+				Sequence: receiveLogSequences[0],
 			})
-
-			tmp, previousSequenceExists := messageSequence.Previous()
-			if !previousSequenceExists {
-				break
-			}
-
-			messageSequence = tmp
 		}
 
 		return nil

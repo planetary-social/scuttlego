@@ -90,7 +90,7 @@ func TestPublishedLog_StartSequenceMustPointToMessageFromMainLocalFeed(t *testin
 	app.ReceiveLogRepository.MockMessage(seq, msg)
 
 	_, err = app.Queries.PublishedLog.Handle(query)
-	require.EqualError(t, err, "start sequence doesn't point to a message from this feed")
+	require.EqualError(t, err, "transaction failed: start sequence doesn't point to a message from this feed")
 
 	require.NotEmpty(t, app.ReceiveLogRepository.GetMessageCalls)
 }

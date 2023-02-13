@@ -306,9 +306,11 @@ func BuildTestCommands(t *testing.T) (TestCommands, error) {
 func BuildTestQueries(t *testing.T) (TestQueries, error) {
 	feedRepositoryMock := mocks.NewFeedRepositoryMock()
 	receiveLogRepositoryMock := mocks.NewReceiveLogRepositoryMock()
+	messageRepositoryMock := mocks.NewMessageRepositoryMock()
 	queriesAdapters := queries.Adapters{
 		Feed:       feedRepositoryMock,
 		ReceiveLog: receiveLogRepositoryMock,
+		Message:    messageRepositoryMock,
 	}
 	mockQueriesTransactionProvider := mocks.NewMockQueriesTransactionProvider(queriesAdapters)
 	messagePubSub := pubsub.NewMessagePubSub()
@@ -350,7 +352,6 @@ func BuildTestQueries(t *testing.T) (TestQueries, error) {
 		RoomsListAliases:     roomsListAliasesHandler,
 		GetMessageBySequence: getMessageBySequenceHandler,
 	}
-	messageRepositoryMock := mocks.NewMessageRepositoryMock()
 	testQueries := TestQueries{
 		Queries:              appQueries,
 		FeedRepository:       feedRepositoryMock,

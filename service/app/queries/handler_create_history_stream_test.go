@@ -116,7 +116,7 @@ func TestCreateHistoryStream_IfRepositoryReturnsAnErrorStreamIsClosed(t *testing
 			return false
 		}
 
-		if err := rw.WrittenErrors()[0]; err.Error() != "could not retrieve messages: forced error" {
+		if err := rw.WrittenErrors()[0]; err.Error() != "error getting messages: could not retrieve messages: forced error" {
 			t.Logf("incorrect error: %s", err.Error())
 			return false
 		}

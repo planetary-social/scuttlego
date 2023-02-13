@@ -247,6 +247,7 @@ func BuildTestQueries(*testing.T) (TestQueries, error) {
 			new(queries.Adapters),
 			"Feed",
 			"ReceiveLog",
+			"Message",
 		),
 
 		pubsub.NewMessagePubSub,

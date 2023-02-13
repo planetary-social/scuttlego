@@ -5,22 +5,45 @@ import (
 	"github.com/dgraph-io/badger/v3"
 	"github.com/planetary-social/scuttlego/service/adapters/mocks"
 	"github.com/planetary-social/scuttlego/service/app/commands"
+	"github.com/planetary-social/scuttlego/service/app/queries"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
 )
 
-type AdaptersFactory func(tx *badger.Txn) (commands.Adapters, error)
+type CommandsAdaptersFactory func(tx *badger.Txn) (commands.Adapters, error)
 
-type TransactionProvider struct {
+type CommandsTransactionProvider struct {
 	db      *badger.DB
-	factory AdaptersFactory
+	factory CommandsAdaptersFactory
 }
 
-func NewTransactionProvider(db *badger.DB, factory AdaptersFactory) *TransactionProvider {
-	return &TransactionProvider{db: db, factory: factory}
+func NewCommandsTransactionProvider(db *badger.DB, factory CommandsAdaptersFactory) *CommandsTransactionProvider {
+	return &CommandsTransactionProvider{db: db, factory: factory}
 }
 
-func (t TransactionProvider) Transact(f func(adapters commands.Adapters) error) error {
+func (t CommandsTransactionProvider) Transact(f func(adapters commands.Adapters) error) error {
 	return t.db.Update(func(tx *badger.Txn) error {
+		adapters, err := t.factory(tx)
+		if err != nil {
+			return errors.Wrap(err, "failed to build adapters")
+		}
+
+		return f(adapters)
+	})
+}
+
+type QueriesAdaptersFactory func(tx *badger.Txn) (queries.Adapters, error)
+
+type QueriesTransactionProvider struct {
+	db      *badger.DB
+	factory QueriesAdaptersFactory
+}
+
+func NewQueriesTransactionProvider(db *badger.DB, factory QueriesAdaptersFactory) *QueriesTransactionProvider {
+	return &QueriesTransactionProvider{db: db, factory: factory}
+}
+
+func (t QueriesTransactionProvider) Transact(f func(adapters queries.Adapters) error) error {
+	return t.db.View(func(tx *badger.Txn) error {
 		adapters, err := t.factory(tx)
 		if err != nil {
 			return errors.Wrap(err, "failed to build adapters")

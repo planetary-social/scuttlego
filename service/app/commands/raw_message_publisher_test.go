@@ -18,7 +18,7 @@ func TestRawMessagePublisher(t *testing.T) {
 		Feed: feedRepository,
 	}
 
-	transactionProvider := mocks.NewMockTransactionProvider(adapters)
+	transactionProvider := mocks.NewMockCommandsTransactionProvider(adapters)
 
 	iden := fixtures.SomePrivateIdentity()
 	content := message.MustNewRawMessageContent(fixtures.SomeBytes())

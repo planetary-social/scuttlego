@@ -99,6 +99,10 @@ func (m *FeedRepositoryMock) GetMessage(feed refs.Feed, sequence message.Sequenc
 	return m.GetMessageReturnValue, nil
 }
 
+func (m *FeedRepositoryMock) GetFeed(ref refs.Feed) (*feeds.Feed, error) {
+	return nil, errors.New("not implemented")
+}
+
 func (m *FeedRepositoryMock) Count() (int, error) {
 	return m.CountReturnValue, nil
 }

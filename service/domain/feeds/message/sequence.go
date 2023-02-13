@@ -40,7 +40,15 @@ func (s Sequence) ComesAfter(o Sequence) bool {
 }
 
 func (s Sequence) Next() Sequence {
-	return Sequence{s.s + 1}
+	return MustNewSequence(s.s + 1)
+}
+
+func (s Sequence) Previous() (Sequence, bool) {
+	prevSequence := s.s - 1
+	if firstSequence > prevSequence {
+		return Sequence{}, false
+	}
+	return MustNewSequence(prevSequence), true
 }
 
 func (s Sequence) Int() int {

@@ -8,13 +8,12 @@ import (
 	"github.com/dgraph-io/badger/v3"
 	"github.com/planetary-social/scuttlego/service/adapters/badger/utils"
 	"github.com/planetary-social/scuttlego/service/app/commands"
+	"github.com/planetary-social/scuttlego/service/app/common"
 	"github.com/planetary-social/scuttlego/service/domain/feeds"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/formats"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 )
-
-var ErrFeedNotFound = errors.New("feed not found")
 
 type FeedRepository struct {
 	tx                *badger.Txn
@@ -90,7 +89,7 @@ func (b FeedRepository) GetFeed(ref refs.Feed) (*feeds.Feed, error) {
 	}
 
 	if f == nil {
-		return nil, ErrFeedNotFound
+		return nil, common.ErrFeedNotFound
 	}
 
 	return f, nil

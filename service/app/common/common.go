@@ -38,4 +38,7 @@ func (r ReceiveLogSequence) String() string {
 	return strconv.Itoa(r.seq)
 }
 
-var ErrReceiveLogEntryNotFound = errors.New("receive log entry not found")
+var (
+	ErrReceiveLogEntryNotFound = errors.New("receive log entry not found")
+	ErrFeedNotFound            = errors.New("feed not found")
+)

@@ -59,8 +59,8 @@ type CreateHistoryStream struct {
 }
 
 type CreateHistoryStreamHandler struct {
-	repository FeedRepository
-	subscriber MessageSubscriber
+	transaction TransactionProvider
+	subscriber  MessageSubscriber
 
 	queue       *RequestQueue
 	liveStreams *LiveHistoryStreams
@@ -69,13 +69,13 @@ type CreateHistoryStreamHandler struct {
 }
 
 func NewCreateHistoryStreamHandler(
-	repository FeedRepository,
+	transaction TransactionProvider,
 	subscriber MessageSubscriber,
 	logger logging.Logger,
 ) *CreateHistoryStreamHandler {
 	logger = logger.New("create_history_stream_handler")
 	return &CreateHistoryStreamHandler{
-		repository:  repository,
+		transaction: transaction,
 		subscriber:  subscriber,
 		queue:       NewRequestQueue(),
 		liveStreams: NewLiveHistoryStreams(logger),
@@ -151,9 +151,18 @@ func (h *CreateHistoryStreamHandler) processRequest(ctx context.Context, query C
 	}
 
 	if query.Old {
-		msgs, err := h.repository.GetMessages(query.Id, query.Seq, query.Limit)
-		if err != nil {
-			return errors.Wrap(err, "could not retrieve messages")
+		var msgs []message.Message
+
+		if err := h.transaction.Transact(func(adapters Adapters) error {
+			tmp, err := adapters.Feed.GetMessages(query.Id, query.Seq, query.Limit)
+			if err != nil {
+				return errors.Wrap(err, "could not retrieve messages")
+			}
+
+			msgs = tmp
+			return nil
+		}); err != nil {
+			return errors.Wrap(err, "error getting messages")
 		}
 
 		for _, msg := range msgs {

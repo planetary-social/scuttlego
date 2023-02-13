@@ -18,14 +18,12 @@ type PublishedLog struct {
 }
 
 type PublishedLogHandler struct {
-	feedRepository       FeedRepository
-	receiveLogRepository ReceiveLogRepository
-	feed                 refs.Feed
+	transaction TransactionProvider
+	feed        refs.Feed
 }
 
 func NewPublishedLogHandler(
-	feedRepository FeedRepository,
-	receiveLogRepository ReceiveLogRepository,
+	transaction TransactionProvider,
 	local identity.Public,
 ) (*PublishedLogHandler, error) {
 	localRef, err := refs.NewIdentityFromPublic(local)
@@ -34,44 +32,50 @@ func NewPublishedLogHandler(
 	}
 
 	return &PublishedLogHandler{
-		feedRepository:       feedRepository,
-		receiveLogRepository: receiveLogRepository,
-		feed:                 localRef.MainFeed(),
+		transaction: transaction,
+		feed:        localRef.MainFeed(),
 	}, nil
 }
 
 func (h *PublishedLogHandler) Handle(query PublishedLog) ([]LogMessage, error) {
-	var startSeq *message.Sequence
-
-	if query.LastSeq != nil {
-		msg, err := h.receiveLogRepository.GetMessage(*query.LastSeq)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to find a message in the receive log")
-		}
-
-		if !msg.Feed().Equal(h.feed) {
-			return nil, errors.New("start sequence doesn't point to a message from this feed")
-		}
-
-		startSeq = internal.Ptr(msg.Sequence().Next())
-	}
-
-	msgs, err := h.feedRepository.GetMessages(h.feed, startSeq, nil)
-	if err != nil {
-		return nil, errors.Wrap(err, "error getting messages")
-	}
-
 	var result []LogMessage
-	for _, msg := range msgs {
-		receiveLogSequences, err := h.receiveLogRepository.GetSequences(msg.Id())
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to look up message sequences")
+
+	if err := h.transaction.Transact(func(adapters Adapters) error {
+		var startSeq *message.Sequence
+
+		if query.LastSeq != nil {
+			msg, err := adapters.ReceiveLog.GetMessage(*query.LastSeq)
+			if err != nil {
+				return errors.Wrap(err, "failed to find a message in the receive log")
+			}
+
+			if !msg.Feed().Equal(h.feed) {
+				return errors.New("start sequence doesn't point to a message from this feed")
+			}
+
+			startSeq = internal.Ptr(msg.Sequence().Next())
 		}
 
-		result = append(result, LogMessage{
-			Message:  msg,
-			Sequence: receiveLogSequences[0],
-		})
+		msgs, err := adapters.Feed.GetMessages(h.feed, startSeq, nil)
+		if err != nil {
+			return errors.Wrap(err, "error getting messages")
+		}
+
+		for _, msg := range msgs {
+			receiveLogSequences, err := adapters.ReceiveLog.GetSequences(msg.Id())
+			if err != nil {
+				return errors.Wrap(err, "failed to look up message sequences")
+			}
+
+			result = append(result, LogMessage{
+				Message:  msg,
+				Sequence: receiveLogSequences[0],
+			})
+		}
+
+		return nil
+	}); err != nil {
+		return nil, errors.Wrap(err, "transaction failed")
 	}
 
 	return result, nil

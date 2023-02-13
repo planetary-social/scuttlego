@@ -34,11 +34,11 @@ func (q *GetMessageBySequence) IsZero() bool {
 }
 
 type GetMessageBySequenceHandler struct {
-	feedRepository FeedRepository
+	transaction TransactionProvider
 }
 
-func NewGetMessageBySequenceHandler(feedRepository FeedRepository) *GetMessageBySequenceHandler {
-	return &GetMessageBySequenceHandler{feedRepository: feedRepository}
+func NewGetMessageBySequenceHandler(transaction TransactionProvider) *GetMessageBySequenceHandler {
+	return &GetMessageBySequenceHandler{transaction: transaction}
 }
 
 func (h *GetMessageBySequenceHandler) Handle(query GetMessageBySequence) (message.Message, error) {
@@ -46,5 +46,17 @@ func (h *GetMessageBySequenceHandler) Handle(query GetMessageBySequence) (messag
 		return message.Message{}, errors.New("zero value of query")
 	}
 
-	return h.feedRepository.GetMessage(query.Feed(), query.Sequence())
+	var result message.Message
+	if err := h.transaction.Transact(func(adapters Adapters) error {
+		tmp, err := adapters.Feed.GetMessage(query.Feed(), query.Sequence())
+		if err != nil {
+			return errors.Wrap(err, "error getting message")
+		}
+		result = tmp
+		return nil
+	}); err != nil {
+		return message.Message{}, errors.Wrap(err, "transaction failed")
+	}
+
+	return result, nil
 }

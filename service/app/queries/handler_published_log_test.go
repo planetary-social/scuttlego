@@ -9,144 +9,249 @@ import (
 	"github.com/planetary-social/scuttlego/service/adapters/mocks"
 	"github.com/planetary-social/scuttlego/service/app/common"
 	"github.com/planetary-social/scuttlego/service/app/queries"
+	"github.com/planetary-social/scuttlego/service/domain/feeds"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/stretchr/testify/require"
 )
 
-func TestPublishedLog_NilStartSeqIsNotUsedToDetermineMessageSequence(t *testing.T) {
+func TestPublishedLog_IfNoSequenceIsGivenThenAllMessagesAreReturned(t *testing.T) {
 	app, err := di.BuildTestQueries(t)
 	require.NoError(t, err)
 
 	localFeed := refs.MustNewIdentityFromPublic(app.LocalIdentity).MainFeed()
+	msgs := mockFeedMessages(localFeed, 2)
+
+	f := feeds.NewFeed(nil)
+	for _, msg := range msgs {
+		err := f.AppendMessage(msg)
+		require.NoError(t, err)
+	}
+	app.FeedRepository.GetFeedReturnValue = f
+
+	for i, msg := range msgs {
+		app.ReceiveLogRepository.MockMessage(common.MustNewReceiveLogSequence(i), msg)
+		app.FeedRepository.MockGetMessage(msg)
+	}
 
 	query := queries.PublishedLog{
 		LastSeq: nil,
 	}
 
-	_, err = app.Queries.PublishedLog.Handle(query)
+	result, err := app.Queries.PublishedLog.Handle(query)
 	require.NoError(t, err)
-
-	require.Empty(t, app.ReceiveLogRepository.GetMessageCalls)
-	require.Equal(
-		t,
-		[]mocks.FeedRepositoryMockGetMessagesCall{
-			{
-				Id:    localFeed,
-				Seq:   nil,
-				Limit: nil,
-			},
-		},
-		app.FeedRepository.GetMessagesCalls(),
-	)
-}
-
-func TestPublishedLog_NotNilStartSeqIsUsedToDetermineMessageSequence(t *testing.T) {
-	app, err := di.BuildTestQueries(t)
-	require.NoError(t, err)
-
-	localFeed := refs.MustNewIdentityFromPublic(app.LocalIdentity).MainFeed()
-
-	receiveLogSequence := fixtures.SomeReceiveLogSequence()
-	sequence := fixtures.SomeSequence()
-	msg := fixtures.SomeMessage(sequence, localFeed)
-
-	query := queries.PublishedLog{
-		LastSeq: internal.Ptr(receiveLogSequence),
-	}
-
-	app.ReceiveLogRepository.MockMessage(receiveLogSequence, msg)
-
-	_, err = app.Queries.PublishedLog.Handle(query)
-	require.NoError(t, err)
-
-	require.NotEmpty(t, app.ReceiveLogRepository.GetMessageCalls)
-	require.Equal(
-		t,
-		[]mocks.FeedRepositoryMockGetMessagesCall{
-			{
-				Id:    localFeed,
-				Seq:   internal.Ptr(sequence.Next()),
-				Limit: nil,
-			},
-		},
-		app.FeedRepository.GetMessagesCalls(),
-	)
-}
-
-func TestPublishedLog_StartSequenceMustPointToMessageFromMainLocalFeed(t *testing.T) {
-	app, err := di.BuildTestQueries(t)
-	require.NoError(t, err)
-
-	seq := fixtures.SomeReceiveLogSequence()
-	msg := fixtures.SomeMessage(fixtures.SomeSequence(), fixtures.SomeRefFeed())
-
-	require.NotEqual(t, app.LocalIdentity, msg.Feed().Identity())
-
-	query := queries.PublishedLog{
-		LastSeq: internal.Ptr(seq),
-	}
-
-	app.ReceiveLogRepository.MockMessage(seq, msg)
-
-	_, err = app.Queries.PublishedLog.Handle(query)
-	require.EqualError(t, err, "transaction failed: start sequence doesn't point to a message from this feed")
-
-	require.NotEmpty(t, app.ReceiveLogRepository.GetMessageCalls)
-}
-
-func TestPublishedLog_FirstSequenceFromTheReturnedSequencesIsUsed(t *testing.T) {
-	app, err := di.BuildTestQueries(t)
-	require.NoError(t, err)
-
-	localFeed := refs.MustNewIdentityFromPublic(app.LocalIdentity).MainFeed()
-
-	receiveLogSequence1 := common.MustNewReceiveLogSequence(5)
-	receiveLogSequence2 := common.MustNewReceiveLogSequence(10)
-
-	query := queries.PublishedLog{
-		LastSeq: nil,
-	}
-
-	sequence := fixtures.SomeSequence()
-	msg := fixtures.SomeMessage(sequence, localFeed)
-
-	app.FeedRepository.GetMessagesReturnValue = []message.Message{
-		msg,
-	}
-
-	app.ReceiveLogRepository.MockMessage(receiveLogSequence1, msg)
-	app.ReceiveLogRepository.MockMessage(receiveLogSequence2, msg)
-
-	msgs, err := app.Queries.PublishedLog.Handle(query)
-	require.NoError(t, err)
-
-	require.Equal(
-		t,
-		[]mocks.FeedRepositoryMockGetMessagesCall{
-			{
-				Id:    localFeed,
-				Seq:   nil,
-				Limit: nil,
-			},
-		},
-		app.FeedRepository.GetMessagesCalls(),
-	)
-
-	require.Equal(t,
-		[]refs.Message{
-			msg.Id(),
-		},
-		app.ReceiveLogRepository.GetSequencesCalls,
-	)
 
 	require.Equal(t,
 		[]queries.LogMessage{
 			{
-				Message:  msg,
-				Sequence: receiveLogSequence1,
+				Message:  msgs[0],
+				Sequence: common.MustNewReceiveLogSequence(0),
+			},
+			{
+				Message:  msgs[1],
+				Sequence: common.MustNewReceiveLogSequence(1),
 			},
 		},
-		msgs,
+		result,
 	)
+
+	require.Equal(t,
+		[]refs.Feed{
+			localFeed,
+		},
+		app.FeedRepository.GetFeedCalls,
+	)
+
+	require.Equal(t,
+		[]mocks.FeedRepositoryMockGetMessageCall{
+			{
+				Feed: localFeed,
+				Seq:  msgs[1].Sequence(),
+			},
+			{
+				Feed: localFeed,
+				Seq:  msgs[0].Sequence(),
+			},
+		},
+		app.FeedRepository.GetMessageCalls(),
+	)
+
+	require.Equal(t,
+		[]refs.Message{
+			msgs[1].Id(),
+			msgs[0].Id(),
+		},
+		app.ReceiveLogRepository.GetSequencesCalls,
+	)
+}
+
+func TestPublishedLog_IfSomeSequenceIsGivenThenMessagesWithHigherHighestReceiveLogSequencesAreReturned(t *testing.T) {
+	app, err := di.BuildTestQueries(t)
+	require.NoError(t, err)
+
+	localFeed := refs.MustNewIdentityFromPublic(app.LocalIdentity).MainFeed()
+	msgs := mockFeedMessages(localFeed, 4)
+
+	f := feeds.NewFeed(nil)
+	for _, msg := range msgs {
+		err := f.AppendMessage(msg)
+		require.NoError(t, err)
+	}
+	app.FeedRepository.GetFeedReturnValue = f
+
+	for i, msg := range msgs {
+		app.ReceiveLogRepository.MockMessage(common.MustNewReceiveLogSequence(i), msg)
+		app.FeedRepository.MockGetMessage(msg)
+	}
+
+	query := queries.PublishedLog{
+		LastSeq: internal.Ptr(common.MustNewReceiveLogSequence(1)),
+	}
+
+	result, err := app.Queries.PublishedLog.Handle(query)
+	require.NoError(t, err)
+
+	require.Equal(t,
+		[]queries.LogMessage{
+			{
+				Message:  msgs[2],
+				Sequence: common.MustNewReceiveLogSequence(2),
+			},
+			{
+				Message:  msgs[3],
+				Sequence: common.MustNewReceiveLogSequence(3),
+			},
+		},
+		result,
+	)
+
+	require.Equal(t,
+		[]refs.Feed{
+			localFeed,
+		},
+		app.FeedRepository.GetFeedCalls,
+	)
+
+	require.Equal(t,
+		[]mocks.FeedRepositoryMockGetMessageCall{
+			{
+				Feed: localFeed,
+				Seq:  msgs[3].Sequence(),
+			},
+			{
+				Feed: localFeed,
+				Seq:  msgs[2].Sequence(),
+			},
+			{
+				Feed: localFeed,
+				Seq:  msgs[1].Sequence(),
+			},
+		},
+		app.FeedRepository.GetMessageCalls(),
+	)
+
+	require.Equal(t,
+		[]refs.Message{
+			msgs[3].Id(),
+			msgs[2].Id(),
+			msgs[1].Id(),
+		},
+		app.ReceiveLogRepository.GetSequencesCalls,
+	)
+}
+
+func TestPublishedLog_HighestSequenceFromTheReturnedSequencesIsUsed(t *testing.T) {
+	app, err := di.BuildTestQueries(t)
+	require.NoError(t, err)
+
+	localFeed := refs.MustNewIdentityFromPublic(app.LocalIdentity).MainFeed()
+	msgs := mockFeedMessages(localFeed, 1)
+
+	f := feeds.NewFeed(nil)
+	for _, msg := range msgs {
+		err := f.AppendMessage(msg)
+		require.NoError(t, err)
+	}
+	app.FeedRepository.GetFeedReturnValue = f
+
+	for i, msg := range msgs {
+		app.ReceiveLogRepository.MockMessage(common.MustNewReceiveLogSequence(i), msg)
+		app.FeedRepository.MockGetMessage(msg)
+	}
+
+	receiveLogSequence1 := common.MustNewReceiveLogSequence(123)
+	receiveLogSequence2 := common.MustNewReceiveLogSequence(345)
+	receiveLogSequence3 := common.MustNewReceiveLogSequence(234)
+
+	require.Greater(t, receiveLogSequence2.Int(), receiveLogSequence3.Int())
+	require.Greater(t, receiveLogSequence2.Int(), receiveLogSequence1.Int())
+
+	query := queries.PublishedLog{
+		LastSeq: nil,
+	}
+
+	app.ReceiveLogRepository.MockMessage(receiveLogSequence1, msgs[0])
+	app.ReceiveLogRepository.MockMessage(receiveLogSequence2, msgs[0])
+	app.ReceiveLogRepository.MockMessage(receiveLogSequence3, msgs[0])
+
+	result, err := app.Queries.PublishedLog.Handle(query)
+	require.NoError(t, err)
+
+	require.Equal(t,
+		[]queries.LogMessage{
+			{
+				Message:  msgs[0],
+				Sequence: receiveLogSequence2,
+			},
+		},
+		result,
+	)
+
+	require.Equal(t,
+		[]refs.Feed{
+			localFeed,
+		},
+		app.FeedRepository.GetFeedCalls,
+	)
+
+	require.Equal(t,
+		[]mocks.FeedRepositoryMockGetMessageCall{
+			{
+				Feed: localFeed,
+				Seq:  msgs[0].Sequence(),
+			},
+		},
+		app.FeedRepository.GetMessageCalls(),
+	)
+
+	require.Equal(t,
+		[]refs.Message{
+			msgs[0].Id(),
+		},
+		app.ReceiveLogRepository.GetSequencesCalls,
+	)
+}
+
+func mockFeedMessages(feed refs.Feed, numberOfMessages int) []message.Message {
+	var messages []message.Message
+	for i := 0; i < numberOfMessages; i++ {
+		seq := message.MustNewSequence(i + 1)
+
+		var previous *refs.Message
+		if !seq.IsFirst() {
+			previous = internal.Ptr(messages[i-1].Id())
+		}
+
+		messages = append(messages, message.MustNewMessage(
+			fixtures.SomeRefMessage(),
+			previous,
+			seq,
+			refs.MustNewIdentityFromPublic(feed.Identity()),
+			feed,
+			fixtures.SomeTime(),
+			fixtures.SomeContent(),
+			fixtures.SomeRawMessage(),
+		))
+	}
+	return messages
 }

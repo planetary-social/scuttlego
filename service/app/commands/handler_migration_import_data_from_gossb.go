@@ -267,6 +267,13 @@ func (h MigrationHandlerImportDataFromGoSSB) saveMessagesPerFeed(
 		if err := adapters.Feed.UpdateFeedIgnoringReceiveLog(feed, func(feed *feeds.Feed) error {
 			for _, msg := range msgsPerFeed.messages {
 				if err := feed.AppendMessage(msg.Message); err != nil {
+					h.logger.
+						WithError(err).
+						WithField("msg.feed", msg.Message.Feed().String()).
+						WithField("msg.id", msg.Message.Id().String()).
+						WithField("msg.sequence", msg.Message.Sequence().Int()).
+						WithField("receive_log_sequence", msg.ReceiveLogSequence.Int()).
+						Error("error appending a message")
 					feedErrors += 1
 					continue
 				}

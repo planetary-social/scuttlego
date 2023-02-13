@@ -69,14 +69,10 @@ func BuildBadgerNoTxTestAdapters(t *testing.T) BadgerNoTxTestAdapters {
 	}
 	testTxAdaptersFactoryTransactionProvider := notx.NewTestTxAdaptersFactoryTransactionProvider(db, testTxAdaptersFactory, testAdaptersDependencies)
 	noTxBlobWantListRepository := notx.NewNoTxBlobWantListRepository(testTxAdaptersFactoryTransactionProvider)
-	noTxFeedRepository := notx.NewNoTxFeedRepository(testTxAdaptersFactoryTransactionProvider)
-	noTxMessageRepository := notx.NewNoTxMessageRepository(testTxAdaptersFactoryTransactionProvider)
 	noTxReceiveLogRepository := notx.NewNoTxReceiveLogRepository(testTxAdaptersFactoryTransactionProvider)
 	noTxWantedFeedsRepository := notx.NewNoTxWantedFeedsRepository(testTxAdaptersFactoryTransactionProvider)
 	testAdapters := notx.TestAdapters{
 		NoTxBlobWantListRepository: noTxBlobWantListRepository,
-		NoTxFeedRepository:         noTxFeedRepository,
-		NoTxMessageRepository:      noTxMessageRepository,
 		NoTxReceiveLogRepository:   noTxReceiveLogRepository,
 		NoTxWantedFeedsRepository:  noTxWantedFeedsRepository,
 	}
@@ -270,9 +266,9 @@ func BuildTestCommands(t *testing.T) (TestCommands, error) {
 		Feed:         feedRepositoryMock,
 		ReceiveLog:   receiveLogRepositoryMock,
 	}
-	mockTransactionProvider := mocks.NewMockTransactionProvider(commandsAdapters)
+	mockCommandsTransactionProvider := mocks.NewMockCommandsTransactionProvider(commandsAdapters)
 	currentTimeProviderMock := mocks.NewCurrentTimeProviderMock()
-	downloadFeedHandler := commands.NewDownloadFeedHandler(mockTransactionProvider, currentTimeProviderMock)
+	downloadFeedHandler := commands.NewDownloadFeedHandler(mockCommandsTransactionProvider, currentTimeProviderMock)
 	inviteRedeemerMock := mocks.NewInviteRedeemerMock()
 	logger := fixtures.TestLogger(t)
 	redeemInviteHandler := commands.NewRedeemInviteHandler(inviteRedeemerMock, private, logger)
@@ -282,7 +278,7 @@ func BuildTestCommands(t *testing.T) (TestCommands, error) {
 	acceptTunnelConnectHandler := commands.NewAcceptTunnelConnectHandler(public, peerInitializerMock, newPeerHandlerMock)
 	goSSBRepoReaderMock := mocks.NewGoSSBRepoReaderMock()
 	marshalerMock := mocks.NewMarshalerMock()
-	migrationHandlerImportDataFromGoSSB := commands.NewMigrationHandlerImportDataFromGoSSB(goSSBRepoReaderMock, mockTransactionProvider, marshalerMock, logger)
+	migrationHandlerImportDataFromGoSSB := commands.NewMigrationHandlerImportDataFromGoSSB(goSSBRepoReaderMock, mockCommandsTransactionProvider, marshalerMock, logger)
 	testCommands := TestCommands{
 		RoomsAliasRegister:           roomsAliasRegisterHandler,
 		RoomsAliasRevoke:             roomsAliasRevokeHandler,
@@ -309,24 +305,28 @@ func BuildTestCommands(t *testing.T) (TestCommands, error) {
 
 func BuildTestQueries(t *testing.T) (TestQueries, error) {
 	feedRepositoryMock := mocks.NewFeedRepositoryMock()
+	receiveLogRepositoryMock := mocks.NewReceiveLogRepositoryMock()
+	queriesAdapters := queries.Adapters{
+		Feed:       feedRepositoryMock,
+		ReceiveLog: receiveLogRepositoryMock,
+	}
+	mockQueriesTransactionProvider := mocks.NewMockQueriesTransactionProvider(queriesAdapters)
 	messagePubSub := pubsub.NewMessagePubSub()
 	messagePubSubMock := mocks.NewMessagePubSubMock(messagePubSub)
 	logger := fixtures.TestLogger(t)
-	createHistoryStreamHandler := queries.NewCreateHistoryStreamHandler(feedRepositoryMock, messagePubSubMock, logger)
-	receiveLogRepositoryMock := mocks.NewReceiveLogRepositoryMock()
+	createHistoryStreamHandler := queries.NewCreateHistoryStreamHandler(mockQueriesTransactionProvider, messagePubSubMock, logger)
 	receiveLogHandler := queries.NewReceiveLogHandler(receiveLogRepositoryMock)
 	private, err := identity.NewPrivate()
 	if err != nil {
 		return TestQueries{}, err
 	}
 	public := privateIdentityToPublicIdentity(private)
-	publishedLogHandler, err := queries.NewPublishedLogHandler(feedRepositoryMock, receiveLogRepositoryMock, public)
+	publishedLogHandler, err := queries.NewPublishedLogHandler(mockQueriesTransactionProvider, public)
 	if err != nil {
 		return TestQueries{}, err
 	}
-	messageRepositoryMock := mocks.NewMessageRepositoryMock()
 	peerManagerMock := mocks2.NewPeerManagerMock()
-	statusHandler := queries.NewStatusHandler(messageRepositoryMock, feedRepositoryMock, peerManagerMock)
+	statusHandler := queries.NewStatusHandler(mockQueriesTransactionProvider, peerManagerMock)
 	blobStorageMock := mocks.NewBlobStorageMock()
 	getBlobHandler, err := queries.NewGetBlobHandler(blobStorageMock)
 	if err != nil {
@@ -339,7 +339,7 @@ func BuildTestQueries(t *testing.T) (TestQueries, error) {
 	if err != nil {
 		return TestQueries{}, err
 	}
-	getMessageBySequenceHandler := queries.NewGetMessageBySequenceHandler(feedRepositoryMock)
+	getMessageBySequenceHandler := queries.NewGetMessageBySequenceHandler(mockQueriesTransactionProvider)
 	appQueries := app.Queries{
 		CreateHistoryStream:  createHistoryStreamHandler,
 		ReceiveLog:           receiveLogHandler,
@@ -350,6 +350,7 @@ func BuildTestQueries(t *testing.T) (TestQueries, error) {
 		RoomsListAliases:     roomsListAliasesHandler,
 		GetMessageBySequence: getMessageBySequenceHandler,
 	}
+	messageRepositoryMock := mocks.NewMessageRepositoryMock()
 	testQueries := TestQueries{
 		Queries:              appQueries,
 		FeedRepository:       feedRepositoryMock,
@@ -364,7 +365,7 @@ func BuildTestQueries(t *testing.T) (TestQueries, error) {
 	return testQueries, nil
 }
 
-func buildBadgerTransactableAdapters(txn *badger2.Txn, public identity.Public, config Config, logger logging.Logger) (commands.Adapters, error) {
+func buildBadgerCommandsAdapters(txn *badger2.Txn, public identity.Public, config Config, logger logging.Logger) (commands.Adapters, error) {
 	graphHops := _wireHopsValue3
 	banListHasher := adapters.NewBanListHasher()
 	banListRepository := badger.NewBanListRepository(txn, banListHasher)
@@ -401,6 +402,37 @@ var (
 	_wireHopsValue3 = hops
 )
 
+func buildBadgerQueriesAdapters(txn *badger2.Txn, public identity.Public, config Config, logger logging.Logger) (queries.Adapters, error) {
+	graphHops := _wireHopsValue4
+	banListHasher := adapters.NewBanListHasher()
+	banListRepository := badger.NewBanListRepository(txn, banListHasher)
+	socialGraphRepository := badger.NewSocialGraphRepository(txn, public, graphHops, banListRepository)
+	messageContentMappings := transport.DefaultMappings()
+	marshaler, err := transport.NewMarshaler(messageContentMappings, logger)
+	if err != nil {
+		return queries.Adapters{}, err
+	}
+	messageHMAC := extractMessageHMACFromConfig(config)
+	scuttlebutt := formats.NewScuttlebutt(marshaler, messageHMAC)
+	v := newFormats(scuttlebutt)
+	rawMessageIdentifier := formats.NewRawMessageIdentifier(v)
+	messageRepository := badger.NewMessageRepository(txn, rawMessageIdentifier)
+	receiveLogRepository := badger.NewReceiveLogRepository(txn, messageRepository)
+	pubRepository := badger.NewPubRepository(txn)
+	blobRepository := badger.NewBlobRepository(txn)
+	feedRepository := badger.NewFeedRepository(txn, socialGraphRepository, receiveLogRepository, messageRepository, pubRepository, blobRepository, banListRepository, scuttlebutt)
+	queriesAdapters := queries.Adapters{
+		Feed:       feedRepository,
+		ReceiveLog: receiveLogRepository,
+		Message:    messageRepository,
+	}
+	return queriesAdapters, nil
+}
+
+var (
+	_wireHopsValue4 = hops
+)
+
 // BuildService creates a new service which uses the provided context as a long-term context used as a base context for
 // e.g. established connections.
 func BuildService(contextContext context.Context, private identity.Private, config Config) (Service, func(), error) {
@@ -427,19 +459,19 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 		return Service{}, nil, err
 	}
 	public := privateIdentityToPublicIdentity(private)
-	adaptersFactory := badgerTransactableAdaptersFactory(config, public, logger)
-	transactionProvider := badger.NewTransactionProvider(db, adaptersFactory)
+	commandsAdaptersFactory := badgerCommandsAdaptersFactory(config, public, logger)
+	commandsTransactionProvider := badger.NewCommandsTransactionProvider(db, commandsAdaptersFactory)
 	messageContentMappings := transport.DefaultMappings()
 	marshaler, err := transport.NewMarshaler(messageContentMappings, logger)
 	if err != nil {
 		cleanup()
 		return Service{}, nil, err
 	}
-	followHandler := commands.NewFollowHandler(transactionProvider, private, marshaler, logger)
-	transactionRawMessagePublisher := commands.NewTransactionRawMessagePublisher(transactionProvider)
+	followHandler := commands.NewFollowHandler(commandsTransactionProvider, private, marshaler, logger)
+	transactionRawMessagePublisher := commands.NewTransactionRawMessagePublisher(commandsTransactionProvider)
 	publishRawHandler := commands.NewPublishRawHandler(transactionRawMessagePublisher, private)
 	publishRawAsIdentityHandler := commands.NewPublishRawAsIdentityHandler(transactionRawMessagePublisher)
-	downloadFeedHandler := commands.NewDownloadFeedHandler(transactionProvider, currentTimeProvider)
+	downloadFeedHandler := commands.NewDownloadFeedHandler(commandsTransactionProvider, currentTimeProvider)
 	peerManagerConfig := extractPeerManagerConfigFromConfig(config)
 	tunnelDialer := tunnel.NewDialer(peerInitializer)
 	sessionTracker := ebt.NewSessionTracker()
@@ -447,15 +479,16 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	scuttlebutt := formats.NewScuttlebutt(marshaler, messageHMAC)
 	v := newFormats(scuttlebutt)
 	rawMessageIdentifier := formats.NewRawMessageIdentifier(v)
-	messageBuffer := commands.NewMessageBuffer(transactionProvider, logger)
+	messageBuffer := commands.NewMessageBuffer(commandsTransactionProvider, logger)
 	rawMessageHandler := commands.NewRawMessageHandler(rawMessageIdentifier, messageBuffer, logger)
 	txAdaptersFactory := noTxTxAdaptersFactory(public, config, logger)
 	txAdaptersFactoryTransactionProvider := notx.NewTxAdaptersFactoryTransactionProvider(db, txAdaptersFactory)
 	noTxWantedFeedsRepository := notx.NewNoTxWantedFeedsRepository(txAdaptersFactoryTransactionProvider)
 	wantedFeedsCache := replication.NewWantedFeedsCache(noTxWantedFeedsRepository)
-	noTxFeedRepository := notx.NewNoTxFeedRepository(txAdaptersFactoryTransactionProvider)
+	queriesAdaptersFactory := badgerQueriesAdaptersFactory(config, public, logger)
+	queriesTransactionProvider := badger.NewQueriesTransactionProvider(db, queriesAdaptersFactory)
 	messagePubSub := pubsub.NewMessagePubSub()
-	createHistoryStreamHandler := queries.NewCreateHistoryStreamHandler(noTxFeedRepository, messagePubSub, logger)
+	createHistoryStreamHandler := queries.NewCreateHistoryStreamHandler(queriesTransactionProvider, messagePubSub, logger)
 	createHistoryStreamHandlerAdapter := ebt2.NewCreateHistoryStreamHandlerAdapter(createHistoryStreamHandler)
 	sessionRunner := ebt.NewSessionRunner(logger, rawMessageHandler, wantedFeedsCache, createHistoryStreamHandlerAdapter)
 	manager := gossip.NewManager(logger, wantedFeedsCache)
@@ -483,17 +516,17 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	peerManager := domain.NewPeerManager(contextContext, peerManagerConfig, dialer, tunnelDialer, negotiator, replicationReplicator, scanner, logger)
 	connectHandler := commands.NewConnectHandler(peerManager, logger)
 	disconnectAllHandler := commands.NewDisconnectAllHandler(peerManager)
-	downloadBlobHandler := commands.NewDownloadBlobHandler(transactionProvider, currentTimeProvider)
+	downloadBlobHandler := commands.NewDownloadBlobHandler(commandsTransactionProvider, currentTimeProvider)
 	createBlobHandler := commands.NewCreateBlobHandler(filesystemStorage)
-	addToBanListHandler := commands.NewAddToBanListHandler(transactionProvider)
-	removeFromBanListHandler := commands.NewRemoveFromBanListHandler(transactionProvider)
+	addToBanListHandler := commands.NewAddToBanListHandler(commandsTransactionProvider)
+	removeFromBanListHandler := commands.NewRemoveFromBanListHandler(commandsTransactionProvider)
 	roomsAliasRegisterHandler := commands.NewRoomsAliasRegisterHandler(dialer, private)
 	roomsAliasRevokeHandler := commands.NewRoomsAliasRevokeHandler(dialer)
 	badgerStorage := migrations.NewBadgerStorage(db)
 	runner := migrations2.NewRunner(badgerStorage, logger)
 	goSSBRepoReader := migrations.NewGoSSBRepoReader(logger)
 	migrationHandlerDeleteGoSSBRepositoryInOldFormat := commands.NewMigrationHandlerDeleteGoSSBRepositoryInOldFormat(goSSBRepoReader, logger)
-	migrationHandlerImportDataFromGoSSB := commands.NewMigrationHandlerImportDataFromGoSSB(goSSBRepoReader, transactionProvider, marshaler, logger)
+	migrationHandlerImportDataFromGoSSB := commands.NewMigrationHandlerImportDataFromGoSSB(goSSBRepoReader, commandsTransactionProvider, marshaler, logger)
 	commandsMigrations := commands.Migrations{
 		MigrationDeleteGoSSBRepositoryInOldFormat: migrationHandlerDeleteGoSSBRepositoryInOldFormat,
 		MigrationImportDataFromGoSSB:              migrationHandlerImportDataFromGoSSB,
@@ -525,13 +558,12 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	}
 	noTxReceiveLogRepository := notx.NewNoTxReceiveLogRepository(txAdaptersFactoryTransactionProvider)
 	receiveLogHandler := queries.NewReceiveLogHandler(noTxReceiveLogRepository)
-	publishedLogHandler, err := queries.NewPublishedLogHandler(noTxFeedRepository, noTxReceiveLogRepository, public)
+	publishedLogHandler, err := queries.NewPublishedLogHandler(queriesTransactionProvider, public)
 	if err != nil {
 		cleanup()
 		return Service{}, nil, err
 	}
-	noTxMessageRepository := notx.NewNoTxMessageRepository(txAdaptersFactoryTransactionProvider)
-	statusHandler := queries.NewStatusHandler(noTxMessageRepository, noTxFeedRepository, peerManager)
+	statusHandler := queries.NewStatusHandler(queriesTransactionProvider, peerManager)
 	getBlobHandler, err := queries.NewGetBlobHandler(filesystemStorage)
 	if err != nil {
 		cleanup()
@@ -543,7 +575,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 		cleanup()
 		return Service{}, nil, err
 	}
-	getMessageBySequenceHandler := queries.NewGetMessageBySequenceHandler(noTxFeedRepository)
+	getMessageBySequenceHandler := queries.NewGetMessageBySequenceHandler(queriesTransactionProvider)
 	appQueries := app.Queries{
 		CreateHistoryStream:  createHistoryStreamHandler,
 		ReceiveLog:           receiveLogHandler,

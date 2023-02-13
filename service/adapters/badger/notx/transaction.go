@@ -8,8 +8,6 @@ import (
 
 type TestAdapters struct {
 	NoTxBlobWantListRepository *NoTxBlobWantListRepository
-	NoTxFeedRepository         *NoTxFeedRepository
-	NoTxMessageRepository      *NoTxMessageRepository
 	NoTxReceiveLogRepository   *NoTxReceiveLogRepository
 	NoTxWantedFeedsRepository  *NoTxWantedFeedsRepository
 }

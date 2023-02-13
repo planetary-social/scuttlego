@@ -2,6 +2,7 @@ package badger
 
 import (
 	"github.com/boreq/errors"
+	"github.com/planetary-social/scuttlego/service/app/common"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/planetary-social/scuttlego/service/domain/replication"
 )
@@ -83,7 +84,7 @@ func (b WantedFeedsRepository) GetWantedFeeds() (replication.WantedFeeds, error)
 func (b WantedFeedsRepository) getFeedState(feed refs.Feed) (replication.FeedState, error) {
 	f, err := b.feed.GetFeed(feed)
 	if err != nil {
-		if errors.Is(err, ErrFeedNotFound) {
+		if errors.Is(err, common.ErrFeedNotFound) {
 			return replication.NewEmptyFeedState(), nil
 		}
 		return replication.FeedState{}, errors.Wrapf(err, "could not load feed '%s'", feed)

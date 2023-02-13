@@ -8,6 +8,7 @@ import (
 	"github.com/planetary-social/scuttlego/fixtures"
 	"github.com/planetary-social/scuttlego/internal"
 	"github.com/planetary-social/scuttlego/service/adapters/badger"
+	"github.com/planetary-social/scuttlego/service/app/common"
 	"github.com/planetary-social/scuttlego/service/domain/feeds"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
@@ -177,7 +178,7 @@ func TestFeedRepository_GetFeed_ReturnsAppropriateErrorWhenEmpty(t *testing.T) {
 
 	err := ts.TransactionProvider.Update(func(adapters badger.TestAdapters) error {
 		_, err := adapters.FeedRepository.GetFeed(fixtures.SomeRefFeed())
-		require.ErrorIs(t, err, badger.ErrFeedNotFound)
+		require.ErrorIs(t, err, common.ErrFeedNotFound)
 
 		return nil
 	})

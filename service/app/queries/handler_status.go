@@ -27,32 +27,39 @@ type PeerManager interface {
 }
 
 type StatusHandler struct {
-	messageRepository MessageRepository
-	feedRepository    FeedRepository
-	peerManager       PeerManager
+	transaction TransactionProvider
+	peerManager PeerManager
 }
 
 func NewStatusHandler(
-	messageRepository MessageRepository,
-	feedRepository FeedRepository,
+	transaction TransactionProvider,
 	peerManager PeerManager,
 ) *StatusHandler {
 	return &StatusHandler{
-		messageRepository: messageRepository,
-		feedRepository:    feedRepository,
-		peerManager:       peerManager,
+		transaction: transaction,
+		peerManager: peerManager,
 	}
 }
 
 func (h StatusHandler) Handle() (StatusResult, error) {
-	numberOfMessages, err := h.messageRepository.Count()
-	if err != nil {
-		return StatusResult{}, errors.Wrap(err, "could not get the number of messages")
-	}
+	var result StatusResult
 
-	numberOfFeeds, err := h.feedRepository.Count()
-	if err != nil {
-		return StatusResult{}, errors.Wrap(err, "could not get the number of feeds")
+	if err := h.transaction.Transact(func(adapters Adapters) error {
+		numberOfFeeds, err := adapters.Feed.Count()
+		if err != nil {
+			return errors.Wrap(err, "could not get the number of feeds")
+		}
+
+		numberOfMessages, err := adapters.Message.Count()
+		if err != nil {
+			return errors.Wrap(err, "could not get the number of messages")
+		}
+
+		result.NumberOfFeeds = numberOfFeeds
+		result.NumberOfMessages = numberOfMessages
+		return nil
+	}); err != nil {
+		return StatusResult{}, errors.Wrap(err, "transaction failed")
 	}
 
 	peers, err := h.getPeers()
@@ -60,11 +67,8 @@ func (h StatusHandler) Handle() (StatusResult, error) {
 		return StatusResult{}, errors.Wrap(err, "could not get peers")
 	}
 
-	return StatusResult{
-		NumberOfMessages: numberOfMessages,
-		NumberOfFeeds:    numberOfFeeds,
-		Peers:            peers,
-	}, nil
+	result.Peers = peers
+	return result, nil
 }
 
 func (h StatusHandler) getPeers() ([]Peer, error) {

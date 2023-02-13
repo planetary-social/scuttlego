@@ -38,12 +38,6 @@ var badgerNoTxRepositoriesSet = wire.NewSet(
 	wire.Bind(new(blobReplication.WantListStorage), new(*notx.NoTxBlobWantListRepository)),
 	wire.Bind(new(blobReplication.WantListRepository), new(*notx.NoTxBlobWantListRepository)),
 
-	notx.NewNoTxFeedRepository,
-	wire.Bind(new(queries.FeedRepository), new(*notx.NoTxFeedRepository)),
-
-	notx.NewNoTxMessageRepository,
-	wire.Bind(new(queries.MessageRepository), new(*notx.NoTxMessageRepository)),
-
 	notx.NewNoTxReceiveLogRepository,
 	wire.Bind(new(queries.ReceiveLogRepository), new(*notx.NoTxReceiveLogRepository)),
 
@@ -65,16 +59,20 @@ var badgerRepositoriesSet = wire.NewSet(
 
 	badgeradapters.NewReceiveLogRepository,
 	wire.Bind(new(commands.ReceiveLogRepository), new(*badgeradapters.ReceiveLogRepository)),
+	wire.Bind(new(queries.ReceiveLogRepository), new(*badgeradapters.ReceiveLogRepository)),
 
 	badgeradapters.NewSocialGraphRepository,
 	wire.Bind(new(commands.SocialGraphRepository), new(*badgeradapters.SocialGraphRepository)),
 
 	badgeradapters.NewFeedRepository,
 	wire.Bind(new(commands.FeedRepository), new(*badgeradapters.FeedRepository)),
+	wire.Bind(new(queries.FeedRepository), new(*badgeradapters.FeedRepository)),
+
+	badgeradapters.NewMessageRepository,
+	wire.Bind(new(queries.MessageRepository), new(*badgeradapters.MessageRepository)),
 
 	badgeradapters.NewWantedFeedsRepository,
 	badgeradapters.NewPubRepository,
-	badgeradapters.NewMessageRepository,
 	badgeradapters.NewBlobRepository,
 )
 
@@ -102,10 +100,15 @@ var testBadgerTransactionProviderSet = wire.NewSet(
 
 //nolint:unused
 var badgerTransactionProviderSet = wire.NewSet(
-	badgeradapters.NewTransactionProvider,
-	wire.Bind(new(commands.TransactionProvider), new(*badgeradapters.TransactionProvider)),
+	badgeradapters.NewCommandsTransactionProvider,
+	wire.Bind(new(commands.TransactionProvider), new(*badgeradapters.CommandsTransactionProvider)),
 
-	badgerTransactableAdaptersFactory,
+	badgerCommandsAdaptersFactory,
+
+	badgeradapters.NewQueriesTransactionProvider,
+	wire.Bind(new(queries.TransactionProvider), new(*badgeradapters.QueriesTransactionProvider)),
+
+	badgerQueriesAdaptersFactory,
 )
 
 //nolint:unused
@@ -134,8 +137,14 @@ func testAdaptersFactory() badgeradapters.TestAdaptersFactory {
 	}
 }
 
-func badgerTransactableAdaptersFactory(config Config, local identity.Public, logger logging.Logger) badgeradapters.AdaptersFactory {
+func badgerCommandsAdaptersFactory(config Config, local identity.Public, logger logging.Logger) badgeradapters.CommandsAdaptersFactory {
 	return func(tx *badger.Txn) (commands.Adapters, error) {
-		return buildBadgerTransactableAdapters(tx, local, config, logger)
+		return buildBadgerCommandsAdapters(tx, local, config, logger)
+	}
+}
+
+func badgerQueriesAdaptersFactory(config Config, local identity.Public, logger logging.Logger) badgeradapters.QueriesAdaptersFactory {
+	return func(tx *badger.Txn) (queries.Adapters, error) {
+		return buildBadgerQueriesAdapters(tx, local, config, logger)
 	}
 }

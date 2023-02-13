@@ -114,3 +114,14 @@ func TestSequence_IsZero(t *testing.T) {
 
 	require.True(t, message.Sequence{}.IsZero())
 }
+
+func TestSequence_Previous(t *testing.T) {
+	firstSequence := message.NewFirstSequence()
+	v, ok := firstSequence.Previous()
+	require.False(t, ok)
+
+	someSequence := message.MustNewSequence(123)
+	v, ok = someSequence.Previous()
+	require.True(t, ok)
+	require.Equal(t, message.MustNewSequence(122), v)
+}

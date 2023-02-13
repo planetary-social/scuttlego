@@ -176,8 +176,8 @@ func BuildTestCommands(*testing.T) (TestCommands, error) {
 		identity.NewPrivate,
 		privateIdentityToPublicIdentity,
 
-		mocks.NewMockTransactionProvider,
-		wire.Bind(new(commands.TransactionProvider), new(*mocks.MockTransactionProvider)),
+		mocks.NewMockCommandsTransactionProvider,
+		wire.Bind(new(commands.TransactionProvider), new(*mocks.MockCommandsTransactionProvider)),
 
 		wire.Struct(
 			new(commands.Adapters),
@@ -240,6 +240,15 @@ func BuildTestQueries(*testing.T) (TestQueries, error) {
 		applicationSet,
 		mockQueryAdaptersSet,
 
+		mocks.NewMockQueriesTransactionProvider,
+		wire.Bind(new(queries.TransactionProvider), new(*mocks.MockQueriesTransactionProvider)),
+
+		wire.Struct(
+			new(queries.Adapters),
+			"Feed",
+			"ReceiveLog",
+		),
+
 		pubsub.NewMessagePubSub,
 		mocks.NewMessagePubSubMock,
 		wire.Bind(new(queries.MessageSubscriber), new(*mocks.MessagePubSubMock)),
@@ -267,7 +276,7 @@ func BuildTestQueries(*testing.T) (TestQueries, error) {
 	return TestQueries{}, nil
 }
 
-func buildBadgerTransactableAdapters(*badger.Txn, identity.Public, Config, logging.Logger) (commands.Adapters, error) {
+func buildBadgerCommandsAdapters(*badger.Txn, identity.Public, Config, logging.Logger) (commands.Adapters, error) {
 	wire.Build(
 		wire.Struct(new(commands.Adapters), "*"),
 
@@ -280,6 +289,21 @@ func buildBadgerTransactableAdapters(*badger.Txn, identity.Public, Config, loggi
 	)
 
 	return commands.Adapters{}, nil
+}
+
+func buildBadgerQueriesAdapters(*badger.Txn, identity.Public, Config, logging.Logger) (queries.Adapters, error) {
+	wire.Build(
+		wire.Struct(new(queries.Adapters), "*"),
+
+		badgerRepositoriesSet,
+		formatsSet,
+		extractFromConfigSet,
+		adaptersSet,
+
+		wire.Value(hops),
+	)
+
+	return queries.Adapters{}, nil
 }
 
 // BuildService creates a new service which uses the provided context as a long-term context used as a base context for

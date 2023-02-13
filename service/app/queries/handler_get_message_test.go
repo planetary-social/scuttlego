@@ -21,7 +21,7 @@ func TestGetMessageBySequenceHandler(t *testing.T) {
 	require.NoError(t, err)
 
 	expectedMessage := fixtures.SomeMessage(sequence, feed)
-	tq.FeedRepository.GetMessageReturnValue = expectedMessage
+	tq.FeedRepository.MockGetMessage(expectedMessage)
 
 	msg, err := tq.Queries.GetMessageBySequence.Handle(query)
 	require.NoError(t, err)

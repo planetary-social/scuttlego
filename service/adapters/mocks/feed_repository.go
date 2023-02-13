@@ -1,6 +1,7 @@
 package mocks
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/boreq/errors"
@@ -35,11 +36,14 @@ type FeedRepositoryMock struct {
 	GetMessagesReturnValue []message.Message
 	GetMessagesReturnErr   error
 
-	getMessageCalls       []FeedRepositoryMockGetMessageCall
-	GetMessageReturnValue message.Message
+	getMessageCalls        []FeedRepositoryMockGetMessageCall
+	getMessageReturnValues map[string]message.Message
 
 	updateFeedCalls                   []FeedRepositoryMockUpdateFeedCall
 	updateFeedIgnoringReceiveLogCalls []FeedRepositoryMockUpdateFeedIgnoringReceiveLogCall
+
+	GetFeedCalls       []refs.Feed
+	GetFeedReturnValue *feeds.Feed
 
 	CountReturnValue int
 
@@ -47,7 +51,9 @@ type FeedRepositoryMock struct {
 }
 
 func NewFeedRepositoryMock() *FeedRepositoryMock {
-	return &FeedRepositoryMock{}
+	return &FeedRepositoryMock{
+		getMessageReturnValues: make(map[string]message.Message),
+	}
 }
 
 func (m *FeedRepositoryMock) UpdateFeed(ref refs.Feed, f commands.UpdateFeedFn) error {
@@ -91,16 +97,29 @@ func (m *FeedRepositoryMock) GetMessages(id refs.Feed, seq *message.Sequence, li
 	return m.GetMessagesReturnValue, m.GetMessagesReturnErr
 }
 
+func (m *FeedRepositoryMock) MockGetMessage(msg message.Message) {
+	m.getMessageReturnValues[fmt.Sprintf("%s-%d", msg.Feed().String(), msg.Sequence().Int())] = msg
+}
+
 func (m *FeedRepositoryMock) GetMessage(feed refs.Feed, sequence message.Sequence) (message.Message, error) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
 	m.getMessageCalls = append(m.getMessageCalls, FeedRepositoryMockGetMessageCall{Feed: feed, Seq: sequence})
-	return m.GetMessageReturnValue, nil
+
+	msg, ok := m.getMessageReturnValues[fmt.Sprintf("%s-%d", feed.String(), sequence.Int())]
+	if !ok {
+		return message.Message{}, errors.New("message not mocked")
+	}
+	return msg, nil
 }
 
 func (m *FeedRepositoryMock) GetFeed(ref refs.Feed) (*feeds.Feed, error) {
-	return nil, errors.New("not implemented")
+	m.GetFeedCalls = append(m.GetFeedCalls, ref)
+	if m.GetFeedReturnValue == nil {
+		return nil, errors.New("feed not mocked")
+	}
+	return m.GetFeedReturnValue, nil
 }
 
 func (m *FeedRepositoryMock) Count() (int, error) {

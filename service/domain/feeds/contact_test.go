@@ -5,7 +5,7 @@ import (
 
 	"github.com/planetary-social/scuttlego/fixtures"
 	"github.com/planetary-social/scuttlego/service/domain/feeds"
-	"github.com/planetary-social/scuttlego/service/domain/feeds/content"
+	"github.com/planetary-social/scuttlego/service/domain/feeds/content/known"
 	"github.com/stretchr/testify/require"
 )
 
@@ -49,38 +49,38 @@ func TestNewContactFromHistory(t *testing.T) {
 func TestContact_Update(t *testing.T) {
 	testCases := []struct {
 		Name      string
-		Actions   []content.ContactAction
+		Actions   []known.ContactAction
 		Following bool
 		Blocking  bool
 	}{
 		{
 			Name: "follow",
-			Actions: []content.ContactAction{
-				content.ContactActionFollow,
+			Actions: []known.ContactAction{
+				known.ContactActionFollow,
 			},
 			Following: true,
 			Blocking:  false,
 		},
 		{
 			Name: "unfollow",
-			Actions: []content.ContactAction{
-				content.ContactActionUnfollow,
+			Actions: []known.ContactAction{
+				known.ContactActionUnfollow,
 			},
 			Following: false,
 			Blocking:  false,
 		},
 		{
 			Name: "block",
-			Actions: []content.ContactAction{
-				content.ContactActionBlock,
+			Actions: []known.ContactAction{
+				known.ContactActionBlock,
 			},
 			Following: false,
 			Blocking:  true,
 		},
 		{
 			Name: "unblock",
-			Actions: []content.ContactAction{
-				content.ContactActionUnblock,
+			Actions: []known.ContactAction{
+				known.ContactActionUnblock,
 			},
 			Following: false,
 			Blocking:  false,
@@ -95,7 +95,7 @@ func TestContact_Update(t *testing.T) {
 			)
 			require.NoError(t, err)
 
-			err = contact.Update(content.MustNewContactActions(testCase.Actions))
+			err = contact.Update(known.MustNewContactActions(testCase.Actions))
 			require.NoError(t, err)
 
 			require.Equal(t, testCase.Following, contact.Following())
@@ -105,10 +105,10 @@ func TestContact_Update(t *testing.T) {
 }
 
 func TestContact_UpdateCorrectlyAppliesAllActions(t *testing.T) {
-	actions, err := content.NewContactActions(
-		[]content.ContactAction{
-			content.ContactActionUnfollow,
-			content.ContactActionUnblock,
+	actions, err := known.NewContactActions(
+		[]known.ContactAction{
+			known.ContactActionUnfollow,
+			known.ContactActionUnblock,
 		},
 	)
 	require.NoError(t, err)

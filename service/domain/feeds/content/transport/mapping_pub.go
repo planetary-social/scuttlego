@@ -4,13 +4,13 @@ import (
 	"encoding/json"
 
 	"github.com/boreq/errors"
-	"github.com/planetary-social/scuttlego/service/domain/feeds/content"
+	"github.com/planetary-social/scuttlego/service/domain/feeds/content/known"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 )
 
 var pubMapping = MessageContentMapping{
-	Marshal: func(con content.KnownMessageContent) ([]byte, error) {
-		msg := con.(content.Pub)
+	Marshal: func(con known.KnownMessageContent) ([]byte, error) {
+		msg := con.(known.Pub)
 
 		t := transportPub{
 			messageContentType: contentTypeToTransport(msg),
@@ -23,7 +23,7 @@ var pubMapping = MessageContentMapping{
 
 		return json.Marshal(t)
 	},
-	Unmarshal: func(b []byte) (content.KnownMessageContent, error) {
+	Unmarshal: func(b []byte) (known.KnownMessageContent, error) {
 		var t transportPub
 
 		if err := json.Unmarshal(b, &t); err != nil {
@@ -35,7 +35,7 @@ var pubMapping = MessageContentMapping{
 			return nil, errors.Wrap(err, "could not create an identity ref")
 		}
 
-		return content.NewPub(key, t.Address.Host, t.Address.Port)
+		return known.NewPub(key, t.Address.Host, t.Address.Port)
 	},
 }
 

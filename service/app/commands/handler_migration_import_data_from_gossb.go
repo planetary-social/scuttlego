@@ -9,7 +9,6 @@ import (
 	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/app/common"
 	"github.com/planetary-social/scuttlego/service/domain/feeds"
-	"github.com/planetary-social/scuttlego/service/domain/feeds/formats"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	gossbrefs "github.com/ssbc/go-ssb-refs"
@@ -27,6 +26,10 @@ type GoSSBRepoReader interface {
 	// ordered by their receive log sequence. Some messages may be missing. If
 	// the provided value is not nil it will resume from the provided sequence.
 	GetMessages(ctx context.Context, directory string, resumeFromSequence *common.ReceiveLogSequence) (<-chan GoSSBMessageOrError, error)
+}
+
+type ContentParser interface {
+	Parse(raw message.RawMessageContent) (message.Content, error)
 }
 
 type GoSSBMessageOrError struct {
@@ -75,23 +78,23 @@ type ImportDataFromGoSSBResult struct {
 }
 
 type MigrationHandlerImportDataFromGoSSB struct {
-	repoReader  GoSSBRepoReader
-	transaction TransactionProvider
-	marshaler   formats.Marshaler
-	logger      logging.Logger
+	repoReader    GoSSBRepoReader
+	transaction   TransactionProvider
+	contentParser ContentParser
+	logger        logging.Logger
 }
 
 func NewMigrationHandlerImportDataFromGoSSB(
 	repoReader GoSSBRepoReader,
 	transaction TransactionProvider,
-	marshaler formats.Marshaler,
+	contentParser ContentParser,
 	logger logging.Logger,
 ) *MigrationHandlerImportDataFromGoSSB {
 	return &MigrationHandlerImportDataFromGoSSB{
-		repoReader:  repoReader,
-		transaction: transaction,
-		marshaler:   marshaler,
-		logger:      logger.New("migration_handler_import_data_from_go_ssb"),
+		repoReader:    repoReader,
+		transaction:   transaction,
+		contentParser: contentParser,
+		logger:        logger.New("migration_handler_import_data_from_go_ssb"),
 	}
 }
 
@@ -410,9 +413,9 @@ func (h MigrationHandlerImportDataFromGoSSB) convertMessage(gossbmsg gossbrefs.M
 		return message.Message{}, errors.Wrap(err, "error creating raw message content")
 	}
 
-	content, err := h.marshaler.Unmarshal(rawMessageContent)
+	messageContent, err := h.contentParser.Parse(rawMessageContent)
 	if err != nil {
-		return message.Message{}, errors.Wrap(err, "error unmarshaling content")
+		return message.Message{}, errors.Wrap(err, "error parsing content")
 	}
 
 	msg, err := message.NewMessage(
@@ -422,7 +425,7 @@ func (h MigrationHandlerImportDataFromGoSSB) convertMessage(gossbmsg gossbrefs.M
 		author,
 		feed,
 		gossbmsg.Claimed(),
-		content,
+		messageContent,
 		rawMessage,
 	)
 	if err != nil {

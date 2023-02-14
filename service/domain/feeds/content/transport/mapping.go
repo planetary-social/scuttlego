@@ -1,25 +1,23 @@
 package transport
 
 import (
-	"github.com/planetary-social/scuttlego/service/domain/feeds/content"
+	"github.com/planetary-social/scuttlego/service/domain/feeds/content/known"
 )
 
-type MessageContentMappings map[content.MessageContentType]MessageContentMapping
+type MessageContentMappings map[known.MessageContentType]MessageContentMapping
 
 type MessageContentMapping struct {
-	Marshal   func(con content.KnownMessageContent) ([]byte, error)
-	Unmarshal func(b []byte) (content.KnownMessageContent, error)
+	Marshal   func(con known.KnownMessageContent) ([]byte, error)
+	Unmarshal func(b []byte) (known.KnownMessageContent, error)
 }
 
 func DefaultMappings() MessageContentMappings {
 	return MessageContentMappings{
-		content.Contact{}.Type(): contactMapping,
-		content.Pub{}.Type():     pubMapping,
-		content.About{}.Type():   aboutMapping,
-		content.Post{}.Type():    postMapping,
+		known.Contact{}.Type(): contactMapping,
+		known.Pub{}.Type():     pubMapping,
 	}
 }
 
-func contentTypeToTransport(messageContent content.KnownMessageContent) messageContentType {
+func contentTypeToTransport(messageContent known.KnownMessageContent) messageContentType {
 	return messageContentType{string(messageContent.Type())}
 }

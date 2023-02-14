@@ -8,7 +8,7 @@ import (
 	"github.com/planetary-social/scuttlego/fixtures"
 	"github.com/planetary-social/scuttlego/internal"
 	"github.com/planetary-social/scuttlego/service/domain/feeds"
-	msgcontents "github.com/planetary-social/scuttlego/service/domain/feeds/content"
+	"github.com/planetary-social/scuttlego/service/domain/feeds/content/known"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
@@ -187,39 +187,47 @@ func TestFeed_MessagesWithKnownContentAreCorrectlyRecognized(t *testing.T) {
 
 	testCases := []struct {
 		Name             string
-		Content          msgcontents.KnownMessageContent
+		Content          message.Content
 		ExpectedContacts []feeds.ContactToSave
 		ExpectedPubs     []feeds.PubToSave
 		ExpectedBlobs    []feeds.BlobToSave
 	}{
 		{
-			Name: "contact",
-			Content: msgcontents.MustNewContact(
-				someIdentity,
-				msgcontents.MustNewContactActions([]msgcontents.ContactAction{msgcontents.ContactActionFollow}),
+			Name: "known_contact",
+			Content: message.MustNewContent(
+				fixtures.SomeRawMessageContent(),
+				known.MustNewContact(
+					someIdentity,
+					known.MustNewContactActions([]known.ContactAction{known.ContactActionFollow}),
+				),
+				nil,
 			),
 			ExpectedContacts: []feeds.ContactToSave{
 				feeds.NewContactToSave(
 					authorId,
-					msgcontents.MustNewContact(
+					known.MustNewContact(
 						someIdentity,
-						msgcontents.MustNewContactActions([]msgcontents.ContactAction{msgcontents.ContactActionFollow}),
+						known.MustNewContactActions([]known.ContactAction{known.ContactActionFollow}),
 					),
 				),
 			},
 		},
 		{
-			Name: "pub",
-			Content: msgcontents.MustNewPub(
-				someIdentity,
-				"host",
-				1234,
+			Name: "known_pub",
+			Content: message.MustNewContent(
+				fixtures.SomeRawMessageContent(),
+				known.MustNewPub(
+					someIdentity,
+					"host",
+					1234,
+				),
+				nil,
 			),
 			ExpectedPubs: []feeds.PubToSave{
 				feeds.NewPubToSave(
 					authorId,
 					msgId,
-					msgcontents.MustNewPub(
+					known.MustNewPub(
 						someIdentity,
 						"host",
 						1234,
@@ -228,22 +236,13 @@ func TestFeed_MessagesWithKnownContentAreCorrectlyRecognized(t *testing.T) {
 			},
 		},
 		{
-			Name: "about",
-			Content: msgcontents.MustNewAbout(
-				&someBlob,
-			),
-			ExpectedBlobs: []feeds.BlobToSave{
-				feeds.NewBlobToSave(
-					[]refs.Blob{
-						someBlob,
-					},
-				),
-			},
-		},
-		{
-			Name: "post",
-			Content: msgcontents.MustNewPost(
-				[]refs.Blob{someBlob},
+			Name: "blobs",
+			Content: message.MustNewContent(
+				fixtures.SomeRawMessageContent(),
+				nil,
+				[]refs.Blob{
+					someBlob,
+				},
 			),
 			ExpectedBlobs: []feeds.BlobToSave{
 				feeds.NewBlobToSave(

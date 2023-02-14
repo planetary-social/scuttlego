@@ -8,7 +8,7 @@ import (
 	"github.com/planetary-social/scuttlego/fixtures"
 	"github.com/planetary-social/scuttlego/service/adapters/badger"
 	"github.com/planetary-social/scuttlego/service/domain/feeds"
-	"github.com/planetary-social/scuttlego/service/domain/feeds/content"
+	"github.com/planetary-social/scuttlego/service/domain/feeds/content/known"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/stretchr/testify/require"
 )
@@ -20,8 +20,8 @@ func TestSocialGraphRepository_RemoveDropsContactDataForTheSpecifiedFeed(t *test
 	iden2 := fixtures.SomeRefIdentity()
 
 	err := ts.TransactionProvider.Update(func(adapters badger.TestAdapters) error {
-		applyContactAction(t, adapters, iden1, fixtures.SomeRefIdentity(), content.ContactActionFollow)
-		applyContactAction(t, adapters, iden2, fixtures.SomeRefIdentity(), content.ContactActionFollow)
+		applyContactAction(t, adapters, iden1, fixtures.SomeRefIdentity(), known.ContactActionFollow)
+		applyContactAction(t, adapters, iden2, fixtures.SomeRefIdentity(), known.ContactActionFollow)
 
 		return nil
 	})
@@ -72,9 +72,9 @@ func TestSocialGraphRepository_GetContacts(t *testing.T) {
 	target3 := fixtures.SomeRefIdentity()
 
 	err := ts.TransactionProvider.Update(func(adapters badger.TestAdapters) error {
-		applyContactAction(t, adapters, iden, target1, content.ContactActionFollow)
-		applyContactAction(t, adapters, iden, target2, content.ContactActionFollow)
-		applyContactAction(t, adapters, iden, target3, content.ContactActionFollow)
+		applyContactAction(t, adapters, iden, target1, known.ContactActionFollow)
+		applyContactAction(t, adapters, iden, target2, known.ContactActionFollow)
+		applyContactAction(t, adapters, iden, target3, known.ContactActionFollow)
 
 		return nil
 	})
@@ -97,8 +97,8 @@ func TestSocialGraphRepository_GetContacts(t *testing.T) {
 	require.NoError(t, err)
 
 	err = ts.TransactionProvider.Update(func(adapters badger.TestAdapters) error {
-		applyContactAction(t, adapters, iden, target1, content.ContactActionBlock)
-		applyContactAction(t, adapters, iden, target2, content.ContactActionUnfollow)
+		applyContactAction(t, adapters, iden, target1, known.ContactActionBlock)
+		applyContactAction(t, adapters, iden, target2, known.ContactActionUnfollow)
 
 		return nil
 	})
@@ -134,9 +134,9 @@ func sortAndRequireEqualContacts(t *testing.T, a []*feeds.Contact, b []*feeds.Co
 	require.Equal(t, a, b)
 }
 
-func applyContactAction(t *testing.T, adapters badger.TestAdapters, a refs.Identity, b refs.Identity, action content.ContactAction) {
+func applyContactAction(t *testing.T, adapters badger.TestAdapters, a refs.Identity, b refs.Identity, action known.ContactAction) {
 	err := adapters.SocialGraphRepository.UpdateContact(a, b, func(contact *feeds.Contact) error {
-		return contact.Update(content.MustNewContactActions([]content.ContactAction{action}))
+		return contact.Update(known.MustNewContactActions([]known.ContactAction{action}))
 	})
 	require.NoError(t, err)
 }

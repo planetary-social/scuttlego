@@ -4,13 +4,11 @@ import (
 	"github.com/boreq/errors"
 	"github.com/hashicorp/go-multierror"
 	"github.com/planetary-social/scuttlego/service/domain/feeds"
-	"github.com/planetary-social/scuttlego/service/domain/feeds/content"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 )
 
-type Marshaler interface {
-	Marshal(content content.KnownMessageContent) (message.RawMessageContent, error)
-	Unmarshal(b message.RawMessageContent) (content.KnownMessageContent, error)
+type ContentParser interface {
+	Parse(raw message.RawMessageContent) (message.Content, error)
 }
 
 type RawMessageIdentifier struct {

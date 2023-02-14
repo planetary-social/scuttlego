@@ -22,6 +22,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/app/queries"
 	"github.com/planetary-social/scuttlego/service/domain"
 	blobReplication "github.com/planetary-social/scuttlego/service/domain/blobs/replication"
+	"github.com/planetary-social/scuttlego/service/domain/feeds/content"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/content/transport"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/formats"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
@@ -84,13 +85,14 @@ func buildTestBadgerNoTxTxAdapters(*badger.Txn, badgeradapters.TestAdaptersDepen
 
 		badgerRepositoriesSet,
 		badgerUnpackTestDependenciesSet,
+		contentSet,
 
 		formats.NewDefaultMessageHMAC,
 		formats.NewScuttlebutt,
 		transport.DefaultMappings,
 
 		transport.NewMarshaler,
-		wire.Bind(new(formats.Marshaler), new(*transport.Marshaler)),
+		wire.Bind(new(content.Marshaler), new(*transport.Marshaler)),
 
 		fixtures.SomeLogger,
 		fixtures.SomeHops,
@@ -107,6 +109,7 @@ func buildBadgerNoTxTxAdapters(*badger.Txn, identity.Public, Config, logging.Log
 		formatsSet,
 		extractFromConfigSet,
 		adaptersSet,
+		contentSet,
 	)
 
 	return notx.TxAdapters{}, nil
@@ -118,13 +121,14 @@ func buildBadgerTestAdapters(*badger.Txn, badgeradapters.TestAdaptersDependencie
 
 		badgerRepositoriesSet,
 		badgerUnpackTestDependenciesSet,
+		contentSet,
 
 		formats.NewDefaultMessageHMAC,
 		formats.NewScuttlebutt,
 		transport.DefaultMappings,
 
 		transport.NewMarshaler,
-		wire.Bind(new(formats.Marshaler), new(*transport.Marshaler)),
+		wire.Bind(new(content.Marshaler), new(*transport.Marshaler)),
 
 		fixtures.SomeLogger,
 		fixtures.SomeHops,
@@ -199,8 +203,8 @@ func BuildTestCommands(*testing.T) (TestCommands, error) {
 		mocks.NewGoSSBRepoReaderMock,
 		wire.Bind(new(commands.GoSSBRepoReader), new(*mocks.GoSSBRepoReaderMock)),
 
-		mocks.NewMarshalerMock,
-		wire.Bind(new(formats.Marshaler), new(*mocks.MarshalerMock)),
+		mocks.NewContentParser,
+		wire.Bind(new(commands.ContentParser), new(*mocks.ContentParser)),
 
 		mocks.NewFeedRepositoryMock,
 		wire.Bind(new(commands.FeedRepository), new(*mocks.FeedRepositoryMock)),
@@ -280,6 +284,7 @@ func buildBadgerCommandsAdapters(*badger.Txn, identity.Public, Config, logging.L
 		formatsSet,
 		extractFromConfigSet,
 		adaptersSet,
+		contentSet,
 	)
 
 	return commands.Adapters{}, nil
@@ -293,6 +298,7 @@ func buildBadgerQueriesAdapters(*badger.Txn, identity.Public, Config, logging.Lo
 		formatsSet,
 		extractFromConfigSet,
 		adaptersSet,
+		contentSet,
 	)
 
 	return queries.Adapters{}, nil
@@ -349,6 +355,7 @@ func BuildService(context.Context, identity.Private, Config) (Service, func(), e
 		extractFromConfigSet,
 		networkingSet,
 		migrationsSet,
+		contentSet,
 	)
 	return Service{}, nil, nil
 }
@@ -423,6 +430,7 @@ func buildIntegrationTestsService(t *testing.T) (IntegrationTestsService, func()
 		extractFromConfigSet,
 		networkingSet,
 		migrationsSet,
+		contentSet,
 	)
 	return IntegrationTestsService{}, nil, nil
 }

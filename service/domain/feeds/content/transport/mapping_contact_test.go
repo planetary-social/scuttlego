@@ -4,23 +4,24 @@ import (
 	"testing"
 
 	msgcontents "github.com/planetary-social/scuttlego/service/domain/feeds/content"
+	"github.com/planetary-social/scuttlego/service/domain/feeds/content/known"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/stretchr/testify/require"
 )
 
 func TestMappingContactUnmarshal(t *testing.T) {
-	makeContactWithActions := func(actions []msgcontents.ContactAction) msgcontents.Contact {
-		return msgcontents.MustNewContact(
+	makeContactWithActions := func(actions []known.ContactAction) known.Contact {
+		return known.MustNewContact(
 			refs.MustNewIdentity("@sxlUkN7dW/qZ23Wid6J1IAnqWEJ3V13dT6TaFtn5LTc=.ed25519"),
-			msgcontents.MustNewContactActions(actions),
+			known.MustNewContactActions(actions),
 		)
 	}
 
 	testCases := []struct {
 		Name            string
 		Content         string
-		ExpectedMessage msgcontents.KnownMessageContent
+		ExpectedMessage known.KnownMessageContent
 	}{
 		{
 			Name: "missing_action",
@@ -39,8 +40,8 @@ func TestMappingContactUnmarshal(t *testing.T) {
 	"contact": "@sxlUkN7dW/qZ23Wid6J1IAnqWEJ3V13dT6TaFtn5LTc=.ed25519",
 	"following": true
 }`,
-			ExpectedMessage: makeContactWithActions([]msgcontents.ContactAction{
-				msgcontents.ContactActionFollow,
+			ExpectedMessage: makeContactWithActions([]known.ContactAction{
+				known.ContactActionFollow,
 			}),
 		},
 		{
@@ -51,8 +52,8 @@ func TestMappingContactUnmarshal(t *testing.T) {
 	"contact": "@sxlUkN7dW/qZ23Wid6J1IAnqWEJ3V13dT6TaFtn5LTc=.ed25519",
 	"following": false
 }`,
-			ExpectedMessage: makeContactWithActions([]msgcontents.ContactAction{
-				msgcontents.ContactActionUnfollow,
+			ExpectedMessage: makeContactWithActions([]known.ContactAction{
+				known.ContactActionUnfollow,
 			}),
 		},
 		{
@@ -63,8 +64,8 @@ func TestMappingContactUnmarshal(t *testing.T) {
 	"contact": "@sxlUkN7dW/qZ23Wid6J1IAnqWEJ3V13dT6TaFtn5LTc=.ed25519",
 	"blocking": true
 }`,
-			ExpectedMessage: makeContactWithActions([]msgcontents.ContactAction{
-				msgcontents.ContactActionBlock,
+			ExpectedMessage: makeContactWithActions([]known.ContactAction{
+				known.ContactActionBlock,
 			}),
 		},
 		{
@@ -75,8 +76,8 @@ func TestMappingContactUnmarshal(t *testing.T) {
 	"contact": "@sxlUkN7dW/qZ23Wid6J1IAnqWEJ3V13dT6TaFtn5LTc=.ed25519",
 	"blocking": false
 }`,
-			ExpectedMessage: makeContactWithActions([]msgcontents.ContactAction{
-				msgcontents.ContactActionUnblock,
+			ExpectedMessage: makeContactWithActions([]known.ContactAction{
+				known.ContactActionUnblock,
 			}),
 		},
 		{
@@ -88,9 +89,9 @@ func TestMappingContactUnmarshal(t *testing.T) {
 	"following": true,
 	"blocking": false
 }`,
-			ExpectedMessage: makeContactWithActions([]msgcontents.ContactAction{
-				msgcontents.ContactActionFollow,
-				msgcontents.ContactActionUnblock,
+			ExpectedMessage: makeContactWithActions([]known.ContactAction{
+				known.ContactActionFollow,
+				known.ContactActionUnblock,
 			}),
 		},
 		{
@@ -102,9 +103,9 @@ func TestMappingContactUnmarshal(t *testing.T) {
 	"following": false,
 	"blocking": true
 }`,
-			ExpectedMessage: makeContactWithActions([]msgcontents.ContactAction{
-				msgcontents.ContactActionUnfollow,
-				msgcontents.ContactActionBlock,
+			ExpectedMessage: makeContactWithActions([]known.ContactAction{
+				known.ContactActionUnfollow,
+				known.ContactActionBlock,
 			}),
 		},
 		{
@@ -127,9 +128,9 @@ func TestMappingContactUnmarshal(t *testing.T) {
 	"following": false,
 	"blocking": false
 }`,
-			ExpectedMessage: makeContactWithActions([]msgcontents.ContactAction{
-				msgcontents.ContactActionUnfollow,
-				msgcontents.ContactActionUnblock,
+			ExpectedMessage: makeContactWithActions([]known.ContactAction{
+				known.ContactActionUnfollow,
+				known.ContactActionUnblock,
 			}),
 		},
 	}
@@ -139,11 +140,11 @@ func TestMappingContactUnmarshal(t *testing.T) {
 			marshaler := newMarshaler(t)
 
 			msg, err := marshaler.Unmarshal(message.MustNewRawMessageContent([]byte(testCase.Content)))
-			require.NoError(t, err)
 			if testCase.ExpectedMessage != nil {
+				require.NoError(t, err)
 				require.Equal(t, testCase.ExpectedMessage, msg)
 			} else {
-				require.Equal(t, msgcontents.MustNewUnknown([]byte(testCase.Content)), msg)
+				require.ErrorIs(t, err, msgcontents.ErrUnknownContent)
 			}
 		})
 	}
@@ -154,50 +155,50 @@ func TestMappingContactMarshal(t *testing.T) {
 
 	testCases := []struct {
 		Name            string
-		Actions         []msgcontents.ContactAction
+		Actions         []known.ContactAction
 		ExpectedContent string
 	}{
 		{
 			Name: "following",
-			Actions: []msgcontents.ContactAction{
-				msgcontents.ContactActionFollow,
+			Actions: []known.ContactAction{
+				known.ContactActionFollow,
 			},
 			ExpectedContent: `{"type":"contact","contact":"@sxlUkN7dW/qZ23Wid6J1IAnqWEJ3V13dT6TaFtn5LTc=.ed25519","following":true}`,
 		},
 		{
 			Name: "unfollowing",
-			Actions: []msgcontents.ContactAction{
-				msgcontents.ContactActionUnfollow,
+			Actions: []known.ContactAction{
+				known.ContactActionUnfollow,
 			},
 			ExpectedContent: `{"type":"contact","contact":"@sxlUkN7dW/qZ23Wid6J1IAnqWEJ3V13dT6TaFtn5LTc=.ed25519","following":false}`,
 		},
 		{
 			Name: "blocking",
-			Actions: []msgcontents.ContactAction{
-				msgcontents.ContactActionBlock,
+			Actions: []known.ContactAction{
+				known.ContactActionBlock,
 			},
 			ExpectedContent: `{"type":"contact","contact":"@sxlUkN7dW/qZ23Wid6J1IAnqWEJ3V13dT6TaFtn5LTc=.ed25519","blocking":true}`,
 		},
 		{
 			Name: "unblocking",
-			Actions: []msgcontents.ContactAction{
-				msgcontents.ContactActionUnblock,
+			Actions: []known.ContactAction{
+				known.ContactActionUnblock,
 			},
 			ExpectedContent: `{"type":"contact","contact":"@sxlUkN7dW/qZ23Wid6J1IAnqWEJ3V13dT6TaFtn5LTc=.ed25519","blocking":false}`,
 		},
 		{
 			Name: "unfollowing_and_blocking",
-			Actions: []msgcontents.ContactAction{
-				msgcontents.ContactActionUnfollow,
-				msgcontents.ContactActionBlock,
+			Actions: []known.ContactAction{
+				known.ContactActionUnfollow,
+				known.ContactActionBlock,
 			},
 			ExpectedContent: `{"type":"contact","contact":"@sxlUkN7dW/qZ23Wid6J1IAnqWEJ3V13dT6TaFtn5LTc=.ed25519","following":false,"blocking":true}`,
 		},
 		{
 			Name: "following_and_unblocking",
-			Actions: []msgcontents.ContactAction{
-				msgcontents.ContactActionFollow,
-				msgcontents.ContactActionUnblock,
+			Actions: []known.ContactAction{
+				known.ContactActionFollow,
+				known.ContactActionUnblock,
 			},
 			ExpectedContent: `{"type":"contact","contact":"@sxlUkN7dW/qZ23Wid6J1IAnqWEJ3V13dT6TaFtn5LTc=.ed25519","following":true,"blocking":false}`,
 		},
@@ -205,7 +206,7 @@ func TestMappingContactMarshal(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
-			msg := msgcontents.MustNewContact(iden, msgcontents.MustNewContactActions(testCase.Actions))
+			msg := known.MustNewContact(iden, known.MustNewContactActions(testCase.Actions))
 
 			marshaler := newMarshaler(t)
 

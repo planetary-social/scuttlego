@@ -2,7 +2,7 @@ package feeds
 
 import (
 	"github.com/boreq/errors"
-	"github.com/planetary-social/scuttlego/service/domain/feeds/content"
+	"github.com/planetary-social/scuttlego/service/domain/feeds/content/known"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 )
@@ -64,10 +64,10 @@ func (m MessageToPersist) BlobsToSave() []BlobToSave {
 type PubToSave struct {
 	who     refs.Identity
 	message refs.Message
-	content content.Pub
+	content known.Pub
 }
 
-func NewPubToSave(who refs.Identity, message refs.Message, content content.Pub) PubToSave {
+func NewPubToSave(who refs.Identity, message refs.Message, content known.Pub) PubToSave {
 	return PubToSave{
 		who:     who,
 		message: message,
@@ -83,7 +83,7 @@ func (c PubToSave) Message() refs.Message {
 	return c.message
 }
 
-func (c PubToSave) Content() content.Pub {
+func (c PubToSave) Content() known.Pub {
 	return c.content
 }
 
@@ -103,10 +103,10 @@ func (b BlobToSave) Blobs() []refs.Blob {
 
 type ContactToSave struct {
 	who refs.Identity
-	msg content.Contact
+	msg known.Contact
 }
 
-func NewContactToSave(who refs.Identity, msg content.Contact) ContactToSave {
+func NewContactToSave(who refs.Identity, msg known.Contact) ContactToSave {
 	return ContactToSave{
 		who: who,
 		msg: msg,
@@ -117,6 +117,6 @@ func (c ContactToSave) Who() refs.Identity {
 	return c.who
 }
 
-func (c ContactToSave) Msg() content.Contact {
+func (c ContactToSave) Msg() known.Contact {
 	return c.msg
 }

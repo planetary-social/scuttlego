@@ -9,7 +9,7 @@ import (
 	"github.com/planetary-social/scuttlego/fixtures"
 	"github.com/planetary-social/scuttlego/service/adapters/badger"
 	"github.com/planetary-social/scuttlego/service/domain/feeds"
-	"github.com/planetary-social/scuttlego/service/domain/feeds/content"
+	"github.com/planetary-social/scuttlego/service/domain/feeds/content/known"
 	"github.com/planetary-social/scuttlego/service/domain/graph"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/planetary-social/scuttlego/service/domain/replication"
@@ -104,8 +104,8 @@ func TestWantedFeedsRepository_BannedContactsAreExcluded(t *testing.T) {
 	err := ts.TransactionProvider.Update(func(adapters badger.TestAdapters) error {
 		err := adapters.SocialGraphRepository.UpdateContact(localRef, feedRef, func(contact *feeds.Contact) error {
 			return contact.Update(
-				content.MustNewContactActions(
-					[]content.ContactAction{content.ContactActionFollow},
+				known.MustNewContactActions(
+					[]known.ContactAction{known.ContactActionFollow},
 				),
 			)
 		})
@@ -113,8 +113,8 @@ func TestWantedFeedsRepository_BannedContactsAreExcluded(t *testing.T) {
 
 		err = adapters.SocialGraphRepository.UpdateContact(localRef, bannedFeedRef, func(contact *feeds.Contact) error {
 			return contact.Update(
-				content.MustNewContactActions(
-					[]content.ContactAction{content.ContactActionFollow},
+				known.MustNewContactActions(
+					[]known.ContactAction{known.ContactActionFollow},
 				),
 			)
 		})

@@ -1,4 +1,4 @@
-package content
+package known
 
 type KnownMessageContent interface {
 	Type() MessageContentType

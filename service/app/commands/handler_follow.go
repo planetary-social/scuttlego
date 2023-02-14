@@ -7,7 +7,7 @@ import (
 	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/domain/feeds"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/content"
-	"github.com/planetary-social/scuttlego/service/domain/feeds/formats"
+	"github.com/planetary-social/scuttlego/service/domain/feeds/content/known"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 )
@@ -19,14 +19,14 @@ type Follow struct {
 type FollowHandler struct {
 	transaction TransactionProvider
 	local       identity.Private
-	marshaler   formats.Marshaler
+	marshaler   content.Marshaler
 	logger      logging.Logger
 }
 
 func NewFollowHandler(
 	transaction TransactionProvider,
 	local identity.Private,
-	marshaler formats.Marshaler,
+	marshaler content.Marshaler,
 	logger logging.Logger,
 ) *FollowHandler {
 	return &FollowHandler{
@@ -38,12 +38,12 @@ func NewFollowHandler(
 }
 
 func (h *FollowHandler) Handle(cmd Follow) error {
-	contactActions, err := content.NewContactActions([]content.ContactAction{content.ContactActionFollow})
+	contactActions, err := known.NewContactActions([]known.ContactAction{known.ContactActionFollow})
 	if err != nil {
 		return errors.Wrap(err, "failed to create contact actions")
 	}
 
-	contact, err := content.NewContact(cmd.Target, contactActions)
+	contact, err := known.NewContact(cmd.Target, contactActions)
 	if err != nil {
 		return errors.Wrap(err, "failed to create a contact message")
 	}

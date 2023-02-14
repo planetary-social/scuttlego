@@ -6,49 +6,41 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 )
 
-type GetMessageBySequence struct {
-	feed     refs.Feed
-	sequence message.Sequence
+type GetMessage struct {
+	id refs.Message
 }
 
-func NewGetMessageBySequence(feed refs.Feed, sequence message.Sequence) (GetMessageBySequence, error) {
-	if feed.IsZero() {
-		return GetMessageBySequence{}, errors.New("zero value of feed")
+func NewGetMessage(id refs.Message) (GetMessage, error) {
+	if id.IsZero() {
+		return GetMessage{}, errors.New("zero value of id")
 	}
-	if sequence.IsZero() {
-		return GetMessageBySequence{}, errors.New("zero value of sequence")
-	}
-	return GetMessageBySequence{feed: feed, sequence: sequence}, nil
+	return GetMessage{id: id}, nil
 }
 
-func (q *GetMessageBySequence) Feed() refs.Feed {
-	return q.feed
+func (q *GetMessage) Id() refs.Message {
+	return q.id
 }
 
-func (q *GetMessageBySequence) Sequence() message.Sequence {
-	return q.sequence
+func (q *GetMessage) IsZero() bool {
+	return q.id.IsZero()
 }
 
-func (q *GetMessageBySequence) IsZero() bool {
-	return q.feed.IsZero()
-}
-
-type GetMessageBySequenceHandler struct {
+type GetMessageHandler struct {
 	transaction TransactionProvider
 }
 
-func NewGetMessageBySequenceHandler(transaction TransactionProvider) *GetMessageBySequenceHandler {
-	return &GetMessageBySequenceHandler{transaction: transaction}
+func NewGetMessageHandler(transaction TransactionProvider) *GetMessageHandler {
+	return &GetMessageHandler{transaction: transaction}
 }
 
-func (h *GetMessageBySequenceHandler) Handle(query GetMessageBySequence) (message.Message, error) {
+func (h *GetMessageHandler) Handle(query GetMessage) (message.Message, error) {
 	if query.IsZero() {
 		return message.Message{}, errors.New("zero value of query")
 	}
 
 	var result message.Message
 	if err := h.transaction.Transact(func(adapters Adapters) error {
-		tmp, err := adapters.Feed.GetMessage(query.Feed(), query.Sequence())
+		tmp, err := adapters.Message.Get(query.Id())
 		if err != nil {
 			return errors.Wrap(err, "error getting message")
 		}

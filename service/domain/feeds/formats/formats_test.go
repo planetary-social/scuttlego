@@ -1,20 +1,21 @@
-package formats
+package formats_test
 
 import (
 	"strings"
 	"testing"
 
+	"github.com/planetary-social/scuttlego/service/domain/feeds/formats"
 	"github.com/planetary-social/scuttlego/service/domain/transport/boxstream"
 	"github.com/stretchr/testify/require"
 )
 
 func TestMessageHMAC_BytesReturnsNilForDefaultHMAC(t *testing.T) {
-	hmac := NewDefaultMessageHMAC()
+	hmac := formats.NewDefaultMessageHMAC()
 	require.True(t, hmac.Bytes() == nil)
 }
 
 func TestMessageHMAC_ConstructorCanCreateDefaultHMAC(t *testing.T) {
-	hmac, err := NewMessageHMAC(nil)
+	hmac, err := formats.NewMessageHMAC(nil)
 	require.NoError(t, err)
 
 	require.True(t, hmac.Bytes() == nil)

@@ -2,7 +2,9 @@ package queries
 
 import (
 	"github.com/boreq/errors"
+	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
+	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/planetary-social/scuttlego/service/domain/transport"
 )
 
@@ -19,6 +21,9 @@ type Peer struct {
 type MessageRepository interface {
 	// Count returns the number of stored messages.
 	Count() (int, error)
+
+	// Get retrieves a message.
+	Get(id refs.Message) (message.Message, error)
 }
 
 type PeerManager interface {

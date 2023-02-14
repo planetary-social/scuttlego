@@ -4,6 +4,7 @@ import (
 	"context"
 	cryptorand "crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"math"
 	"math/rand"
@@ -20,12 +21,14 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/bans"
 	"github.com/planetary-social/scuttlego/service/domain/blobs"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/content"
+	"github.com/planetary-social/scuttlego/service/domain/feeds/formats"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/graph"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
 	"github.com/planetary-social/scuttlego/service/domain/invites"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/planetary-social/scuttlego/service/domain/rooms/aliases"
+	"github.com/planetary-social/scuttlego/service/domain/transport/boxstream"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/transport"
 	"github.com/sirupsen/logrus"
@@ -149,18 +152,12 @@ func SomeAlias() aliases.Alias {
 }
 
 func SomeBytes() []byte {
-	r := make([]byte, 10+rand.Intn(100))
-	_, err := cryptorand.Read(r)
-	if err != nil {
-		panic(err)
-	}
-	return r
+	return SomeBytesOfLength(10 + rand.Intn(100))
 }
 
 func SomeBytesOfLength(n int) []byte {
 	r := make([]byte, n)
-	_, err := cryptorand.Read(r)
-	if err != nil {
+	if _, err := cryptorand.Read(r); err != nil {
 		panic(err)
 	}
 	return r
@@ -189,7 +186,15 @@ func SomeRawMessage() message.RawMessage {
 }
 
 func SomeRawMessageContent() message.RawMessageContent {
-	return message.MustNewRawMessageContent(SomeBytes())
+	v := map[string]string{
+		"type":       SomeString(),
+		SomeString(): SomeString(),
+	}
+	j, err := json.Marshal(v)
+	if err != nil {
+		panic(err)
+	}
+	return message.MustNewRawMessageContent(j)
 }
 
 func SomeMessage(seq message.Sequence, feed refs.Feed) message.Message {
@@ -247,12 +252,7 @@ func SomeError() error {
 }
 
 func SomeBanListHash() bans.Hash {
-	r := make([]byte, 32)
-	_, err := cryptorand.Read(r)
-	if err != nil {
-		panic(err)
-	}
-	return bans.MustNewHash(r)
+	return bans.MustNewHash(SomeBytesOfLength(32))
 }
 
 func SomeInvite() invites.Invite {
@@ -261,6 +261,14 @@ func SomeInvite() invites.Invite {
 
 func SomeHops() graph.Hops {
 	return graph.MustNewHops(SomePositiveInt())
+}
+
+func SomeNetworkKey() boxstream.NetworkKey {
+	return boxstream.MustNewNetworkKey(SomeBytesOfLength(boxstream.NetworkKeyLength))
+}
+
+func SomeMessageHMAC() formats.MessageHMAC {
+	return formats.MustNewMessageHMAC(SomeBytesOfLength(formats.MessageHMACLength))
 }
 
 func Directory(t *testing.T) string {
@@ -376,10 +384,5 @@ func (t testingLogger) withField(key string, v any) testingLogger {
 }
 
 func randomBase64(bytes int) string {
-	r := make([]byte, bytes)
-	_, err := cryptorand.Read(r)
-	if err != nil {
-		panic(err)
-	}
-	return base64.StdEncoding.EncodeToString(r)
+	return base64.StdEncoding.EncodeToString(SomeBytesOfLength(bytes))
 }

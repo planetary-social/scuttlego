@@ -1,4 +1,4 @@
-package formats
+package formats_test
 
 import (
 	"testing"
@@ -6,6 +6,7 @@ import (
 
 	"github.com/planetary-social/scuttlego/fixtures"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/content/transport"
+	"github.com/planetary-social/scuttlego/service/domain/feeds/formats"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
@@ -13,7 +14,7 @@ import (
 )
 
 func TestScuttlebutt_MessageCanBeSignedAndThenVerified(t *testing.T) {
-	f := newScuttlebuttFormat(t, NewDefaultMessageHMAC())
+	f := newScuttlebuttFormat(t, formats.NewDefaultMessageHMAC())
 
 	author, err := identity.NewPrivate()
 	require.NoError(t, err)
@@ -41,7 +42,7 @@ func TestScuttlebutt_MessageCanBeSignedAndThenVerified(t *testing.T) {
 }
 
 func TestScuttlebutt_MessageCanBeSignedAndThenVerifiedIfItReferencesAPreviousMessage(t *testing.T) {
-	f := newScuttlebuttFormat(t, NewDefaultMessageHMAC())
+	f := newScuttlebuttFormat(t, formats.NewDefaultMessageHMAC())
 
 	author, err := identity.NewPrivate()
 	require.NoError(t, err)
@@ -71,7 +72,7 @@ func TestScuttlebutt_MessageCanBeSignedAndThenVerifiedIfItReferencesAPreviousMes
 }
 
 func TestScuttlebutt_SettingHMACMakesMessagesIncompatibile(t *testing.T) {
-	hmac, err := NewMessageHMAC([]byte("somehmacthatislongenoughblablabl"))
+	hmac, err := formats.NewMessageHMAC([]byte("somehmacthatislongenoughblablabl"))
 	require.NoError(t, err)
 
 	f := newScuttlebuttFormat(t, hmac)
@@ -98,13 +99,13 @@ func TestScuttlebutt_SettingHMACMakesMessagesIncompatibile(t *testing.T) {
 	_, err = f.Verify(msg.Raw())
 	require.NoError(t, err)
 
-	defaultFormat := newScuttlebuttFormat(t, NewDefaultMessageHMAC())
+	defaultFormat := newScuttlebuttFormat(t, formats.NewDefaultMessageHMAC())
 	_, err = defaultFormat.Verify(msg.Raw())
 	require.Contains(t, err.Error(), "invalid signature")
 }
 
 func TestScuttlebutt_LoadAndVerifyReturnIdenticalResults(t *testing.T) {
-	f := newScuttlebuttFormat(t, NewDefaultMessageHMAC())
+	f := newScuttlebuttFormat(t, formats.NewDefaultMessageHMAC())
 
 	author, err := identity.NewPrivate()
 	require.NoError(t, err)
@@ -147,10 +148,10 @@ func someContent() message.RawMessageContent {
 	return message.MustNewRawMessageContent([]byte(`{"type": "something"}`))
 }
 
-func newScuttlebuttFormat(t *testing.T, hmac MessageHMAC) *Scuttlebutt {
+func newScuttlebuttFormat(t *testing.T, hmac formats.MessageHMAC) *formats.Scuttlebutt {
 	logger := fixtures.SomeLogger()
 	marshaler, err := transport.NewMarshaler(transport.DefaultMappings(), logger)
 	require.NoError(t, err)
 
-	return NewScuttlebutt(marshaler, hmac)
+	return formats.NewScuttlebutt(marshaler, hmac)
 }

@@ -353,6 +353,80 @@ func BuildService(context.Context, identity.Private, Config) (Service, func(), e
 	return Service{}, nil, nil
 }
 
+type IntegrationTestsService struct {
+	Service Service
+
+	BanListHasher badgeradapters.BanListHasher
+}
+
+func BuildIntegrationTestsService(t *testing.T) (IntegrationTestsService, error) {
+	service, cleanup, err := buildIntegrationTestsService(t)
+	if err != nil {
+		return IntegrationTestsService{}, errors.Wrap(err, "error calling wire builder")
+	}
+	t.Cleanup(cleanup)
+	return service, nil
+}
+
+func buildIntegrationTestsService(t *testing.T) (IntegrationTestsService, func(), error) {
+	wire.Build(
+		wire.Struct(new(IntegrationTestsService), "*"),
+
+		newIntegrationTestConfig,
+		fixtures.SomePrivateIdentity,
+		fixtures.TestContext,
+
+		NewService,
+
+		domain.NewPeerManager,
+		wire.Bind(new(commands.NewPeerHandler), new(*domain.PeerManager)),
+		wire.Bind(new(commands.PeerManager), new(*domain.PeerManager)),
+		wire.Bind(new(queries.PeerManager), new(*domain.PeerManager)),
+
+		newBadger,
+
+		newAdvertiser,
+		privateIdentityToPublicIdentity,
+
+		commands.NewMessageBuffer,
+
+		rooms.NewScanner,
+		wire.Bind(new(domain.RoomScanner), new(*rooms.Scanner)),
+
+		rooms.NewPeerRPCAdapter,
+		wire.Bind(new(rooms.MetadataGetter), new(*rooms.PeerRPCAdapter)),
+		wire.Bind(new(rooms.AttendantsGetter), new(*rooms.PeerRPCAdapter)),
+
+		tunnel.NewDialer,
+		wire.Bind(new(domain.RoomDialer), new(*tunnel.Dialer)),
+
+		invites.NewInviteRedeemer,
+		wire.Bind(new(commands.InviteRedeemer), new(*invites.InviteRedeemer)),
+
+		commands.NewTransactionRawMessagePublisher,
+		wire.Bind(new(commands.RawMessagePublisher), new(*commands.TransactionRawMessagePublisher)),
+
+		newContextLogger,
+
+		portsSet,
+		applicationSet,
+		replicatorSet,
+		blobReplicatorSet,
+		formatsSet,
+		pubSubSet,
+		badgerNoTxRepositoriesSet,
+		badgerTransactionProviderSet,
+		badgerNoTxTransactionProviderSet,
+		badgerAdaptersSet,
+		blobsAdaptersSet,
+		adaptersSet,
+		extractFromConfigSet,
+		networkingSet,
+		migrationsSet,
+	)
+	return IntegrationTestsService{}, nil, nil
+}
+
 var replicatorSet = wire.NewSet(
 	gossip.NewManager,
 	wire.Bind(new(gossip.ReplicationManager), new(*gossip.Manager)),
@@ -397,6 +471,20 @@ func newAdvertiser(l identity.Public, config Config) (*local.Advertiser, error) 
 	return local.NewAdvertiser(l, config.ListenAddress)
 }
 
+func newIntegrationTestConfig(t *testing.T) Config {
+	dataDirectory := fixtures.Directory(t)
+	oldDataDirectory := fixtures.Directory(t)
+
+	cfg := Config{
+		DataDirectory:      dataDirectory,
+		GoSSBDataDirectory: oldDataDirectory,
+		NetworkKey:         fixtures.SomeNetworkKey(),
+		MessageHMAC:        fixtures.SomeMessageHMAC(),
+	}
+	cfg.SetDefaults()
+	return cfg
+}
+
 func newBadger(system logging.LoggingSystem, logger logging.Logger, config Config) (*badger.DB, func(), error) {
 	badgerDirectory := filepath.Join(config.DataDirectory, "badger")
 
@@ -418,7 +506,6 @@ func newBadger(system logging.LoggingSystem, logger logging.Logger, config Confi
 			logger.WithError(err).Error("error closing the database")
 		}
 	}, nil
-
 }
 
 func privateIdentityToPublicIdentity(p identity.Private) identity.Public {

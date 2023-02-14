@@ -70,6 +70,7 @@ var queriesSet = wire.NewSet(
 	queries.NewStatusHandler,
 	queries.NewBlobDownloadedEventsHandler,
 	queries.NewRoomsListAliasesHandler,
+	queries.NewGetMessageHandler,
 	queries.NewGetMessageBySequenceHandler,
 
 	queries.NewCreateHistoryStreamHandler,

@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestReceiveLogBreaksWhenFeedsAreBannedAndThereforeRemoved(t *testing.T) {
+func TestReceiveLogDoesNotBreakWhenFeedsAreBannedAndThereforeRemoved(t *testing.T) {
 	ts, err := di.BuildIntegrationTestsService(t)
 	require.NoError(t, err)
 
@@ -88,8 +88,21 @@ func TestReceiveLogBreaksWhenFeedsAreBannedAndThereforeRemoved(t *testing.T) {
 	query, err = queries.NewReceiveLog(common.MustNewReceiveLogSequence(0), 10)
 	require.NoError(t, err)
 
-	_, err = ts.Service.App.Queries.ReceiveLog.Handle(query)
-	require.EqualError(t, err, "transaction failed: error listing messages: could not load a message: could not get the message: message not found: Key not found")
+	msgs, err = ts.Service.App.Queries.ReceiveLog.Handle(query)
+	require.NoError(t, err)
+	require.Equal(t,
+		[]queries.LogMessage{
+			{
+				Message:  msg1,
+				Sequence: common.MustNewReceiveLogSequence(0),
+			},
+			{
+				Message:  msg3,
+				Sequence: common.MustNewReceiveLogSequence(2),
+			},
+		},
+		msgs,
+	)
 }
 
 func publishAs(ts di.IntegrationTestsService, iden identity.Private) (refs.Message, error) {

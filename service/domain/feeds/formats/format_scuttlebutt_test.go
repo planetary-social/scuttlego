@@ -143,8 +143,8 @@ func TestScuttlebutt_LoadAndVerifyReturnIdenticalResults(t *testing.T) {
 	require.Equal(t, msgFromLoad, msgFromVerify)
 }
 
-func someContent() message.RawMessageContent {
-	return message.MustNewRawMessageContent([]byte(`{"type": "something"}`))
+func someContent() message.RawContent {
+	return message.MustNewRawContent([]byte(`{"type": "something"}`))
 }
 
 func newScuttlebuttFormat(t *testing.T, hmac formats.MessageHMAC) *formats.Scuttlebutt {
@@ -159,6 +159,6 @@ func newContentParserMock() *contentParserMock {
 	return &contentParserMock{}
 }
 
-func (c contentParserMock) Parse(raw message.RawMessageContent) (message.Content, error) {
+func (c contentParserMock) Parse(raw message.RawContent) (message.Content, error) {
 	return message.NewContent(raw, nil, nil)
 }

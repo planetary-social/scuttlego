@@ -21,7 +21,7 @@ func TestRawMessagePublisher(t *testing.T) {
 	transactionProvider := mocks.NewMockCommandsTransactionProvider(adapters)
 
 	iden := fixtures.SomePrivateIdentity()
-	content := message.MustNewRawMessageContent(fixtures.SomeBytes())
+	content := message.MustNewRawContent(fixtures.SomeBytes())
 
 	publisher := commands.NewTransactionRawMessagePublisher(transactionProvider)
 	_, err := publisher.Publish(iden, content)

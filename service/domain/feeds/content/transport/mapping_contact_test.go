@@ -139,7 +139,7 @@ func TestMappingContactUnmarshal(t *testing.T) {
 		t.Run(testCase.Name, func(t *testing.T) {
 			marshaler := newMarshaler(t)
 
-			msg, err := marshaler.Unmarshal(message.MustNewRawMessageContent([]byte(testCase.Content)))
+			msg, err := marshaler.Unmarshal(message.MustNewRawContent([]byte(testCase.Content)))
 			if testCase.ExpectedMessage != nil {
 				require.NoError(t, err)
 				require.Equal(t, testCase.ExpectedMessage, msg)

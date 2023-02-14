@@ -7,13 +7,13 @@ import (
 )
 
 type Content struct {
-	raw             RawMessageContent
+	raw             RawContent
 	known           known.KnownMessageContent
 	referencedBlobs []refs.Blob
 }
 
 func NewContent(
-	raw RawMessageContent,
+	raw RawContent,
 	known known.KnownMessageContent,
 	referencedBlobs []refs.Blob,
 ) (Content, error) {
@@ -28,7 +28,7 @@ func NewContent(
 }
 
 func MustNewContent(
-	raw RawMessageContent,
+	raw RawContent,
 	known known.KnownMessageContent,
 	referencedBlobs []refs.Blob,
 ) Content {
@@ -39,7 +39,7 @@ func MustNewContent(
 	return v
 }
 
-func (c Content) Raw() RawMessageContent {
+func (c Content) Raw() RawContent {
 	return c.raw
 }
 

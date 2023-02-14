@@ -195,7 +195,7 @@ func TestFeed_MessagesWithKnownContentAreCorrectlyRecognized(t *testing.T) {
 		{
 			Name: "known_contact",
 			Content: message.MustNewContent(
-				fixtures.SomeRawMessageContent(),
+				fixtures.SomeRawContent(),
 				known.MustNewContact(
 					someIdentity,
 					known.MustNewContactActions([]known.ContactAction{known.ContactActionFollow}),
@@ -215,7 +215,7 @@ func TestFeed_MessagesWithKnownContentAreCorrectlyRecognized(t *testing.T) {
 		{
 			Name: "known_pub",
 			Content: message.MustNewContent(
-				fixtures.SomeRawMessageContent(),
+				fixtures.SomeRawContent(),
 				known.MustNewPub(
 					someIdentity,
 					"host",
@@ -238,7 +238,7 @@ func TestFeed_MessagesWithKnownContentAreCorrectlyRecognized(t *testing.T) {
 		{
 			Name: "blobs",
 			Content: message.MustNewContent(
-				fixtures.SomeRawMessageContent(),
+				fixtures.SomeRawContent(),
 				nil,
 				[]refs.Blob{
 					someBlob,
@@ -293,7 +293,7 @@ func TestFeed_MessagesWithKnownContentAreCorrectlyRecognized(t *testing.T) {
 
 				f := feeds.NewFeed(format)
 
-				_, err := f.CreateMessage(fixtures.SomeRawMessageContent(), fixtures.SomeTime(), fixtures.SomePrivateIdentity())
+				_, err := f.CreateMessage(fixtures.SomeRawContent(), fixtures.SomeTime(), fixtures.SomePrivateIdentity())
 				require.NoError(t, err)
 
 				msgsToPersist := f.PopForPersisting()
@@ -317,7 +317,7 @@ func TestFeed_CreateMessage(t *testing.T) {
 	testCases := []struct {
 		Name string
 
-		Content   message.RawMessageContent
+		Content   message.RawContent
 		Timestamp time.Time
 		Private   identity.Private
 
@@ -325,28 +325,28 @@ func TestFeed_CreateMessage(t *testing.T) {
 	}{
 		{
 			Name:          "valid",
-			Content:       fixtures.SomeRawMessageContent(),
+			Content:       fixtures.SomeRawContent(),
 			Timestamp:     fixtures.SomeTime(),
 			Private:       fixtures.SomePrivateIdentity(),
 			ExpectedError: nil,
 		},
 		{
 			Name:          "zero_value_of_raw_message_content",
-			Content:       message.RawMessageContent{},
+			Content:       message.RawContent{},
 			Timestamp:     fixtures.SomeTime(),
 			Private:       fixtures.SomePrivateIdentity(),
 			ExpectedError: errors.New("zero value of raw message content"),
 		},
 		{
 			Name:          "zero_value_of_time",
-			Content:       fixtures.SomeRawMessageContent(),
+			Content:       fixtures.SomeRawContent(),
 			Timestamp:     time.Time{},
 			Private:       fixtures.SomePrivateIdentity(),
 			ExpectedError: errors.New("zero value of timestamp"),
 		},
 		{
 			Name:          "zero_value_of_private_identity",
-			Content:       fixtures.SomeRawMessageContent(),
+			Content:       fixtures.SomeRawContent(),
 			Timestamp:     fixtures.SomeTime(),
 			Private:       identity.Private{},
 			ExpectedError: errors.New("zero value of private identity"),
@@ -386,7 +386,7 @@ func TestFeed_CreateMessage_PassingIdentityWhichDoesNotMatchPreviousIdentityIsIn
 	err := f.AppendMessage(firstMessage)
 	require.NoError(t, err)
 
-	_, err = f.CreateMessage(fixtures.SomeRawMessageContent(), fixtures.SomeTime(), fixtures.SomePrivateIdentity())
+	_, err = f.CreateMessage(fixtures.SomeRawContent(), fixtures.SomeTime(), fixtures.SomePrivateIdentity())
 	require.EqualError(t, err, "private identity doesn't match this feed's public identity")
 }
 

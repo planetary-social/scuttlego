@@ -8,7 +8,7 @@ import (
 )
 
 type RawMessagePublisher interface {
-	Publish(identity identity.Private, content message.RawMessageContent) (refs.Message, error)
+	Publish(identity identity.Private, content message.RawContent) (refs.Message, error)
 }
 
 type PublishRawAsIdentity struct {
@@ -49,7 +49,7 @@ func (h *PublishRawAsIdentityHandler) Handle(cmd PublishRawAsIdentity) (refs.Mes
 		return refs.Message{}, errors.New("zero value of cmd")
 	}
 
-	content, err := message.NewRawMessageContent(cmd.content)
+	content, err := message.NewRawContent(cmd.content)
 	if err != nil {
 		return refs.Message{}, errors.Wrap(err, "could not create raw message content")
 	}

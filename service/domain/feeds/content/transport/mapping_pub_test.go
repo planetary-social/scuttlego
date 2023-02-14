@@ -24,7 +24,7 @@ func TestMappingPubUnmarshal(t *testing.T) {
 	}
 }`
 
-	msg, err := marshaler.Unmarshal(message.MustNewRawMessageContent([]byte(content)))
+	msg, err := marshaler.Unmarshal(message.MustNewRawContent([]byte(content)))
 	require.NoError(t, err)
 
 	require.Equal(

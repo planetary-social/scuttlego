@@ -11,6 +11,6 @@ func NewContentParser() *ContentParser {
 	return &ContentParser{}
 }
 
-func (c ContentParser) Parse(raw message.RawMessageContent) (message.Content, error) {
+func (c ContentParser) Parse(raw message.RawContent) (message.Content, error) {
 	return message.NewContent(raw, nil, nil)
 }

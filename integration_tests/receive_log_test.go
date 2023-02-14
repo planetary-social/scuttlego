@@ -106,7 +106,7 @@ func TestReceiveLogDoesNotBreakWhenFeedsAreBannedAndThereforeRemoved(t *testing.
 }
 
 func publishAs(ts di.IntegrationTestsService, iden identity.Private) (refs.Message, error) {
-	cmd, err := commands.NewPublishRawAsIdentity(fixtures.SomeRawMessageContent().Bytes(), iden)
+	cmd, err := commands.NewPublishRawAsIdentity(fixtures.SomeRawContent().Bytes(), iden)
 	if err != nil {
 		return refs.Message{}, errors.Wrap(err, "error creating a command")
 	}

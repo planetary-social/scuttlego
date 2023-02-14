@@ -8,7 +8,7 @@ import (
 )
 
 type ContentParser interface {
-	Parse(raw message.RawMessageContent) (message.Content, error)
+	Parse(raw message.RawContent) (message.Content, error)
 }
 
 type RawMessageIdentifier struct {

@@ -39,7 +39,7 @@ func NewPublishRawHandler(
 }
 
 func (h *PublishRawHandler) Handle(cmd PublishRaw) (refs.Message, error) {
-	content, err := message.NewRawMessageContent(cmd.content)
+	content, err := message.NewRawContent(cmd.content)
 	if err != nil {
 		return refs.Message{}, errors.Wrap(err, "could not create raw message content")
 	}

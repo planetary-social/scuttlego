@@ -21,7 +21,7 @@ func NewScanner() *Scanner {
 	return &Scanner{}
 }
 
-func (s *Scanner) Scan(content message.RawMessageContent) ([]refs.Blob, error) {
+func (s *Scanner) Scan(content message.RawContent) ([]refs.Blob, error) {
 	l := newLexer(content.Bytes())
 
 	if err := l.lex(); err != nil {

@@ -216,6 +216,40 @@ func (r ReceiveLogRepository) GetSequences(ref refs.Message) ([]common.ReceiveLo
 	return sequences, nil
 }
 
+func (r ReceiveLogRepository) Delete(id refs.Message) error {
+	messagesToSequences, err := r.createMessagesToSequencesBucket(id)
+	if err != nil {
+		return errors.Wrap(err, "could not create a bucket")
+	}
+
+	sequencesToMessages, err := r.createSequencesToMessagesBucket()
+	if err != nil {
+		return errors.Wrap(err, "could not create a bucket")
+	}
+
+	if err := messagesToSequences.ForEach(func(item utils.Item) error {
+		keyInBucket, err := messagesToSequences.KeyInBucket(item)
+		if err != nil {
+			return errors.Wrap(err, "error getting key in bucket")
+		}
+
+		if err := sequencesToMessages.Delete(keyInBucket.Bytes()); err != nil {
+			return errors.Wrap(err, "error removing from sequences to messages")
+		}
+
+		return nil
+
+	}); err != nil {
+		return errors.Wrap(err, "foreach error")
+	}
+
+	if err := messagesToSequences.DeleteBucket(); err != nil {
+		return errors.Wrap(err, "error deleting message bucket")
+	}
+
+	return nil
+}
+
 func (r ReceiveLogRepository) loadMessage(value []byte) (message.Message, error) {
 	id, err := r.unmarshalRef(value)
 	if err != nil {

@@ -426,3 +426,66 @@ func TestReceiveLogRepository_OneMessageMayBeUnderMultipleSequences(t *testing.T
 	})
 	require.NoError(t, err)
 }
+
+func TestReceiveLogRepository_DeleteRemovesAssignments(t *testing.T) {
+	ts := di.BuildBadgerTestAdapters(t)
+
+	msg := fixtures.SomeMessageWithUniqueRawMessage(fixtures.SomeSequence(), fixtures.SomeRefFeed())
+	sequence := fixtures.SomeReceiveLogSequence()
+
+	ts.Dependencies.RawMessageIdentifier.Mock(msg)
+
+	err := ts.TransactionProvider.Update(func(adapters badger.TestAdapters) error {
+		if err := adapters.ReceiveLogRepository.PutUnderSpecificSequence(msg.Id(), sequence); err != nil {
+			return errors.Wrap(err, "could not put a message in receive log")
+		}
+
+		if err := adapters.MessageRepository.Put(msg); err != nil {
+			return errors.Wrap(err, "could not put a message in message repository")
+		}
+
+		return nil
+	})
+	require.NoError(t, err)
+
+	err = ts.TransactionProvider.View(func(adapters badger.TestAdapters) error {
+		retrievedMsg, err := adapters.ReceiveLogRepository.GetMessage(sequence)
+		require.NoError(t, err)
+		require.Equal(t,
+			msg,
+			retrievedMsg,
+		)
+
+		seqs, err := adapters.ReceiveLogRepository.GetSequences(msg.Id())
+		require.NoError(t, err)
+		require.Equal(t,
+			[]common.ReceiveLogSequence{
+				sequence,
+			},
+			seqs,
+		)
+
+		return nil
+	})
+	require.NoError(t, err)
+
+	err = ts.TransactionProvider.Update(func(adapters badger.TestAdapters) error {
+		if err := adapters.ReceiveLogRepository.Delete(msg.Id()); err != nil {
+			return errors.Wrap(err, "error deleting msg")
+		}
+
+		return nil
+	})
+	require.NoError(t, err)
+
+	err = ts.TransactionProvider.View(func(adapters badger.TestAdapters) error {
+		_, err := adapters.ReceiveLogRepository.GetMessage(sequence)
+		require.ErrorIs(t, err, common.ErrReceiveLogEntryNotFound)
+
+		_, err = adapters.ReceiveLogRepository.GetSequences(msg.Id())
+		require.ErrorIs(t, err, common.ErrReceiveLogEntryNotFound)
+
+		return nil
+	})
+	require.NoError(t, err)
+}

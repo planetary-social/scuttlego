@@ -293,7 +293,7 @@ func TestFeedRepository_CountDoesNotUpdateIfFeedDoesNotExist(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestFeedRepository_DeleteRemovesBanListMapping(t *testing.T) {
+func TestFeedRepository_DeleteRemovesDataFromChildRepositories(t *testing.T) {
 	ts := di.BuildBadgerTestAdapters(t)
 
 	feedRef := fixtures.SomeRefFeed()
@@ -354,10 +354,16 @@ func TestFeedRepository_DeleteRemovesBanListMapping(t *testing.T) {
 		_, err = adapters.BanListRepository.LookupMapping(banListHash)
 		require.NoError(t, err)
 
-		for _, msg := range msgs {
+		for i, msg := range msgs {
 			retrievedMsg, err := adapters.MessageRepository.Get(msg.Id())
 			require.NoError(t, err)
 			require.Equal(t, msg, retrievedMsg)
+
+			_, err = adapters.ReceiveLogRepository.GetSequences(msg.Id())
+			require.NoError(t, err)
+
+			_, err = adapters.ReceiveLogRepository.GetMessage(common.MustNewReceiveLogSequence(i))
+			require.NoError(t, err)
 		}
 
 		return nil
@@ -379,9 +385,15 @@ func TestFeedRepository_DeleteRemovesBanListMapping(t *testing.T) {
 		_, err = adapters.BanListRepository.LookupMapping(banListHash)
 		require.EqualError(t, err, "ban list mapping not found")
 
-		for _, msg := range msgs {
+		for i, msg := range msgs {
 			_, err = adapters.MessageRepository.Get(msg.Id())
 			require.EqualError(t, err, "message not found: Key not found")
+
+			_, err = adapters.ReceiveLogRepository.GetSequences(msg.Id())
+			require.ErrorIs(t, err, common.ErrReceiveLogEntryNotFound)
+
+			_, err = adapters.ReceiveLogRepository.GetMessage(common.MustNewReceiveLogSequence(i))
+			require.ErrorIs(t, err, common.ErrReceiveLogEntryNotFound)
 		}
 
 		return nil

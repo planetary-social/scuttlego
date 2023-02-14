@@ -208,6 +208,10 @@ func (b FeedRepository) removeMessageData(ref refs.Message) error {
 		return errors.Wrap(err, "failed to remove from pub repository")
 	}
 
+	if err := b.receiveLog.Delete(ref); err != nil {
+		return errors.Wrap(err, "failed to remove from receive log")
+	}
+
 	return nil
 }
 

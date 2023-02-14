@@ -75,7 +75,7 @@ func (r MessageRepository) Get(id refs.Message) (message.Message, error) {
 
 	value, err := item.ValueCopy(nil)
 	if err != nil {
-		return message.Message{}, errors.New("could not get the vlaue")
+		return message.Message{}, errors.Wrap(err, "could not get the value")
 	}
 
 	rawMsg, err := message.NewVerifiedRawMessage(value)

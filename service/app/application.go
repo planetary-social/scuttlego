@@ -40,5 +40,6 @@ type Queries struct {
 	GetBlob              *queries.GetBlobHandler
 	BlobDownloadedEvents *queries.BlobDownloadedEventsHandler
 	RoomsListAliases     *queries.RoomsListAliasesHandler
+	GetMessage           *queries.GetMessageHandler
 	GetMessageBySequence *queries.GetMessageBySequenceHandler
 }

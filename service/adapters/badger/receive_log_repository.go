@@ -131,17 +131,17 @@ func (r ReceiveLogRepository) List(startSeq common.ReceiveLogSequence, limit int
 
 		receiveLogSequence, err := r.unmarshalSequence(keyInBucket.Bytes())
 		if err != nil {
-			return nil, errors.New("could not load the key")
+			return nil, errors.Wrap(err, "could not load the key")
 		}
 
 		val, err := item.ValueCopy(nil)
 		if err != nil {
-			return nil, errors.New("could not get the value")
+			return nil, errors.Wrap(err, "could not get the value")
 		}
 
 		msg, err := r.loadMessage(val)
 		if err != nil {
-			return nil, errors.New("could not load a message")
+			return nil, errors.Wrap(err, "could not load a message")
 		}
 
 		result = append(result, queries.LogMessage{
@@ -217,14 +217,14 @@ func (r ReceiveLogRepository) GetSequences(ref refs.Message) ([]common.ReceiveLo
 }
 
 func (r ReceiveLogRepository) loadMessage(value []byte) (message.Message, error) {
-	id, err := r.unmarshalRef(value) // todo have to copy?????
+	id, err := r.unmarshalRef(value)
 	if err != nil {
-		return message.Message{}, errors.New("could not create a message ref")
+		return message.Message{}, errors.Wrap(err, "could not create a message ref")
 	}
 
 	msg, err := r.messageRepository.Get(id)
 	if err != nil {
-		return message.Message{}, errors.New("could not get the message")
+		return message.Message{}, errors.Wrap(err, "could not get the message")
 	}
 
 	return msg, nil

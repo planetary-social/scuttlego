@@ -10,29 +10,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestGetMessageBySequenceHandler(t *testing.T) {
+func TestGetMessageHandler(t *testing.T) {
 	tq, err := di.BuildTestQueries(t)
 	require.NoError(t, err)
 
-	feed := fixtures.SomeRefFeed()
-	sequence := fixtures.SomeSequence()
+	msg := fixtures.SomeMessage(fixtures.SomeSequence(), fixtures.SomeRefFeed())
 
-	query, err := queries.NewGetMessageBySequence(feed, sequence)
+	query, err := queries.NewGetMessage(msg.Id())
 	require.NoError(t, err)
 
-	expectedMessage := fixtures.SomeMessage(sequence, feed)
-	tq.FeedRepository.MockGetMessage(expectedMessage)
+	tq.MessageRepository.MockGet(msg)
 
-	msg, err := tq.Queries.GetMessageBySequence.Handle(query)
+	retrievedMsg, err := tq.Queries.GetMessage.Handle(query)
 	require.NoError(t, err)
-	require.Equal(t, expectedMessage, msg)
+	require.Equal(t, msg, retrievedMsg)
 	require.Equal(t,
-		[]mocks.FeedRepositoryMockGetMessageCall{
+		[]mocks.MessageRepositoryMockGetCall{
 			{
-				Feed: feed,
-				Seq:  sequence,
+				Id: msg.Id(),
 			},
 		},
-		tq.FeedRepository.GetMessageCalls(),
+		tq.MessageRepository.GetCalls(),
 	)
 }

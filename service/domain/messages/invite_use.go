@@ -52,7 +52,7 @@ func NewInviteUseArgumentsFromBytes(b []byte) (InviteUseArguments, error) {
 
 	feed, err := refs.NewIdentity(args[0].Feed)
 	if err != nil {
-		return InviteUseArguments{}, errors.New("could not create an identity ref")
+		return InviteUseArguments{}, errors.Wrap(err, "could not create an identity ref")
 	}
 
 	return NewInviteUseArguments(feed)

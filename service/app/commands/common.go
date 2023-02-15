@@ -52,6 +52,10 @@ type TransactionProvider interface {
 type ReceiveLogRepository interface {
 	PutUnderSpecificSequence(id refs.Message, sequence common.ReceiveLogSequence) error
 
+	// ReserveSequencesUpTo ensures that sequences all the way to and including
+	// the provided sequence will not be used for automatic sequence generation.
+	ReserveSequencesUpTo(sequence common.ReceiveLogSequence) error
+
 	// GetMessage returns the message that the provided receive log sequence
 	// points to. Returns common.ErrReceiveLogEntryNotFound if not found.
 	GetMessage(seq common.ReceiveLogSequence) (message.Message, error)

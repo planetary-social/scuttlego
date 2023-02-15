@@ -314,6 +314,15 @@ func (h MigrationHandlerImportDataFromGoSSB) saveMessagesPerFeed(
 			}
 		}
 
+		highestSequence, err := h.highestReceiveLogSequence(msgsPerFeed)
+		if err != nil {
+			return errors.Wrap(err, "error determining highest sequence")
+		}
+
+		if err := adapters.ReceiveLog.ReserveSequencesUpTo(highestSequence); err != nil {
+			return errors.Wrap(err, "error reserving receive log sequences")
+		}
+
 		return nil
 	}); err != nil {
 		return errors.Wrap(err, "transaction failed")
@@ -386,6 +395,23 @@ func (h MigrationHandlerImportDataFromGoSSB) lowestReceiveLogSequence(msgs messa
 	}
 
 	return *lowest, nil
+}
+
+func (h MigrationHandlerImportDataFromGoSSB) highestReceiveLogSequence(msgs *messagesToImportPerFeed) (common.ReceiveLogSequence, error) {
+	var highest *common.ReceiveLogSequence
+
+	for _, v := range msgs.messages {
+		if highest == nil || highest.Int() < v.ReceiveLogSequence.Int() {
+			tmp := v.ReceiveLogSequence
+			highest = &tmp
+		}
+	}
+
+	if highest == nil {
+		return common.ReceiveLogSequence{}, errors.New("empty messages")
+	}
+
+	return *highest, nil
 }
 
 func (h MigrationHandlerImportDataFromGoSSB) convertMessage(gossbmsg gossbrefs.Message) (message.Message, error) {

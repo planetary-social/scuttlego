@@ -68,13 +68,21 @@ func (r ReceiveLogRepository) PutUnderSpecificSequence(id refs.Message, sequence
 		return errors.Wrap(err, "could not create a bucket")
 	}
 
+	if err := r.put(id, sequence, sequencesToMessages, messagesToSequences); err != nil {
+		return errors.Wrap(err, "put failed")
+	}
+
+	if err := r.ReserveSequencesUpTo(sequence); err != nil {
+		return errors.Wrap(err, "error reserving sequence")
+	}
+
+	return nil
+}
+
+func (r ReceiveLogRepository) ReserveSequencesUpTo(sequence common.ReceiveLogSequence) error {
 	receiveLogSequence, err := r.getReceiveLogSequence()
 	if err != nil {
 		return errors.Wrap(err, "could not get the sequence")
-	}
-
-	if err := r.put(id, sequence, sequencesToMessages, messagesToSequences); err != nil {
-		return errors.Wrap(err, "put failed")
 	}
 
 	existingSequence, err := receiveLogSequence.Get()

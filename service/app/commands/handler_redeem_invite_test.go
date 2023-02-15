@@ -16,7 +16,9 @@ func TestRedeemInviteHandler(t *testing.T) {
 
 	invite := fixtures.SomeInvite()
 	ctx := fixtures.TestContext(t)
-	cmd := commands.RedeemInvite{Invite: invite}
+
+	cmd, err := commands.NewRedeemInvite(invite)
+	require.NoError(t, err)
 
 	t.Run("no_error", func(t *testing.T) {
 		tc.InviteRedeemer.RedeemInviteErr = nil

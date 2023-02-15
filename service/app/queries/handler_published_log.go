@@ -12,7 +12,15 @@ type PublishedLog struct {
 	// numbers greater than the given receive log sequence are returned. If a
 	// message has multiple receive log sequence numbers the higher one is used.
 	// Pass nil to get all messages.
-	LastSeq *common.ReceiveLogSequence
+	lastSeq *common.ReceiveLogSequence
+}
+
+func NewPublishedLog(lastSeq *common.ReceiveLogSequence) (PublishedLog, error) {
+	return PublishedLog{lastSeq: lastSeq}, nil
+}
+
+func (p PublishedLog) LastSeq() *common.ReceiveLogSequence {
+	return p.lastSeq
 }
 
 type PublishedLogHandler struct {
@@ -68,7 +76,7 @@ func (h *PublishedLogHandler) Handle(query PublishedLog) ([]LogMessage, error) {
 				return errors.Wrap(err, "error getting highest receive log sequence")
 			}
 
-			if query.LastSeq != nil && query.LastSeq.Int() >= receiveLogSequence.Int() {
+			if query.LastSeq != nil && query.LastSeq().Int() >= receiveLogSequence.Int() {
 				break
 			}
 

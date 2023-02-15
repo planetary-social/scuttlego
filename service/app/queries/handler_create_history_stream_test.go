@@ -2,6 +2,7 @@ package queries_test
 
 import (
 	"context"
+	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"sync"
 	"testing"
 	"time"
@@ -39,14 +40,14 @@ func TestCreateHistoryStream_IfOldAndLiveAreNotSetNothingIsWrittenAndStreamIsClo
 
 	rw := newCreateHistoryStreamResponseWriterMock()
 
-	query := queries.CreateHistoryStream{
-		Id:             fixtures.SomeRefFeed(),
-		Seq:            nil,
-		Limit:          nil,
-		Live:           false,
-		Old:            false,
-		ResponseWriter: rw,
-	}
+	query := mustNewCreateHistoryStream(
+		fixtures.SomeRefFeed(),
+		nil,
+		nil,
+		false,
+		false,
+		rw,
+	)
 
 	a.Queries.CreateHistoryStream.Handle(ctx, query)
 
@@ -66,14 +67,14 @@ func TestCreateHistoryStream_IfOldIsSetAndThereAreNoOldMessagesNothingIsWrittenA
 
 	rw := newCreateHistoryStreamResponseWriterMock()
 
-	query := queries.CreateHistoryStream{
-		Id:             fixtures.SomeRefFeed(),
-		Seq:            nil,
-		Limit:          nil,
-		Live:           false,
-		Old:            true,
-		ResponseWriter: rw,
-	}
+	query := mustNewCreateHistoryStream(
+		fixtures.SomeRefFeed(),
+		nil,
+		nil,
+		false,
+		true,
+		rw,
+	)
 
 	a.Queries.CreateHistoryStream.Handle(ctx, query)
 
@@ -96,14 +97,14 @@ func TestCreateHistoryStream_IfRepositoryReturnsAnErrorStreamIsClosed(t *testing
 
 	a.FeedRepository.GetMessagesReturnErr = errors.New("forced error")
 
-	query := queries.CreateHistoryStream{
-		Id:             feed,
-		Seq:            nil,
-		Limit:          nil,
-		Live:           true,
-		Old:            true,
-		ResponseWriter: rw,
-	}
+	query := mustNewCreateHistoryStream(
+		feed,
+		nil,
+		nil,
+		true,
+		true,
+		rw,
+	)
 
 	a.Queries.CreateHistoryStream.Handle(ctx, query)
 
@@ -185,14 +186,14 @@ func TestCreateHistoryStream_ArgumentsAreCorrectlyPassedToRepository(t *testing.
 
 			rw := newCreateHistoryStreamResponseWriterMock()
 
-			query := queries.CreateHistoryStream{
-				Id:             feed,
-				Seq:            testCase.Seq,
-				Limit:          testCase.Limit,
-				Live:           false,
-				Old:            true,
-				ResponseWriter: rw,
-			}
+			query := mustNewCreateHistoryStream(
+				feed,
+				testCase.Seq,
+				testCase.Limit,
+				false,
+				true,
+				rw,
+			)
 
 			a.Queries.CreateHistoryStream.Handle(ctx, query)
 
@@ -221,14 +222,14 @@ func TestCreateHistoryStream_OldMessagesReturnedByRepositoryAreCorrectlySentAndS
 
 	rw := newCreateHistoryStreamResponseWriterMock()
 
-	query := queries.CreateHistoryStream{
-		Id:             feed,
-		Seq:            internal.Ptr(fixtures.SomeSequence()),
-		Limit:          internal.Ptr(int(fixtures.SomePositiveInt32())),
-		Live:           false,
-		Old:            true,
-		ResponseWriter: rw,
-	}
+	query := mustNewCreateHistoryStream(
+		feed,
+		internal.Ptr(fixtures.SomeSequence()),
+		internal.Ptr(int(fixtures.SomePositiveInt32())),
+		false,
+		true,
+		rw,
+	)
 
 	a.Queries.CreateHistoryStream.Handle(ctx, query)
 
@@ -487,14 +488,14 @@ func TestCreateHistoryStream_MessagesAreNotRepeatedIfTheyWereAlreadySent(t *test
 
 			a.FeedRepository.GetMessagesReturnValue = testCase.Repository
 
-			query := queries.CreateHistoryStream{
-				Id:             feed,
-				Seq:            testCase.Seq,
-				Limit:          testCase.Limit,
-				Live:           true,
-				Old:            true,
-				ResponseWriter: rw,
-			}
+			query := mustNewCreateHistoryStream(
+				feed,
+				testCase.Seq,
+				testCase.Limit,
+				true,
+				true,
+				rw,
+			)
 
 			a.Queries.CreateHistoryStream.Handle(ctx, query)
 
@@ -529,14 +530,14 @@ func TestCreateHistoryStream_IfLimitIsReachedBySendingLiveMessagesNoMoreMessages
 	limit := 5
 	require.Less(t, limit, numMessages)
 
-	query := queries.CreateHistoryStream{
-		Id:             feed,
-		Seq:            nil,
-		Limit:          &limit,
-		Live:           true,
-		Old:            false,
-		ResponseWriter: rw,
-	}
+	query := mustNewCreateHistoryStream(
+		feed,
+		nil,
+		&limit,
+		true,
+		false,
+		rw,
+	)
 
 	a.Queries.CreateHistoryStream.Handle(ctx, query)
 
@@ -572,14 +573,14 @@ func TestCreateHistoryStream_IfLimitIsReachedBySendingOldMessagesTheStreamIsClos
 	require.Len(t, expectedMessages, limit)
 	a.FeedRepository.GetMessagesReturnValue = expectedMessages
 
-	query := queries.CreateHistoryStream{
-		Id:             feed,
-		Seq:            nil,
-		Limit:          &limit,
-		Live:           true,
-		Old:            true,
-		ResponseWriter: rw,
-	}
+	query := mustNewCreateHistoryStream(
+		feed,
+		nil,
+		&limit,
+		true,
+		true,
+		rw,
+	)
 
 	a.Queries.CreateHistoryStream.Handle(ctx, query)
 
@@ -598,14 +599,14 @@ func TestCreateHistoryStream_ErrorInOnLiveMessageClosesTheStreamWithAnError(t *t
 	feed := fixtures.SomeRefFeed()
 	rw := newCreateHistoryStreamResponseWriterMock()
 
-	query := queries.CreateHistoryStream{
-		Id:             feed,
-		Seq:            nil,
-		Limit:          nil,
-		Live:           true,
-		Old:            false,
-		ResponseWriter: rw,
-	}
+	query := mustNewCreateHistoryStream(
+		feed,
+		nil,
+		nil,
+		true,
+		false,
+		rw,
+	)
 
 	a.Queries.CreateHistoryStream.Handle(ctx, query)
 
@@ -631,25 +632,25 @@ func TestLiveHistoryStreams_StreamsWhichAreClosedAreClosedAndCleanedUp(t *testin
 
 	rw1 := newCreateHistoryStreamResponseWriterMock()
 	ctx1, cancel1 := context.WithCancel(testCtx)
-	stream1 := queries.NewHistoryStream(ctx1, queries.CreateHistoryStream{
-		Id:             fixtures.SomeRefFeed(),
-		Seq:            nil,
-		Limit:          nil,
-		Live:           true,
-		Old:            false,
-		ResponseWriter: rw1,
-	})
+	stream1 := queries.NewHistoryStream(ctx1, mustNewCreateHistoryStream(
+		fixtures.SomeRefFeed(),
+		nil,
+		nil,
+		true,
+		false,
+		rw1,
+	))
 
 	rw2 := newCreateHistoryStreamResponseWriterMock()
 	ctx2, cancel2 := context.WithCancel(testCtx)
-	stream2 := queries.NewHistoryStream(ctx2, queries.CreateHistoryStream{
-		Id:             fixtures.SomeRefFeed(),
-		Seq:            nil,
-		Limit:          nil,
-		Live:           true,
-		Old:            false,
-		ResponseWriter: rw2,
-	})
+	stream2 := queries.NewHistoryStream(ctx2, mustNewCreateHistoryStream(
+		fixtures.SomeRefFeed(),
+		nil,
+		nil,
+		true,
+		false,
+		rw2,
+	))
 
 	streams := queries.NewLiveHistoryStreams(logging.NewDevNullLogger())
 	streams.Add(stream1)
@@ -685,21 +686,21 @@ func TestQueue_GetFromEmptyQueueShouldReturnNoValues(t *testing.T) {
 func TestQueue_GetShouldReturnValuesAddedWithAddAndClearTheQueue(t *testing.T) {
 	v := queries.NewCreateHistoryStreamToProcess(
 		fixtures.TestContext(t),
-		queries.CreateHistoryStream{
+		mustNewCreateHistoryStream(
 			Id: fixtures.SomeRefFeed(),
-		},
-	)
+},
+)
 
-	q := queries.NewRequestQueue()
+q := queries.NewRequestQueue()
 
-	q.Add(v)
+q.Add(v)
 
-	retrievedValue, ok := q.Get()
-	require.True(t, ok)
-	require.Equal(t, v, retrievedValue)
+retrievedValue, ok := q.Get()
+require.True(t, ok)
+require.Equal(t, v, retrievedValue)
 
-	_, ok = q.Get()
-	require.False(t, ok)
+_, ok = q.Get()
+require.False(t, ok)
 }
 
 func makeQueriesAndRunCreateHistoryStreamHandler(t *testing.T, ctx context.Context) di.TestQueries {
@@ -764,4 +765,19 @@ func (c *createHistoryStreamResponseWriterMock) WrittenErrors() []error {
 	tmp := make([]error, len(c.writtenErrors))
 	copy(tmp, c.writtenErrors)
 	return tmp
+}
+
+func mustNewCreateHistoryStream(
+	id refs.Feed,
+	seq *message.Sequence,
+	limit *int,
+	live bool,
+	old bool,
+	responseWriter queries.CreateHistoryStreamResponseWriter,
+) queries.CreateHistoryStream {
+	v, err := queries.NewCreateHistoryStream(id, seq, limit, live, old, responseWriter)
+	if err != nil {
+		panic(err)
+	}
+	return v
 }

@@ -19,6 +19,10 @@ func NewPublishRaw(content []byte) (PublishRaw, error) {
 	return PublishRaw{content: content}, nil
 }
 
+func (cmd PublishRaw) Content() []byte {
+	return cmd.content
+}
+
 func (cmd PublishRaw) IsZero() bool {
 	return len(cmd.content) == 0
 }
@@ -39,7 +43,11 @@ func NewPublishRawHandler(
 }
 
 func (h *PublishRawHandler) Handle(cmd PublishRaw) (refs.Message, error) {
-	content, err := message.NewRawContent(cmd.content)
+	if cmd.IsZero() {
+		return refs.Message{}, errors.New("zero value of cmd")
+	}
+
+	content, err := message.NewRawContent(cmd.Content())
 	if err != nil {
 		return refs.Message{}, errors.Wrap(err, "could not create raw message content")
 	}

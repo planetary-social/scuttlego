@@ -14,7 +14,22 @@ type InviteRedeemer interface {
 }
 
 type RedeemInvite struct {
-	Invite invites.Invite
+	invite invites.Invite
+}
+
+func NewRedeemInvite(invite invites.Invite) (RedeemInvite, error) {
+	if invite.IsZero() {
+		return RedeemInvite{}, errors.New("zero value of invite")
+	}
+	return RedeemInvite{invite: invite}, nil
+}
+
+func (r RedeemInvite) Invite() invites.Invite {
+	return r.invite
+}
+
+func (r RedeemInvite) IsZero() bool {
+	return r.invite.IsZero()
 }
 
 type RedeemInviteHandler struct {
@@ -36,7 +51,11 @@ func NewRedeemInviteHandler(
 }
 
 func (h *RedeemInviteHandler) Handle(ctx context.Context, cmd RedeemInvite) error {
-	if err := h.redeemer.RedeemInvite(ctx, cmd.Invite, h.local.Public()); err != nil {
+	if cmd.IsZero() {
+		return errors.New("zero value of cmd")
+	}
+
+	if err := h.redeemer.RedeemInvite(ctx, cmd.Invite(), h.local.Public()); err != nil {
 		if errors.Is(err, invites.ErrAlreadyFollowing) {
 			h.logger.Debug("pub reported that it is already following the user")
 			return nil

@@ -10,9 +10,6 @@ type BlobReplicationManager interface {
 	HandleIncomingCreateWantsRequest(ctx context.Context) (<-chan messages.BlobWithSizeOrWantDistance, error)
 }
 
-type CreateWants struct {
-}
-
 type CreateWantsHandler struct {
 	manager BlobReplicationManager
 }
@@ -23,6 +20,6 @@ func NewCreateWantsHandler(manager BlobReplicationManager) *CreateWantsHandler {
 	}
 }
 
-func (h *CreateWantsHandler) Handle(ctx context.Context, cmd CreateWants) (<-chan messages.BlobWithSizeOrWantDistance, error) {
+func (h *CreateWantsHandler) Handle(ctx context.Context) (<-chan messages.BlobWithSizeOrWantDistance, error) {
 	return h.manager.HandleIncomingCreateWantsRequest(ctx)
 }

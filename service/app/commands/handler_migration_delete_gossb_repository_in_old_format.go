@@ -23,6 +23,10 @@ func NewDeleteGoSSBRepositoryInOldFormat(
 	}, nil
 }
 
+func (cmd DeleteGoSSBRepositoryInOldFormat) Directory() string {
+	return cmd.directory
+}
+
 func (cmd DeleteGoSSBRepositoryInOldFormat) IsZero() bool {
 	return cmd == DeleteGoSSBRepositoryInOldFormat{}
 }
@@ -47,13 +51,13 @@ func (h MigrationHandlerDeleteGoSSBRepositoryInOldFormat) Handle(ctx context.Con
 		return errors.New("zero value of command")
 	}
 
-	canRead, err := h.canReadData(ctx, cmd.directory)
+	canRead, err := h.canReadData(ctx, cmd.Directory())
 	if err != nil {
 		return errors.Wrap(err, "error checking if data can be read")
 	}
 
 	if !canRead {
-		if err := os.RemoveAll(cmd.directory); err != nil {
+		if err := os.RemoveAll(cmd.Directory()); err != nil {
 			return errors.Wrap(err, "error removing the directory")
 		}
 	}

@@ -19,6 +19,10 @@ func NewAddToBanList(hash bans.Hash) (AddToBanList, error) {
 	return AddToBanList{hash: hash}, nil
 }
 
+func (c AddToBanList) Hash() bans.Hash {
+	return c.hash
+}
+
 func (c AddToBanList) IsZero() bool {
 	return c.hash.IsZero()
 }
@@ -41,10 +45,10 @@ func (h *AddToBanListHandler) Handle(cmd AddToBanList) error {
 	}
 
 	if err := h.transaction.Transact(func(adapters Adapters) error {
-		if err := adapters.BanList.Add(cmd.hash); err != nil {
+		if err := adapters.BanList.Add(cmd.Hash()); err != nil {
 			return errors.Wrap(err, "could not add the hash to the ban list")
 		}
-		return h.tryToRemoveTheBannedThing(adapters, cmd.hash)
+		return h.tryToRemoveTheBannedThing(adapters, cmd.Hash())
 	}); err != nil {
 		return errors.Wrap(err, "transaction failed")
 	}

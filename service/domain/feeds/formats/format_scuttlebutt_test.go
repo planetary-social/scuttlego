@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/planetary-social/scuttlego/fixtures"
-	"github.com/planetary-social/scuttlego/service/domain/feeds/content/transport"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/formats"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
@@ -149,9 +148,17 @@ func someContent() message.RawMessageContent {
 }
 
 func newScuttlebuttFormat(t *testing.T, hmac formats.MessageHMAC) *formats.Scuttlebutt {
-	logger := fixtures.SomeLogger()
-	marshaler, err := transport.NewMarshaler(transport.DefaultMappings(), logger)
-	require.NoError(t, err)
+	parser := newContentParserMock()
+	return formats.NewScuttlebutt(parser, hmac)
+}
 
-	return formats.NewScuttlebutt(marshaler, hmac)
+type contentParserMock struct {
+}
+
+func newContentParserMock() *contentParserMock {
+	return &contentParserMock{}
+}
+
+func (c contentParserMock) Parse(raw message.RawMessageContent) (message.Content, error) {
+	return message.NewContent(raw, nil, nil)
 }

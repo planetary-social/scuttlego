@@ -29,7 +29,9 @@ import (
 	"github.com/planetary-social/scuttlego/service/app/commands"
 	"github.com/planetary-social/scuttlego/service/app/queries"
 	"github.com/planetary-social/scuttlego/service/domain"
+	"github.com/planetary-social/scuttlego/service/domain/blobs"
 	replication2 "github.com/planetary-social/scuttlego/service/domain/blobs/replication"
+	"github.com/planetary-social/scuttlego/service/domain/feeds/content"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/content/transport"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/formats"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
@@ -136,8 +138,10 @@ func buildTestBadgerNoTxTxAdapters(txn *badger2.Txn, testAdaptersDependencies ba
 	if err != nil {
 		return notx.TxAdapters{}, err
 	}
+	scanner := blobs.NewScanner()
+	parser := content.NewParser(marshaler, scanner)
 	messageHMAC := formats.NewDefaultMessageHMAC()
-	scuttlebutt := formats.NewScuttlebutt(marshaler, messageHMAC)
+	scuttlebutt := formats.NewScuttlebutt(parser, messageHMAC)
 	feedRepository := badger.NewFeedRepository(txn, socialGraphRepository, receiveLogRepository, messageRepository, pubRepository, blobRepository, banListRepository, scuttlebutt)
 	wantedFeedsRepository := badger.NewWantedFeedsRepository(socialGraphRepository, feedWantListRepository, feedRepository, banListRepository)
 	txAdapters := notx.TxAdapters{
@@ -167,8 +171,10 @@ func buildBadgerNoTxTxAdapters(txn *badger2.Txn, public identity.Public, config 
 	if err != nil {
 		return notx.TxAdapters{}, err
 	}
+	scanner := blobs.NewScanner()
+	parser := content.NewParser(marshaler, scanner)
 	messageHMAC := extractMessageHMACFromConfig(config)
-	scuttlebutt := formats.NewScuttlebutt(marshaler, messageHMAC)
+	scuttlebutt := formats.NewScuttlebutt(parser, messageHMAC)
 	v := newFormats(scuttlebutt)
 	rawMessageIdentifier := formats.NewRawMessageIdentifier(v)
 	messageRepository := badger.NewMessageRepository(txn, rawMessageIdentifier)
@@ -213,8 +219,10 @@ func buildBadgerTestAdapters(txn *badger2.Txn, testAdaptersDependencies badger.T
 	if err != nil {
 		return badger.TestAdapters{}, err
 	}
+	scanner := blobs.NewScanner()
+	parser := content.NewParser(marshaler, scanner)
 	messageHMAC := formats.NewDefaultMessageHMAC()
-	scuttlebutt := formats.NewScuttlebutt(marshaler, messageHMAC)
+	scuttlebutt := formats.NewScuttlebutt(parser, messageHMAC)
 	feedRepository := badger.NewFeedRepository(txn, socialGraphRepository, receiveLogRepository, messageRepository, pubRepository, blobRepository, banListRepository, scuttlebutt)
 	wantedFeedsRepository := badger.NewWantedFeedsRepository(socialGraphRepository, feedWantListRepository, feedRepository, banListRepository)
 	testAdapters := badger.TestAdapters{
@@ -262,8 +270,8 @@ func BuildTestCommands(t *testing.T) (TestCommands, error) {
 	newPeerHandlerMock := mocks.NewNewPeerHandlerMock()
 	acceptTunnelConnectHandler := commands.NewAcceptTunnelConnectHandler(public, peerInitializerMock, newPeerHandlerMock)
 	goSSBRepoReaderMock := mocks.NewGoSSBRepoReaderMock()
-	marshalerMock := mocks.NewMarshalerMock()
-	migrationHandlerImportDataFromGoSSB := commands.NewMigrationHandlerImportDataFromGoSSB(goSSBRepoReaderMock, mockCommandsTransactionProvider, marshalerMock, logger)
+	contentParser := mocks.NewContentParser()
+	migrationHandlerImportDataFromGoSSB := commands.NewMigrationHandlerImportDataFromGoSSB(goSSBRepoReaderMock, mockCommandsTransactionProvider, contentParser, logger)
 	testCommands := TestCommands{
 		RoomsAliasRegister:           roomsAliasRegisterHandler,
 		RoomsAliasRevoke:             roomsAliasRevokeHandler,
@@ -363,8 +371,10 @@ func buildBadgerCommandsAdapters(txn *badger2.Txn, public identity.Public, confi
 	if err != nil {
 		return commands.Adapters{}, err
 	}
+	scanner := blobs.NewScanner()
+	parser := content.NewParser(marshaler, scanner)
 	messageHMAC := extractMessageHMACFromConfig(config)
-	scuttlebutt := formats.NewScuttlebutt(marshaler, messageHMAC)
+	scuttlebutt := formats.NewScuttlebutt(parser, messageHMAC)
 	v := newFormats(scuttlebutt)
 	rawMessageIdentifier := formats.NewRawMessageIdentifier(v)
 	messageRepository := badger.NewMessageRepository(txn, rawMessageIdentifier)
@@ -396,8 +406,10 @@ func buildBadgerQueriesAdapters(txn *badger2.Txn, public identity.Public, config
 	if err != nil {
 		return queries.Adapters{}, err
 	}
+	scanner := blobs.NewScanner()
+	parser := content.NewParser(marshaler, scanner)
 	messageHMAC := extractMessageHMACFromConfig(config)
-	scuttlebutt := formats.NewScuttlebutt(marshaler, messageHMAC)
+	scuttlebutt := formats.NewScuttlebutt(parser, messageHMAC)
 	v := newFormats(scuttlebutt)
 	rawMessageIdentifier := formats.NewRawMessageIdentifier(v)
 	messageRepository := badger.NewMessageRepository(txn, rawMessageIdentifier)
@@ -455,8 +467,10 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	peerManagerConfig := extractPeerManagerConfigFromConfig(config)
 	tunnelDialer := tunnel.NewDialer(peerInitializer)
 	sessionTracker := ebt.NewSessionTracker()
+	scanner := blobs.NewScanner()
+	parser := content.NewParser(marshaler, scanner)
 	messageHMAC := extractMessageHMACFromConfig(config)
-	scuttlebutt := formats.NewScuttlebutt(marshaler, messageHMAC)
+	scuttlebutt := formats.NewScuttlebutt(parser, messageHMAC)
 	v := newFormats(scuttlebutt)
 	rawMessageIdentifier := formats.NewRawMessageIdentifier(v)
 	messageBuffer := commands.NewMessageBuffer(commandsTransactionProvider, logger)
@@ -492,8 +506,8 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	replicationReplicator := replication2.NewReplicator(replicationManager)
 	peerRPCAdapter := rooms.NewPeerRPCAdapter(logger)
 	roomAttendantEventPubSub := pubsub.NewRoomAttendantEventPubSub()
-	scanner := rooms.NewScanner(peerRPCAdapter, peerRPCAdapter, roomAttendantEventPubSub, logger)
-	peerManager := domain.NewPeerManager(contextContext, peerManagerConfig, dialer, tunnelDialer, negotiator, replicationReplicator, scanner, logger)
+	roomsScanner := rooms.NewScanner(peerRPCAdapter, peerRPCAdapter, roomAttendantEventPubSub, logger)
+	peerManager := domain.NewPeerManager(contextContext, peerManagerConfig, dialer, tunnelDialer, negotiator, replicationReplicator, roomsScanner, logger)
 	connectHandler := commands.NewConnectHandler(peerManager, logger)
 	disconnectAllHandler := commands.NewDisconnectAllHandler(peerManager)
 	downloadBlobHandler := commands.NewDownloadBlobHandler(commandsTransactionProvider, currentTimeProvider)
@@ -506,7 +520,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	runner := migrations2.NewRunner(badgerStorage, logger)
 	goSSBRepoReader := migrations.NewGoSSBRepoReader(logger)
 	migrationHandlerDeleteGoSSBRepositoryInOldFormat := commands.NewMigrationHandlerDeleteGoSSBRepositoryInOldFormat(goSSBRepoReader, logger)
-	migrationHandlerImportDataFromGoSSB := commands.NewMigrationHandlerImportDataFromGoSSB(goSSBRepoReader, commandsTransactionProvider, marshaler, logger)
+	migrationHandlerImportDataFromGoSSB := commands.NewMigrationHandlerImportDataFromGoSSB(goSSBRepoReader, commandsTransactionProvider, parser, logger)
 	commandsMigrations := commands.Migrations{
 		MigrationDeleteGoSSBRepositoryInOldFormat: migrationHandlerDeleteGoSSBRepositoryInOldFormat,
 		MigrationImportDataFromGoSSB:              migrationHandlerImportDataFromGoSSB,
@@ -659,8 +673,10 @@ func buildIntegrationTestsService(t *testing.T) (IntegrationTestsService, func()
 	peerManagerConfig := extractPeerManagerConfigFromConfig(config)
 	tunnelDialer := tunnel.NewDialer(peerInitializer)
 	sessionTracker := ebt.NewSessionTracker()
+	scanner := blobs.NewScanner()
+	parser := content.NewParser(marshaler, scanner)
 	messageHMAC := extractMessageHMACFromConfig(config)
-	scuttlebutt := formats.NewScuttlebutt(marshaler, messageHMAC)
+	scuttlebutt := formats.NewScuttlebutt(parser, messageHMAC)
 	v := newFormats(scuttlebutt)
 	rawMessageIdentifier := formats.NewRawMessageIdentifier(v)
 	messageBuffer := commands.NewMessageBuffer(commandsTransactionProvider, logger)
@@ -696,8 +712,8 @@ func buildIntegrationTestsService(t *testing.T) (IntegrationTestsService, func()
 	replicationReplicator := replication2.NewReplicator(replicationManager)
 	peerRPCAdapter := rooms.NewPeerRPCAdapter(logger)
 	roomAttendantEventPubSub := pubsub.NewRoomAttendantEventPubSub()
-	scanner := rooms.NewScanner(peerRPCAdapter, peerRPCAdapter, roomAttendantEventPubSub, logger)
-	peerManager := domain.NewPeerManager(contextContext, peerManagerConfig, dialer, tunnelDialer, negotiator, replicationReplicator, scanner, logger)
+	roomsScanner := rooms.NewScanner(peerRPCAdapter, peerRPCAdapter, roomAttendantEventPubSub, logger)
+	peerManager := domain.NewPeerManager(contextContext, peerManagerConfig, dialer, tunnelDialer, negotiator, replicationReplicator, roomsScanner, logger)
 	connectHandler := commands.NewConnectHandler(peerManager, logger)
 	disconnectAllHandler := commands.NewDisconnectAllHandler(peerManager)
 	downloadBlobHandler := commands.NewDownloadBlobHandler(commandsTransactionProvider, currentTimeProvider)
@@ -710,7 +726,7 @@ func buildIntegrationTestsService(t *testing.T) (IntegrationTestsService, func()
 	runner := migrations2.NewRunner(badgerStorage, logger)
 	goSSBRepoReader := migrations.NewGoSSBRepoReader(logger)
 	migrationHandlerDeleteGoSSBRepositoryInOldFormat := commands.NewMigrationHandlerDeleteGoSSBRepositoryInOldFormat(goSSBRepoReader, logger)
-	migrationHandlerImportDataFromGoSSB := commands.NewMigrationHandlerImportDataFromGoSSB(goSSBRepoReader, commandsTransactionProvider, marshaler, logger)
+	migrationHandlerImportDataFromGoSSB := commands.NewMigrationHandlerImportDataFromGoSSB(goSSBRepoReader, commandsTransactionProvider, parser, logger)
 	commandsMigrations := commands.Migrations{
 		MigrationDeleteGoSSBRepositoryInOldFormat: migrationHandlerDeleteGoSSBRepositoryInOldFormat,
 		MigrationImportDataFromGoSSB:              migrationHandlerImportDataFromGoSSB,

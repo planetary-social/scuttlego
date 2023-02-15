@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/boreq/errors"
-	"github.com/planetary-social/scuttlego/service/domain/feeds/content"
+	"github.com/planetary-social/scuttlego/service/domain/feeds/content/known"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 )
 
@@ -46,20 +46,20 @@ func MustNewContactFromHistory(author, contact refs.Identity, following, blockin
 	return v
 }
 
-func (c *Contact) Update(actions content.ContactActions) error {
+func (c *Contact) Update(actions known.ContactActions) error {
 	if actions.IsZero() {
 		return errors.New("zero value of actions")
 	}
 
 	for _, action := range actions.List() {
 		switch action {
-		case content.ContactActionFollow:
+		case known.ContactActionFollow:
 			c.following = true
-		case content.ContactActionUnfollow:
+		case known.ContactActionUnfollow:
 			c.following = false
-		case content.ContactActionBlock:
+		case known.ContactActionBlock:
 			c.blocking = true
-		case content.ContactActionUnblock:
+		case known.ContactActionUnblock:
 			c.blocking = false
 		default:
 			return fmt.Errorf("unknown contact action '%#v'", action)

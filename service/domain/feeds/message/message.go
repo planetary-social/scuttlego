@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/boreq/errors"
-	"github.com/planetary-social/scuttlego/service/domain/feeds/content"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 )
 
@@ -42,7 +41,7 @@ func (m UnsignedMessage) Content() RawMessageContent {
 
 type Message struct {
 	baseMessageFields
-	content content.KnownMessageContent
+	content Content
 
 	id  refs.Message
 	raw RawMessage
@@ -55,7 +54,7 @@ func NewMessage(
 	author refs.Identity,
 	feed refs.Feed,
 	timestamp time.Time,
-	content content.KnownMessageContent,
+	content Content,
 	raw RawMessage,
 ) (Message, error) {
 	fields, err := newBaseMessageFields(previous, sequence, author, feed, timestamp)
@@ -67,7 +66,7 @@ func NewMessage(
 		return Message{}, errors.New("zero value of id")
 	}
 
-	if content == nil {
+	if content.IsZero() {
 		return Message{}, errors.New("zero value of content")
 	}
 
@@ -90,7 +89,7 @@ func MustNewMessage(
 	author refs.Identity,
 	feed refs.Feed,
 	timestamp time.Time,
-	content content.KnownMessageContent,
+	content Content,
 	raw RawMessage,
 ) Message {
 	msg, err := NewMessage(id, previous, sequence, author, feed, timestamp, content, raw)
@@ -117,7 +116,7 @@ func (m Message) Id() refs.Message {
 	return m.id
 }
 
-func (m Message) Content() content.KnownMessageContent {
+func (m Message) Content() Content {
 	return m.content
 }
 

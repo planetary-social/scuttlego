@@ -8,7 +8,7 @@ import (
 	"github.com/dgraph-io/badger/v3"
 	"github.com/planetary-social/scuttlego/service/adapters/badger/utils"
 	"github.com/planetary-social/scuttlego/service/domain/feeds"
-	"github.com/planetary-social/scuttlego/service/domain/feeds/content"
+	"github.com/planetary-social/scuttlego/service/domain/feeds/content/known"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 )
 
@@ -222,7 +222,7 @@ func (r PubRepository) identityKey(ref refs.Identity) []byte {
 	return []byte(ref.String())
 }
 
-func (r PubRepository) addressAsString(pub content.Pub) string {
+func (r PubRepository) addressAsString(pub known.Pub) string {
 	return net.JoinHostPort(pub.Host(), strconv.Itoa(pub.Port()))
 }
 
@@ -242,7 +242,7 @@ func (r PubRepository) bucketPathByPub(pubIdentity refs.Identity) utils.Key {
 	)
 }
 
-func (r PubRepository) bucketPathByPubMessages(source refs.Identity, pub content.Pub) utils.Key {
+func (r PubRepository) bucketPathByPubMessages(source refs.Identity, pub known.Pub) utils.Key {
 	return utils.MustNewKey(
 		utils.MustNewKeyComponent([]byte(pubRepositoryBucketPubs)),
 		utils.MustNewKeyComponent([]byte(pubRepositoryBucketPubsByPub)),

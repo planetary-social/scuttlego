@@ -10,10 +10,10 @@ import (
 )
 
 const (
-	blobPrefix = "&"
-	blobSuffix = ".sha256"
+	BlobPrefix = "&"
+	BlobSuffix = ".sha256"
 
-	blobHashLength = 32
+	BlobHashLength = 32
 )
 
 type Blob struct {
@@ -22,22 +22,22 @@ type Blob struct {
 }
 
 func NewBlob(s string) (Blob, error) {
-	if !strings.HasPrefix(s, blobPrefix) {
+	if !strings.HasPrefix(s, BlobPrefix) {
 		return Blob{}, errors.New("invalid prefix")
 	}
 
-	if !strings.HasSuffix(s, blobSuffix) {
+	if !strings.HasSuffix(s, BlobSuffix) {
 		return Blob{}, errors.New("invalid suffix")
 	}
 
-	noSuffixAndPrefix := s[len(blobPrefix) : len(s)-len(blobSuffix)]
+	noSuffixAndPrefix := s[len(BlobPrefix) : len(s)-len(BlobSuffix)]
 
 	b, err := base64.StdEncoding.DecodeString(noSuffixAndPrefix)
 	if err != nil {
 		return Blob{}, errors.Wrap(err, "invalid base64")
 	}
 
-	if l := len(b); l != blobHashLength {
+	if l := len(b); l != BlobHashLength {
 		return Blob{}, fmt.Errorf("invalid hash length '%d'", l)
 	}
 

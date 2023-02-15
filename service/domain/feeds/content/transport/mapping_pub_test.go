@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/planetary-social/scuttlego/fixtures"
-	msgcontents "github.com/planetary-social/scuttlego/service/domain/feeds/content"
+	"github.com/planetary-social/scuttlego/service/domain/feeds/content/known"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/content/transport"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
@@ -29,7 +29,7 @@ func TestMappingPubUnmarshal(t *testing.T) {
 
 	require.Equal(
 		t,
-		msgcontents.MustNewPub(
+		known.MustNewPub(
 			refs.MustNewIdentity("@VJM7w1W19ZsKmG2KnfaoKIM66BRoreEkzaVm/J//wl8=.ed25519"),
 			"one.butt.nz",
 			8008,
@@ -41,7 +41,7 @@ func TestMappingPubUnmarshal(t *testing.T) {
 func TestMappingPubMarshal(t *testing.T) {
 	marshaler := newMarshaler(t)
 
-	msg := msgcontents.MustNewPub(
+	msg := known.MustNewPub(
 		refs.MustNewIdentity("@VJM7w1W19ZsKmG2KnfaoKIM66BRoreEkzaVm/J//wl8=.ed25519"),
 		"one.butt.nz",
 		8008,

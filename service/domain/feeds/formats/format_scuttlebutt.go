@@ -13,14 +13,17 @@ import (
 )
 
 type Scuttlebutt struct {
-	marshaler Marshaler
-	hmac      MessageHMAC
+	parser ContentParser
+	hmac   MessageHMAC
 }
 
-func NewScuttlebutt(marshaler Marshaler, hmac MessageHMAC) *Scuttlebutt {
+func NewScuttlebutt(
+	parser ContentParser,
+	hmac MessageHMAC,
+) *Scuttlebutt {
 	return &Scuttlebutt{
-		marshaler: marshaler,
-		hmac:      hmac,
+		parser: parser,
+		hmac:   hmac,
 	}
 }
 
@@ -126,9 +129,9 @@ func (s *Scuttlebutt) convert(ssbMessage legacy.DeserializedMessage, raw message
 		return message.MessageWithoutId{}, errors.Wrap(err, "could not create raw message content")
 	}
 
-	content, err := s.marshaler.Unmarshal(rawMessageContent)
+	content, err := s.parser.Parse(rawMessageContent)
 	if err != nil {
-		return message.MessageWithoutId{}, errors.Wrap(err, "could not unmarshal message content")
+		return message.MessageWithoutId{}, errors.Wrap(err, "could not parse the content")
 	}
 
 	msg, err := message.NewMessageWithoutId(

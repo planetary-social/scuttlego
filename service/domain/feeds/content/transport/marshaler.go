@@ -8,6 +8,7 @@ import (
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/content"
+	"github.com/planetary-social/scuttlego/service/domain/feeds/content/known"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 )
 
@@ -29,7 +30,7 @@ func NewMarshaler(mappings MessageContentMappings, logger logging.Logger) (*Mars
 	}, nil
 }
 
-func (m *Marshaler) Marshal(content content.KnownMessageContent) (message.RawMessageContent, error) {
+func (m *Marshaler) Marshal(content known.KnownMessageContent) (message.RawMessageContent, error) {
 	typ := content.Type()
 
 	mapping, ok := m.mappings[typ]
@@ -45,7 +46,7 @@ func (m *Marshaler) Marshal(content content.KnownMessageContent) (message.RawMes
 	return message.NewRawMessageContent(b)
 }
 
-func (m *Marshaler) Unmarshal(b message.RawMessageContent) (content.KnownMessageContent, error) {
+func (m *Marshaler) Unmarshal(b message.RawMessageContent) (known.KnownMessageContent, error) {
 	logger := m.logger.WithField("content", string(b.Bytes()))
 
 	typ, err := m.identifyContentType(b)
@@ -54,24 +55,24 @@ func (m *Marshaler) Unmarshal(b message.RawMessageContent) (content.KnownMessage
 		if !strings.HasSuffix(string(b.Bytes()), ".box\"") {
 			logger.WithError(err).Error("failed to identify message content type")
 		}
-		return content.NewUnknown(b.Bytes())
+		return nil, content.ErrUnknownContent
 	}
 
 	mapping, ok := m.mappings[typ]
 	if !ok {
-		return content.NewUnknown(b.Bytes())
+		return nil, content.ErrUnknownContent
 	}
 
-	cnt, err := mapping.Unmarshal(b.Bytes())
+	knownContent, err := mapping.Unmarshal(b.Bytes())
 	if err != nil {
 		logger.WithField("typ", typ).WithError(err).Error("mapping returned an error")
-		return content.NewUnknown(b.Bytes())
+		return nil, content.ErrUnknownContent
 	}
 
-	return cnt, nil
+	return knownContent, nil
 }
 
-func (m *Marshaler) identifyContentType(b message.RawMessageContent) (content.MessageContentType, error) {
+func (m *Marshaler) identifyContentType(b message.RawMessageContent) (known.MessageContentType, error) {
 	var typ messageContentType
 	if err := json.Unmarshal(b.Bytes(), &typ); err != nil {
 		return "", errors.Wrap(err, "json unmarshal of message content type failed")
@@ -79,7 +80,7 @@ func (m *Marshaler) identifyContentType(b message.RawMessageContent) (content.Me
 	if typ.MessageContentType == "" {
 		return "", errors.New("empty content type")
 	}
-	return content.MessageContentType(typ.MessageContentType), nil
+	return known.MessageContentType(typ.MessageContentType), nil
 }
 
 type messageContentType struct {

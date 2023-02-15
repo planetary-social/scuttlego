@@ -4,8 +4,7 @@ import (
 	"time"
 
 	"github.com/boreq/errors"
-	"github.com/planetary-social/scuttlego/service/domain/blobs"
-	msgcontents "github.com/planetary-social/scuttlego/service/domain/feeds/content"
+	knowncontent "github.com/planetary-social/scuttlego/service/domain/feeds/content/known"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
@@ -155,8 +154,13 @@ func (f *Feed) onNewMessage(msg message.Message) error {
 }
 
 func (f *Feed) getContactsToSave(msg message.Message) []ContactToSave {
-	switch v := msg.Content().(type) {
-	case msgcontents.Contact:
+	known, ok := msg.Content().KnownContent()
+	if !ok {
+		return nil
+	}
+
+	switch v := known.(type) {
+	case knowncontent.Contact:
 		return []ContactToSave{NewContactToSave(msg.Author(), v)} // todo author or feed
 	default:
 		return nil
@@ -164,8 +168,13 @@ func (f *Feed) getContactsToSave(msg message.Message) []ContactToSave {
 }
 
 func (f *Feed) getPubsToSave(msg message.Message) []PubToSave {
-	switch v := msg.Content().(type) {
-	case msgcontents.Pub:
+	known, ok := msg.Content().KnownContent()
+	if !ok {
+		return nil
+	}
+
+	switch v := known.(type) {
+	case knowncontent.Pub:
 		return []PubToSave{NewPubToSave(msg.Author(), msg.Id(), v)} // todo author or feed
 	default:
 		return nil
@@ -173,11 +182,7 @@ func (f *Feed) getPubsToSave(msg message.Message) []PubToSave {
 }
 
 func (f *Feed) getBlobsToSave(msg message.Message) []BlobToSave {
-	blobReferencer, ok := msg.Content().(blobs.BlobReferencer)
-	if !ok {
-		return nil
-	}
-	if blobRefs := blobReferencer.Blobs(); len(blobRefs) > 0 {
+	if blobRefs := msg.Content().ReferencedBlobs(); len(blobRefs) > 0 {
 		return []BlobToSave{NewBlobToSave(blobRefs)}
 	}
 	return nil

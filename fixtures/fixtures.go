@@ -20,7 +20,6 @@ import (
 	"github.com/planetary-social/scuttlego/service/app/common"
 	"github.com/planetary-social/scuttlego/service/domain/bans"
 	"github.com/planetary-social/scuttlego/service/domain/blobs"
-	"github.com/planetary-social/scuttlego/service/domain/feeds/content"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/formats"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/graph"
@@ -123,8 +122,8 @@ func SomePrivateIdentity() identity.Private {
 	return v
 }
 
-func SomeContent() content.KnownMessageContent {
-	return content.MustNewUnknown(SomeBytes())
+func SomeContent() message.Content {
+	return message.MustNewContent(SomeRawMessageContent(), nil, nil)
 }
 
 func SomeMessageBodyType() transport.MessageBodyType {

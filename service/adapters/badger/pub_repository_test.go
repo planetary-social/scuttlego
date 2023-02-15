@@ -9,7 +9,7 @@ import (
 	"github.com/planetary-social/scuttlego/fixtures"
 	"github.com/planetary-social/scuttlego/service/adapters/badger"
 	"github.com/planetary-social/scuttlego/service/domain/feeds"
-	"github.com/planetary-social/scuttlego/service/domain/feeds/content"
+	"github.com/planetary-social/scuttlego/service/domain/feeds/content/known"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/stretchr/testify/require"
 )
@@ -20,7 +20,7 @@ func TestPubRepository_Delete_SamePubSameAuthorSameAddressSameMessage(t *testing
 	pub := feeds.NewPubToSave(
 		fixtures.SomeRefIdentity(),
 		fixtures.SomeRefMessage(),
-		content.MustNewPub(fixtures.SomeRefIdentity(), fixtures.SomeString(), fixtures.SomeNonNegativeInt()),
+		known.MustNewPub(fixtures.SomeRefIdentity(), fixtures.SomeString(), fixtures.SomeNonNegativeInt()),
 	)
 
 	err := ts.TransactionProvider.Update(func(adapters badger.TestAdapters) error {
@@ -85,7 +85,7 @@ func TestPubRepository_Delete_SamePubSameAuthorSameAddressDifferentMessage(t *te
 	ts := di.BuildBadgerTestAdapters(t)
 
 	authorIdenRef := fixtures.SomeRefIdentity()
-	pub := content.MustNewPub(fixtures.SomeRefIdentity(), fixtures.SomeString(), fixtures.SomeNonNegativeInt())
+	pub := known.MustNewPub(fixtures.SomeRefIdentity(), fixtures.SomeString(), fixtures.SomeNonNegativeInt())
 
 	pub1 := feeds.NewPubToSave(
 		authorIdenRef,
@@ -192,7 +192,7 @@ func TestPubRepository_Delete_SamePubSameAuthorSameAddressDifferentMessage(t *te
 func TestPubRepository_Delete_SamePubDifferentAuthorSameAddressDifferentMessage(t *testing.T) {
 	ts := di.BuildBadgerTestAdapters(t)
 
-	pub := content.MustNewPub(fixtures.SomeRefIdentity(), fixtures.SomeString(), fixtures.SomeNonNegativeInt())
+	pub := known.MustNewPub(fixtures.SomeRefIdentity(), fixtures.SomeString(), fixtures.SomeNonNegativeInt())
 
 	pub1 := feeds.NewPubToSave(
 		fixtures.SomeRefIdentity(),
@@ -307,13 +307,13 @@ func TestPubRepository_Delete_SamePubDifferentAuthorDifferentAddressDifferentMes
 	pub1 := feeds.NewPubToSave(
 		fixtures.SomeRefIdentity(),
 		fixtures.SomeRefMessage(),
-		content.MustNewPub(pubIden, fixtures.SomeString(), fixtures.SomeNonNegativeInt()),
+		known.MustNewPub(pubIden, fixtures.SomeString(), fixtures.SomeNonNegativeInt()),
 	)
 
 	pub2 := feeds.NewPubToSave(
 		fixtures.SomeRefIdentity(),
 		fixtures.SomeRefMessage(),
-		content.MustNewPub(pubIden, fixtures.SomeString(), fixtures.SomeNonNegativeInt()),
+		known.MustNewPub(pubIden, fixtures.SomeString(), fixtures.SomeNonNegativeInt()),
 	)
 
 	err := ts.TransactionProvider.Update(func(adapters badger.TestAdapters) error {
@@ -425,13 +425,13 @@ func TestPubRepository_Delete_DifferentPubDifferentAuthorDifferentAddressDiffere
 	pub1 := feeds.NewPubToSave(
 		fixtures.SomeRefIdentity(),
 		fixtures.SomeRefMessage(),
-		content.MustNewPub(fixtures.SomeRefIdentity(), fixtures.SomeString(), fixtures.SomeNonNegativeInt()),
+		known.MustNewPub(fixtures.SomeRefIdentity(), fixtures.SomeString(), fixtures.SomeNonNegativeInt()),
 	)
 
 	pub2 := feeds.NewPubToSave(
 		fixtures.SomeRefIdentity(),
 		fixtures.SomeRefMessage(),
-		content.MustNewPub(fixtures.SomeRefIdentity(), fixtures.SomeString(), fixtures.SomeNonNegativeInt()),
+		known.MustNewPub(fixtures.SomeRefIdentity(), fixtures.SomeString(), fixtures.SomeNonNegativeInt()),
 	)
 
 	err := ts.TransactionProvider.Update(func(adapters badger.TestAdapters) error {

@@ -43,12 +43,14 @@ func (d Discoverer) Run(ctx context.Context) error {
 }
 
 func (d Discoverer) handleNewDiscovery(v local.IdentityWithAddress) {
-	if err := d.handler.Handle(
-		commands.ProcessNewLocalDiscovery{
-			Remote:  v.Remote,
-			Address: v.Address,
-		},
-	); err != nil {
-		d.logger.WithError(err).Error("failed to handle a discovered peer")
+	cmd, err := commands.NewProcessNewLocalDiscovery(v.Remote, v.Address)
+	if err != nil {
+		d.logger.WithError(err).Error("error creating command")
+		return
+	}
+
+	if err := d.handler.Handle(cmd); err != nil {
+		d.logger.WithError(err).Error("failed to call the handler")
+		return
 	}
 }

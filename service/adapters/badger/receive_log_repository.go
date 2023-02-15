@@ -141,7 +141,7 @@ func (r ReceiveLogRepository) List(startSeq common.ReceiveLogSequence, limit int
 
 		msg, err := r.loadMessage(val)
 		if err != nil {
-			return nil, errors.Wrap(err, "could not load a message")
+			return nil, errors.Wrapf(err, "could not load the message '%d'", receiveLogSequence.Int())
 		}
 
 		result = append(result, queries.LogMessage{
@@ -178,7 +178,7 @@ func (r ReceiveLogRepository) GetMessage(seq common.ReceiveLogSequence) (message
 
 	msg, err := r.loadMessage(value)
 	if err != nil {
-		return message.Message{}, errors.New("could not load a message")
+		return message.Message{}, errors.Wrap(err, "could not load the message")
 	}
 
 	return msg, nil
@@ -258,7 +258,7 @@ func (r ReceiveLogRepository) loadMessage(value []byte) (message.Message, error)
 
 	msg, err := r.messageRepository.Get(id)
 	if err != nil {
-		return message.Message{}, errors.Wrap(err, "could not get the message")
+		return message.Message{}, errors.Wrapf(err, "could not get the message '%s'", id.String())
 	}
 
 	return msg, nil

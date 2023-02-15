@@ -8,6 +8,7 @@ import (
 	"github.com/planetary-social/scuttlego/fixtures"
 	"github.com/planetary-social/scuttlego/service/adapters/badger"
 	"github.com/planetary-social/scuttlego/service/app/common"
+	"github.com/planetary-social/scuttlego/service/app/queries"
 	"github.com/stretchr/testify/require"
 )
 
@@ -484,6 +485,178 @@ func TestReceiveLogRepository_DeleteRemovesAssignments(t *testing.T) {
 
 		_, err = adapters.ReceiveLogRepository.GetSequences(msg.Id())
 		require.ErrorIs(t, err, common.ErrReceiveLogEntryNotFound)
+
+		return nil
+	})
+	require.NoError(t, err)
+}
+
+func TestReceiveLogRepository_ReserveSequencesUpToAdvancesInternalSequenceCounterIfItIsLower(t *testing.T) {
+	ts := di.BuildBadgerTestAdapters(t)
+
+	msg1 := fixtures.SomeMessageWithUniqueRawMessage(fixtures.SomeSequence(), fixtures.SomeRefFeed())
+	msg2 := fixtures.SomeMessageWithUniqueRawMessage(fixtures.SomeSequence(), fixtures.SomeRefFeed())
+
+	ts.Dependencies.RawMessageIdentifier.Mock(msg1)
+	ts.Dependencies.RawMessageIdentifier.Mock(msg2)
+
+	err := ts.TransactionProvider.Update(func(adapters badger.TestAdapters) error {
+		if err := adapters.MessageRepository.Put(msg1); err != nil {
+			return errors.Wrap(err, "could not put a message in message repository")
+		}
+
+		if err := adapters.ReceiveLogRepository.PutUnderSpecificSequence(msg1.Id(), common.MustNewReceiveLogSequence(2)); err != nil {
+			return errors.Wrap(err, "could not put a message in message repository")
+		}
+
+		return nil
+	})
+	require.NoError(t, err)
+
+	err = ts.TransactionProvider.View(func(adapters badger.TestAdapters) error {
+		msgs, err := adapters.ReceiveLogRepository.List(common.MustNewReceiveLogSequence(0), 100)
+		require.NoError(t, err)
+
+		require.Equal(
+			t,
+			[]queries.LogMessage{
+				{
+					Message:  msg1,
+					Sequence: common.MustNewReceiveLogSequence(2),
+				},
+			},
+			msgs,
+		)
+
+		return nil
+	})
+	require.NoError(t, err)
+
+	err = ts.TransactionProvider.Update(func(adapters badger.TestAdapters) error {
+		if err := adapters.ReceiveLogRepository.ReserveSequencesUpTo(common.MustNewReceiveLogSequence(5)); err != nil {
+			return errors.Wrap(err, "could not put a message in receive log")
+		}
+
+		return nil
+	})
+	require.NoError(t, err)
+
+	err = ts.TransactionProvider.Update(func(adapters badger.TestAdapters) error {
+		if err := adapters.MessageRepository.Put(msg2); err != nil {
+			return errors.Wrap(err, "could not put a message in message repository")
+		}
+
+		if err := adapters.ReceiveLogRepository.Put(msg2.Id()); err != nil {
+			return errors.Wrap(err, "could not put a message in message repository")
+		}
+
+		return nil
+	})
+	require.NoError(t, err)
+
+	err = ts.TransactionProvider.View(func(adapters badger.TestAdapters) error {
+		msgs, err := adapters.ReceiveLogRepository.List(common.MustNewReceiveLogSequence(0), 100)
+		require.NoError(t, err)
+
+		require.Equal(
+			t,
+			[]queries.LogMessage{
+				{
+					Message:  msg1,
+					Sequence: common.MustNewReceiveLogSequence(2),
+				},
+				{
+					Message:  msg2,
+					Sequence: common.MustNewReceiveLogSequence(6),
+				},
+			},
+			msgs)
+
+		return nil
+	})
+	require.NoError(t, err)
+}
+
+func TestReceiveLogRepository_ReserveSequencesUpToDoesNotAdvanceInternalSequenceCounterIfItIsHigher(t *testing.T) {
+	ts := di.BuildBadgerTestAdapters(t)
+
+	msg1 := fixtures.SomeMessageWithUniqueRawMessage(fixtures.SomeSequence(), fixtures.SomeRefFeed())
+	msg2 := fixtures.SomeMessageWithUniqueRawMessage(fixtures.SomeSequence(), fixtures.SomeRefFeed())
+
+	ts.Dependencies.RawMessageIdentifier.Mock(msg1)
+	ts.Dependencies.RawMessageIdentifier.Mock(msg2)
+
+	err := ts.TransactionProvider.Update(func(adapters badger.TestAdapters) error {
+		if err := adapters.MessageRepository.Put(msg1); err != nil {
+			return errors.Wrap(err, "could not put a message in message repository")
+		}
+
+		if err := adapters.ReceiveLogRepository.PutUnderSpecificSequence(msg1.Id(), common.MustNewReceiveLogSequence(2)); err != nil {
+			return errors.Wrap(err, "could not put a message in message repository")
+		}
+
+		return nil
+	})
+	require.NoError(t, err)
+
+	err = ts.TransactionProvider.View(func(adapters badger.TestAdapters) error {
+		msgs, err := adapters.ReceiveLogRepository.List(common.MustNewReceiveLogSequence(0), 100)
+		require.NoError(t, err)
+
+		require.Equal(
+			t,
+			[]queries.LogMessage{
+				{
+					Message:  msg1,
+					Sequence: common.MustNewReceiveLogSequence(2),
+				},
+			},
+			msgs,
+		)
+
+		return nil
+	})
+	require.NoError(t, err)
+
+	err = ts.TransactionProvider.Update(func(adapters badger.TestAdapters) error {
+		if err := adapters.ReceiveLogRepository.ReserveSequencesUpTo(common.MustNewReceiveLogSequence(1)); err != nil {
+			return errors.Wrap(err, "could not put a message in receive log")
+		}
+
+		return nil
+	})
+	require.NoError(t, err)
+
+	err = ts.TransactionProvider.Update(func(adapters badger.TestAdapters) error {
+		if err := adapters.MessageRepository.Put(msg2); err != nil {
+			return errors.Wrap(err, "could not put a message in message repository")
+		}
+
+		if err := adapters.ReceiveLogRepository.Put(msg2.Id()); err != nil {
+			return errors.Wrap(err, "could not put a message in message repository")
+		}
+
+		return nil
+	})
+	require.NoError(t, err)
+
+	err = ts.TransactionProvider.View(func(adapters badger.TestAdapters) error {
+		msgs, err := adapters.ReceiveLogRepository.List(common.MustNewReceiveLogSequence(0), 100)
+		require.NoError(t, err)
+
+		require.Equal(
+			t,
+			[]queries.LogMessage{
+				{
+					Message:  msg1,
+					Sequence: common.MustNewReceiveLogSequence(2),
+				},
+				{
+					Message:  msg2,
+					Sequence: common.MustNewReceiveLogSequence(3),
+				},
+			},
+			msgs)
 
 		return nil
 	})

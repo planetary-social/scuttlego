@@ -8,15 +8,11 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 )
 
-type ReceiveLogRepositoryPutUnderSpecificSequenceCall struct {
-	Id       refs.Message
-	Sequence common.ReceiveLogSequence
-}
-
 type ReceiveLogRepositoryMock struct {
 	GetMessageCalls               []common.ReceiveLogSequence
 	GetSequencesCalls             []refs.Message
 	PutUnderSpecificSequenceCalls []ReceiveLogRepositoryPutUnderSpecificSequenceCall
+	ReserveSequencesUpToCalls     []ReceiveLogRepositoryReserveSequencesUpToCall
 
 	sequenceToMessages  map[common.ReceiveLogSequence]message.Message
 	messagesToSequences map[string][]common.ReceiveLogSequence
@@ -64,4 +60,20 @@ func (r *ReceiveLogRepositoryMock) PutUnderSpecificSequence(id refs.Message, seq
 		Sequence: sequence,
 	})
 	return nil
+}
+
+func (r *ReceiveLogRepositoryMock) ReserveSequencesUpTo(sequence common.ReceiveLogSequence) error {
+	r.ReserveSequencesUpToCalls = append(r.ReserveSequencesUpToCalls, ReceiveLogRepositoryReserveSequencesUpToCall{
+		Sequence: sequence,
+	})
+	return nil
+}
+
+type ReceiveLogRepositoryPutUnderSpecificSequenceCall struct {
+	Id       refs.Message
+	Sequence common.ReceiveLogSequence
+}
+
+type ReceiveLogRepositoryReserveSequencesUpToCall struct {
+	Sequence common.ReceiveLogSequence
 }

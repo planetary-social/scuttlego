@@ -497,6 +497,88 @@ func TestMigrationHandlerImportDataFromGoSSB_ReceiveLogIsNotWronglyOverridenByFo
 	)
 }
 
+func TestMigrationHandlerImportDataFromGoSSB_MessagesThatCauseErrorsAreIncludedInSequenceReservation(t *testing.T) {
+	tc, err := di.BuildTestCommands(t)
+	require.NoError(t, err)
+
+	directory := fixtures.SomeString()
+	saveResumeFromSequenceFn := newSaveResumeFromSequenceFnMock()
+
+	cmd, err := commands.NewImportDataFromGoSSB(directory, nil, saveResumeFromSequenceFn.Fn)
+	require.NoError(t, err)
+
+	feed := fixtures.SomeRefFeed()
+	seq := message.NewFirstSequence()
+
+	msg1ReceiveLogSequence := common.MustNewReceiveLogSequence(1)
+	msg1 := mockGoSSBMessageWithIdFeedAndSequence(
+		t,
+		fixtures.SomeRefMessage(),
+		feed,
+		seq,
+	)
+
+	msg2ReceiveLogSequence := common.MustNewReceiveLogSequence(2)
+	msg2 := mockGoSSBMessageWithIdFeedAndSequence(
+		t,
+		fixtures.SomeRefMessage(),
+		feed,
+		seq,
+	)
+
+	tc.GoSSBRepoReader.MockGetMessages(
+		[]commands.GoSSBMessageOrError{
+			{
+				Value: commands.GoSSBMessage{
+					ReceiveLogSequence: msg1ReceiveLogSequence,
+					Message:            msg1,
+				},
+				Err: nil,
+			},
+			{
+				Value: commands.GoSSBMessage{
+					ReceiveLogSequence: msg2ReceiveLogSequence,
+					Message:            msg2,
+				},
+				Err: nil,
+			},
+		},
+	)
+
+	ctx := fixtures.TestContext(t)
+	result, err := tc.MigrationImportDataFromGoSSB.Handle(ctx, cmd)
+	require.NoError(t, err)
+
+	require.Equal(t,
+		commands.ImportDataFromGoSSBResult{
+			Successes: 1,
+			Errors:    1,
+		},
+		result,
+	)
+
+	require.Equal(
+		t,
+		[]mocks.ReceiveLogRepositoryPutUnderSpecificSequenceCall{
+			{
+				Id:       refs.MustNewMessage(msg1.Key().String()),
+				Sequence: msg1ReceiveLogSequence,
+			},
+		},
+		tc.ReceiveLog.PutUnderSpecificSequenceCalls,
+	)
+
+	require.Equal(
+		t,
+		[]mocks.ReceiveLogRepositoryReserveSequencesUpToCall{
+			{
+				Sequence: msg2ReceiveLogSequence,
+			},
+		},
+		tc.ReceiveLog.ReserveSequencesUpToCalls,
+	)
+}
+
 func mockGoSSBMessage(t *testing.T) gossbrefs.Message {
 	key, err := gossbrefs.ParseMessageRef(fixtures.SomeRefMessage().String())
 	require.NoError(t, err)

@@ -30,19 +30,17 @@ func (r BlobRepository) Put(msgRef refs.Message, blob feeds.BlobToSave) error {
 		return errors.Wrap(err, "could not create by_message bucket")
 	}
 
-	for _, blobRef := range blob.Blobs() {
-		if err := byMessageBucket.Set([]byte(blobRef.String()), nil); err != nil {
-			return errors.Wrap(err, "by_message bucket put failed")
-		}
+	if err := byMessageBucket.Set([]byte(blob.Ref().String()), nil); err != nil {
+		return errors.Wrap(err, "by_message bucket put failed")
+	}
 
-		byBlobBucket, err := r.createBucketByBlobMessageRefs(blobRef)
-		if err != nil {
-			return errors.Wrap(err, "could not create by_blob bucket")
-		}
+	byBlobBucket, err := r.createBucketByBlobMessageRefs(blob.Ref())
+	if err != nil {
+		return errors.Wrap(err, "could not create by_blob bucket")
+	}
 
-		if err := byBlobBucket.Set([]byte(msgRef.String()), nil); err != nil {
-			return errors.Wrap(err, "by_blob bucket put failed")
-		}
+	if err := byBlobBucket.Set([]byte(msgRef.String()), nil); err != nil {
+		return errors.Wrap(err, "by_blob bucket put failed")
 	}
 
 	return nil

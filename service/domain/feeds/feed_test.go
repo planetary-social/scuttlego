@@ -245,11 +245,7 @@ func TestFeed_MessagesWithKnownContentAreCorrectlyRecognized(t *testing.T) {
 				},
 			),
 			ExpectedBlobs: []feeds.BlobToSave{
-				feeds.NewBlobToSave(
-					[]refs.Blob{
-						someBlob,
-					},
-				),
+				feeds.MustNewBlobToSave(someBlob),
 			},
 		},
 	}

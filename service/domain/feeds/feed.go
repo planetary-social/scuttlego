@@ -141,7 +141,11 @@ func (f *Feed) PopForPersisting() []MessageToPersist {
 func (f *Feed) onNewMessage(msg message.Message) error {
 	contacts := f.getContactsToSave(msg)
 	pubs := f.getPubsToSave(msg)
-	blobs := f.getBlobsToSave(msg)
+
+	blobs, err := f.getBlobsToSave(msg)
+	if err != nil {
+		return errors.Wrap(err, "failed to get blobs to save")
+	}
 
 	msgToSave, err := NewMessageToPersist(msg, contacts, pubs, blobs)
 	if err != nil {
@@ -181,9 +185,15 @@ func (f *Feed) getPubsToSave(msg message.Message) []PubToSave {
 	}
 }
 
-func (f *Feed) getBlobsToSave(msg message.Message) []BlobToSave {
-	if blobRefs := msg.Content().ReferencedBlobs(); len(blobRefs) > 0 {
-		return []BlobToSave{NewBlobToSave(blobRefs)}
+func (f *Feed) getBlobsToSave(msg message.Message) ([]BlobToSave, error) {
+	var result []BlobToSave
+	for _, blobRef := range msg.Content().ReferencedBlobs() {
+		blobToSave, err := NewBlobToSave(blobRef)
+		if err != nil {
+			return nil, errors.Wrap(err, "error creating blob to save")
+		}
+
+		result = append(result, blobToSave)
 	}
-	return nil
+	return result, nil
 }

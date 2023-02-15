@@ -260,9 +260,6 @@ func (h MigrationHandlerImportDataFromGoSSB) saveMessagesPerFeed(
 	var feedErrors, feedSuccesses int
 
 	if err := h.transaction.Transact(func(adapters Adapters) error {
-		feedErrors = 0
-		feedSuccesses = 0
-
 		var successes []scuttlegoMessage
 
 		if err := adapters.Feed.UpdateFeedIgnoringReceiveLog(feed, func(feed *feeds.Feed) error {
@@ -275,17 +272,25 @@ func (h MigrationHandlerImportDataFromGoSSB) saveMessagesPerFeed(
 						WithField("msg.sequence", msg.Message.Sequence().Int()).
 						WithField("receive_log_sequence", msg.ReceiveLogSequence.Int()).
 						Error("error appending a message")
-					feedErrors += 1
 					continue
 				}
+			}
 
-				feedSuccesses += 1
+			for _, ref := range feed.MessagesThatWillBePersisted() {
+				msg, err := h.findScuttlegoMessage(msgsPerFeed.messages, ref)
+				if err != nil {
+					return errors.Wrap(err, "error looking up message")
+				}
 				successes = append(successes, msg)
 			}
+
 			return nil
 		}); err != nil {
 			return errors.Wrap(err, "error updating the feed")
 		}
+
+		feedSuccesses = len(successes)
+		feedErrors = msgsPerFeed.Len() - feedSuccesses
 
 		for _, msg := range successes {
 			foundMessage, err := adapters.ReceiveLog.GetMessage(msg.ReceiveLogSequence)
@@ -330,6 +335,16 @@ func (h MigrationHandlerImportDataFromGoSSB) saveMessagesPerFeed(
 	msgs.Delete(feed)
 
 	return nil
+}
+
+func (h MigrationHandlerImportDataFromGoSSB) findScuttlegoMessage(msgs []scuttlegoMessage, ref refs.Message) (scuttlegoMessage, error) {
+	for _, msg := range msgs {
+		if msg.Message.Id().Equal(ref) {
+			return msg, nil
+		}
+	}
+
+	return scuttlegoMessage{}, fmt.Errorf("message '%s' not found", ref.String())
 }
 
 func (h MigrationHandlerImportDataFromGoSSB) maybePersistSequence(

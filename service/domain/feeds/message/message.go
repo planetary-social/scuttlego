@@ -1,6 +1,7 @@
 package message
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/boreq/errors"
@@ -137,6 +138,10 @@ func (m Message) ComesDirectlyBefore(o Message) bool {
 
 func (m Message) IsZero() bool {
 	return m.id.IsZero()
+}
+
+func (m Message) String() string {
+	return fmt.Sprintf("id=%s feed=%s sequence=%d previous=%s", m.id.String(), m.feed.String(), m.sequence.Int(), m.previous)
 }
 
 type baseMessageFields struct {

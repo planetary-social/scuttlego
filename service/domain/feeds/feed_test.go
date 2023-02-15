@@ -1,6 +1,7 @@
 package feeds_test
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -54,7 +55,7 @@ func TestFeed_AppendMessage_SubsequentMessagesAreValidated(t *testing.T) {
 	testCases := []struct {
 		Name          string
 		Message       message.Message
-		ExpectedError error
+		ExpectedError func(firstMessage, secondMessage message.Message) error
 		ShouldBeAdded bool
 	}{
 		{
@@ -90,7 +91,9 @@ func TestFeed_AppendMessage_SubsequentMessagesAreValidated(t *testing.T) {
 				fixtures.SomeContent(),
 				fixtures.SomeRawMessage(),
 			),
-			ExpectedError: errors.New("invalid author"),
+			ExpectedError: func(firstMessage, secondMessage message.Message) error {
+				return errors.New("invalid author")
+			},
 			ShouldBeAdded: false,
 		},
 		{
@@ -105,7 +108,9 @@ func TestFeed_AppendMessage_SubsequentMessagesAreValidated(t *testing.T) {
 				fixtures.SomeContent(),
 				fixtures.SomeRawMessage(),
 			),
-			ExpectedError: errors.New("invalid feed"),
+			ExpectedError: func(firstMessage, secondMessage message.Message) error {
+				return errors.New("invalid feed")
+			},
 			ShouldBeAdded: false,
 		},
 		{
@@ -120,7 +125,9 @@ func TestFeed_AppendMessage_SubsequentMessagesAreValidated(t *testing.T) {
 				fixtures.SomeContent(),
 				fixtures.SomeRawMessage(),
 			),
-			ExpectedError: errors.New("this is not the next message in this feed"),
+			ExpectedError: func(firstMessage, secondMessage message.Message) error {
+				return fmt.Errorf("this is not the next message in this feed (%s -> %s)", firstMessage, secondMessage)
+			},
 			ShouldBeAdded: false,
 		},
 		{
@@ -135,7 +142,9 @@ func TestFeed_AppendMessage_SubsequentMessagesAreValidated(t *testing.T) {
 				fixtures.SomeContent(),
 				fixtures.SomeRawMessage(),
 			),
-			ExpectedError: errors.New("this is not the next message in this feed"),
+			ExpectedError: func(firstMessage, secondMessage message.Message) error {
+				return fmt.Errorf("this is not the next message in this feed (%s -> %s)", firstMessage, secondMessage)
+			},
 			ShouldBeAdded: false,
 		},
 	}
@@ -149,7 +158,8 @@ func TestFeed_AppendMessage_SubsequentMessagesAreValidated(t *testing.T) {
 
 			err = f.AppendMessage(testCase.Message)
 			if testCase.ExpectedError != nil {
-				require.EqualError(t, err, testCase.ExpectedError.Error())
+				expectedErr := testCase.ExpectedError(firstMessage, testCase.Message)
+				require.EqualError(t, err, expectedErr.Error())
 			} else {
 				require.NoError(t, err)
 			}

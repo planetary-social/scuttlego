@@ -70,7 +70,7 @@ func NewRoomsListAliasesHandler(
 
 func (h *RoomsListAliasesHandler) Handle(ctx context.Context, query RoomsListAliases) ([]aliases.Alias, error) {
 	if query.IsZero() {
-		return nil, errors.New("zero value of command")
+		return nil, errors.New("zero value of query")
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)

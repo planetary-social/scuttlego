@@ -13,7 +13,22 @@ import (
 )
 
 type Follow struct {
-	Target refs.Identity
+	target refs.Identity
+}
+
+func NewFollow(target refs.Identity) (Follow, error) {
+	if target.IsZero() {
+		return Follow{}, errors.New("zero value of target")
+	}
+	return Follow{target: target}, nil
+}
+
+func (f Follow) Target() refs.Identity {
+	return f.target
+}
+
+func (f Follow) IsZero() bool {
+	return f.target.IsZero()
 }
 
 type FollowHandler struct {
@@ -38,17 +53,21 @@ func NewFollowHandler(
 }
 
 func (h *FollowHandler) Handle(cmd Follow) error {
+	if cmd.IsZero() {
+		return errors.New("zero value of cmd")
+	}
+
 	contactActions, err := known.NewContactActions([]known.ContactAction{known.ContactActionFollow})
 	if err != nil {
 		return errors.Wrap(err, "failed to create contact actions")
 	}
 
-	contact, err := known.NewContact(cmd.Target, contactActions)
+	contact, err := known.NewContact(cmd.Target(), contactActions)
 	if err != nil {
 		return errors.Wrap(err, "failed to create a contact message")
 	}
 
-	content, err := h.marshaler.Marshal(contact)
+	rawContent, err := h.marshaler.Marshal(contact)
 	if err != nil {
 		return errors.Wrap(err, "failed to create message content")
 	}
@@ -60,7 +79,7 @@ func (h *FollowHandler) Handle(cmd Follow) error {
 
 	return h.transaction.Transact(func(adapters Adapters) error {
 		return adapters.Feed.UpdateFeed(myRef.MainFeed(), func(feed *feeds.Feed) error {
-			if _, err := feed.CreateMessage(content, time.Now(), h.local); err != nil {
+			if _, err := feed.CreateMessage(rawContent, time.Now(), h.local); err != nil {
 				return errors.Wrap(err, "failed to create a message")
 			}
 			return nil

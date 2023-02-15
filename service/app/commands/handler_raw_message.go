@@ -29,6 +29,10 @@ func NewRawMessageHandler(
 }
 
 func (h *RawMessageHandler) Handle(rawMsg message.RawMessage) error {
+	if rawMsg.IsZero() {
+		return errors.New("zero value of raw message")
+	}
+
 	msg, err := h.identifier.VerifyRawMessage(rawMsg)
 	if err != nil {
 		return errors.Wrap(err, "failed to identify the raw message")

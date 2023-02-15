@@ -2,6 +2,7 @@ package ebt
 
 import (
 	"context"
+	"github.com/planetary-social/scuttlego/logging"
 
 	"github.com/planetary-social/scuttlego/service/app/queries"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
@@ -15,20 +16,36 @@ type CreateHistoryStreamHandler interface {
 
 type CreateHistoryStreamHandlerAdapter struct {
 	handler CreateHistoryStreamHandler
+	logger  logging.Logger
 }
 
-func NewCreateHistoryStreamHandlerAdapter(handler CreateHistoryStreamHandler) *CreateHistoryStreamHandlerAdapter {
-	return &CreateHistoryStreamHandlerAdapter{handler: handler}
+func NewCreateHistoryStreamHandlerAdapter(
+	handler CreateHistoryStreamHandler,
+	logger logging.Logger,
+) *CreateHistoryStreamHandlerAdapter {
+	return &CreateHistoryStreamHandlerAdapter{
+		handler: handler,
+		logger:  logger.New("create_history_stream_handler_adapter"),
+	}
 }
 
-func (h CreateHistoryStreamHandlerAdapter) Handle(ctx context.Context, id refs.Feed, seq *message.Sequence, messageWriter ebt.MessageWriter) {
-	query := queries.CreateHistoryStream{
-		Id:             id,
-		Seq:            seq,
-		Limit:          nil,
-		Live:           true,
-		Old:            true,
-		ResponseWriter: NewMessageWriterAdapter(messageWriter),
+func (h CreateHistoryStreamHandlerAdapter) Handle(
+	ctx context.Context,
+	id refs.Feed,
+	seq *message.Sequence,
+	messageWriter ebt.MessageWriter,
+) {
+	query, err := queries.NewCreateHistoryStream(
+		id,
+		seq,
+		nil,
+		true,
+		true,
+		NewMessageWriterAdapter(messageWriter),
+	)
+	if err != nil {
+		h.logger.WithError(err).Error("error creating query")
+		return
 	}
 
 	h.handler.Handle(ctx, query)

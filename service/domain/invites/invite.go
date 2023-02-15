@@ -81,3 +81,7 @@ func (i Invite) Address() network.Address {
 func (i Invite) SecretKeySeed() []byte {
 	return i.secretKeySeed
 }
+
+func (i Invite) IsZero() bool {
+	return i.remote.IsZero()
+}

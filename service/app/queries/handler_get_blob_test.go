@@ -9,6 +9,7 @@ import (
 	"github.com/planetary-social/scuttlego/internal"
 	"github.com/planetary-social/scuttlego/service/app/queries"
 	"github.com/planetary-social/scuttlego/service/domain/blobs"
+	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/stretchr/testify/require"
 )
 
@@ -20,70 +21,58 @@ func TestGetBlob(t *testing.T) {
 
 	testCases := []struct {
 		Name          string
-		Query         queries.GetBlob
+		QueryId       refs.Blob
+		QuerySize     *blobs.Size
+		QueryMax      *blobs.Size
 		ExpectedError error
 	}{
 		{
-			Name: "only_id",
-			Query: queries.GetBlob{
-				Id:   id,
-				Size: nil,
-				Max:  nil,
-			},
+			Name:          "only_id",
+			QueryId:       id,
+			QuerySize:     nil,
+			QueryMax:      nil,
 			ExpectedError: nil,
 		},
 		{
-			Name: "id_and_correct_size",
-			Query: queries.GetBlob{
-				Id:   id,
-				Size: internal.Ptr(correctSize),
-				Max:  nil,
-			},
+			Name:          "id_and_correct_size",
+			QueryId:       id,
+			QuerySize:     internal.Ptr(correctSize),
+			QueryMax:      nil,
 			ExpectedError: nil,
 		},
 		{
-			Name: "id_and_incorrect_size",
-			Query: queries.GetBlob{
-				Id:   id,
-				Size: internal.Ptr(incorrectSize),
-				Max:  nil,
-			},
+			Name:          "id_and_incorrect_size",
+			QueryId:       id,
+			QuerySize:     internal.Ptr(incorrectSize),
+			QueryMax:      nil,
 			ExpectedError: errors.New("blob size doesn't match the provided size"),
 		},
 		{
-			Name: "id_and_max_above_size",
-			Query: queries.GetBlob{
-				Id:   id,
-				Size: nil,
-				Max:  internal.Ptr(blobs.MustNewSize(correctSize.InBytes() + 1)),
-			},
+			Name:          "id_and_max_above_size",
+			QueryId:       id,
+			QuerySize:     nil,
+			QueryMax:      internal.Ptr(blobs.MustNewSize(correctSize.InBytes() + 1)),
 			ExpectedError: nil,
 		},
 		{
-			Name: "id_and_max_equal_to_size",
-			Query: queries.GetBlob{
-				Id:   id,
-				Size: nil,
-				Max:  internal.Ptr(correctSize),
-			},
+			Name:          "id_and_max_equal_to_size",
+			QueryId:       id,
+			QuerySize:     nil,
+			QueryMax:      internal.Ptr(correctSize),
 			ExpectedError: nil,
 		},
 		{
-			Name: "id_and_max_below_size",
-			Query: queries.GetBlob{
-				Id:   id,
-				Size: nil,
-				Max:  internal.Ptr(blobs.MustNewSize(correctSize.InBytes() - 1)),
-			},
+			Name:          "id_and_max_below_size",
+			QueryId:       id,
+			QuerySize:     nil,
+			QueryMax:      internal.Ptr(blobs.MustNewSize(correctSize.InBytes() - 1)),
 			ExpectedError: errors.New("blob is larger than the provided max size"),
 		},
 		{
-			Name: "size_wins_over_max",
-			Query: queries.GetBlob{
-				Id:   id,
-				Size: internal.Ptr(blobs.MustNewSize(1)),
-				Max:  internal.Ptr(blobs.MustNewSize(1)),
-			},
+			Name:          "size_wins_over_max",
+			QueryId:       id,
+			QuerySize:     internal.Ptr(blobs.MustNewSize(1)),
+			QueryMax:      internal.Ptr(blobs.MustNewSize(1)),
 			ExpectedError: errors.New("blob size doesn't match the provided size"),
 		},
 	}
@@ -95,8 +84,14 @@ func TestGetBlob(t *testing.T) {
 
 			q.BlobStorage.MockBlob(id, data)
 
-			t.Log(testCase.Query.Size)
-			rc, err := q.Queries.GetBlob.Handle(testCase.Query)
+			query, err := queries.NewGetBlob(
+				testCase.QueryId,
+				testCase.QuerySize,
+				testCase.QueryMax,
+			)
+			require.NoError(t, err)
+
+			rc, err := q.Queries.GetBlob.Handle(query)
 			if testCase.ExpectedError != nil {
 				require.EqualError(t, err, testCase.ExpectedError.Error())
 				require.Nil(t, rc)

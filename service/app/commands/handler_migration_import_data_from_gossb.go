@@ -69,6 +69,18 @@ func NewImportDataFromGoSSB(
 	}, nil
 }
 
+func (cmd ImportDataFromGoSSB) Directory() string {
+	return cmd.directory
+}
+
+func (cmd ImportDataFromGoSSB) ResumeFromSequence() *common.ReceiveLogSequence {
+	return cmd.resumeFromSequence
+}
+
+func (cmd ImportDataFromGoSSB) SaveResumeFromSequenceFn() SaveResumeFromSequenceFn {
+	return cmd.saveResumeFromSequenceFn
+}
+
 func (cmd ImportDataFromGoSSB) IsZero() bool {
 	return cmd.directory == ""
 }
@@ -105,8 +117,8 @@ func (h MigrationHandlerImportDataFromGoSSB) Handle(ctx context.Context, cmd Imp
 	}
 
 	h.logger.
-		WithField("directory", cmd.directory).
-		WithField("resume_from_sequence", cmd.resumeFromSequence).
+		WithField("directory", cmd.Directory()).
+		WithField("resume_from_sequence", cmd.ResumeFromSequence()).
 		Debug("import starting")
 
 	msgs := newMessagesToImport()
@@ -122,12 +134,12 @@ func (h MigrationHandlerImportDataFromGoSSB) Handle(ctx context.Context, cmd Imp
 			Debug("import ended")
 	}()
 
-	gossbMessageCh, err := h.repoReader.GetMessages(ctx, cmd.directory, cmd.resumeFromSequence)
+	gossbMessageCh, err := h.repoReader.GetMessages(ctx, cmd.Directory(), cmd.ResumeFromSequence())
 	if err != nil {
 		return ImportDataFromGoSSBResult{}, errors.Wrap(err, "error getting message channel")
 	}
 
-	lastSequenceSaved := cmd.resumeFromSequence
+	lastSequenceSaved := cmd.ResumeFromSequence()
 
 	for v := range h.startConversionLoop(ctx, gossbMessageCh) {
 		if err := v.Err; err != nil {
@@ -143,7 +155,7 @@ func (h MigrationHandlerImportDataFromGoSSB) Handle(ctx context.Context, cmd Imp
 				msgs,
 				&errorCounter,
 				&successCounter,
-				cmd.saveResumeFromSequenceFn,
+				cmd.SaveResumeFromSequenceFn(),
 				&lastSequenceSaved,
 			); err != nil {
 				return ImportDataFromGoSSBResult{}, errors.Wrap(err, "error saving messages")
@@ -155,7 +167,7 @@ func (h MigrationHandlerImportDataFromGoSSB) Handle(ctx context.Context, cmd Imp
 					perFeedMsgs.Feed(),
 					&errorCounter,
 					&successCounter,
-					cmd.saveResumeFromSequenceFn,
+					cmd.SaveResumeFromSequenceFn(),
 					&lastSequenceSaved,
 				); err != nil {
 					return ImportDataFromGoSSBResult{}, errors.Wrap(err, "error saving messages per feed")
@@ -168,7 +180,7 @@ func (h MigrationHandlerImportDataFromGoSSB) Handle(ctx context.Context, cmd Imp
 		msgs,
 		&errorCounter,
 		&successCounter,
-		cmd.saveResumeFromSequenceFn,
+		cmd.SaveResumeFromSequenceFn(),
 		&lastSequenceSaved,
 	); err != nil {
 		return ImportDataFromGoSSBResult{}, errors.Wrap(err, "error saving messages")

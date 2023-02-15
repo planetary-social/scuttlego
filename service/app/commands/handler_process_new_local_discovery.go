@@ -7,8 +7,33 @@ import (
 )
 
 type ProcessNewLocalDiscovery struct {
-	Remote  identity.Public
-	Address network.Address
+	remote  identity.Public
+	address network.Address
+}
+
+func NewProcessNewLocalDiscovery(
+	remote identity.Public,
+	address network.Address,
+) (ProcessNewLocalDiscovery, error) {
+	if remote.IsZero() {
+		return ProcessNewLocalDiscovery{}, errors.New("zero value of remote")
+	}
+	if address.IsZero() {
+		return ProcessNewLocalDiscovery{}, errors.New("zero value of address")
+	}
+	return ProcessNewLocalDiscovery{remote: remote, address: address}, nil
+}
+
+func (p ProcessNewLocalDiscovery) Remote() identity.Public {
+	return p.remote
+}
+
+func (p ProcessNewLocalDiscovery) Address() network.Address {
+	return p.address
+}
+
+func (p ProcessNewLocalDiscovery) IsZero() bool {
+	return p.remote.IsZero()
 }
 
 type ProcessNewLocalDiscoveryHandler struct {
@@ -22,9 +47,12 @@ func NewProcessNewLocalDiscoveryHandler(peerManager PeerManager) *ProcessNewLoca
 }
 
 func (h *ProcessNewLocalDiscoveryHandler) Handle(cmd ProcessNewLocalDiscovery) error {
-	if err := h.peerManager.ProcessNewLocalDiscovery(cmd.Remote, cmd.Address); err != nil {
-		return errors.Wrap(err, "error calling peer manager")
+	if cmd.IsZero() {
+		return errors.New("zero value of cmd")
 	}
 
+	if err := h.peerManager.ProcessNewLocalDiscovery(cmd.Remote(), cmd.Address()); err != nil {
+		return errors.Wrap(err, "error calling peer manager")
+	}
 	return nil
 }

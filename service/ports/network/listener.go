@@ -79,19 +79,25 @@ func (l *Listener) ListenAndServe(ctx context.Context) error {
 		go l.handleNewConnection(conn)
 	}
 }
-
 func (l *Listener) handleNewConnection(conn net.Conn) {
-	p, err := l.initializer.InitializeServerPeer(l.connectionCtx, conn)
+	peer, err := l.initializer.InitializeServerPeer(l.connectionCtx, conn)
 	if err != nil {
 		conn.Close()
 		l.logger.WithError(err).Debug("could not init a peer")
 		return
 	}
 
-	err = l.handler.Handle(commands.AcceptNewPeer{Peer: p})
+	cmd, err := commands.NewAcceptNewPeer(peer)
 	if err != nil {
 		conn.Close()
-		l.logger.WithError(err).Debug("could not accept a new peer")
+		l.logger.WithError(err).Error("could not create a command")
+		return
+	}
+
+	err = l.handler.Handle(cmd)
+	if err != nil {
+		conn.Close()
+		l.logger.WithError(err).Error("could not accept a new peer")
 		return
 	}
 }

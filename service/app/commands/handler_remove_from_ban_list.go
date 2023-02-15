@@ -16,6 +16,10 @@ func NewRemoveFromBanList(hash bans.Hash) (RemoveFromBanList, error) {
 	return RemoveFromBanList{hash: hash}, nil
 }
 
+func (c RemoveFromBanList) Hash() bans.Hash {
+	return c.hash
+}
+
 func (c RemoveFromBanList) IsZero() bool {
 	return c.hash.IsZero()
 }
@@ -36,7 +40,7 @@ func (h *RemoveFromBanListHandler) Handle(cmd RemoveFromBanList) error {
 	}
 
 	if err := h.transaction.Transact(func(adapters Adapters) error {
-		if err := adapters.BanList.Remove(cmd.hash); err != nil {
+		if err := adapters.BanList.Remove(cmd.Hash()); err != nil {
 			return errors.Wrap(err, "could not remove the hash from the ban list")
 		}
 		return nil

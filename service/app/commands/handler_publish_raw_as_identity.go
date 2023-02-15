@@ -28,6 +28,14 @@ func NewPublishRawAsIdentity(content []byte, identity identity.Private) (Publish
 	return PublishRawAsIdentity{content: content, identity: identity}, nil
 }
 
+func (cmd PublishRawAsIdentity) Content() []byte {
+	return cmd.content
+}
+
+func (cmd PublishRawAsIdentity) Identity() identity.Private {
+	return cmd.identity
+}
+
 func (cmd PublishRawAsIdentity) IsZero() bool {
 	return cmd.identity.IsZero()
 }
@@ -49,12 +57,12 @@ func (h *PublishRawAsIdentityHandler) Handle(cmd PublishRawAsIdentity) (refs.Mes
 		return refs.Message{}, errors.New("zero value of cmd")
 	}
 
-	content, err := message.NewRawContent(cmd.content)
+	content, err := message.NewRawContent(cmd.Content())
 	if err != nil {
 		return refs.Message{}, errors.Wrap(err, "could not create raw message content")
 	}
 
-	ref, err := h.publisher.Publish(cmd.identity, content)
+	ref, err := h.publisher.Publish(cmd.Identity(), content)
 	if err != nil {
 		return refs.Message{}, errors.Wrap(err, "publishing error")
 	}

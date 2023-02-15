@@ -29,33 +29,91 @@ type CreateHistoryStreamResponseWriter interface {
 }
 
 type CreateHistoryStream struct {
-	Id refs.Feed
+	id refs.Feed
 
 	// If not set messages starting from the very beginning of the feed will be
 	// returned. Otherwise, messages with a sequence greater or equal to the
 	// provided one will be returned. See:
 	// %ptQutWwkNIIteEn791Ru27DHtOsdnbcEJRgjuxW90Y4=.sha256
-	Seq *message.Sequence
+	seq *message.Sequence
 
 	// Number of messages to return, if not set then unlimited.
-	Limit *int
+	limit *int
 
 	// If true then the channel will stay open and return further messages as
 	// they become available. This usually means returning further messages
 	// which are replicated from other peers.
-	Live bool
+	live bool
 
 	// Used together with live. If true then old messages will be returned
 	// before serving live messages as they come in. You most likely always want
 	// to set this to true. Setting Live to false and Old to false probably
 	// makes no sense but won't cause an error, however no messages will be
 	// returned and the channel will be closed immediately.
-	Old bool
+	old bool
 
 	// ResponseWriter is used to send messages to the peer. Firstly WriteMessage
 	// will be called zero or more times. Then CloseWithError will be called
 	// exactly once.
-	ResponseWriter CreateHistoryStreamResponseWriter
+	responseWriter CreateHistoryStreamResponseWriter
+}
+
+func NewCreateHistoryStream(
+	id refs.Feed,
+	seq *message.Sequence,
+	limit *int,
+	live bool,
+	old bool,
+	responseWriter CreateHistoryStreamResponseWriter,
+) (CreateHistoryStream, error) {
+	if id.IsZero() {
+		return CreateHistoryStream{}, errors.New("zero value of id")
+	}
+	if seq != nil && seq.IsZero() {
+		return CreateHistoryStream{}, errors.New("zero value of sequence while it isn't nil")
+	}
+	if limit != nil && *limit <= 0 {
+		return CreateHistoryStream{}, errors.New("if limit isn't nil it must be positive")
+	}
+	if responseWriter == nil {
+		return CreateHistoryStream{}, errors.New("zero value of response writer")
+	}
+	return CreateHistoryStream{
+		id:             id,
+		seq:            seq,
+		limit:          limit,
+		live:           live,
+		old:            old,
+		responseWriter: responseWriter,
+	}, nil
+}
+
+func (c CreateHistoryStream) Id() refs.Feed {
+	return c.id
+}
+
+func (c CreateHistoryStream) Seq() *message.Sequence {
+	return c.seq
+}
+
+func (c CreateHistoryStream) Limit() *int {
+	return c.limit
+}
+
+func (c CreateHistoryStream) Live() bool {
+	return c.live
+}
+
+func (c CreateHistoryStream) Old() bool {
+	return c.old
+}
+
+func (c CreateHistoryStream) ResponseWriter() CreateHistoryStreamResponseWriter {
+	return c.responseWriter
+}
+
+func (c CreateHistoryStream) IsZero() bool {
+	return c.id.IsZero()
 }
 
 type CreateHistoryStreamHandler struct {
@@ -83,8 +141,13 @@ func NewCreateHistoryStreamHandler(
 	}
 }
 
-func (h *CreateHistoryStreamHandler) Handle(ctx context.Context, query CreateHistoryStream) {
+func (h *CreateHistoryStreamHandler) Handle(ctx context.Context, query CreateHistoryStream) error {
+	if query.IsZero() {
+		return errors.New("zero value of query")
+	}
+
 	h.queue.Add(NewCreateHistoryStreamToProcess(ctx, query))
+	return nil
 }
 
 func (h *CreateHistoryStreamHandler) Run(ctx context.Context) error {
@@ -114,7 +177,7 @@ func (h *CreateHistoryStreamHandler) worker(ctx context.Context) {
 		}
 
 		if err := h.processRequest(req.Ctx(), req.Query()); err != nil {
-			if closeErr := req.Query().ResponseWriter.CloseWithError(err); closeErr != nil {
+			if closeErr := req.Query().ResponseWriter().CloseWithError(err); closeErr != nil {
 				h.logger.WithError(closeErr).Debug("closing failed")
 			}
 			if !errors.Is(err, context.Canceled) {
@@ -146,15 +209,15 @@ func (h *CreateHistoryStreamHandler) cleanupWorker(ctx context.Context) {
 func (h *CreateHistoryStreamHandler) processRequest(ctx context.Context, query CreateHistoryStream) error {
 	s := NewHistoryStream(ctx, query)
 
-	if query.Live {
+	if query.Live() {
 		h.liveStreams.Add(s)
 	}
 
-	if query.Old {
+	if query.Old() {
 		var msgs []message.Message
 
 		if err := h.transaction.Transact(func(adapters Adapters) error {
-			tmp, err := adapters.Feed.GetMessages(query.Id, query.Seq, query.Limit)
+			tmp, err := adapters.Feed.GetMessages(query.Id(), query.Seq(), query.Limit())
 			if err != nil {
 				return errors.Wrap(err, "could not retrieve messages")
 			}
@@ -172,12 +235,12 @@ func (h *CreateHistoryStreamHandler) processRequest(ctx context.Context, query C
 		}
 	}
 
-	if query.Live && !s.ReachedLimit() {
+	if query.Live() && !s.ReachedLimit() {
 		if err := s.SwitchToLiveMode(); err != nil {
 			return errors.Wrap(err, "failed to switch to live mode")
 		}
 	} else {
-		if closeErr := query.ResponseWriter.CloseWithError(nil); closeErr != nil {
+		if closeErr := query.ResponseWriter().CloseWithError(nil); closeErr != nil {
 			h.logger.WithError(closeErr).Debug("closing failed")
 		}
 	}
@@ -284,12 +347,12 @@ type HistoryStream struct {
 func NewHistoryStream(ctx context.Context, query CreateHistoryStream) *HistoryStream {
 	return &HistoryStream{
 		ctx:          ctx,
-		rw:           query.ResponseWriter,
-		feed:         query.Id,
-		limit:        query.Limit,
-		old:          query.Old,
-		live:         query.Live,
-		lastSequence: query.Seq,
+		rw:           query.ResponseWriter(),
+		feed:         query.Id(),
+		limit:        query.Limit(),
+		old:          query.Old(),
+		live:         query.Live(),
+		lastSequence: query.Seq(),
 	}
 }
 

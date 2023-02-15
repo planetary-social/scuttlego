@@ -31,6 +31,11 @@ type FeedRepositoryMockUpdateFeedIgnoringReceiveLogCall struct {
 	MessagesToPersist []refs.Message
 }
 
+type FeedRepositoryMockRemoveMessagesAtOrAboveSequenceCall struct {
+	Feed refs.Feed
+	Seq  message.Sequence
+}
+
 type FeedRepositoryMock struct {
 	getMessagesCalls       []FeedRepositoryMockGetMessagesCall
 	GetMessagesReturnValue []message.Message
@@ -47,7 +52,8 @@ type FeedRepositoryMock struct {
 
 	CountReturnValue int
 
-	lock sync.Mutex
+	lock                                 sync.Mutex
+	RemoveMessagesAtOrAboveSequenceCalls []FeedRepositoryMockRemoveMessagesAtOrAboveSequenceCall
 }
 
 func NewFeedRepositoryMock() *FeedRepositoryMock {
@@ -87,6 +93,14 @@ func (m *FeedRepositoryMock) UpdateFeedIgnoringReceiveLog(ref refs.Feed, f comma
 
 func (m *FeedRepositoryMock) DeleteFeed(ref refs.Feed) error {
 	return errors.New("not implemented")
+}
+
+func (m *FeedRepositoryMock) RemoveMessagesAtOrAboveSequence(ref refs.Feed, sequence message.Sequence) error {
+	m.RemoveMessagesAtOrAboveSequenceCalls = append(m.RemoveMessagesAtOrAboveSequenceCalls, FeedRepositoryMockRemoveMessagesAtOrAboveSequenceCall{
+		Feed: ref,
+		Seq:  sequence,
+	})
+	return nil
 }
 
 func (m *FeedRepositoryMock) GetMessages(id refs.Feed, seq *message.Sequence, limit *int) ([]message.Message, error) {

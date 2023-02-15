@@ -45,6 +45,18 @@ func TestFeedRepository_GetMessageReturnsMessageWhichIsStoredInRepo(t *testing.T
 	require.NoError(t, err)
 }
 
+func TestFeedRepository_GetMessageReturnsCorrectErrorIfMessageCanNotBeFound(t *testing.T) {
+	ts := di.BuildBadgerTestAdapters(t)
+
+	err := ts.TransactionProvider.View(func(adapters badger.TestAdapters) error {
+		_, err := adapters.FeedRepository.GetMessage(fixtures.SomeRefFeed(), fixtures.SomeSequence())
+		require.ErrorIs(t, err, common.ErrFeedMessageNotFound)
+
+		return nil
+	})
+	require.NoError(t, err)
+}
+
 func TestFeedRepository_FeedRepositoryCorrectlyLoadsFeeds(t *testing.T) {
 	ts := di.BuildBadgerTestAdapters(t)
 
@@ -395,6 +407,80 @@ func TestFeedRepository_DeleteRemovesDataFromChildRepositories(t *testing.T) {
 			_, err = adapters.ReceiveLogRepository.GetMessage(common.MustNewReceiveLogSequence(i))
 			require.ErrorIs(t, err, common.ErrReceiveLogEntryNotFound)
 		}
+
+		return nil
+	})
+	require.NoError(t, err)
+}
+
+func TestFeedRepository_RemoveMessagesAtOrAboveSequenceCorrectlyRemovesMessages(t *testing.T) {
+	ts := di.BuildBadgerTestAdapters(t)
+
+	feedRef := fixtures.SomeRefFeed()
+	ts.Dependencies.BanListHasher.Mock(feedRef, fixtures.SomeBanListHash())
+
+	const numMessages = 10
+
+	var messages []message.Message
+
+	for i := 0; i < numMessages; i++ {
+		seq := message.MustNewSequence(i + 1)
+
+		var previous *refs.Message
+		if !seq.IsFirst() {
+			previous = internal.Ptr(messages[i-1].Id())
+		}
+
+		rawMessage := message.MustNewRawMessage(fixtures.SomeBytes())
+
+		msg := message.MustNewMessage(
+			fixtures.SomeRefMessage(),
+			previous,
+			seq,
+			refs.MustNewIdentity(feedRef.String()),
+			feedRef,
+			fixtures.SomeTime(),
+			fixtures.SomeContent(),
+			rawMessage,
+		)
+		messages = append(messages, msg)
+
+		ts.Dependencies.RawMessageIdentifier.Mock(msg)
+	}
+
+	for _, msg := range messages {
+		err := ts.TransactionProvider.Update(func(adapters badger.TestAdapters) error {
+			return adapters.FeedRepository.UpdateFeed(feedRef, func(feed *feeds.Feed) error {
+				return feed.AppendMessage(msg)
+			})
+		})
+		require.NoError(t, err, "repository should have loaded last message and created a feed so that the new message can be appended")
+	}
+
+	err := ts.TransactionProvider.View(func(adapters badger.TestAdapters) error {
+		feed, err := adapters.FeedRepository.GetFeed(feedRef)
+		require.NoError(t, err)
+
+		sequence, ok := feed.Sequence()
+		require.True(t, ok)
+		require.Equal(t, message.MustNewSequence(numMessages), sequence)
+
+		return nil
+	})
+	require.NoError(t, err)
+
+	err = ts.TransactionProvider.Update(func(adapters badger.TestAdapters) error {
+		return adapters.FeedRepository.RemoveMessagesAtOrAboveSequence(feedRef, message.MustNewSequence(5))
+	})
+	require.NoError(t, err)
+
+	err = ts.TransactionProvider.View(func(adapters badger.TestAdapters) error {
+		feed, err := adapters.FeedRepository.GetFeed(feedRef)
+		require.NoError(t, err)
+
+		sequence, ok := feed.Sequence()
+		require.True(t, ok)
+		require.Equal(t, message.MustNewSequence(4), sequence)
 
 		return nil
 	})

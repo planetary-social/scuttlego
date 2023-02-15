@@ -41,4 +41,5 @@ func (r ReceiveLogSequence) String() string {
 var (
 	ErrReceiveLogEntryNotFound = errors.New("receive log entry not found")
 	ErrFeedNotFound            = errors.New("feed not found")
+	ErrFeedMessageNotFound     = errors.New("feed message not found")
 )

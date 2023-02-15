@@ -83,6 +83,14 @@ type FeedRepository interface {
 
 	// DeleteFeed removes the feed with all associated data.
 	DeleteFeed(ref refs.Feed) error
+
+	// GetMessage returns a message with a given sequence from the specified
+	// feed.
+	GetMessage(ref refs.Feed, sequence message.Sequence) (message.Message, error)
+
+	// RemoveMessagesAtOrAboveSequence removes all feed messages with sequence
+	// greater or equal to the given one.
+	RemoveMessagesAtOrAboveSequence(ref refs.Feed, sequence message.Sequence) error
 }
 
 type SocialGraphRepository interface {

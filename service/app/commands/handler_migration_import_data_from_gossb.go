@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/boreq/errors"
+	"github.com/planetary-social/scuttlego/internal"
 	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/app/common"
 	"github.com/planetary-social/scuttlego/service/domain/feeds"
@@ -260,7 +261,7 @@ func (h MigrationHandlerImportDataFromGoSSB) saveMessagesPerFeed(
 	var feedErrors, feedSuccesses int
 
 	if err := h.transaction.Transact(func(adapters Adapters) error {
-		var successes []scuttlegoMessage
+		var successes, failures []scuttlegoMessage
 
 		if err := adapters.Feed.UpdateFeedIgnoringReceiveLog(feed, func(feed *feeds.Feed) error {
 			for _, msg := range msgsPerFeed.messages {
@@ -276,21 +277,19 @@ func (h MigrationHandlerImportDataFromGoSSB) saveMessagesPerFeed(
 				}
 			}
 
-			for _, ref := range feed.MessagesThatWillBePersisted() {
-				msg, err := h.findScuttlegoMessage(msgsPerFeed.messages, ref)
-				if err != nil {
-					return errors.Wrap(err, "error looking up message")
+			messagesThatWillBePersisted := feed.MessagesThatWillBePersisted()
+			for _, msg := range msgsPerFeed.messages {
+				if h.contains(messagesThatWillBePersisted, msg.Message.Id()) {
+					successes = append(successes, msg)
+				} else {
+					failures = append(failures, msg)
 				}
-				successes = append(successes, msg)
 			}
 
 			return nil
 		}); err != nil {
 			return errors.Wrap(err, "error updating the feed")
 		}
-
-		feedSuccesses = len(successes)
-		feedErrors = msgsPerFeed.Len() - feedSuccesses
 
 		for _, msg := range successes {
 			foundMessage, err := adapters.ReceiveLog.GetMessage(msg.ReceiveLogSequence)
@@ -314,14 +313,28 @@ func (h MigrationHandlerImportDataFromGoSSB) saveMessagesPerFeed(
 			}
 		}
 
-		highestSequence, err := h.highestReceiveLogSequence(msgsPerFeed)
+		shouldDrop, err := h.sequenceToDropStartingWith(adapters, feed, failures)
 		if err != nil {
-			return errors.Wrap(err, "error determining highest sequence")
+			return errors.Wrap(err, "error determining sequences to drop")
 		}
 
-		if err := adapters.ReceiveLog.ReserveSequencesUpTo(highestSequence); err != nil {
+		if shouldDrop != nil {
+			if err := adapters.Feed.RemoveMessagesAtOrAboveSequence(feed, *shouldDrop); err != nil {
+				return errors.Wrapf(err, "error dropping messages above sequence '%d'", shouldDrop.Int())
+			}
+		}
+
+		highestReceiveLogSequence, err := h.highestReceiveLogSequence(msgsPerFeed.messages)
+		if err != nil {
+			return errors.Wrap(err, "error determining highest receive log sequence")
+		}
+
+		if err := adapters.ReceiveLog.ReserveSequencesUpTo(highestReceiveLogSequence); err != nil {
 			return errors.Wrap(err, "error reserving receive log sequences")
 		}
+
+		feedSuccesses = len(successes)
+		feedErrors = msgsPerFeed.Len() - feedSuccesses
 
 		return nil
 	}); err != nil {
@@ -346,14 +359,34 @@ func (h MigrationHandlerImportDataFromGoSSB) saveMessagesPerFeed(
 	return nil
 }
 
-func (h MigrationHandlerImportDataFromGoSSB) findScuttlegoMessage(msgs []scuttlegoMessage, ref refs.Message) (scuttlegoMessage, error) {
-	for _, msg := range msgs {
-		if msg.Message.Id().Equal(ref) {
-			return msg, nil
-		}
+func (h MigrationHandlerImportDataFromGoSSB) sequenceToDropStartingWith(adapters Adapters, feed refs.Feed, failures []scuttlegoMessage) (*message.Sequence, error) {
+	lowestFailedSequenceMsg, ok := h.lowestSequence(failures)
+	if !ok {
+		return nil, nil
 	}
 
-	return scuttlegoMessage{}, fmt.Errorf("message '%s' not found", ref.String())
+	foundMsg, err := adapters.Feed.GetMessage(feed, lowestFailedSequenceMsg.Sequence())
+	if err != nil {
+		if errors.Is(err, common.ErrFeedMessageNotFound) {
+			return nil, nil
+		}
+		return nil, errors.Wrap(err, "error getting message")
+	}
+
+	if foundMsg.Id().Equal(lowestFailedSequenceMsg.Id()) {
+		return nil, nil
+	}
+
+	return internal.Ptr(lowestFailedSequenceMsg.Sequence()), nil
+}
+
+func (h MigrationHandlerImportDataFromGoSSB) contains(refs []refs.Message, ref refs.Message) bool {
+	for _, v := range refs {
+		if v.Equal(ref) {
+			return true
+		}
+	}
+	return false
 }
 
 func (h MigrationHandlerImportDataFromGoSSB) maybePersistSequence(
@@ -397,10 +430,10 @@ func (h MigrationHandlerImportDataFromGoSSB) lowestReceiveLogSequence(msgs messa
 	return *lowest, nil
 }
 
-func (h MigrationHandlerImportDataFromGoSSB) highestReceiveLogSequence(msgs *messagesToImportPerFeed) (common.ReceiveLogSequence, error) {
+func (h MigrationHandlerImportDataFromGoSSB) highestReceiveLogSequence(msgs []scuttlegoMessage) (common.ReceiveLogSequence, error) {
 	var highest *common.ReceiveLogSequence
 
-	for _, v := range msgs.messages {
+	for _, v := range msgs {
 		if highest == nil || highest.Int() < v.ReceiveLogSequence.Int() {
 			tmp := v.ReceiveLogSequence
 			highest = &tmp
@@ -412,6 +445,21 @@ func (h MigrationHandlerImportDataFromGoSSB) highestReceiveLogSequence(msgs *mes
 	}
 
 	return *highest, nil
+}
+
+func (h MigrationHandlerImportDataFromGoSSB) lowestSequence(msgs []scuttlegoMessage) (message.Message, bool) {
+	if len(msgs) == 0 {
+		return message.Message{}, false
+	}
+
+	var lowest *message.Message
+	for _, v := range msgs {
+		if lowest == nil || lowest.Sequence().Int() > v.Message.Sequence().Int() {
+			tmp := v.Message
+			lowest = &tmp
+		}
+	}
+	return *lowest, true
 }
 
 func (h MigrationHandlerImportDataFromGoSSB) convertMessage(gossbmsg gossbrefs.Message) (message.Message, error) {

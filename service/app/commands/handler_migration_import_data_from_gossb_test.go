@@ -115,6 +115,9 @@ func TestMigrationHandlerImportDataFromGoSSB_ErrorsWhenAppendingMessagesAreIgnor
 	id2 := fixtures.SomeRefMessage()
 	msg2 := mockGoSSBMessageWithIdPreviousSequence(t, id2, &id1, message.MustNewSequence(2))
 
+	tc.FeedRepository.MockGetMessage(goSsbMessageToMessage(msg1))
+	tc.FeedRepository.MockGetMessage(goSsbMessageToMessage(msg2))
+
 	tc.GoSSBRepoReader.MockGetMessages(
 		[]commands.GoSSBMessageOrError{
 			{
@@ -402,7 +405,7 @@ func TestMigrationHandlerImportDataFromGoSSB_SequenceIsNotSavedIfItIsNotSignific
 	)
 }
 
-func TestMigrationHandlerImportDataFromGoSSB_ReceiveLogIsNotWronglyOverridenByFollowUpMessages(t *testing.T) {
+func TestMigrationHandlerImportDataFromGoSSB_ForksCauseMessagesToBeDropped(t *testing.T) {
 	tc, err := di.BuildTestCommands(t)
 	require.NoError(t, err)
 
@@ -430,6 +433,8 @@ func TestMigrationHandlerImportDataFromGoSSB_ReceiveLogIsNotWronglyOverridenByFo
 		feed,
 		seq,
 	)
+
+	tc.FeedRepository.MockGetMessage(goSsbMessageToMessage(msg1))
 
 	tc.GoSSBRepoReader.MockGetMessages(
 		[]commands.GoSSBMessageOrError{
@@ -495,6 +500,124 @@ func TestMigrationHandlerImportDataFromGoSSB_ReceiveLogIsNotWronglyOverridenByFo
 		},
 		tc.ReceiveLog.PutUnderSpecificSequenceCalls,
 	)
+
+	require.Equal(t,
+		[]mocks.FeedRepositoryMockRemoveMessagesAtOrAboveSequenceCall{
+			{
+				Feed: feed,
+				Seq:  message.MustNewSequence(int(msg2.Seq())),
+			},
+		},
+		tc.FeedRepository.RemoveMessagesAtOrAboveSequenceCalls)
+}
+
+func TestMigrationHandlerImportDataFromGoSSB_RepeatedMessagesDoNotCauseMessagesToBeDropped(t *testing.T) {
+	tc, err := di.BuildTestCommands(t)
+	require.NoError(t, err)
+
+	directory := fixtures.SomeString()
+	saveResumeFromSequenceFn := newSaveResumeFromSequenceFnMock()
+
+	cmd, err := commands.NewImportDataFromGoSSB(directory, nil, saveResumeFromSequenceFn.Fn)
+	require.NoError(t, err)
+
+	feed := fixtures.SomeRefFeed()
+	seq := message.NewFirstSequence()
+
+	msg1ReceiveLogSequence := common.MustNewReceiveLogSequence(1)
+	msg2ReceiveLogSequence := common.MustNewReceiveLogSequence(2)
+	msg := mockGoSSBMessageWithIdFeedAndSequence(
+		t,
+		fixtures.SomeRefMessage(),
+		feed,
+		seq,
+	)
+
+	tc.FeedRepository.MockGetMessage(
+		message.MustNewMessage(
+			refs.MustNewMessage(msg.Key().String()),
+			nil,
+			message.MustNewSequence(1),
+			refs.MustNewIdentity(feed.String()),
+			feed,
+			fixtures.SomeTime(),
+			fixtures.SomeContent(),
+			fixtures.SomeRawMessage(),
+		),
+	)
+
+	tc.GoSSBRepoReader.MockGetMessages(
+		[]commands.GoSSBMessageOrError{
+			{
+				Value: commands.GoSSBMessage{
+					ReceiveLogSequence: msg1ReceiveLogSequence,
+					Message:            msg,
+				},
+				Err: nil,
+			},
+			{
+				Value: commands.GoSSBMessage{
+					ReceiveLogSequence: msg2ReceiveLogSequence,
+					Message:            msg,
+				},
+				Err: nil,
+			},
+		},
+	)
+
+	ctx := fixtures.TestContext(t)
+	result, err := tc.MigrationImportDataFromGoSSB.Handle(ctx, cmd)
+	require.NoError(t, err)
+
+	require.Equal(t,
+		commands.ImportDataFromGoSSBResult{
+			Successes: 2,
+			Errors:    0,
+		},
+		result,
+	)
+
+	require.Equal(t,
+		[]mocks.GoSSBRepoReaderMockGetMessagesCall{
+			{
+				Directory:          directory,
+				ResumeFromSequence: nil,
+			},
+		},
+		tc.GoSSBRepoReader.GoSSBRepoReaderMockGetMessagesCalls,
+	)
+
+	require.Equal(
+		t,
+		[]mocks.FeedRepositoryMockUpdateFeedIgnoringReceiveLogCall{
+			{
+				Feed: feed,
+				MessagesToPersist: []refs.Message{
+					refs.MustNewMessage(msg.Key().String()),
+				},
+			},
+		},
+		tc.FeedRepository.UpdateFeedIgnoringReceiveLogCalls(),
+	)
+
+	require.Equal(
+		t,
+		[]mocks.ReceiveLogRepositoryPutUnderSpecificSequenceCall{
+			{
+				Id:       refs.MustNewMessage(msg.Key().String()),
+				Sequence: msg1ReceiveLogSequence,
+			},
+			{
+				Id:       refs.MustNewMessage(msg.Key().String()),
+				Sequence: msg2ReceiveLogSequence,
+			},
+		},
+		tc.ReceiveLog.PutUnderSpecificSequenceCalls,
+	)
+
+	require.Equal(t,
+		[]mocks.FeedRepositoryMockRemoveMessagesAtOrAboveSequenceCall(nil),
+		tc.FeedRepository.RemoveMessagesAtOrAboveSequenceCalls)
 }
 
 func TestMigrationHandlerImportDataFromGoSSB_MessagesThatCauseErrorsAreIncludedInSequenceReservation(t *testing.T) {
@@ -525,6 +648,8 @@ func TestMigrationHandlerImportDataFromGoSSB_MessagesThatCauseErrorsAreIncludedI
 		feed,
 		seq,
 	)
+
+	tc.FeedRepository.MockGetMessage(goSsbMessageToMessage(msg1))
 
 	tc.GoSSBRepoReader.MockGetMessages(
 		[]commands.GoSSBMessageOrError{
@@ -711,6 +836,24 @@ func someMessageWithId(id refs.Message) message.Message {
 		message.NewFirstSequence(),
 		fixtures.SomeRefIdentity(),
 		fixtures.SomeRefFeed(),
+		fixtures.SomeTime(),
+		fixtures.SomeContent(),
+		fixtures.SomeRawMessage(),
+	)
+}
+
+func goSsbMessageToMessage(msg gossbrefs.Message) message.Message {
+	var prev *refs.Message
+	if msg.Previous() != nil {
+		tmp := refs.MustNewMessage(msg.Previous().String())
+		prev = &tmp
+	}
+	return message.MustNewMessage(
+		refs.MustNewMessage(msg.Key().String()),
+		prev,
+		message.MustNewSequence(int(msg.Seq())),
+		refs.MustNewIdentity(msg.Author().String()),
+		refs.MustNewFeed(msg.Author().String()),
 		fixtures.SomeTime(),
 		fixtures.SomeContent(),
 		fixtures.SomeRawMessage(),

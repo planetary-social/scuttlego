@@ -174,11 +174,62 @@ func (b FeedRepository) DeleteFeed(ref refs.Feed) error {
 	return nil
 }
 
+func (b FeedRepository) RemoveMessagesAtOrAboveSequence(ref refs.Feed, sequence message.Sequence) error {
+	if sequence.IsFirst() {
+		return b.DeleteFeed(ref)
+	}
+
+	bucket := b.getFeedBucket(ref)
+
+	if err := bucket.ForEach(func(item utils.Item) error {
+		keyInBucket, err := bucket.KeyInBucket(item)
+		if err != nil {
+			return errors.Wrap(err, "error getting key in bucket")
+		}
+
+		itemSequence, err := b.unmarshalMessageKey(keyInBucket.Bytes())
+		if err != nil {
+			return errors.Wrap(err, "error unmarshaling sequence")
+		}
+
+		if sequence.ComesAfter(itemSequence) {
+			return nil
+		}
+
+		valueCopy, err := item.ValueCopy(nil)
+		if err != nil {
+			return errors.Wrap(err, "error getting value")
+		}
+
+		msgId, err := refs.NewMessage(string(valueCopy))
+		if err != nil {
+			return errors.Wrap(err, "failed to create a message ref")
+		}
+
+		if err := b.removeMessageData(msgId); err != nil {
+			return errors.Wrap(err, "failed to remove message data")
+		}
+
+		if err := bucket.Delete(keyInBucket.Bytes()); err != nil {
+			return errors.Wrap(err, "failed to remove feed bucket entry")
+		}
+
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "foreach error")
+	}
+
+	return nil
+}
+
 func (b FeedRepository) GetMessage(feed refs.Feed, sequence message.Sequence) (message.Message, error) {
 	bucket := b.getFeedBucket(feed)
 
 	item, err := bucket.Get(b.marshalMessageKey(sequence))
 	if err != nil {
+		if errors.Is(err, badger.ErrKeyNotFound) {
+			return message.Message{}, common.ErrFeedMessageNotFound
+		}
 		return message.Message{}, errors.Wrap(err, "sequence not found")
 	}
 

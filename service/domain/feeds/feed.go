@@ -1,6 +1,7 @@
 package feeds
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/boreq/errors"
@@ -52,7 +53,7 @@ func (f *Feed) AppendMessage(msg message.Message) error {
 		}
 
 		if !f.lastMsg.ComesDirectlyBefore(msg) {
-			return errors.New("this is not the next message in this feed")
+			return fmt.Errorf("this is not the next message in this feed (%s -> %s)", f.lastMsg, msg)
 		}
 	} else {
 		if !msg.IsRootMessage() {

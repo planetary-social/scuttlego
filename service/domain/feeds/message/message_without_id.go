@@ -31,7 +31,7 @@ func NewMessageWithoutId(
 	}
 
 	if content == nil {
-		return MessageWithoutId{}, errors.Wrap(err, "content is nil")
+		return MessageWithoutId{}, errors.New("zero value of content")
 	}
 
 	if raw.IsZero() {

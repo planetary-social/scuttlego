@@ -68,7 +68,7 @@ func NewMessage(
 	}
 
 	if content == nil {
-		return Message{}, errors.Wrap(err, "content is nil")
+		return Message{}, errors.New("zero value of content")
 	}
 
 	if raw.IsZero() {

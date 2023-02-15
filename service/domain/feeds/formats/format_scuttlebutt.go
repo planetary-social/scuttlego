@@ -124,7 +124,7 @@ func (s *Scuttlebutt) convert(ssbMessage legacy.DeserializedMessage, raw message
 
 	timestamp := time.UnixMilli(int64(ssbMessage.Timestamp))
 
-	rawMessageContent, err := message.NewRawMessageContent(ssbMessage.Content)
+	rawMessageContent, err := message.NewRawContent(ssbMessage.Content)
 	if err != nil {
 		return message.MessageWithoutId{}, errors.Wrap(err, "could not create raw message content")
 	}

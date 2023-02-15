@@ -9,7 +9,7 @@ import (
 
 type UnsignedMessage struct {
 	baseMessageFields
-	content RawMessageContent
+	content RawContent
 }
 
 func NewUnsignedMessage(
@@ -18,7 +18,7 @@ func NewUnsignedMessage(
 	author refs.Identity,
 	feed refs.Feed,
 	timestamp time.Time,
-	content RawMessageContent,
+	content RawContent,
 ) (UnsignedMessage, error) {
 	fields, err := newBaseMessageFields(previous, sequence, author, feed, timestamp)
 	if err != nil {
@@ -35,7 +35,7 @@ func NewUnsignedMessage(
 	}, nil
 }
 
-func (m UnsignedMessage) Content() RawMessageContent {
+func (m UnsignedMessage) Content() RawContent {
 	return m.content
 }
 

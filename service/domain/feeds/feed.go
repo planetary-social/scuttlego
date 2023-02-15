@@ -63,7 +63,7 @@ func (f *Feed) AppendMessage(msg message.Message) error {
 	return f.onNewMessage(msg)
 }
 
-func (f *Feed) CreateMessage(content message.RawMessageContent, timestamp time.Time, private identity.Private) (refs.Message, error) {
+func (f *Feed) CreateMessage(content message.RawContent, timestamp time.Time, private identity.Private) (refs.Message, error) {
 	if content.IsZero() {
 		return refs.Message{}, errors.New("zero value of raw message content")
 	}
@@ -97,7 +97,7 @@ func (f *Feed) CreateMessage(content message.RawMessageContent, timestamp time.T
 	return msg.Id(), nil
 }
 
-func (f *Feed) createMessage(content message.RawMessageContent, timestamp time.Time, author identity.Public) (message.UnsignedMessage, error) {
+func (f *Feed) createMessage(content message.RawContent, timestamp time.Time, author identity.Public) (message.UnsignedMessage, error) {
 	authorRef, err := refs.NewIdentityFromPublic(author)
 	if err != nil {
 		return message.UnsignedMessage{}, errors.Wrap(err, "could not create an author")

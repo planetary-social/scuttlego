@@ -123,7 +123,7 @@ func SomePrivateIdentity() identity.Private {
 }
 
 func SomeContent() message.Content {
-	return message.MustNewContent(SomeRawMessageContent(), nil, nil)
+	return message.MustNewContent(SomeRawContent(), nil, nil)
 }
 
 func SomeMessageBodyType() transport.MessageBodyType {
@@ -184,7 +184,7 @@ func SomeRawMessage() message.RawMessage {
 	return message.MustNewRawMessage([]byte(msg))
 }
 
-func SomeRawMessageContent() message.RawMessageContent {
+func SomeRawContent() message.RawContent {
 	v := map[string]string{
 		"type":       SomeString(),
 		SomeString(): SomeString(),
@@ -193,7 +193,7 @@ func SomeRawMessageContent() message.RawMessageContent {
 	if err != nil {
 		panic(err)
 	}
-	return message.MustNewRawMessageContent(j)
+	return message.MustNewRawContent(j)
 }
 
 func SomeMessage(seq message.Sequence, feed refs.Feed) message.Message {

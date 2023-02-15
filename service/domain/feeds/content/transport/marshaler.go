@@ -30,23 +30,23 @@ func NewMarshaler(mappings MessageContentMappings, logger logging.Logger) (*Mars
 	}, nil
 }
 
-func (m *Marshaler) Marshal(content known.KnownMessageContent) (message.RawMessageContent, error) {
+func (m *Marshaler) Marshal(content known.KnownMessageContent) (message.RawContent, error) {
 	typ := content.Type()
 
 	mapping, ok := m.mappings[typ]
 	if !ok {
-		return message.RawMessageContent{}, fmt.Errorf("no mapping for '%s'", typ)
+		return message.RawContent{}, fmt.Errorf("no mapping for '%s'", typ)
 	}
 
 	b, err := mapping.Marshal(content)
 	if err != nil {
-		return message.RawMessageContent{}, errors.Wrap(err, "invalid content")
+		return message.RawContent{}, errors.Wrap(err, "invalid content")
 	}
 
-	return message.NewRawMessageContent(b)
+	return message.NewRawContent(b)
 }
 
-func (m *Marshaler) Unmarshal(b message.RawMessageContent) (known.KnownMessageContent, error) {
+func (m *Marshaler) Unmarshal(b message.RawContent) (known.KnownMessageContent, error) {
 	logger := m.logger.WithField("content", string(b.Bytes()))
 
 	typ, err := m.identifyContentType(b)
@@ -72,7 +72,7 @@ func (m *Marshaler) Unmarshal(b message.RawMessageContent) (known.KnownMessageCo
 	return knownContent, nil
 }
 
-func (m *Marshaler) identifyContentType(b message.RawMessageContent) (known.MessageContentType, error) {
+func (m *Marshaler) identifyContentType(b message.RawContent) (known.MessageContentType, error) {
 	var typ messageContentType
 	if err := json.Unmarshal(b.Bytes(), &typ); err != nil {
 		return "", errors.Wrap(err, "json unmarshal of message content type failed")

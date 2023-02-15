@@ -29,7 +29,7 @@ type GoSSBRepoReader interface {
 }
 
 type ContentParser interface {
-	Parse(raw message.RawMessageContent) (message.Content, error)
+	Parse(raw message.RawContent) (message.Content, error)
 }
 
 type GoSSBMessageOrError struct {
@@ -408,7 +408,7 @@ func (h MigrationHandlerImportDataFromGoSSB) convertMessage(gossbmsg gossbrefs.M
 		return message.Message{}, errors.Wrap(err, "error creating feed")
 	}
 
-	rawMessageContent, err := message.NewRawMessageContent(gossbmsg.ContentBytes())
+	rawMessageContent, err := message.NewRawContent(gossbmsg.ContentBytes())
 	if err != nil {
 		return message.Message{}, errors.Wrap(err, "error creating raw message content")
 	}

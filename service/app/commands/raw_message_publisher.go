@@ -18,7 +18,7 @@ func NewTransactionRawMessagePublisher(transaction TransactionProvider) *Transac
 	return &TransactionRawMessagePublisher{transaction: transaction}
 }
 
-func (h *TransactionRawMessagePublisher) Publish(identity identity.Private, content message.RawMessageContent) (refs.Message, error) {
+func (h *TransactionRawMessagePublisher) Publish(identity identity.Private, content message.RawContent) (refs.Message, error) {
 	if identity.IsZero() {
 		return refs.Message{}, errors.New("zero value of identity")
 	}

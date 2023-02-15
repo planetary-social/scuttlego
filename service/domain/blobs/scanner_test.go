@@ -156,7 +156,7 @@ func TestScanner(t *testing.T) {
 		t.Run(testCase.Name, func(t *testing.T) {
 			scanner := blobs.NewScanner()
 
-			result, err := scanner.Scan(message.MustNewRawMessageContent([]byte(testCase.Content)))
+			result, err := scanner.Scan(message.MustNewRawContent([]byte(testCase.Content)))
 			require.NoError(t, err)
 			require.Equal(t,
 				testCase.ExpectedRefs,

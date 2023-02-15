@@ -10,14 +10,14 @@ import (
 var ErrUnknownContent = errors.New("unknown content")
 
 type Marshaler interface {
-	Marshal(content known.KnownMessageContent) (message.RawMessageContent, error)
+	Marshal(content known.KnownMessageContent) (message.RawContent, error)
 
 	// Unmarshal returns ErrUnknownContent if the content isn't known.
-	Unmarshal(b message.RawMessageContent) (known.KnownMessageContent, error)
+	Unmarshal(b message.RawContent) (known.KnownMessageContent, error)
 }
 
 type BlobScanner interface {
-	Scan(rawContent message.RawMessageContent) ([]refs.Blob, error)
+	Scan(rawContent message.RawContent) ([]refs.Blob, error)
 }
 
 type Parser struct {
@@ -29,7 +29,7 @@ func NewParser(marshaler Marshaler, blobScanner BlobScanner) *Parser {
 	return &Parser{marshaler: marshaler, blobScanner: blobScanner}
 }
 
-func (p *Parser) Parse(raw message.RawMessageContent) (message.Content, error) {
+func (p *Parser) Parse(raw message.RawContent) (message.Content, error) {
 	knownContent, err := p.getKnownContent(raw)
 	if err != nil {
 		return message.Content{}, errors.Wrap(err, "could not get known content")
@@ -43,7 +43,7 @@ func (p *Parser) Parse(raw message.RawMessageContent) (message.Content, error) {
 	return message.NewContent(raw, knownContent, referencedBlobs)
 }
 
-func (p *Parser) getKnownContent(rawContent message.RawMessageContent) (known.KnownMessageContent, error) {
+func (p *Parser) getKnownContent(rawContent message.RawContent) (known.KnownMessageContent, error) {
 	knownContent, err := p.marshaler.Unmarshal(rawContent)
 	if err != nil {
 		if errors.Is(err, ErrUnknownContent) {

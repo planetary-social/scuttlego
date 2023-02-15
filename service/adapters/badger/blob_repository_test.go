@@ -33,24 +33,20 @@ func TestBlobRepository_DeleteRemovesDataWithoutTouchingOtherEntries(t *testing.
 	ts := di.BuildBadgerTestAdapters(t)
 
 	msgRef1 := fixtures.SomeRefMessage()
-	blobs1 := feeds.NewBlobToSave(
-		[]refs.Blob{
-			fixtures.SomeRefBlob(),
-		},
+	blob1 := feeds.MustNewBlobToSave(
+		fixtures.SomeRefBlob(),
 	)
 
 	msgRef2 := fixtures.SomeRefMessage()
-	blobs2 := feeds.NewBlobToSave(
-		[]refs.Blob{
-			fixtures.SomeRefBlob(),
-		},
+	blob2 := feeds.MustNewBlobToSave(
+		fixtures.SomeRefBlob(),
 	)
 
 	err := ts.TransactionProvider.Update(func(adapters badger.TestAdapters) error {
-		err := adapters.BlobRepository.Put(msgRef1, blobs1)
+		err := adapters.BlobRepository.Put(msgRef1, blob1)
 		require.NoError(t, err)
 
-		err = adapters.BlobRepository.Put(msgRef2, blobs2)
+		err = adapters.BlobRepository.Put(msgRef2, blob2)
 		require.NoError(t, err)
 
 		return nil
@@ -61,34 +57,34 @@ func TestBlobRepository_DeleteRemovesDataWithoutTouchingOtherEntries(t *testing.
 		msg1Blobs, err := adapters.BlobRepository.ListBlobs(msgRef1)
 		require.NoError(t, err)
 		require.Equal(t,
-			blobs1.Blobs(),
+			[]refs.Blob{
+				blob1.Ref(),
+			},
 			msg1Blobs,
 		)
 
-		for _, blob := range blobs1.Blobs() {
-			blobMsgs, err := adapters.BlobRepository.ListMessages(blob)
-			require.NoError(t, err)
-			require.Equal(t,
-				[]refs.Message{msgRef1},
-				blobMsgs,
-			)
-		}
+		blobMsgs, err := adapters.BlobRepository.ListMessages(blob1.Ref())
+		require.NoError(t, err)
+		require.Equal(t,
+			[]refs.Message{msgRef1},
+			blobMsgs,
+		)
 
 		msg2Blobs, err := adapters.BlobRepository.ListBlobs(msgRef2)
 		require.NoError(t, err)
 		require.Equal(t,
-			blobs2.Blobs(),
+			[]refs.Blob{
+				blob2.Ref(),
+			},
 			msg2Blobs,
 		)
 
-		for _, blob := range blobs2.Blobs() {
-			blobMsgs, err := adapters.BlobRepository.ListMessages(blob)
-			require.NoError(t, err)
-			require.Equal(t,
-				[]refs.Message{msgRef2},
-				blobMsgs,
-			)
-		}
+		blobMsgs, err = adapters.BlobRepository.ListMessages(blob2.Ref())
+		require.NoError(t, err)
+		require.Equal(t,
+			[]refs.Message{msgRef2},
+			blobMsgs,
+		)
 
 		return nil
 	})
@@ -104,27 +100,25 @@ func TestBlobRepository_DeleteRemovesDataWithoutTouchingOtherEntries(t *testing.
 		require.NoError(t, err)
 		require.Empty(t, msg1Blobs)
 
-		for _, blob := range blobs1.Blobs() {
-			blobMsgs, err := adapters.BlobRepository.ListMessages(blob)
-			require.NoError(t, err)
-			require.Empty(t, blobMsgs)
-		}
+		blobMsgs, err := adapters.BlobRepository.ListMessages(blob1.Ref())
+		require.NoError(t, err)
+		require.Empty(t, blobMsgs)
 
 		msg2Blobs, err := adapters.BlobRepository.ListBlobs(msgRef2)
 		require.NoError(t, err)
 		require.Equal(t,
-			blobs2.Blobs(),
+			[]refs.Blob{
+				blob2.Ref(),
+			},
 			msg2Blobs,
 		)
 
-		for _, blob := range blobs2.Blobs() {
-			blobMsgs, err := adapters.BlobRepository.ListMessages(blob)
-			require.NoError(t, err)
-			require.Equal(t,
-				[]refs.Message{msgRef2},
-				blobMsgs,
-			)
-		}
+		blobMsgs, err = adapters.BlobRepository.ListMessages(blob2.Ref())
+		require.NoError(t, err)
+		require.Equal(t,
+			[]refs.Message{msgRef2},
+			blobMsgs,
+		)
 
 		return nil
 	})
@@ -137,17 +131,15 @@ func TestBlobRepository_DeleteRemovesDataWithoutTouchingOtherEntriesIfMultipleMe
 	msgRef1 := fixtures.SomeRefMessage()
 	msgRef2 := fixtures.SomeRefMessage()
 
-	blobs := feeds.NewBlobToSave(
-		[]refs.Blob{
-			fixtures.SomeRefBlob(),
-		},
+	blob := feeds.MustNewBlobToSave(
+		fixtures.SomeRefBlob(),
 	)
 
 	err := ts.TransactionProvider.Update(func(adapters badger.TestAdapters) error {
-		err := adapters.BlobRepository.Put(msgRef1, blobs)
+		err := adapters.BlobRepository.Put(msgRef1, blob)
 		require.NoError(t, err)
 
-		err = adapters.BlobRepository.Put(msgRef2, blobs)
+		err = adapters.BlobRepository.Put(msgRef2, blob)
 		require.NoError(t, err)
 
 		return nil
@@ -158,36 +150,38 @@ func TestBlobRepository_DeleteRemovesDataWithoutTouchingOtherEntriesIfMultipleMe
 		msg1Blobs, err := adapters.BlobRepository.ListBlobs(msgRef1)
 		require.NoError(t, err)
 		require.Equal(t,
-			blobs.Blobs(),
+			[]refs.Blob{
+				blob.Ref(),
+			},
 			msg1Blobs,
 		)
 
 		msg2Blobs, err := adapters.BlobRepository.ListBlobs(msgRef2)
 		require.NoError(t, err)
 		require.Equal(t,
-			blobs.Blobs(),
+			[]refs.Blob{
+				blob.Ref(),
+			},
 			msg2Blobs,
 		)
 
-		for _, blob := range blobs.Blobs() {
-			blobMsgs, err := adapters.BlobRepository.ListMessages(blob)
-			require.NoError(t, err)
+		blobMsgs, err := adapters.BlobRepository.ListMessages(blob.Ref())
+		require.NoError(t, err)
 
-			expectedBlobMsgs := []refs.Message{msgRef1, msgRef2}
+		expectedBlobMsgs := []refs.Message{msgRef1, msgRef2}
 
-			sort.Slice(blobMsgs, func(i, j int) bool {
-				return blobMsgs[i].String() < blobMsgs[j].String()
-			})
+		sort.Slice(blobMsgs, func(i, j int) bool {
+			return blobMsgs[i].String() < blobMsgs[j].String()
+		})
 
-			sort.Slice(expectedBlobMsgs, func(i, j int) bool {
-				return expectedBlobMsgs[i].String() < expectedBlobMsgs[j].String()
-			})
+		sort.Slice(expectedBlobMsgs, func(i, j int) bool {
+			return expectedBlobMsgs[i].String() < expectedBlobMsgs[j].String()
+		})
 
-			require.Equal(t,
-				expectedBlobMsgs,
-				blobMsgs,
-			)
-		}
+		require.Equal(t,
+			expectedBlobMsgs,
+			blobMsgs,
+		)
 
 		return nil
 	})
@@ -206,21 +200,21 @@ func TestBlobRepository_DeleteRemovesDataWithoutTouchingOtherEntriesIfMultipleMe
 		msg2Blobs, err := adapters.BlobRepository.ListBlobs(msgRef2)
 		require.NoError(t, err)
 		require.Equal(t,
-			blobs.Blobs(),
+			[]refs.Blob{
+				blob.Ref(),
+			},
 			msg2Blobs,
 		)
 
-		for _, blob := range blobs.Blobs() {
-			blobMsgs, err := adapters.BlobRepository.ListMessages(blob)
-			require.NoError(t, err)
+		blobMsgs, err := adapters.BlobRepository.ListMessages(blob.Ref())
+		require.NoError(t, err)
 
-			expectedBlobMsgs := []refs.Message{msgRef2}
+		expectedBlobMsgs := []refs.Message{msgRef2}
 
-			require.Equal(t,
-				expectedBlobMsgs,
-				blobMsgs,
-			)
-		}
+		require.Equal(t,
+			expectedBlobMsgs,
+			blobMsgs,
+		)
 
 		return nil
 	})

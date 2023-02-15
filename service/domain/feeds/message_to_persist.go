@@ -88,17 +88,29 @@ func (c PubToSave) Content() known.Pub {
 }
 
 type BlobToSave struct {
-	blobs []refs.Blob
+	ref refs.Blob
 }
 
-func NewBlobToSave(blobs []refs.Blob) BlobToSave {
-	return BlobToSave{
-		blobs: blobs,
+func NewBlobToSave(ref refs.Blob) (BlobToSave, error) {
+	if ref.IsZero() {
+		return BlobToSave{}, errors.New("zero value of ref")
 	}
+
+	return BlobToSave{
+		ref: ref,
+	}, nil
 }
 
-func (b BlobToSave) Blobs() []refs.Blob {
-	return b.blobs
+func MustNewBlobToSave(ref refs.Blob) BlobToSave {
+	v, err := NewBlobToSave(ref)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
+func (b BlobToSave) Ref() refs.Blob {
+	return b.ref
 }
 
 type ContactToSave struct {

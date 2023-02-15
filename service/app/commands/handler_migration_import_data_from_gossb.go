@@ -199,13 +199,11 @@ func (h MigrationHandlerImportDataFromGoSSB) startConversionLoop(ctx context.Con
 
 			msg, err := h.convertMessage(v.Value.Message)
 			if err != nil {
-				if err := v.Err; err != nil {
-					select {
-					case out <- scuttlegoMessageOrError{Err: errors.Wrap(err, "convert message error")}:
-						return
-					case <-ctx.Done():
-						return
-					}
+				select {
+				case out <- scuttlegoMessageOrError{Err: errors.Wrap(err, "convert message error")}:
+					return
+				case <-ctx.Done():
+					return
 				}
 			}
 

@@ -137,6 +137,14 @@ func (f *Feed) PopForPersisting() []MessageToPersist {
 	return f.messagesToSave
 }
 
+func (f *Feed) MessagesThatWillBePersisted() []refs.Message {
+	var result []refs.Message
+	for _, msg := range f.messagesToSave {
+		result = append(result, msg.Message().Id())
+	}
+	return result
+}
+
 // todo ignore repeated calls to follow someone if the current state of the feed suggests that this is already done (indempotency)
 func (f *Feed) onNewMessage(msg message.Message) error {
 	contacts := f.getContactsToSave(msg)

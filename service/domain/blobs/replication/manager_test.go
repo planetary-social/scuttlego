@@ -2,80 +2,41 @@ package replication_test
 
 import (
 	"context"
-	"sync"
 	"testing"
-	"time"
 
 	"github.com/planetary-social/scuttlego/fixtures"
 	"github.com/planetary-social/scuttlego/logging"
-	"github.com/planetary-social/scuttlego/service/adapters/mocks"
-	"github.com/planetary-social/scuttlego/service/domain/blobs"
 	"github.com/planetary-social/scuttlego/service/domain/blobs/replication"
 	"github.com/planetary-social/scuttlego/service/domain/messages"
-	domainmocks "github.com/planetary-social/scuttlego/service/domain/mocks"
-	"github.com/planetary-social/scuttlego/service/domain/refs"
+	"github.com/planetary-social/scuttlego/service/domain/mocks"
 	"github.com/planetary-social/scuttlego/service/domain/transport"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 	"github.com/stretchr/testify/require"
 )
 
-func TestManagerSendsLocalWants(t *testing.T) {
-	m := newTestManager(t)
+func TestManager_HandleIncomingCreateWantsRequest_CreatesProcessAndCallsAddIncoming(t *testing.T) {
+	ts := newTestManager(t)
+
 	ctx := newConnectionContext(t)
 
-	m.WantListStorage.WantList = []blobs.WantedBlob{
-		{
-			Id:       fixtures.SomeRefBlob(),
-			Distance: fixtures.SomeWantDistance(),
-		},
-	}
-
-	ch, err := m.Manager.HandleIncomingCreateWantsRequest(ctx)
+	_, err := ts.Manager.HandleIncomingCreateWantsRequest(ctx)
 	require.NoError(t, err)
 
-	var localWants []messages.BlobWithSizeOrWantDistance
-
-drainchannel:
-	for {
-		select {
-		case wants := <-ch:
-			localWants = append(localWants, wants)
-		case <-time.After(100 * time.Millisecond):
-			break drainchannel
-		}
-	}
-
-	require.Equal(t, len(m.WantListStorage.WantList), len(localWants))
+	require.Len(t, ts.Factory.CreatedProcesses, 1)
+	require.Equal(t, 1, ts.Factory.CreatedProcesses[0].AddIncomingCallsCount)
 }
 
-func TestManagerTriggersDownloaderAfterReceivingHas(t *testing.T) {
-	m := newTestManager(t)
+func TestManager_HandleOutgoingCreateWantsRequest_CreatesProcessAndCallsAddOutgoing(t *testing.T) {
+	ts := newTestManager(t)
+
 	ctx := newConnectionContext(t)
+	peer := transport.MustNewPeer(fixtures.SomePublicIdentity(), mocks.NewConnectionMock(ctx))
 
-	ch := make(chan messages.BlobWithSizeOrWantDistance)
-
-	peer := transport.MustNewPeer(fixtures.SomePublicIdentity(), domainmocks.NewConnectionMock(ctx))
-
-	err := m.Manager.HandleOutgoingCreateWantsRequest(ctx, ch, peer)
+	err := ts.Manager.HandleOutgoingCreateWantsRequest(ctx, nil, peer)
 	require.NoError(t, err)
 
-	blob, err := messages.NewBlobWithSize(fixtures.SomeRefBlob(), fixtures.SomeSize())
-	require.NoError(t, err)
-
-	select {
-	case ch <- blob:
-		// ok
-	case <-time.After(100 * time.Millisecond):
-		t.Fatal("timeout")
-	}
-
-	require.Eventually(t,
-		func() bool {
-			return len(m.HasHandler.OnHasReceivedCalls()) == 1
-		},
-		1*time.Second,
-		10*time.Millisecond,
-	)
+	require.Len(t, ts.Factory.CreatedProcesses, 1)
+	require.Equal(t, 1, ts.Factory.CreatedProcesses[0].AddOutgoingCallsCount)
 }
 
 func newConnectionContext(t *testing.T) context.Context {
@@ -85,74 +46,51 @@ func newConnectionContext(t *testing.T) context.Context {
 
 type testManager struct {
 	Manager *replication.Manager
-
-	WantListStorage *wantListStorageMock
-	HasHandler      *hasHandlerMock
+	Factory *managedWantsProcessFactoryMock
 }
 
 func newTestManager(t *testing.T) testManager {
-	wantListStorage := newWantListStorageMock()
-	blobStorage := mocks.NewBlobStorageMock()
-	hasHandler := newHasHandlerMock()
+	factory := newManagedWantsProcessFactoryMock()
 	logger := logging.NewDevNullLogger()
 
 	manager := replication.NewManager(
-		wantListStorage,
-		blobStorage,
-		hasHandler,
+		factory,
 		logger,
 	)
 
 	return testManager{
-		Manager:         manager,
-		WantListStorage: wantListStorage,
-		HasHandler:      hasHandler,
+		Manager: manager,
+		Factory: factory,
 	}
 }
 
-type wantListStorageMock struct {
-	WantList []blobs.WantedBlob
+type managedWantsProcessFactoryMock struct {
+	CreatedProcesses []*managedWantsProcessMock
 }
 
-func newWantListStorageMock() *wantListStorageMock {
-	return &wantListStorageMock{}
+func newManagedWantsProcessFactoryMock() *managedWantsProcessFactoryMock {
+	return &managedWantsProcessFactoryMock{}
 }
 
-func (w wantListStorageMock) List() (blobs.WantList, error) {
-	return blobs.NewWantList(w.WantList)
+func (m *managedWantsProcessFactoryMock) NewWantsProcess() replication.ManagedWantsProcess {
+	v := newManagedWantsProcessMock()
+	m.CreatedProcesses = append(m.CreatedProcesses, v)
+	return v
 }
 
-type hasHandlerMock struct {
-	onHasReceivedCalls []onHasReceivedCall
-	lock               sync.Mutex
+type managedWantsProcessMock struct {
+	AddIncomingCallsCount int
+	AddOutgoingCallsCount int
 }
 
-func newHasHandlerMock() *hasHandlerMock {
-	return &hasHandlerMock{}
+func newManagedWantsProcessMock() *managedWantsProcessMock {
+	return &managedWantsProcessMock{}
 }
 
-func (d *hasHandlerMock) OnHasReceived(ctx context.Context, peer transport.Peer, blob refs.Blob, size blobs.Size) {
-	d.lock.Lock()
-	defer d.lock.Unlock()
-
-	d.onHasReceivedCalls = append(d.onHasReceivedCalls, onHasReceivedCall{
-		Peer: peer,
-		Blob: blob,
-		Size: size,
-	})
+func (m *managedWantsProcessMock) AddIncoming(ctx context.Context, ch chan<- messages.BlobWithSizeOrWantDistance) {
+	m.AddIncomingCallsCount++
 }
 
-func (d *hasHandlerMock) OnHasReceivedCalls() []onHasReceivedCall {
-	d.lock.Lock()
-	defer d.lock.Unlock()
-
-	tmp := make([]onHasReceivedCall, len(d.onHasReceivedCalls))
-	copy(tmp, d.onHasReceivedCalls)
-	return tmp
-}
-
-type onHasReceivedCall struct {
-	Peer transport.Peer
-	Blob refs.Blob
-	Size blobs.Size
+func (m *managedWantsProcessMock) AddOutgoing(ctx context.Context, ch <-chan messages.BlobWithSizeOrWantDistance, peer transport.Peer) {
+	m.AddOutgoingCallsCount++
 }

@@ -17,8 +17,12 @@ type BlobSizeRepository interface {
 	Size(id refs.Blob) (blobs.Size, error)
 }
 
-type WantListStorage interface {
-	List() (blobs.WantList, error)
+type WantedBlobsProvider interface {
+	GetWantedBlobs() ([]refs.Blob, error)
+}
+
+type BlobsThatShouldBePushedProvider interface {
+	GetBlobsThatShouldBePushed() ([]refs.Blob, error)
 }
 
 type HasBlobHandler interface {

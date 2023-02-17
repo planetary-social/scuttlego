@@ -7,6 +7,7 @@ import (
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/logging"
+	"github.com/planetary-social/scuttlego/service/domain/blobs"
 	"github.com/planetary-social/scuttlego/service/domain/messages"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/planetary-social/scuttlego/service/domain/transport"
@@ -19,14 +20,16 @@ type WantsProcess struct {
 	remoteWantsLock sync.Mutex
 	remoteWants     map[string]struct{}
 
-	wantListStorage WantListStorage
-	blobStorage     BlobSizeRepository
-	hasHandler      HasBlobHandler
-	logger          logging.Logger
+	wantedBlobsProvider             WantedBlobsProvider
+	blobsThatShouldBePushedProvider BlobsThatShouldBePushedProvider
+	blobStorage                     BlobSizeRepository
+	hasHandler                      HasBlobHandler
+	logger                          logging.Logger
 }
 
 func NewWantsProcess(
-	wantListStorage WantListStorage,
+	wantedBlobsProvider WantedBlobsProvider,
+	blobsThatShouldBePushedProvider BlobsThatShouldBePushedProvider,
 	blobStorage BlobSizeRepository,
 	hasHandler HasBlobHandler,
 	logger logging.Logger,
@@ -34,15 +37,16 @@ func NewWantsProcess(
 	return &WantsProcess{
 		remoteWants: make(map[string]struct{}),
 
-		wantListStorage: wantListStorage,
-		blobStorage:     blobStorage,
-		hasHandler:      hasHandler,
-		logger:          logger.New("wants_process"),
+		wantedBlobsProvider:             wantedBlobsProvider,
+		blobsThatShouldBePushedProvider: blobsThatShouldBePushedProvider,
+		blobStorage:                     blobStorage,
+		hasHandler:                      hasHandler,
+		logger:                          logger.New("wants_process"),
 	}
 }
 
 func (p *WantsProcess) AddIncoming(ctx context.Context, ch chan<- messages.BlobWithSizeOrWantDistance) {
-	p.logger.Debug("adding incoming")
+	p.logger.Trace("adding incoming")
 
 	p.incomingLock.Lock()
 	defer p.incomingLock.Unlock()
@@ -62,7 +66,7 @@ func (p *WantsProcess) AddIncoming(ctx context.Context, ch chan<- messages.BlobW
 }
 
 func (p *WantsProcess) AddOutgoing(ctx context.Context, ch <-chan messages.BlobWithSizeOrWantDistance, peer transport.Peer) {
-	p.logger.Debug("adding outgoing")
+	p.logger.Trace("adding outgoing")
 	go p.outgoingLoop(ctx, ch, peer)
 }
 
@@ -72,38 +76,59 @@ func (p *WantsProcess) incomingLoop(ctx context.Context, ch chan<- messages.Blob
 	}
 
 	for {
-		wl, err := p.wantListStorage.List()
-		if err != nil {
-			p.logger.WithError(err).Error("could not get the want list")
-			continue
-		}
-
-		p.logger.WithField("want_list_size", wl.Len()).Trace("want list loaded from storage")
-
-		for _, v := range wl.List() {
-			v, err := messages.NewBlobWithWantDistance(v.Id, v.Distance)
-			if err != nil {
-				p.logger.WithError(err).Error("could not create a blob with want distance")
-				continue
-			}
-
-			p.logger.WithField("blob", v.Id()).Debug("sending wants")
-
-			select {
-			case ch <- v:
-				continue
-			case <-ctx.Done():
-				return
+		if err := p.sendWantList(ctx, ch); err != nil {
+			if !errors.Is(err, context.Canceled) {
+				p.logger.WithError(err).Error("error sending want list")
 			}
 		}
 
 		select {
-		case <-time.After(10 * time.Second): // todo change
+		case <-time.After(10 * time.Second):
 			continue
 		case <-ctx.Done():
 			return
 		}
 	}
+}
+
+func (p *WantsProcess) sendWantList(ctx context.Context, ch chan<- messages.BlobWithSizeOrWantDistance) error {
+	wantedBlobs, err := p.wantedBlobsProvider.GetWantedBlobs()
+	if err != nil {
+		return errors.Wrap(err, "could not get the want list")
+	}
+
+	blobsThatShouldBePushed, err := p.blobsThatShouldBePushedProvider.GetBlobsThatShouldBePushed()
+	if err != nil {
+		return errors.Wrap(err, "could not get the want list")
+	}
+
+	wantList, err := BuildWantList(wantedBlobs, blobsThatShouldBePushed)
+	if err != nil {
+		return errors.Wrap(err, "could not build the want list")
+	}
+
+	p.logger.WithField("want_list_size", wantList.Len()).Trace("built the want list")
+
+	for _, wantedBlob := range wantList.List() {
+		v, err := messages.NewBlobWithWantDistance(wantedBlob.Id, wantedBlob.Distance)
+		if err != nil {
+			return errors.Wrap(err, "could not create a blob with want distance")
+		}
+
+		p.logger.
+			WithField("blob", wantedBlob.Id.String()).
+			WithField("distance", wantedBlob.Distance.Int()).
+			Trace("sending wants")
+
+		select {
+		case ch <- v:
+			continue
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+
+	return nil
 }
 
 func (p *WantsProcess) cleanupIncomingStream(stream incomingStream) error {
@@ -217,4 +242,36 @@ func newIncomingStream(ctx context.Context, ch chan<- messages.BlobWithSizeOrWan
 		ctx: ctx,
 		ch:  ch,
 	}
+}
+
+func BuildWantList(wantedBlobs []refs.Blob, blobsToPush []refs.Blob) (blobs.WantList, error) {
+	wantListMap := make(map[string]blobs.WantedBlob)
+
+	for _, blob := range wantedBlobs {
+		wantListMap[blob.String()] = blobs.WantedBlob{
+			Id:       blob,
+			Distance: blobs.NewWantDistanceLocal(),
+		}
+	}
+
+	for _, blob := range blobsToPush {
+		if _, has := wantListMap[blob.String()]; !has {
+			wantListMap[blob.String()] = blobs.WantedBlob{
+				Id:       blob,
+				Distance: blobs.NewWantDistanceLocal(),
+			}
+		}
+	}
+
+	var wantListSlice []blobs.WantedBlob
+	for _, v := range wantListMap {
+		wantListSlice = append(wantListSlice, v)
+	}
+
+	wantList, err := blobs.NewWantList(wantListSlice)
+	if err != nil {
+		return blobs.WantList{}, errors.Wrap(err, "error creating the want list")
+	}
+
+	return wantList, nil
 }

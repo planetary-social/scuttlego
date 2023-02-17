@@ -32,11 +32,14 @@ var badgerAdaptersSet = wire.NewSet(
 
 var badgerNoTxRepositoriesSet = wire.NewSet(
 	notx.NewNoTxBlobWantListRepository,
-	wire.Bind(new(blobReplication.WantListStorage), new(*notx.NoTxBlobWantListRepository)),
+	wire.Bind(new(blobReplication.WantedBlobsProvider), new(*notx.NoTxBlobWantListRepository)),
 	wire.Bind(new(blobReplication.WantListRepository), new(*notx.NoTxBlobWantListRepository)),
 
 	notx.NewNoTxWantedFeedsRepository,
 	wire.Bind(new(replication.WantedFeedsRepository), new(*notx.NoTxWantedFeedsRepository)),
+
+	notx.NewNoTxBlobsRepository,
+	wire.Bind(new(blobReplication.BlobsRepository), new(*notx.NoTxBlobsRepository)),
 )
 
 var badgerRepositoriesSet = wire.NewSet(

@@ -7,19 +7,19 @@ import (
 	"github.com/planetary-social/scuttlego/di"
 	"github.com/planetary-social/scuttlego/fixtures"
 	"github.com/planetary-social/scuttlego/service/adapters/badger"
-	"github.com/planetary-social/scuttlego/service/domain/blobs"
+	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/stretchr/testify/require"
 )
 
-func TestNoTxBlobWantListRepository_ListReturnsEmptyWantListIfDatabaseIsEmpty(t *testing.T) {
+func TestNoTxBlobWantListRepository_GetWantedBlobsReturnsEmptyWantListIfDatabaseIsEmpty(t *testing.T) {
 	ts := di.BuildBadgerNoTxTestAdapters(t)
 
-	wantlist, err := ts.NoTxTestAdapters.NoTxBlobWantListRepository.List()
+	wantlist, err := ts.NoTxTestAdapters.NoTxBlobWantListRepository.GetWantedBlobs()
 	require.NoError(t, err)
-	require.Empty(t, wantlist.List())
+	require.Empty(t, wantlist)
 }
 
-func TestNoTxBlobWantListRepository_ListReturnsResultsNonEmptyWantListIfDatabaseIsNotEmpty(t *testing.T) {
+func TestNoTxBlobWantListRepository_GetWantedBlobsReturnsNonEmptyWantListIfDatabaseIsNotEmpty(t *testing.T) {
 	ts := di.BuildBadgerNoTxTestAdapters(t)
 
 	now := time.Now()
@@ -35,16 +35,13 @@ func TestNoTxBlobWantListRepository_ListReturnsResultsNonEmptyWantListIfDatabase
 	})
 	require.NoError(t, err)
 
-	wantlist, err := ts.NoTxTestAdapters.NoTxBlobWantListRepository.List()
+	wantlist, err := ts.NoTxTestAdapters.NoTxBlobWantListRepository.GetWantedBlobs()
 	require.NoError(t, err)
 	require.Equal(t,
-		[]blobs.WantedBlob{
-			{
-				Id:       blobRef,
-				Distance: blobs.MustNewWantDistance(1),
-			},
+		[]refs.Blob{
+			blobRef,
 		},
-		wantlist.List(),
+		wantlist,
 	)
 }
 
@@ -101,7 +98,7 @@ func TestNoTxBlobWantListRepository_Delete(t *testing.T) {
 	require.False(t, ok)
 }
 
-func TestNoTxBlobWantListRepository_ListCanTriggerWrites(t *testing.T) {
+func TestNoTxBlobWantListRepository_GetWantedBlobsCanTriggerWrites(t *testing.T) {
 	ts := di.BuildBadgerNoTxTestAdapters(t)
 
 	until := time.Now()
@@ -119,19 +116,19 @@ func TestNoTxBlobWantListRepository_ListCanTriggerWrites(t *testing.T) {
 
 	ts.Dependencies.CurrentTimeProvider.CurrentTime = beforeUntil
 
-	l, err := ts.NoTxTestAdapters.NoTxBlobWantListRepository.List()
+	l, err := ts.NoTxTestAdapters.NoTxBlobWantListRepository.GetWantedBlobs()
 	require.NoError(t, err)
-	require.NotEmpty(t, l.List(), "if the deadline hasn't passed the value should be returned")
+	require.NotEmpty(t, l, "if the deadline hasn't passed the value should be returned")
 
 	ts.Dependencies.CurrentTimeProvider.CurrentTime = afterUntil
 
-	l, err = ts.NoTxTestAdapters.NoTxBlobWantListRepository.List()
+	l, err = ts.NoTxTestAdapters.NoTxBlobWantListRepository.GetWantedBlobs()
 	require.NoError(t, err)
-	require.Empty(t, l.List(), "if the deadline passed the value shouldn't be returned")
+	require.Empty(t, l, "if the deadline passed the value shouldn't be returned")
 
 	ts.Dependencies.CurrentTimeProvider.CurrentTime = beforeUntil
 
-	l, err = ts.NoTxTestAdapters.NoTxBlobWantListRepository.List()
+	l, err = ts.NoTxTestAdapters.NoTxBlobWantListRepository.GetWantedBlobs()
 	require.NoError(t, err)
-	require.Empty(t, l.List(), "calling list should have cleaned up values for which the deadline has passed")
+	require.Empty(t, l, "calling list should have cleaned up values for which the deadline has passed")
 }

@@ -21,7 +21,6 @@ import (
 	"github.com/planetary-social/scuttlego/service/app/commands"
 	"github.com/planetary-social/scuttlego/service/app/queries"
 	"github.com/planetary-social/scuttlego/service/domain"
-	blobReplication "github.com/planetary-social/scuttlego/service/domain/blobs/replication"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/content"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/content/transport"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/formats"
@@ -458,21 +457,6 @@ var replicatorSet = wire.NewSet(
 
 	replication.NewNegotiator,
 	wire.Bind(new(domain.MessageReplicator), new(*replication.Negotiator)),
-)
-
-var blobReplicatorSet = wire.NewSet(
-	blobReplication.NewManager,
-	wire.Bind(new(blobReplication.ReplicationManager), new(*blobReplication.Manager)),
-	wire.Bind(new(commands.BlobReplicationManager), new(*blobReplication.Manager)),
-
-	blobReplication.NewReplicator,
-	wire.Bind(new(domain.BlobReplicator), new(*blobReplication.Replicator)),
-
-	blobReplication.NewBlobsGetDownloader,
-	wire.Bind(new(blobReplication.Downloader), new(*blobReplication.BlobsGetDownloader)),
-
-	blobReplication.NewHasHandler,
-	wire.Bind(new(blobReplication.HasBlobHandler), new(*blobReplication.HasHandler)),
 )
 
 func newAdvertiser(l identity.Public, config Config) (*local.Advertiser, error) {

@@ -3,6 +3,7 @@ package messages_test
 import (
 	"testing"
 
+	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/internal"
 	"github.com/planetary-social/scuttlego/service/domain/blobs"
 	"github.com/planetary-social/scuttlego/service/domain/messages"
@@ -83,11 +84,12 @@ func TestNewBlobsGetArgumentsFromBytesString(t *testing.T) {
 
 func TestNewBlobsGetArgumentsFromBytesObject(t *testing.T) {
 	testCases := []struct {
-		Name         string
-		Payload      string
-		ExpectedHash refs.Blob
-		ExpectedSize *blobs.Size
-		ExpectedMax  *blobs.Size
+		Name          string
+		Payload       string
+		ExpectedHash  refs.Blob
+		ExpectedSize  *blobs.Size
+		ExpectedMax   *blobs.Size
+		ExpectedError error
 	}{
 		{
 			Name:         "everything",
@@ -117,29 +119,52 @@ func TestNewBlobsGetArgumentsFromBytesObject(t *testing.T) {
 			ExpectedSize: internal.Ptr(blobs.MustNewSize(161699)),
 			ExpectedMax:  nil,
 		},
+		{
+			Name:         "key_instead_of_hash",
+			Payload:      `[{"key":"&eb3zi3R00MZ6X+9jXgZMCS6/N1W1PGM2leOEKvpKQjA=.sha256","max":5242880}]`,
+			ExpectedHash: refs.MustNewBlob("&eb3zi3R00MZ6X+9jXgZMCS6/N1W1PGM2leOEKvpKQjA=.sha256"),
+			ExpectedSize: nil,
+			ExpectedMax:  internal.Ptr(blobs.MustNewSize(5242880)),
+		},
+		{
+			Name:         "identical_key_and_hash",
+			Payload:      `[{"hash":"&eb3zi3R00MZ6X+9jXgZMCS6/N1W1PGM2leOEKvpKQjA=.sha256","key":"&eb3zi3R00MZ6X+9jXgZMCS6/N1W1PGM2leOEKvpKQjA=.sha256","max":5242880}]`,
+			ExpectedHash: refs.MustNewBlob("&eb3zi3R00MZ6X+9jXgZMCS6/N1W1PGM2leOEKvpKQjA=.sha256"),
+			ExpectedSize: nil,
+			ExpectedMax:  internal.Ptr(blobs.MustNewSize(5242880)),
+		},
+		{
+			Name:          "different_key_and_hash",
+			Payload:       `[{"hash":"&2b3zi3R00MZ6X+9jXgZMCS6/N1W1PGM2leOEKvpKQjA=.sha256","key":"&eb3zi3R00MZ6X+9jXgZMCS6/N1W1PGM2leOEKvpKQjA=.sha256","max":5242880}]`,
+			ExpectedError: errors.New("2 errors occurred:\n\t* error unmarshaling arguments as string: json unmarshal failed: json: cannot unmarshal object into Go value of type string\n\t* error unmarshaling arguments as object: could not create a blob ref: key and hash are set but have different values\n\n"),
+		},
 	}
 
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
 			args, err := messages.NewBlobsGetArgumentsFromBytes([]byte(testCase.Payload))
-			require.NoError(t, err)
-
-			require.Equal(t, testCase.ExpectedHash, args.Hash())
-
-			size, ok := args.Size()
-			if testCase.ExpectedSize != nil {
-				require.True(t, ok)
-				require.Equal(t, *testCase.ExpectedSize, size)
+			if testCase.ExpectedError != nil {
+				require.EqualError(t, err, testCase.ExpectedError.Error())
 			} else {
-				require.False(t, ok)
-			}
+				require.NoError(t, err)
 
-			max, ok := args.Max()
-			if testCase.ExpectedMax != nil {
-				require.True(t, ok)
-				require.Equal(t, *testCase.ExpectedMax, max)
-			} else {
-				require.False(t, ok)
+				require.Equal(t, testCase.ExpectedHash, args.Hash())
+
+				size, ok := args.Size()
+				if testCase.ExpectedSize != nil {
+					require.True(t, ok)
+					require.Equal(t, *testCase.ExpectedSize, size)
+				} else {
+					require.False(t, ok)
+				}
+
+				max, ok := args.Max()
+				if testCase.ExpectedMax != nil {
+					require.True(t, ok)
+					require.Equal(t, *testCase.ExpectedMax, max)
+				} else {
+					require.False(t, ok)
+				}
 			}
 		})
 	}

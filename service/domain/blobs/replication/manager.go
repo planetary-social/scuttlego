@@ -11,29 +11,33 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 )
 
+type ManagedWantsProcessFactory interface {
+	NewWantsProcess() ManagedWantsProcess
+}
+
+type ManagedWantsProcess interface {
+	AddIncoming(ctx context.Context, ch chan<- messages.BlobWithSizeOrWantDistance)
+	AddOutgoing(ctx context.Context, ch <-chan messages.BlobWithSizeOrWantDistance, peer transport.Peer)
+}
+
 type Manager struct {
-	wantListStorage WantListStorage
-	blobStorage     BlobSizeRepository
-	hasHandler      HasBlobHandler
-	logger          logging.Logger
+	factory ManagedWantsProcessFactory
+	logger  logging.Logger
 
 	// todo cleanup processes
-	processes map[rpc.ConnectionId]*WantsProcess
-	lock      sync.Mutex // guards processes
+	processes     map[rpc.ConnectionId]ManagedWantsProcess
+	processesLock sync.Mutex
 }
 
 func NewManager(
-	wantListStorage WantListStorage,
-	blobStorage BlobSizeRepository,
-	hasHandler HasBlobHandler,
+	factory ManagedWantsProcessFactory,
 	logger logging.Logger,
 ) *Manager {
 	return &Manager{
-		wantListStorage: wantListStorage,
-		blobStorage:     blobStorage,
-		hasHandler:      hasHandler,
-		processes:       make(map[rpc.ConnectionId]*WantsProcess),
-		logger:          logger.New("replication_manager"),
+		factory: factory,
+		logger:  logger.New("blobs_replication_manager"),
+
+		processes: make(map[rpc.ConnectionId]ManagedWantsProcess),
 	}
 }
 
@@ -43,8 +47,8 @@ func (m *Manager) HandleIncomingCreateWantsRequest(ctx context.Context) (<-chan 
 		return nil, errors.New("connection id not found in context")
 	}
 
-	m.lock.Lock()
-	defer m.lock.Unlock()
+	m.processesLock.Lock()
+	defer m.processesLock.Unlock()
 
 	ch := make(chan messages.BlobWithSizeOrWantDistance)
 	m.getOrCreateProcess(connectionId).AddIncoming(ctx, ch)
@@ -57,22 +61,17 @@ func (m *Manager) HandleOutgoingCreateWantsRequest(ctx context.Context, ch <-cha
 		return errors.New("connection id not found in context")
 	}
 
-	m.lock.Lock()
-	defer m.lock.Unlock()
+	m.processesLock.Lock()
+	defer m.processesLock.Unlock()
 
 	m.getOrCreateProcess(connectionId).AddOutgoing(ctx, ch, peer)
 	return nil
 }
 
-func (m *Manager) getOrCreateProcess(id rpc.ConnectionId) *WantsProcess {
+func (m *Manager) getOrCreateProcess(id rpc.ConnectionId) ManagedWantsProcess {
 	v, ok := m.processes[id]
 	if !ok {
-		v = NewWantsProcess(
-			m.wantListStorage,
-			m.blobStorage,
-			m.hasHandler,
-			m.logger.WithField("connection_id", id),
-		)
+		v = m.factory.NewWantsProcess()
 		m.processes[id] = v
 	}
 	return v

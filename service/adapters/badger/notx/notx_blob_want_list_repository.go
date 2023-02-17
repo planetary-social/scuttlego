@@ -2,7 +2,6 @@ package notx
 
 import (
 	"github.com/boreq/errors"
-	"github.com/planetary-social/scuttlego/service/domain/blobs"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 )
 
@@ -14,28 +13,21 @@ func NewNoTxBlobWantListRepository(transaction TransactionProvider) *NoTxBlobWan
 	return &NoTxBlobWantListRepository{transaction: transaction}
 }
 
-func (b NoTxBlobWantListRepository) List() (blobs.WantList, error) {
-	var result []blobs.WantedBlob
+func (b NoTxBlobWantListRepository) GetWantedBlobs() ([]refs.Blob, error) {
+	var result []refs.Blob
 
 	if err := b.transaction.Update(func(adapters TxAdapters) error {
-		list, err := adapters.BlobWantListRepository.List()
+		tmp, err := adapters.BlobWantListRepository.List()
 		if err != nil {
 			return errors.Wrap(err, "could not get blobs from tx repo")
 		}
-
-		for _, v := range list {
-			result = append(result, blobs.WantedBlob{
-				Id:       v,
-				Distance: blobs.NewWantDistanceLocal(),
-			})
-		}
-
+		result = tmp
 		return nil
 	}); err != nil {
-		return blobs.WantList{}, errors.Wrap(err, "transaction failed")
+		return nil, errors.Wrap(err, "transaction failed")
 	}
 
-	return blobs.NewWantList(result)
+	return result, nil
 }
 
 func (b NoTxBlobWantListRepository) Contains(id refs.Blob) (bool, error) {

@@ -13,7 +13,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/adapters/mocks"
 	"github.com/planetary-social/scuttlego/service/app/commands"
 	"github.com/planetary-social/scuttlego/service/app/queries"
-	blobReplication "github.com/planetary-social/scuttlego/service/domain/blobs/replication"
+	blobreplication "github.com/planetary-social/scuttlego/service/domain/blobs/replication"
 	"github.com/planetary-social/scuttlego/service/domain/invites"
 	"github.com/planetary-social/scuttlego/service/domain/replication/ebt"
 	"github.com/planetary-social/scuttlego/service/domain/transport/boxstream"
@@ -32,10 +32,10 @@ var mockQueryAdaptersSet = wire.NewSet(
 
 var blobsAdaptersSet = wire.NewSet(
 	newFilesystemStorage,
-	wire.Bind(new(blobReplication.BlobStorage), new(*blobs.FilesystemStorage)),
-	wire.Bind(new(blobReplication.BlobStorer), new(*blobs.FilesystemStorage)),
+	wire.Bind(new(blobreplication.BlobStorage), new(*blobs.FilesystemStorage)),
+	wire.Bind(new(blobreplication.BlobStorer), new(*blobs.FilesystemStorage)),
 	wire.Bind(new(queries.BlobStorage), new(*blobs.FilesystemStorage)),
-	wire.Bind(new(blobReplication.BlobSizeRepository), new(*blobs.FilesystemStorage)),
+	wire.Bind(new(blobreplication.BlobSizeRepository), new(*blobs.FilesystemStorage)),
 	wire.Bind(new(commands.BlobCreator), new(*blobs.FilesystemStorage)),
 )
 
@@ -48,6 +48,7 @@ var adaptersSet = wire.NewSet(
 	wire.Bind(new(commands.CurrentTimeProvider), new(*adapters.CurrentTimeProvider)),
 	wire.Bind(new(boxstream.CurrentTimeProvider), new(*adapters.CurrentTimeProvider)),
 	wire.Bind(new(invitesadapters.CurrentTimeProvider), new(*adapters.CurrentTimeProvider)),
+	wire.Bind(new(blobreplication.CurrentTimeProvider), new(*adapters.CurrentTimeProvider)),
 
 	adapters.NewBanListHasher,
 	wire.Bind(new(badger.BanListHasher), new(*adapters.BanListHasher)),

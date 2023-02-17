@@ -494,6 +494,12 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	replicator := ebt.NewReplicator(sessionTracker, sessionRunner, gossipReplicator, logger)
 	negotiator := replication.NewNegotiator(logger, replicator, gossipReplicator)
 	noTxBlobWantListRepository := notx.NewNoTxBlobWantListRepository(txAdaptersFactoryTransactionProvider)
+	noTxBlobsRepository := notx.NewNoTxBlobsRepository(txAdaptersFactoryTransactionProvider)
+	storageBlobsThatShouldBePushedProvider, err := replication2.NewStorageBlobsThatShouldBePushedProvider(noTxBlobsRepository, public, currentTimeProvider)
+	if err != nil {
+		cleanup()
+		return Service{}, nil, err
+	}
 	filesystemStorage, err := newFilesystemStorage(logger, config)
 	if err != nil {
 		cleanup()
@@ -502,7 +508,8 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	blobsGetDownloader := replication2.NewBlobsGetDownloader(filesystemStorage, logger)
 	blobDownloadedPubSub := pubsub.NewBlobDownloadedPubSub()
 	hasHandler := replication2.NewHasHandler(filesystemStorage, noTxBlobWantListRepository, blobsGetDownloader, blobDownloadedPubSub, logger)
-	replicationManager := replication2.NewManager(noTxBlobWantListRepository, filesystemStorage, hasHandler, logger)
+	diManagedWantsProcessFactory := newManagedWantsProcessFactory(noTxBlobWantListRepository, storageBlobsThatShouldBePushedProvider, filesystemStorage, hasHandler, logger)
+	replicationManager := replication2.NewManager(diManagedWantsProcessFactory, logger)
 	replicationReplicator := replication2.NewReplicator(replicationManager)
 	peerRPCAdapter := rooms.NewPeerRPCAdapter(logger)
 	roomAttendantEventPubSub := pubsub.NewRoomAttendantEventPubSub()
@@ -700,6 +707,12 @@ func buildIntegrationTestsService(t *testing.T) (IntegrationTestsService, func()
 	replicator := ebt.NewReplicator(sessionTracker, sessionRunner, gossipReplicator, logger)
 	negotiator := replication.NewNegotiator(logger, replicator, gossipReplicator)
 	noTxBlobWantListRepository := notx.NewNoTxBlobWantListRepository(txAdaptersFactoryTransactionProvider)
+	noTxBlobsRepository := notx.NewNoTxBlobsRepository(txAdaptersFactoryTransactionProvider)
+	storageBlobsThatShouldBePushedProvider, err := replication2.NewStorageBlobsThatShouldBePushedProvider(noTxBlobsRepository, public, currentTimeProvider)
+	if err != nil {
+		cleanup()
+		return IntegrationTestsService{}, nil, err
+	}
 	filesystemStorage, err := newFilesystemStorage(logger, config)
 	if err != nil {
 		cleanup()
@@ -708,7 +721,8 @@ func buildIntegrationTestsService(t *testing.T) (IntegrationTestsService, func()
 	blobsGetDownloader := replication2.NewBlobsGetDownloader(filesystemStorage, logger)
 	blobDownloadedPubSub := pubsub.NewBlobDownloadedPubSub()
 	hasHandler := replication2.NewHasHandler(filesystemStorage, noTxBlobWantListRepository, blobsGetDownloader, blobDownloadedPubSub, logger)
-	replicationManager := replication2.NewManager(noTxBlobWantListRepository, filesystemStorage, hasHandler, logger)
+	diManagedWantsProcessFactory := newManagedWantsProcessFactory(noTxBlobWantListRepository, storageBlobsThatShouldBePushedProvider, filesystemStorage, hasHandler, logger)
+	replicationManager := replication2.NewManager(diManagedWantsProcessFactory, logger)
 	replicationReplicator := replication2.NewReplicator(replicationManager)
 	peerRPCAdapter := rooms.NewPeerRPCAdapter(logger)
 	roomAttendantEventPubSub := pubsub.NewRoomAttendantEventPubSub()
@@ -908,8 +922,6 @@ func BuildIntegrationTestsService(t *testing.T) (IntegrationTestsService, error)
 }
 
 var replicatorSet = wire.NewSet(gossip.NewManager, wire.Bind(new(gossip.ReplicationManager), new(*gossip.Manager)), gossip.NewGossipReplicator, wire.Bind(new(replication.CreateHistoryStreamReplicator), new(*gossip.GossipReplicator)), wire.Bind(new(ebt.SelfCreateHistoryStreamReplicator), new(*gossip.GossipReplicator)), ebt.NewReplicator, wire.Bind(new(replication.EpidemicBroadcastTreesReplicator), new(ebt.Replicator)), replication.NewWantedFeedsCache, wire.Bind(new(gossip.ContactsStorage), new(*replication.WantedFeedsCache)), wire.Bind(new(ebt.ContactsStorage), new(*replication.WantedFeedsCache)), ebt.NewSessionTracker, wire.Bind(new(ebt.Tracker), new(*ebt.SessionTracker)), ebt.NewSessionRunner, wire.Bind(new(ebt.Runner), new(*ebt.SessionRunner)), replication.NewNegotiator, wire.Bind(new(domain.MessageReplicator), new(*replication.Negotiator)))
-
-var blobReplicatorSet = wire.NewSet(replication2.NewManager, wire.Bind(new(replication2.ReplicationManager), new(*replication2.Manager)), wire.Bind(new(commands.BlobReplicationManager), new(*replication2.Manager)), replication2.NewReplicator, wire.Bind(new(domain.BlobReplicator), new(*replication2.Replicator)), replication2.NewBlobsGetDownloader, wire.Bind(new(replication2.Downloader), new(*replication2.BlobsGetDownloader)), replication2.NewHasHandler, wire.Bind(new(replication2.HasBlobHandler), new(*replication2.HasHandler)))
 
 func newAdvertiser(l identity.Public, config Config) (*local.Advertiser, error) {
 	return local.NewAdvertiser(l, config.ListenAddress)

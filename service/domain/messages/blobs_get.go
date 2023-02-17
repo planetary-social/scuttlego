@@ -59,13 +59,13 @@ func NewBlobsGetArgumentsFromBytes(b []byte) (BlobsGetArguments, error) {
 	var err error
 
 	args, stringErr := newBlobsGetArgumentsFromBytesString(b)
-	err = multierror.Append(err, stringErr)
+	err = multierror.Append(err, errors.Wrap(stringErr, "error unmarshaling arguments as string"))
 	if stringErr == nil {
 		return args, nil
 	}
 
 	args, objectErr := newBlobsGetArgumentsFromBytesObject(b)
-	err = multierror.Append(err, objectErr)
+	err = multierror.Append(err, errors.Wrap(objectErr, "error unmarshaling arguments as object"))
 	if objectErr == nil {
 		return args, nil
 	}
@@ -103,7 +103,7 @@ func newBlobsGetArgumentsFromBytesObject(b []byte) (BlobsGetArguments, error) {
 		return BlobsGetArguments{}, errors.New("expected exactly one argument")
 	}
 
-	id, err := refs.NewBlob(args[0].Hash)
+	id, err := idFromKeyOrHash(args[0])
 	if err != nil {
 		return BlobsGetArguments{}, errors.Wrap(err, "could not create a blob ref")
 	}
@@ -119,6 +119,28 @@ func newBlobsGetArgumentsFromBytesObject(b []byte) (BlobsGetArguments, error) {
 	}
 
 	return NewBlobsGetArguments(id, size, max)
+}
+
+func idFromKeyOrHash(arg blobsGetArgumentsTransport) (refs.Blob, error) {
+	var err error
+
+	if arg.Hash != "" && arg.Key != "" && arg.Hash != arg.Key {
+		return refs.Blob{}, errors.New("key and hash are set but have different values")
+	}
+
+	id, hashErr := refs.NewBlob(arg.Hash)
+	err = multierror.Append(err, hashErr)
+	if hashErr == nil {
+		return id, nil
+	}
+
+	id, keyErr := refs.NewBlob(arg.Key)
+	err = multierror.Append(err, keyErr)
+	if keyErr == nil {
+		return id, nil
+	}
+
+	return refs.Blob{}, err
 }
 
 func (a BlobsGetArguments) MarshalJSON() ([]byte, error) {
@@ -168,7 +190,8 @@ func (a BlobsGetArguments) Max() (blobs.Size, bool) {
 }
 
 type blobsGetArgumentsTransport struct {
-	Hash string `json:"hash"`
+	Hash string `json:"hash,omitempty"`
+	Key  string `json:"key,omitempty"`
 	Size *int64 `json:"size,omitempty"`
 	Max  *int64 `json:"max,omitempty"`
 }

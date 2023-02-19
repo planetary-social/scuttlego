@@ -8,12 +8,12 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 )
 
-var pubMapping = MessageContentMapping{
+var PubMapping = MessageContentMapping{
 	Marshal: func(con known.KnownMessageContent) ([]byte, error) {
 		msg := con.(known.Pub)
 
 		t := transportPub{
-			messageContentType: contentTypeToTransport(msg),
+			MessageContentType: NewMessageContentType(msg),
 			Address: transportPubAddress{
 				Key:  msg.Key().String(),
 				Host: msg.Host(),
@@ -40,7 +40,7 @@ var pubMapping = MessageContentMapping{
 }
 
 type transportPub struct {
-	messageContentType                     // todo this is stupid
+	MessageContentType                     // todo this is stupid
 	Address            transportPubAddress `json:"address"`
 }
 

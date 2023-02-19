@@ -73,7 +73,7 @@ func (m *Marshaler) Unmarshal(b message.RawContent) (known.KnownMessageContent, 
 }
 
 func (m *Marshaler) identifyContentType(b message.RawContent) (known.MessageContentType, error) {
-	var typ messageContentType
+	var typ MessageContentType
 	if err := json.Unmarshal(b.Bytes(), &typ); err != nil {
 		return "", errors.Wrap(err, "json unmarshal of message content type failed")
 	}
@@ -83,6 +83,10 @@ func (m *Marshaler) identifyContentType(b message.RawContent) (known.MessageCont
 	return known.MessageContentType(typ.MessageContentType), nil
 }
 
-type messageContentType struct {
+type MessageContentType struct {
 	MessageContentType string `json:"type"`
+}
+
+func NewMessageContentType(messageContent known.KnownMessageContent) MessageContentType {
+	return MessageContentType{string(messageContent.Type())}
 }

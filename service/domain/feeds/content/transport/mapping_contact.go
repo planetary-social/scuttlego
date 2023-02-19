@@ -10,12 +10,12 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 )
 
-var contactMapping = MessageContentMapping{
+var ContactMapping = MessageContentMapping{
 	Marshal: func(con known.KnownMessageContent) ([]byte, error) {
 		msg := con.(known.Contact)
 
 		t := transportContact{
-			messageContentType: contentTypeToTransport(msg),
+			MessageContentType: NewMessageContentType(msg),
 			Contact:            msg.Contact().String(),
 		}
 
@@ -89,7 +89,7 @@ func marshalContactActions(actions known.ContactActions, t *transportContact) er
 }
 
 type transportContact struct {
-	messageContentType        // todo this is stupid
+	MessageContentType        // todo this is stupid
 	Contact            string `json:"contact,omitempty"`
 	Following          *bool  `json:"following,omitempty"`
 	Blocking           *bool  `json:"blocking,omitempty"`

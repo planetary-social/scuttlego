@@ -111,7 +111,7 @@ func MustNewContactActions(actions []ContactAction) ContactActions {
 	return v
 }
 
-func (a *ContactActions) List() []ContactAction {
+func (a ContactActions) List() []ContactAction {
 	return a.actions.List()
 }
 

@@ -1,20 +1,21 @@
-package known
+package known_test
 
 import (
 	"fmt"
 	"testing"
 
 	"github.com/boreq/errors"
+	"github.com/planetary-social/scuttlego/service/domain/feeds/content/known"
 	"github.com/stretchr/testify/require"
 )
 
 func TestContactActions(t *testing.T) {
 	testCases := []struct {
-		Actions       []ContactAction
+		Actions       []known.ContactAction
 		ExpectedError error
 	}{
 		{
-			Actions:       []ContactAction{},
+			Actions:       []known.ContactAction{},
 			ExpectedError: errors.New("actions can not be empty"),
 		},
 		{
@@ -22,60 +23,60 @@ func TestContactActions(t *testing.T) {
 			ExpectedError: errors.New("actions can not be empty"),
 		},
 		{
-			Actions: []ContactAction{
+			Actions: []known.ContactAction{
 				{},
 			},
 			ExpectedError: errors.New("zero value of action"),
 		},
 		{
-			Actions: []ContactAction{
-				ContactActionFollow,
-				ContactActionFollow,
+			Actions: []known.ContactAction{
+				known.ContactActionFollow,
+				known.ContactActionFollow,
 			},
 			ExpectedError: errors.New("duplicate action: '{follow}'"),
 		},
 		{
-			Actions: []ContactAction{
-				ContactActionFollow,
+			Actions: []known.ContactAction{
+				known.ContactActionFollow,
 			},
 			ExpectedError: nil,
 		},
 		{
-			Actions: []ContactAction{
-				ContactActionUnfollow,
+			Actions: []known.ContactAction{
+				known.ContactActionUnfollow,
 			},
 			ExpectedError: nil,
 		},
 		{
-			Actions: []ContactAction{
-				ContactActionBlock,
+			Actions: []known.ContactAction{
+				known.ContactActionBlock,
 			},
 			ExpectedError: nil,
 		},
 		{
-			Actions: []ContactAction{
-				ContactActionUnblock,
+			Actions: []known.ContactAction{
+				known.ContactActionUnblock,
 			},
 			ExpectedError: nil,
 		},
 		{
-			Actions: []ContactAction{
-				ContactActionFollow,
-				ContactActionUnfollow,
+			Actions: []known.ContactAction{
+				known.ContactActionFollow,
+				known.ContactActionUnfollow,
 			},
 			ExpectedError: errors.New("both follow and unfollow are present"),
 		},
 		{
-			Actions: []ContactAction{
-				ContactActionBlock,
-				ContactActionUnblock,
+			Actions: []known.ContactAction{
+				known.ContactActionBlock,
+				known.ContactActionUnblock,
 			},
 			ExpectedError: errors.New("both block and unblock are present"),
 		},
 		{
-			Actions: []ContactAction{
-				ContactActionFollow,
-				ContactActionBlock,
+			Actions: []known.ContactAction{
+				known.ContactActionFollow,
+				known.ContactActionBlock,
 			},
 			ExpectedError: errors.New("both follow and block are present"),
 		},
@@ -83,7 +84,7 @@ func TestContactActions(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(fmt.Sprintf("%#v", testCase.Actions), func(t *testing.T) {
-			actions, err := NewContactActions(testCase.Actions)
+			actions, err := known.NewContactActions(testCase.Actions)
 			if testCase.ExpectedError != nil {
 				require.EqualError(t, err, testCase.ExpectedError.Error())
 			} else {

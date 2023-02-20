@@ -91,8 +91,7 @@ func (m *MessageBuffer) persist() error {
 		m.forcePersistOnce = sync.Once{}
 	}()
 
-	numberOfMessages := m.messages.MessageCount()
-	if numberOfMessages == 0 {
+	if m.messages.MessageCount() == 0 {
 		return nil
 	}
 
@@ -108,16 +107,18 @@ func (m *MessageBuffer) persist() error {
 	}
 
 	for key, updatedSequence := range updatedSequences {
-		m.logger.WithField("key", key).WithField("sequence", updatedSequence.Int()).Trace("dropping after")
+		logger := m.logger.WithField("key", key).WithField("updated_sequence", updatedSequence.Int())
+
+		logger.Trace("leaving only after")
 		m.messages[key].LeaveOnlyAfter(updatedSequence)
+
 		if m.messages[key].Len() == 0 {
-			m.logger.WithField("key", key).Trace("deleting")
+			logger.Trace("deleting")
 			delete(m.messages, key)
 		}
 	}
 
 	m.logger.
-		WithField("count", numberOfMessages).
 		WithField("duration", time.Since(start)).
 		Debug("persisted messages")
 
@@ -130,13 +131,14 @@ func (m *MessageBuffer) persistTransaction(adapters Adapters) (map[string]messag
 		return nil, errors.Wrap(err, "could not load the social graph")
 	}
 
-	counterAll := 0
-	counterSuccesses := 0
+	counterAllMessages := 0
+	counterConsideredMessages := 0
+	counterPersistedMessages := 0
 
 	updatedSequences := make(map[string]message.Sequence)
 
 	for key, feedMessages := range m.messages {
-		counterAll++
+		counterAllMessages += feedMessages.Len()
 
 		feedRef := feedMessages.Feed()
 		feedLogger := m.logger.WithField("feed", feedRef)
@@ -155,22 +157,26 @@ func (m *MessageBuffer) persistTransaction(adapters Adapters) (map[string]messag
 			seq := m.getSequence(feed)
 			msgs := feedMessages.ConsecutiveSliceStartingWith(seq)
 
+			counterConsideredMessages += len(msgs)
+
 			feedLogger.
 				WithField("sequence_in_database", seq).
 				WithField("sequences_in_buffer", feedMessages.Sequences()).
-				WithField("messages_that_can_be_persisted", len(msgs)).
+				WithField("messages_considered_for_persisting", len(msgs)).
 				Trace("persisting messages")
-
-			if len(msgs) > 0 {
-				counterSuccesses++
-			}
 
 			for _, msg := range msgs {
 				if err := feed.AppendMessage(msg); err != nil {
+					feedLogger.
+						WithError(err).
+						WithField("message_being_appended", msg).
+						Trace("error appending message")
 					feedMessages.Remove(msg)
 					return nil // probably a forked feed
 				}
 			}
+
+			counterPersistedMessages += len(feed.MessagesThatWillBePersisted())
 
 			sequence, ok := feed.Sequence()
 			if ok {
@@ -184,9 +190,12 @@ func (m *MessageBuffer) persistTransaction(adapters Adapters) (map[string]messag
 	}
 
 	m.logger.
-		WithField("health", float64(counterSuccesses)/float64(counterAll)).
-		WithField("messages", m.messages.MessageCount()).
-		WithField("feeds", len(m.messages)).
+		WithField("remaining_messages", m.messages.MessageCount()).
+		WithField("remaining_feeds", len(m.messages)).
+		WithField("messages_all", counterAllMessages).
+		WithField("messages_considered", counterConsideredMessages).
+		WithField("messages_persisted", counterPersistedMessages).
+		WithField("health", float64(counterPersistedMessages)/float64(counterAllMessages)).
 		Debug("update complete")
 
 	return updatedSequences, nil

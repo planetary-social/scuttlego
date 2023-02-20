@@ -164,6 +164,26 @@ func TestFeedMessages_ConsecutiveSliceStartingWith(t *testing.T) {
 			},
 		},
 		{
+			Name: "nil_consecutive_with_duplicates",
+			Seq:  nil,
+			MessageSequences: []message.Sequence{
+				message.MustNewSequence(1),
+				message.MustNewSequence(1),
+				message.MustNewSequence(2),
+				message.MustNewSequence(2),
+				message.MustNewSequence(3),
+				message.MustNewSequence(3),
+			},
+			ExpectedResult: []message.Sequence{
+				message.MustNewSequence(1),
+				message.MustNewSequence(1),
+				message.MustNewSequence(2),
+				message.MustNewSequence(2),
+				message.MustNewSequence(3),
+				message.MustNewSequence(3),
+			},
+		},
+		{
 			Name: "nil_not_consecutive",
 			Seq:  nil,
 			MessageSequences: []message.Sequence{
@@ -175,6 +195,27 @@ func TestFeedMessages_ConsecutiveSliceStartingWith(t *testing.T) {
 			},
 			ExpectedResult: []message.Sequence{
 				message.MustNewSequence(1),
+				message.MustNewSequence(2),
+			},
+		},
+		{
+			Name: "nil_not_consecutive_with_duplicates",
+			Seq:  nil,
+			MessageSequences: []message.Sequence{
+				message.MustNewSequence(1),
+				message.MustNewSequence(1),
+				message.MustNewSequence(2),
+				message.MustNewSequence(2),
+
+				message.MustNewSequence(4),
+				message.MustNewSequence(4),
+				message.MustNewSequence(5),
+				message.MustNewSequence(5),
+			},
+			ExpectedResult: []message.Sequence{
+				message.MustNewSequence(1),
+				message.MustNewSequence(1),
+				message.MustNewSequence(2),
 				message.MustNewSequence(2),
 			},
 		},
@@ -204,6 +245,26 @@ func TestFeedMessages_ConsecutiveSliceStartingWith(t *testing.T) {
 			},
 		},
 		{
+			Name: "not_nil_consecutive_with_duplicates",
+			Seq:  internal.Ptr(message.MustNewSequence(2)),
+			MessageSequences: []message.Sequence{
+				message.MustNewSequence(3),
+				message.MustNewSequence(3),
+				message.MustNewSequence(4),
+				message.MustNewSequence(4),
+				message.MustNewSequence(5),
+				message.MustNewSequence(5),
+			},
+			ExpectedResult: []message.Sequence{
+				message.MustNewSequence(3),
+				message.MustNewSequence(3),
+				message.MustNewSequence(4),
+				message.MustNewSequence(4),
+				message.MustNewSequence(5),
+				message.MustNewSequence(5),
+			},
+		},
+		{
 			Name: "not_nil_not_consecutive",
 			Seq:  internal.Ptr(message.MustNewSequence(2)),
 			MessageSequences: []message.Sequence{
@@ -215,6 +276,27 @@ func TestFeedMessages_ConsecutiveSliceStartingWith(t *testing.T) {
 			},
 			ExpectedResult: []message.Sequence{
 				message.MustNewSequence(3),
+				message.MustNewSequence(4),
+			},
+		},
+		{
+			Name: "not_nil_not_consecutive_with_duplicates",
+			Seq:  internal.Ptr(message.MustNewSequence(2)),
+			MessageSequences: []message.Sequence{
+				message.MustNewSequence(3),
+				message.MustNewSequence(3),
+				message.MustNewSequence(4),
+				message.MustNewSequence(4),
+
+				message.MustNewSequence(6),
+				message.MustNewSequence(6),
+				message.MustNewSequence(7),
+				message.MustNewSequence(7),
+			},
+			ExpectedResult: []message.Sequence{
+				message.MustNewSequence(3),
+				message.MustNewSequence(3),
+				message.MustNewSequence(4),
 				message.MustNewSequence(4),
 			},
 		},
@@ -246,6 +328,30 @@ func TestFeedMessages_ConsecutiveSliceStartingWith(t *testing.T) {
 			},
 		},
 		{
+			Name: "discard_starting_not_nil_consecutive_with_duplicates",
+			Seq:  internal.Ptr(message.MustNewSequence(2)),
+			MessageSequences: []message.Sequence{
+				message.MustNewSequence(1),
+				message.MustNewSequence(1),
+				message.MustNewSequence(2),
+				message.MustNewSequence(2),
+				message.MustNewSequence(3),
+				message.MustNewSequence(3),
+				message.MustNewSequence(4),
+				message.MustNewSequence(4),
+				message.MustNewSequence(5),
+				message.MustNewSequence(5),
+			},
+			ExpectedResult: []message.Sequence{
+				message.MustNewSequence(3),
+				message.MustNewSequence(3),
+				message.MustNewSequence(4),
+				message.MustNewSequence(4),
+				message.MustNewSequence(5),
+				message.MustNewSequence(5),
+			},
+		},
+		{
 			Name: "discard_starting_not_nil_not_consecutive",
 			Seq:  internal.Ptr(message.MustNewSequence(2)),
 			MessageSequences: []message.Sequence{
@@ -259,6 +365,31 @@ func TestFeedMessages_ConsecutiveSliceStartingWith(t *testing.T) {
 			},
 			ExpectedResult: []message.Sequence{
 				message.MustNewSequence(3),
+				message.MustNewSequence(4),
+			},
+		},
+		{
+			Name: "discard_starting_not_nil_not_consecutive_with_duplicates",
+			Seq:  internal.Ptr(message.MustNewSequence(2)),
+			MessageSequences: []message.Sequence{
+				message.MustNewSequence(1),
+				message.MustNewSequence(1),
+				message.MustNewSequence(2),
+				message.MustNewSequence(2),
+				message.MustNewSequence(3),
+				message.MustNewSequence(3),
+				message.MustNewSequence(4),
+				message.MustNewSequence(4),
+
+				message.MustNewSequence(6),
+				message.MustNewSequence(6),
+				message.MustNewSequence(7),
+				message.MustNewSequence(7),
+			},
+			ExpectedResult: []message.Sequence{
+				message.MustNewSequence(3),
+				message.MustNewSequence(3),
+				message.MustNewSequence(4),
 				message.MustNewSequence(4),
 			},
 		},

@@ -93,7 +93,7 @@ func (m *FeedMessages) ConsecutiveSliceStartingWith(seq *message.Sequence) []mes
 				}
 			}
 		} else {
-			if !result[l-1].Sequence().ComesDirectlyBefore(v.Msg.Sequence()) {
+			if target := result[l-1].Sequence(); !target.ComesDirectlyBefore(v.Msg.Sequence()) && target != v.Msg.Sequence() {
 				break
 			}
 		}

@@ -56,7 +56,9 @@ func (l *lexer) next() (rune, bool) {
 	r, size := utf8.DecodeRune(l.b[l.pos:])
 
 	if r == utf8.RuneError {
-		return 0, false
+		if size == 0 {
+			return 0, false
+		}
 	}
 
 	l.prevPos = l.pos

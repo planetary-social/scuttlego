@@ -43,7 +43,7 @@ type Config struct {
 
 	// Hops specifies how far away the feeds which are automatically replicated
 	// based on contact messages can be in the social graph.
-	// Optional, defaults to 3 (followees of your followees).
+	// Optional, defaults to 2 (followees of your followees).
 	Hops *graph.Hops
 
 	// ModifyBadgerOptions allows you to specify a function allowing you to modify certain Badger options.
@@ -69,7 +69,7 @@ func (c *Config) SetDefaults() {
 	}
 
 	if c.Hops == nil {
-		c.Hops = internal.Ptr(graph.MustNewHops(3))
+		c.Hops = internal.Ptr(graph.MustNewHops(2))
 	}
 }
 

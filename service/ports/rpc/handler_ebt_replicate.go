@@ -31,12 +31,17 @@ func (h HandlerEbtReplicate) Handle(ctx context.Context, s mux.Stream, req *rpc.
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	remoteIdentity, ok := rpc.GetRemoteIdentityFromContext(ctx)
+	if !ok {
+		return errors.New("remote identity is not in context")
+	}
+
 	args, err := messages.NewEbtReplicateArgumentsFromBytes(req.Arguments())
 	if err != nil {
 		return errors.Wrap(err, "error parsing arguments")
 	}
 
-	stream := ebt.NewIncomingStreamAdapter(s)
+	stream := ebt.NewIncomingStreamAdapter(remoteIdentity, s)
 
 	cmd, err := commands.NewHandleIncomingEbtReplicate(args.Version(), args.Format(), stream)
 	if err != nil {

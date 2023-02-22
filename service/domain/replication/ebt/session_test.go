@@ -9,10 +9,12 @@ import (
 	"github.com/planetary-social/scuttlego/fixtures"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/graph"
+	"github.com/planetary-social/scuttlego/service/domain/identity"
 	"github.com/planetary-social/scuttlego/service/domain/messages"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/planetary-social/scuttlego/service/domain/replication"
 	"github.com/planetary-social/scuttlego/service/domain/replication/ebt"
+	"github.com/planetary-social/scuttlego/service/domain/replication/mocks"
 	"github.com/stretchr/testify/require"
 )
 
@@ -43,7 +45,7 @@ func TestSession_SendNotesSendsEmptyNotesOnlyDuringInitialUpdate(t *testing.T) {
 func TestSession_SendNotesSendsNonEmptyNotesDuringConsecutiveUpdates(t *testing.T) {
 	s := newTestSession(t)
 
-	s.ContactsStorage.contacts = nil
+	s.ContactsStorage.Contacts = nil
 
 	err := s.Session.SendNotes()
 	require.NoError(t, err)
@@ -61,7 +63,7 @@ func TestSession_SendNotesSendsNonEmptyNotesDuringConsecutiveUpdates(t *testing.
 		replication.NewEmptyFeedState(),
 	)
 
-	s.ContactsStorage.contacts = []replication.Contact{contact}
+	s.ContactsStorage.Contacts = []replication.Contact{contact}
 
 	err = s.Session.SendNotes()
 	require.NoError(t, err)
@@ -85,7 +87,7 @@ func TestSession_SendNotesSendsNonEmptyNotesDuringConsecutiveUpdates(t *testing.
 func TestSession_NotesWithReceiveAndReplicateSetToTrueCallRequestedFeedsRequest(t *testing.T) {
 	s := newTestSession(t)
 
-	s.ContactsStorage.contacts = nil
+	s.ContactsStorage.Contacts = nil
 
 	ref := fixtures.SomeRefFeed()
 
@@ -158,7 +160,7 @@ func TestSession_NotesWithReceiveOrReplicateSetToFalseCallRequestedFeedsCancel(t
 		t.Run(testCase.Name, func(t *testing.T) {
 			s := newTestSession(t)
 
-			s.ContactsStorage.contacts = nil
+			s.ContactsStorage.Contacts = nil
 
 			go func() {
 				s.Stream.ReceiveIncomingMessage(s.Ctx, ebt.NewIncomingMessageWithNotes(
@@ -220,7 +222,7 @@ func TestSession_ErrorsWhenProcessingRawMessagesDontTerminateTheSession(t *testi
 
 type testSession struct {
 	Session           *ebt.Session
-	ContactsStorage   *contactsStorage
+	ContactsStorage   *mocks.ContactsStorageMock
 	Stream            *mockStream
 	MessageStreamer   *messageStreamerMock
 	Ctx               context.Context
@@ -232,7 +234,7 @@ func newTestSession(t *testing.T) testSession {
 	ctx := fixtures.TestContext(t)
 	logger := fixtures.TestLogger(t)
 	stream := newMockStream()
-	contactsStorage := newContactsStorage()
+	contactsStorage := mocks.NewContactsStorageMock()
 	fr := newFeedRequesterMock()
 	handler := newRawMessageHandlerMock()
 	session := ebt.NewSession(
@@ -263,6 +265,10 @@ func newMockStream() *mockStream {
 	return &mockStream{
 		in: make(chan ebt.IncomingMessage),
 	}
+}
+
+func (m *mockStream) RemoteIdentity() identity.Public {
+	return fixtures.SomePublicIdentity()
 }
 
 func (m *mockStream) IncomingMessages(ctx context.Context) <-chan ebt.IncomingMessage {
@@ -296,18 +302,6 @@ func (m *mockStream) SendNotes(notes messages.EbtReplicateNotes) error {
 func (m *mockStream) SendMessage(msg *message.Message) error {
 	//TODO implement me
 	panic("implement me")
-}
-
-type contactsStorage struct {
-	contacts []replication.Contact
-}
-
-func newContactsStorage() *contactsStorage {
-	return &contactsStorage{}
-}
-
-func (c contactsStorage) GetContacts() ([]replication.Contact, error) {
-	return c.contacts, nil
 }
 
 type feedRequesterMock struct {
@@ -376,7 +370,7 @@ func newRawMessageHandlerMock() *rawMessageHandlerMock {
 	return &rawMessageHandlerMock{}
 }
 
-func (r *rawMessageHandlerMock) Handle(msg message.RawMessage) error {
+func (r *rawMessageHandlerMock) Handle(replicatedFrom identity.Public, msg message.RawMessage) error {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 	r.handleCalls = append(r.handleCalls, msg)

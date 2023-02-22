@@ -8,6 +8,7 @@ import (
 	"github.com/planetary-social/scuttlego/internal"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/messagebuffer"
+	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/stretchr/testify/require"
 )
 
@@ -16,7 +17,7 @@ func TestFeedMessages_AddingMessagesFromTheSameFeedSucceeds(t *testing.T) {
 
 	v := messagebuffer.NewFeedMessages(feed)
 
-	err := v.Add(fixtures.SomeTime(), fixtures.SomeMessage(fixtures.SomeSequence(), feed))
+	err := v.Add(fixtures.SomeTime(), someReceivedMessage(fixtures.SomeSequence(), feed))
 	require.NoError(t, err)
 }
 
@@ -26,7 +27,7 @@ func TestFeedMessages_AddingMessagesFromADifferentFeedFails(t *testing.T) {
 
 	v := messagebuffer.NewFeedMessages(feed1)
 
-	err := v.Add(fixtures.SomeTime(), fixtures.SomeMessage(fixtures.SomeSequence(), feed2))
+	err := v.Add(fixtures.SomeTime(), someReceivedMessage(fixtures.SomeSequence(), feed2))
 	require.EqualError(t, err, "incorrect feed")
 }
 
@@ -37,10 +38,10 @@ func TestFeedMessages_LenUpdatesWhenAddingMessages(t *testing.T) {
 
 	require.Equal(t, 0, v.Len())
 
-	err := v.Add(fixtures.SomeTime(), fixtures.SomeMessage(fixtures.SomeSequence(), feed))
+	err := v.Add(fixtures.SomeTime(), someReceivedMessage(fixtures.SomeSequence(), feed))
 	require.NoError(t, err)
 
-	err = v.Add(fixtures.SomeTime(), fixtures.SomeMessage(fixtures.SomeSequence(), feed))
+	err = v.Add(fixtures.SomeTime(), someReceivedMessage(fixtures.SomeSequence(), feed))
 	require.NoError(t, err)
 
 	require.Equal(t, 2, v.Len())
@@ -60,19 +61,19 @@ func TestFeedMessages_RemoveOlderThanRemovesMessages(t *testing.T) {
 
 	v := messagebuffer.NewFeedMessages(feed)
 
-	err := v.Add(beforeTm1, fixtures.SomeMessage(fixtures.SomeSequence(), feed))
+	err := v.Add(beforeTm1, someReceivedMessage(fixtures.SomeSequence(), feed))
 	require.NoError(t, err)
 
-	err = v.Add(beforeTm2, fixtures.SomeMessage(fixtures.SomeSequence(), feed))
+	err = v.Add(beforeTm2, someReceivedMessage(fixtures.SomeSequence(), feed))
 	require.NoError(t, err)
 
-	err = v.Add(beforeTm3, fixtures.SomeMessage(fixtures.SomeSequence(), feed))
+	err = v.Add(beforeTm3, someReceivedMessage(fixtures.SomeSequence(), feed))
 	require.NoError(t, err)
 
-	err = v.Add(afterTm1, fixtures.SomeMessage(fixtures.SomeSequence(), feed))
+	err = v.Add(afterTm1, someReceivedMessage(fixtures.SomeSequence(), feed))
 	require.NoError(t, err)
 
-	err = v.Add(afterTm2, fixtures.SomeMessage(fixtures.SomeSequence(), feed))
+	err = v.Add(afterTm2, someReceivedMessage(fixtures.SomeSequence(), feed))
 	require.NoError(t, err)
 
 	require.Equal(t, 5, v.Len())
@@ -100,7 +101,7 @@ func TestFeedMessages_LeaveOnlyAfterDoesNotBreakWhenLastMessageIsBeingRemoved(t 
 	sequence2 := message.MustNewSequence(10)
 	require.GreaterOrEqual(t, sequence1.Int(), sequence1.Int())
 
-	err := v.Add(fixtures.SomeTime(), fixtures.SomeMessage(sequence1, feed))
+	err := v.Add(fixtures.SomeTime(), someReceivedMessage(sequence1, feed))
 	require.NoError(t, err)
 
 	v.LeaveOnlyAfter(sequence2)
@@ -112,13 +113,13 @@ func TestFeedMessages_LeaveOnlyAfterRemovesMessages(t *testing.T) {
 
 	v := messagebuffer.NewFeedMessages(feed)
 
-	err := v.Add(fixtures.SomeTime(), fixtures.SomeMessage(message.MustNewSequence(1), feed))
+	err := v.Add(fixtures.SomeTime(), someReceivedMessage(message.MustNewSequence(1), feed))
 	require.NoError(t, err)
 
-	err = v.Add(fixtures.SomeTime(), fixtures.SomeMessage(message.MustNewSequence(2), feed))
+	err = v.Add(fixtures.SomeTime(), someReceivedMessage(message.MustNewSequence(2), feed))
 	require.NoError(t, err)
 
-	err = v.Add(fixtures.SomeTime(), fixtures.SomeMessage(message.MustNewSequence(3), feed))
+	err = v.Add(fixtures.SomeTime(), someReceivedMessage(message.MustNewSequence(3), feed))
 	require.NoError(t, err)
 
 	require.Equal(t, 3, v.Len())
@@ -413,7 +414,7 @@ func TestFeedMessages_ConsecutiveSliceStartingWith(t *testing.T) {
 			v := messagebuffer.NewFeedMessages(feed)
 
 			for _, seq := range testCase.MessageSequences {
-				err := v.Add(fixtures.SomeTime(), fixtures.SomeMessage(seq, feed))
+				err := v.Add(fixtures.SomeTime(), someReceivedMessage(seq, feed))
 				require.NoError(t, err)
 			}
 
@@ -429,8 +430,8 @@ func TestFeedMessages_RemoveRemovesMessages(t *testing.T) {
 
 	v := messagebuffer.NewFeedMessages(feed)
 
-	msg1 := fixtures.SomeMessage(fixtures.SomeSequence(), feed)
-	msg2 := fixtures.SomeMessage(fixtures.SomeSequence(), feed)
+	msg1 := someReceivedMessage(fixtures.SomeSequence(), feed)
+	msg2 := someReceivedMessage(fixtures.SomeSequence(), feed)
 
 	err := v.Add(fixtures.SomeTime(), msg1)
 	require.NoError(t, err)
@@ -439,14 +440,21 @@ func TestFeedMessages_RemoveRemovesMessages(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, 2, v.Len())
-	v.Remove(msg2)
+	v.Remove(msg2.Message())
 	require.Equal(t, 1, v.Len())
 }
 
-func messagesToSequences(msgs []message.Message) []message.Sequence {
+func messagesToSequences(msgs []messagebuffer.ReceivedMessage) []message.Sequence {
 	var result []message.Sequence
 	for _, msg := range msgs {
-		result = append(result, msg.Sequence())
+		result = append(result, msg.Message().Sequence())
 	}
 	return result
+}
+
+func someReceivedMessage(seq message.Sequence, feed refs.Feed) messagebuffer.ReceivedMessage {
+	return messagebuffer.MustNewReceivedMessage(
+		fixtures.SomePublicIdentity(),
+		fixtures.SomeMessage(seq, feed),
+	)
 }

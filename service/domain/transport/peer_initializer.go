@@ -59,6 +59,8 @@ func (i PeerInitializer) initializePeer(ctx context.Context, boxStream *boxstrea
 
 	logger := i.logger.WithCtx(ctx)
 
+	ctx = rpc.PutRemoteIdentityInContext(ctx, boxStream.Remote())
+
 	raw := transport.NewRawConnection(boxStream, logger)
 
 	rpcConn, err := rpc.NewConnection(ctx, connectionId, wasInitiatedByRemote, raw, i.requestHandler, logger)

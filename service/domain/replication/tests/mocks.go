@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
+	"github.com/planetary-social/scuttlego/service/domain/identity"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/planetary-social/scuttlego/service/domain/replication"
 	"github.com/planetary-social/scuttlego/service/domain/replication/ebt"
@@ -16,7 +17,7 @@ func NewRawMessageHandlerMock() *RawMessageHandlerMock {
 	return &RawMessageHandlerMock{}
 }
 
-func (r RawMessageHandlerMock) Handle(msg message.RawMessage) error {
+func (r RawMessageHandlerMock) Handle(replicatedFrom identity.Public, msg message.RawMessage) error {
 	//TODO implement me
 	panic("implement me")
 }

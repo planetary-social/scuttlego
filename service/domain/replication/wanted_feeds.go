@@ -6,7 +6,9 @@ import (
 	"time"
 
 	"github.com/boreq/errors"
+	"github.com/planetary-social/scuttlego/internal"
 	"github.com/planetary-social/scuttlego/service/domain/graph"
+	"github.com/planetary-social/scuttlego/service/domain/identity"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 )
 
@@ -136,18 +138,35 @@ type WantedFeedsProvider interface {
 type WantedFeedsCache struct {
 	provider WantedFeedsProvider
 
-	cache          []Contact
-	cacheTimestamp time.Time
-	cacheLock      sync.Mutex // locks cache and cacheTimestamp
+	feedsWhichShouldNotBeReplicatedWithPeer map[string]*internal.Set[string]
+	cache                                   []Contact
+	cacheTimestamp                          time.Time
+	lock                                    sync.Mutex // locks cache, cacheTimestamp, feedsWhichShouldNotBeReplicatedWithPeer
 }
 
 func NewWantedFeedsCache(provider WantedFeedsProvider) *WantedFeedsCache {
-	return &WantedFeedsCache{provider: provider}
+	return &WantedFeedsCache{
+		provider: provider,
+
+		feedsWhichShouldNotBeReplicatedWithPeer: make(map[string]*internal.Set[string]),
+	}
 }
 
-func (c *WantedFeedsCache) GetContacts() ([]Contact, error) {
-	c.cacheLock.Lock()
-	defer c.cacheLock.Unlock()
+func (c *WantedFeedsCache) AddForkedFeed(replicatedFrom identity.Public, feed refs.Feed) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	v, ok := c.feedsWhichShouldNotBeReplicatedWithPeer[replicatedFrom.String()]
+	if !ok {
+		v = internal.Ptr(internal.NewSet[string]())
+		c.feedsWhichShouldNotBeReplicatedWithPeer[replicatedFrom.String()] = v
+	}
+	v.Put(feed.String())
+}
+
+func (c *WantedFeedsCache) GetContacts(peer identity.Public) ([]Contact, error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
 
 	if time.Since(c.cacheTimestamp) > refreshContactsEvery {
 		v, err := c.provider.GetWantedFeeds()
@@ -176,5 +195,15 @@ func (c *WantedFeedsCache) GetContacts() ([]Contact, error) {
 		c.cacheTimestamp = time.Now()
 	}
 
-	return c.cache, nil
+	var contacts []Contact
+	for _, contact := range c.cache {
+		feeds, ok := c.feedsWhichShouldNotBeReplicatedWithPeer[peer.String()]
+		if ok {
+			if feeds.Contains(contact.Who().String()) {
+				continue
+			}
+		}
+		contacts = append(contacts, contact)
+	}
+	return contacts, nil
 }

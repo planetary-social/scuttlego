@@ -7,22 +7,18 @@ import (
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
+	"github.com/planetary-social/scuttlego/service/domain/identity"
 	"github.com/planetary-social/scuttlego/service/domain/messages"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/planetary-social/scuttlego/service/domain/replication"
 )
-
-type ContactsStorage interface {
-	// GetContacts returns a list of contacts. Contacts are sorted by hops,
-	// ascending. Contacts include the local feed.
-	GetContacts() ([]replication.Contact, error)
-}
 
 type MessageWriter interface {
 	WriteMessage(msg message.Message) error
 }
 
 type Stream interface {
+	RemoteIdentity() identity.Public
 	IncomingMessages(ctx context.Context) <-chan IncomingMessage
 	SendNotes(notes messages.EbtReplicateNotes) error
 	SendMessage(msg *message.Message) error
@@ -73,14 +69,14 @@ func (i IncomingMessage) Err() error {
 type SessionRunner struct {
 	logger            logging.Logger
 	rawMessageHandler replication.RawMessageHandler
-	contactsStorage   ContactsStorage
+	contactsStorage   replication.ContactsStorage
 	streamer          MessageStreamer
 }
 
 func NewSessionRunner(
 	logger logging.Logger,
 	rawMessageHandler replication.RawMessageHandler,
-	contactsStorage ContactsStorage,
+	contactsStorage replication.ContactsStorage,
 	streamer MessageStreamer,
 ) *SessionRunner {
 	return &SessionRunner{
@@ -115,7 +111,7 @@ type Session struct {
 
 	logger            logging.Logger
 	rawMessageHandler replication.RawMessageHandler
-	contactsStorage   ContactsStorage
+	contactsStorage   replication.ContactsStorage
 }
 
 func NewSession(
@@ -123,7 +119,7 @@ func NewSession(
 	stream Stream,
 	logger logging.Logger,
 	rawMessageHandler replication.RawMessageHandler,
-	contactsStorage ContactsStorage,
+	contactsStorage replication.ContactsStorage,
 	feedRequester FeedRequester,
 ) *Session {
 	ctx, cancel := context.WithCancel(ctx)
@@ -171,7 +167,7 @@ func (s *Session) SendNotesLoop() {
 }
 
 func (s *Session) SendNotes() error {
-	contacts, err := s.contactsStorage.GetContacts()
+	contacts, err := s.contactsStorage.GetContacts(s.stream.RemoteIdentity())
 	if err != nil {
 		return errors.Wrap(err, "could not get the contacts")
 	}
@@ -207,7 +203,7 @@ func (s *Session) handleIncomingMessage(ctx context.Context, incoming IncomingMe
 
 	msg, ok := incoming.Msg()
 	if ok {
-		if err := s.rawMessageHandler.Handle(msg); err != nil {
+		if err := s.rawMessageHandler.Handle(s.stream.RemoteIdentity(), msg); err != nil {
 			// todo ban this feed somehow
 			s.logger.WithError(err).Debug("error handling a raw message")
 			return nil

@@ -4,6 +4,7 @@ import (
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
+	"github.com/planetary-social/scuttlego/service/domain/identity"
 )
 
 type RawMessageIdentifier interface {
@@ -28,13 +29,13 @@ func NewRawMessageHandler(
 	}
 }
 
-func (h *RawMessageHandler) Handle(rawMsg message.RawMessage) error {
+func (h *RawMessageHandler) Handle(replicatedFrom identity.Public, rawMsg message.RawMessage) error {
 	msg, err := h.identifier.VerifyRawMessage(rawMsg)
 	if err != nil {
 		return errors.Wrap(err, "failed to identify the raw message")
 	}
 
-	if err := h.buffer.Handle(msg); err != nil {
+	if err := h.buffer.Handle(replicatedFrom, msg); err != nil {
 		return errors.Wrap(err, "failed to put the message in the buffer")
 	}
 

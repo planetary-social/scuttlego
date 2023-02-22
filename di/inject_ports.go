@@ -1,8 +1,6 @@
 package di
 
 import (
-	"context"
-
 	"github.com/google/wire"
 	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/domain/network/local"
@@ -25,8 +23,8 @@ var portsSet = wire.NewSet(
 	portsrpc.NewHandlerCreateHistoryStream,
 
 	portspubsub.NewRequestSubscriber,
-
 	portspubsub.NewRoomAttendantEventSubscriber,
+	portspubsub.NewNewPeerSubscriber,
 
 	local.NewDiscoverer,
 	portsnetwork.NewDiscoverer,
@@ -36,11 +34,9 @@ var portsSet = wire.NewSet(
 )
 
 func newListener(
-	ctx context.Context,
 	initializer portsnetwork.ServerPeerInitializer,
-	handler portsnetwork.AcceptNewPeerCommandHandler,
 	config Config,
 	logger logging.Logger,
 ) (*portsnetwork.Listener, error) {
-	return portsnetwork.NewListener(ctx, initializer, handler, config.ListenAddress, logger)
+	return portsnetwork.NewListener(initializer, config.ListenAddress, logger)
 }

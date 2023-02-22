@@ -54,7 +54,7 @@ func (h *InviteDialer) Dial(ctx context.Context, local identity.Private, remote 
 		return transport.Peer{}, errors.Wrap(err, "could not create a handshaker")
 	}
 
-	initializer := transport.NewPeerInitializer(handshaker, h.requestHandler, h.connectionIdGenerator, h.logger)
+	initializer := transport.NewPeerInitializer(handshaker, h.requestHandler, h.connectionIdGenerator, newNoopPeerHandler(), h.logger)
 
 	peer, err := h.dialer.DialWithInitializer(ctx, initializer, remote, address)
 	if err != nil {
@@ -62,4 +62,14 @@ func (h *InviteDialer) Dial(ctx context.Context, local identity.Private, remote 
 	}
 
 	return peer, nil
+}
+
+type noopPeerHandler struct {
+}
+
+func newNoopPeerHandler() *noopPeerHandler {
+	return &noopPeerHandler{}
+}
+
+func (n noopPeerHandler) HandleNewPeer(ctx context.Context, peer transport.Peer) {
 }

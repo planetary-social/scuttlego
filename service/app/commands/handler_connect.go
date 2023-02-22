@@ -1,6 +1,8 @@
 package commands
 
 import (
+	"context"
+
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
@@ -35,8 +37,8 @@ func NewConnectHandler(
 	}
 }
 
-func (h *ConnectHandler) Handle(cmd Connect) error {
-	if err := h.peerManager.Connect(cmd.Remote, cmd.Address); err != nil {
+func (h *ConnectHandler) Handle(ctx context.Context, cmd Connect) error {
+	if err := h.peerManager.Connect(ctx, cmd.Remote, cmd.Address); err != nil {
 		return errors.Wrap(err, "error initiating the connection")
 	}
 

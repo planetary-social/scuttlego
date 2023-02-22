@@ -10,7 +10,7 @@ import (
 )
 
 type ProcessRoomAttendantEventHandler interface {
-	Handle(cmd commands.ProcessRoomAttendantEvent) error
+	Handle(ctx context.Context, cmd commands.ProcessRoomAttendantEvent) error
 }
 
 type RoomAttendantEventSubscriber struct {
@@ -39,7 +39,7 @@ func (p *RoomAttendantEventSubscriber) Run(ctx context.Context) error {
 			continue
 		}
 
-		if err := p.handler.Handle(cmd); err != nil {
+		if err := p.handler.Handle(event.Context, cmd); err != nil {
 			p.logger.WithError(err).Debug("error handling the command")
 			continue
 		}

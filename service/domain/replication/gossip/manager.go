@@ -60,7 +60,6 @@ type TaskCompletedFn func(result TaskResult)
 type ReplicateFeedTask struct {
 	Id    refs.Feed
 	State replication.FeedState
-	Ctx   context.Context
 
 	OnComplete TaskCompletedFn
 }
@@ -165,7 +164,6 @@ func (m *Manager) sendFeedToReplicate(ctx context.Context, ch chan ReplicateFeed
 			task := ReplicateFeedTask{
 				Id:    contact.Who(),
 				State: contact.FeedState(),
-				Ctx:   ctx,
 				OnComplete: func(result TaskResult) {
 					m.finishReplication(remote, contact, result)
 				},

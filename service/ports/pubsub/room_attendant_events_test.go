@@ -1,6 +1,7 @@
 package pubsub_test
 
 import (
+	"context"
 	"sync"
 	"testing"
 	"time"
@@ -36,7 +37,7 @@ func TestRoomAttendantEventSubscriber_ReceivesEventsAndCallsTheCommandHandler(t 
 
 	<-time.After(100 * time.Millisecond)
 
-	err = ps.PublishAttendantEvent(portal, event)
+	err = ps.PublishAttendantEvent(ctx, portal, event)
 	require.NoError(t, err)
 
 	cmd, err := commands.NewProcessRoomAttendantEvent(portal, event)
@@ -57,7 +58,7 @@ func newProcessRoomAttendantEventHandlerMock() *processRoomAttendantEventHandler
 	return &processRoomAttendantEventHandlerMock{}
 }
 
-func (p *processRoomAttendantEventHandlerMock) Handle(cmd commands.ProcessRoomAttendantEvent) error {
+func (p *processRoomAttendantEventHandlerMock) Handle(ctx context.Context, cmd commands.ProcessRoomAttendantEvent) error {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 	p.calls = append(p.calls, cmd)

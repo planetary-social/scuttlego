@@ -6,6 +6,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/app/queries"
 	blobReplication "github.com/planetary-social/scuttlego/service/domain/blobs/replication"
 	"github.com/planetary-social/scuttlego/service/domain/rooms"
+	"github.com/planetary-social/scuttlego/service/domain/transport"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 )
 
@@ -14,6 +15,7 @@ var pubSubSet = wire.NewSet(
 	messagePubSubSet,
 	blobDownloadedPubSubSet,
 	roomAttendantEventPubSubSet,
+	newPeerPubSubSet,
 )
 
 var requestPubSubSet = wire.NewSet(
@@ -35,4 +37,9 @@ var blobDownloadedPubSubSet = wire.NewSet(
 var roomAttendantEventPubSubSet = wire.NewSet(
 	pubsub.NewRoomAttendantEventPubSub,
 	wire.Bind(new(rooms.AttendantEventPublisher), new(*pubsub.RoomAttendantEventPubSub)),
+)
+
+var newPeerPubSubSet = wire.NewSet(
+	pubsub.NewNewPeerPubSub,
+	wire.Bind(new(transport.NewPeerHandler), new(*pubsub.NewPeerPubSub)),
 )

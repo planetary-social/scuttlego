@@ -65,18 +65,15 @@ func (a AcceptTunnelConnect) IsZero() bool {
 type AcceptTunnelConnectHandler struct {
 	local       identity.Public
 	initializer ServerPeerInitializer
-	peerHandler NewPeerHandler
 }
 
 func NewAcceptTunnelConnectHandler(
 	local identity.Public,
 	initializer ServerPeerInitializer,
-	peerHandler NewPeerHandler,
 ) *AcceptTunnelConnectHandler {
 	return &AcceptTunnelConnectHandler{
 		local:       local,
 		initializer: initializer,
-		peerHandler: peerHandler,
 	}
 }
 
@@ -89,11 +86,10 @@ func (h *AcceptTunnelConnectHandler) Handle(ctx context.Context, cmd AcceptTunne
 		return errors.New("target doesn't match local identity")
 	}
 
-	peer, err := h.initializer.InitializeServerPeer(ctx, cmd.Rwc())
+	_, err := h.initializer.InitializeServerPeer(ctx, cmd.Rwc())
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize the peer")
 	}
 
-	h.peerHandler.HandleNewPeer(peer)
 	return nil
 }

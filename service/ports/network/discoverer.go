@@ -9,7 +9,7 @@ import (
 )
 
 type ProcessNewLocalDiscoveryCommandHandler interface {
-	Handle(cmd commands.ProcessNewLocalDiscovery) error
+	Handle(ctx context.Context, cmd commands.ProcessNewLocalDiscovery) error
 }
 
 // Discoverer receives local UDP announcements from other Secure Scuttlebutt
@@ -36,14 +36,15 @@ func NewDiscoverer(
 // context is closed.
 func (d Discoverer) Run(ctx context.Context) error {
 	for v := range d.discoverer.Run(ctx) {
-		go d.handleNewDiscovery(v)
+		go d.handleNewDiscovery(ctx, v)
 	}
 
 	return nil
 }
 
-func (d Discoverer) handleNewDiscovery(v local.IdentityWithAddress) {
+func (d Discoverer) handleNewDiscovery(ctx context.Context, v local.IdentityWithAddress) {
 	if err := d.handler.Handle(
+		ctx,
 		commands.ProcessNewLocalDiscovery{
 			Remote:  v.Remote,
 			Address: v.Address,

@@ -20,7 +20,7 @@ type AttendantsGetter interface {
 }
 
 type AttendantEventPublisher interface {
-	PublishAttendantEvent(portal transport.Peer, event RoomAttendantsEvent) error
+	PublishAttendantEvent(ctx context.Context, portal transport.Peer, event RoomAttendantsEvent) error
 }
 
 type Scanner struct {
@@ -66,7 +66,7 @@ func (s Scanner) Run(ctx context.Context, peer transport.Peer) error {
 			WithField("event_ref", event.id.String()).
 			Debug("publishing an attendant event")
 
-		if err := s.publisher.PublishAttendantEvent(peer, event); err != nil {
+		if err := s.publisher.PublishAttendantEvent(ctx, peer, event); err != nil {
 			return errors.Wrap(err, "error publishing an event")
 		}
 	}

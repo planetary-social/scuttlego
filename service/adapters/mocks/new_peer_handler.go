@@ -1,6 +1,7 @@
 package mocks
 
 import (
+	"context"
 	"sync/atomic"
 
 	"github.com/planetary-social/scuttlego/service/domain/transport"
@@ -14,7 +15,7 @@ func NewNewPeerHandlerMock() *NewPeerHandlerMock {
 	return &NewPeerHandlerMock{}
 }
 
-func (n *NewPeerHandlerMock) HandleNewPeer(peer transport.Peer) {
+func (n *NewPeerHandlerMock) HandleNewPeer(ctx context.Context, peer transport.Peer) {
 	n.handleNewPeerCalls.Add(1)
 }
 

@@ -8,7 +8,7 @@ import (
 )
 
 type EstablishNewConnectionsCommandHandler interface {
-	Handle() error
+	Handle(ctx context.Context) error
 }
 
 // ConnectionEstablisher periodically triggers the EstablishNewConnections
@@ -33,7 +33,7 @@ func NewConnectionEstablisher(
 // Run periodically triggers the command until the context is closed.
 func (d ConnectionEstablisher) Run(ctx context.Context) error {
 	for {
-		if err := d.handler.Handle(); err != nil {
+		if err := d.handler.Handle(ctx); err != nil {
 			d.logger.WithError(err).Debug("failed to establish new connections")
 		}
 

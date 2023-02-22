@@ -16,33 +16,31 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/transport"
 )
 
-type NewPeerHandler interface {
-	HandleNewPeer(peer transport.Peer)
-}
-
 type PeerManager interface {
 	// Connect instructs the peer manager that it should establish
 	// communications with the specified node. The peer manager may ignore this
 	// request under specific circumstances e.g. it may avoid establishing
 	// duplicate connections to a single identity.
-	Connect(remote identity.Public, address network.Address) error
+	Connect(ctx context.Context, remote identity.Public, address network.Address) error
 
 	// ConnectViaRoom instructs the peer manager that it should establish
 	// communications with the specified node using a room as a relay. Behaves
 	// like Connect.
-	ConnectViaRoom(portal transport.Peer, target identity.Public) error
+	ConnectViaRoom(ctx context.Context, portal transport.Peer, target identity.Public) error
 
 	// EstablishNewConnections instructs the peer manager that it is time to
 	// establish new connections so that the specific connections quotas are
 	// met.
-	EstablishNewConnections() error
+	EstablishNewConnections(ctx context.Context) error
 
 	// ProcessNewLocalDiscovery informs the peer manager about a new local
 	// discovery.
-	ProcessNewLocalDiscovery(remote identity.Public, address network.Address) error
+	ProcessNewLocalDiscovery(ctx context.Context, remote identity.Public, address network.Address) error
 
 	// DisconnectAll disconnects all peers.
 	DisconnectAll() error
+
+	TrackPeer(ctx context.Context, peer transport.Peer)
 }
 
 type TransactionProvider interface {

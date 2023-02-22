@@ -1,6 +1,8 @@
 package mocks
 
 import (
+	"context"
+
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
 	"github.com/planetary-social/scuttlego/service/domain/network"
@@ -13,6 +15,10 @@ type PeerManagerMock struct {
 	disconnectAllCalls  int
 }
 
+func NewPeerManagerMock() *PeerManagerMock {
+	return &PeerManagerMock{}
+}
+
 func (p *PeerManagerMock) DisconnectAllCalls() int {
 	return p.disconnectAllCalls
 }
@@ -22,15 +28,11 @@ func (p *PeerManagerMock) DisconnectAll() error {
 	return nil
 }
 
-func NewPeerManagerMock() *PeerManagerMock {
-	return &PeerManagerMock{}
-}
-
-func (p *PeerManagerMock) Connect(remote identity.Public, address network.Address) error {
+func (p *PeerManagerMock) Connect(ctx context.Context, remote identity.Public, address network.Address) error {
 	return errors.New("not implemented")
 }
 
-func (p *PeerManagerMock) ConnectViaRoom(portal transport.Peer, target identity.Public) error {
+func (p *PeerManagerMock) ConnectViaRoom(ctx context.Context, portal transport.Peer, target identity.Public) error {
 	p.connectViaRoomCalls = append(
 		p.connectViaRoomCalls,
 		PeerManagerConnectViaRoomCall{
@@ -45,11 +47,11 @@ func (p *PeerManagerMock) ConnectViaRoomCalls() []PeerManagerConnectViaRoomCall 
 	return p.connectViaRoomCalls
 }
 
-func (p *PeerManagerMock) EstablishNewConnections() error {
+func (p *PeerManagerMock) EstablishNewConnections(ctx context.Context) error {
 	return errors.New("not implemented")
 }
 
-func (p *PeerManagerMock) ProcessNewLocalDiscovery(remote identity.Public, address network.Address) error {
+func (p *PeerManagerMock) ProcessNewLocalDiscovery(ctx context.Context, remote identity.Public, address network.Address) error {
 	return errors.New("not implemented")
 }
 
@@ -59,6 +61,11 @@ func (p *PeerManagerMock) Peers() []transport.Peer {
 
 func (p *PeerManagerMock) MockPeers(peers []transport.Peer) {
 	p.peersReturnValue = peers
+}
+
+func (p *PeerManagerMock) TrackPeer(ctx context.Context, peer transport.Peer) {
+	//TODO implement me
+	panic("implement me")
 }
 
 type PeerManagerConnectViaRoomCall struct {

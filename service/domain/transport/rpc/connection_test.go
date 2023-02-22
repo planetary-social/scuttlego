@@ -349,8 +349,14 @@ func TestIncomingRequests(t *testing.T) {
 				require.NoError(t, err)
 			})
 
-			conn, err := rpc.NewConnection(ctx, fixtures.SomeConnectionId(), fixtures.SomeBool(), raw, handler, logger)
+			conn, err := rpc.NewConnection(fixtures.SomeConnectionId(), fixtures.SomeBool(), raw, handler, logger)
 			require.NoError(t, err)
+
+			go func() {
+				if err := conn.Loop(ctx); err != nil {
+					logger.WithError(err).Debug("conn loop exited")
+				}
+			}()
 			defer conn.Close()
 
 			go raw.ReceiveMessages(testCase.MessagesToReceive...)
@@ -457,8 +463,14 @@ func TestPrematureTerminationByRemote(t *testing.T) {
 				requestHandlerTerminatedCorrectly.Store(true)
 			})
 
-			conn, err := rpc.NewConnection(ctx, fixtures.SomeConnectionId(), fixtures.SomeBool(), raw, handler, logger)
+			conn, err := rpc.NewConnection(fixtures.SomeConnectionId(), fixtures.SomeBool(), raw, handler, logger)
 			require.NoError(t, err)
+
+			go func() {
+				if err := conn.Loop(ctx); err != nil {
+					logger.WithError(err).Debug("conn loop exited")
+				}
+			}()
 			defer conn.Close()
 
 			go raw.ReceiveMessages(

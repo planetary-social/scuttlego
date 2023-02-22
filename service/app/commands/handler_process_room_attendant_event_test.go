@@ -34,7 +34,9 @@ func TestProcessRoomAttendantEventHandler_ReturnsErrorOnZeroValueOfCommand(t *te
 	tc, err := di.BuildTestCommands(t)
 	require.NoError(t, err)
 
-	err = tc.ProcessRoomAttendantEvent.Handle(commands.ProcessRoomAttendantEvent{})
+	ctx := fixtures.TestContext(t)
+
+	err = tc.ProcessRoomAttendantEvent.Handle(ctx, commands.ProcessRoomAttendantEvent{})
 	require.EqualError(t, err, "zero value of command")
 }
 
@@ -75,7 +77,7 @@ func TestProcessRoomAttendantEventHandler_CallsPeerManagerConnectViaRoomForSpeci
 			cmd, err := commands.NewProcessRoomAttendantEvent(portal, event)
 			require.NoError(t, err)
 
-			err = tc.ProcessRoomAttendantEvent.Handle(cmd)
+			err = tc.ProcessRoomAttendantEvent.Handle(ctx, cmd)
 			require.NoError(t, err)
 
 			if testCase.ShouldCallConnectViaRoom {

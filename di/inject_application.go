@@ -41,7 +41,7 @@ var commandsSet = wire.NewSet(
 	wire.Bind(new(network.ProcessNewLocalDiscoveryCommandHandler), new(*commands.ProcessNewLocalDiscoveryHandler)),
 
 	commands.NewAcceptNewPeerHandler,
-	wire.Bind(new(network.AcceptNewPeerCommandHandler), new(*commands.AcceptNewPeerHandler)),
+	wire.Bind(new(pubsub.AcceptNewPeerCommandHandler), new(*commands.AcceptNewPeerHandler)),
 
 	commands.NewEstablishNewConnectionsHandler,
 	wire.Bind(new(network.EstablishNewConnectionsCommandHandler), new(*commands.EstablishNewConnectionsHandler)),

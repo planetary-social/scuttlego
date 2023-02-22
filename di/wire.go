@@ -4,7 +4,6 @@
 package di
 
 import (
-	"context"
 	"path/filepath"
 	"testing"
 
@@ -28,9 +27,6 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/invites"
 	domainmocks "github.com/planetary-social/scuttlego/service/domain/mocks"
 	"github.com/planetary-social/scuttlego/service/domain/network/local"
-	"github.com/planetary-social/scuttlego/service/domain/replication"
-	"github.com/planetary-social/scuttlego/service/domain/replication/ebt"
-	"github.com/planetary-social/scuttlego/service/domain/replication/gossip"
 	"github.com/planetary-social/scuttlego/service/domain/rooms"
 	"github.com/planetary-social/scuttlego/service/domain/rooms/tunnel"
 )
@@ -157,7 +153,6 @@ type TestCommands struct {
 	InviteRedeemer         *mocks.InviteRedeemerMock
 	Local                  identity.Public
 	PeerInitializer        *mocks.PeerInitializerMock
-	NewPeerHandler         *mocks.NewPeerHandlerMock
 	GoSSBRepoReader        *mocks.GoSSBRepoReaderMock
 	FeedRepository         *mocks.FeedRepositoryMock
 	ReceiveLog             *mocks.ReceiveLogRepositoryMock
@@ -198,9 +193,6 @@ func BuildTestCommands(*testing.T) (TestCommands, error) {
 
 		mocks.NewPeerInitializerMock,
 		wire.Bind(new(commands.ServerPeerInitializer), new(*mocks.PeerInitializerMock)),
-
-		mocks.NewNewPeerHandlerMock,
-		wire.Bind(new(commands.NewPeerHandler), new(*mocks.NewPeerHandlerMock)),
 
 		mocks.NewGoSSBRepoReaderMock,
 		wire.Bind(new(commands.GoSSBRepoReader), new(*mocks.GoSSBRepoReaderMock)),
@@ -245,7 +237,7 @@ func BuildTestQueries(*testing.T) (TestQueries, error) {
 	wire.Build(
 		applicationSet,
 		mockQueryAdaptersSet,
-		replicatorSet,
+		replicationSet,
 
 		mocks.NewMockQueriesTransactionProvider,
 		wire.Bind(new(queries.TransactionProvider), new(*mocks.MockQueriesTransactionProvider)),
@@ -309,12 +301,11 @@ func buildBadgerQueriesAdapters(*badger.Txn, identity.Public, Config, logging.Lo
 
 // BuildService creates a new service which uses the provided context as a long-term context used as a base context for
 // e.g. established connections.
-func BuildService(context.Context, identity.Private, Config) (Service, func(), error) {
+func BuildService(identity.Private, Config) (Service, func(), error) {
 	wire.Build(
 		NewService,
 
 		domain.NewPeerManager,
-		wire.Bind(new(commands.NewPeerHandler), new(*domain.PeerManager)),
 		wire.Bind(new(commands.PeerManager), new(*domain.PeerManager)),
 		wire.Bind(new(queries.PeerManager), new(*domain.PeerManager)),
 
@@ -326,7 +317,7 @@ func BuildService(context.Context, identity.Private, Config) (Service, func(), e
 		commands.NewMessageBuffer,
 
 		rooms.NewScanner,
-		wire.Bind(new(domain.RoomScanner), new(*rooms.Scanner)),
+		wire.Bind(new(commands.RoomScanner), new(*rooms.Scanner)),
 
 		rooms.NewPeerRPCAdapter,
 		wire.Bind(new(rooms.MetadataGetter), new(*rooms.PeerRPCAdapter)),
@@ -345,7 +336,7 @@ func BuildService(context.Context, identity.Private, Config) (Service, func(), e
 
 		portsSet,
 		applicationSet,
-		replicatorSet,
+		replicationSet,
 		blobReplicatorSet,
 		formatsSet,
 		pubSubSet,
@@ -384,12 +375,10 @@ func buildIntegrationTestsService(t *testing.T) (IntegrationTestsService, func()
 
 		newIntegrationTestConfig,
 		fixtures.SomePrivateIdentity,
-		fixtures.TestContext,
 
 		NewService,
 
 		domain.NewPeerManager,
-		wire.Bind(new(commands.NewPeerHandler), new(*domain.PeerManager)),
 		wire.Bind(new(commands.PeerManager), new(*domain.PeerManager)),
 		wire.Bind(new(queries.PeerManager), new(*domain.PeerManager)),
 
@@ -401,7 +390,7 @@ func buildIntegrationTestsService(t *testing.T) (IntegrationTestsService, func()
 		commands.NewMessageBuffer,
 
 		rooms.NewScanner,
-		wire.Bind(new(domain.RoomScanner), new(*rooms.Scanner)),
+		wire.Bind(new(commands.RoomScanner), new(*rooms.Scanner)),
 
 		rooms.NewPeerRPCAdapter,
 		wire.Bind(new(rooms.MetadataGetter), new(*rooms.PeerRPCAdapter)),
@@ -420,7 +409,7 @@ func buildIntegrationTestsService(t *testing.T) (IntegrationTestsService, func()
 
 		portsSet,
 		applicationSet,
-		replicatorSet,
+		replicationSet,
 		blobReplicatorSet,
 		formatsSet,
 		pubSubSet,
@@ -437,34 +426,6 @@ func buildIntegrationTestsService(t *testing.T) (IntegrationTestsService, func()
 	)
 	return IntegrationTestsService{}, nil, nil
 }
-
-var replicatorSet = wire.NewSet(
-	gossip.NewManager,
-	wire.Bind(new(gossip.ReplicationManager), new(*gossip.Manager)),
-
-	gossip.NewGossipReplicator,
-	wire.Bind(new(replication.CreateHistoryStreamReplicator), new(*gossip.GossipReplicator)),
-	wire.Bind(new(ebt.SelfCreateHistoryStreamReplicator), new(*gossip.GossipReplicator)),
-
-	ebt.NewReplicator,
-	wire.Bind(new(replication.EpidemicBroadcastTreesReplicator), new(ebt.Replicator)),
-
-	queries.NewWantedFeedsProvider,
-	wire.Bind(new(replication.WantedFeedsProvider), new(*queries.WantedFeedsProvider)),
-
-	replication.NewWantedFeedsCache,
-	wire.Bind(new(replication.ContactsStorage), new(*replication.WantedFeedsCache)),
-	wire.Bind(new(commands.ForkedFeedTracker), new(*replication.WantedFeedsCache)),
-
-	ebt.NewSessionTracker,
-	wire.Bind(new(ebt.Tracker), new(*ebt.SessionTracker)),
-
-	ebt.NewSessionRunner,
-	wire.Bind(new(ebt.Runner), new(*ebt.SessionRunner)),
-
-	replication.NewNegotiator,
-	wire.Bind(new(domain.MessageReplicator), new(*replication.Negotiator)),
-)
 
 func newAdvertiser(l identity.Public, config Config) (*local.Advertiser, error) {
 	return local.NewAdvertiser(l, config.ListenAddress)

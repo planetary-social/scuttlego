@@ -1,6 +1,8 @@
 package commands
 
 import (
+	"context"
+
 	"github.com/boreq/errors"
 )
 
@@ -16,8 +18,8 @@ func NewEstablishNewConnectionsHandler(
 	}
 }
 
-func (h *EstablishNewConnectionsHandler) Handle() error {
-	if err := h.peerManager.EstablishNewConnections(); err != nil {
+func (h *EstablishNewConnectionsHandler) Handle(ctx context.Context) error {
+	if err := h.peerManager.EstablishNewConnections(ctx); err != nil {
 		return errors.Wrap(err, "error calling peer manager")
 	}
 

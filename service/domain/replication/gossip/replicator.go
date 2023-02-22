@@ -41,7 +41,7 @@ func NewGossipReplicator(manager ReplicationManager, handler replication.RawMess
 
 func (r GossipReplicator) Replicate(ctx context.Context, peer transport.Peer) error {
 	feedsToReplicateCh := r.manager.GetFeedsToReplicate(ctx, peer.Identity())
-	r.startWorkers(peer, feedsToReplicateCh)
+	r.startWorkers(ctx, peer, feedsToReplicateCh)
 	<-ctx.Done()
 
 	return nil
@@ -49,25 +49,25 @@ func (r GossipReplicator) Replicate(ctx context.Context, peer transport.Peer) er
 
 func (r GossipReplicator) ReplicateSelf(ctx context.Context, peer transport.Peer) error {
 	feedsToReplicateCh := r.manager.GetFeedsToReplicateSelf(ctx, peer.Identity())
-	r.startWorkers(peer, feedsToReplicateCh)
+	r.startWorkers(ctx, peer, feedsToReplicateCh)
 	<-ctx.Done()
 
 	return nil
 }
 
-func (r GossipReplicator) startWorkers(peer transport.Peer, ch <-chan ReplicateFeedTask) {
+func (r GossipReplicator) startWorkers(ctx context.Context, peer transport.Peer, ch <-chan ReplicateFeedTask) {
 	for i := 0; i < numWorkers; i++ {
-		go r.worker(peer, ch)
+		go r.worker(ctx, peer, ch)
 	}
 }
 
-func (r GossipReplicator) worker(peer transport.Peer, ch <-chan ReplicateFeedTask) {
+func (r GossipReplicator) worker(ctx context.Context, peer transport.Peer, ch <-chan ReplicateFeedTask) {
 	for task := range ch {
-		r.replicateFeedTask(peer, task)
+		r.replicateFeedTask(ctx, peer, task)
 	}
 }
 
-func (r GossipReplicator) replicateFeedTask(peer transport.Peer, task ReplicateFeedTask) {
+func (r GossipReplicator) replicateFeedTask(ctx context.Context, peer transport.Peer, task ReplicateFeedTask) {
 	logger := r.logger.
 		WithField("peer", peer.Identity().String()).
 		WithField("feed", task.Id.String()).
@@ -76,7 +76,7 @@ func (r GossipReplicator) replicateFeedTask(peer transport.Peer, task ReplicateF
 
 	logger.Trace("starting")
 
-	n, err := r.replicateFeed(peer, task)
+	n, err := r.replicateFeed(ctx, peer, task)
 	if err != nil && !errors.Is(err, rpc.ErrRemoteEnd) {
 		logger.WithField("received_messages", n).WithError(err).Error("failed")
 		task.OnComplete(TaskResultFailed)
@@ -92,8 +92,8 @@ func (r GossipReplicator) replicateFeedTask(peer transport.Peer, task ReplicateF
 	}
 }
 
-func (r GossipReplicator) replicateFeed(peer transport.Peer, feed ReplicateFeedTask) (int, error) {
-	ctx, cancel := context.WithCancel(feed.Ctx)
+func (r GossipReplicator) replicateFeed(ctx context.Context, peer transport.Peer, feed ReplicateFeedTask) (int, error) {
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	arguments, err := r.newCreateHistoryStreamArguments(feed.Id, feed.State)

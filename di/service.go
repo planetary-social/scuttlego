@@ -23,6 +23,7 @@ type Service struct {
 	connectionEstablisher        *networkport.ConnectionEstablisher
 	requestSubscriber            *pubsubport.RequestSubscriber
 	roomAttendantEventSubscriber *pubsubport.RoomAttendantEventSubscriber
+	newPeerSubscriber            *pubsubport.NewPeerSubscriber
 	advertiser                   *local.Advertiser
 	messageBuffer                *commands.MessageBuffer
 	createHistoryStreamHandler   *queries.CreateHistoryStreamHandler
@@ -38,6 +39,7 @@ func NewService(
 	connectionEstablisher *networkport.ConnectionEstablisher,
 	requestSubscriber *pubsubport.RequestSubscriber,
 	roomAttendantEventSubscriber *pubsubport.RoomAttendantEventSubscriber,
+	newPeerSubscriber *pubsubport.NewPeerSubscriber,
 	advertiser *local.Advertiser,
 	messageBuffer *commands.MessageBuffer,
 	createHistoryStreamHandler *queries.CreateHistoryStreamHandler,
@@ -53,6 +55,7 @@ func NewService(
 		connectionEstablisher:        connectionEstablisher,
 		requestSubscriber:            requestSubscriber,
 		roomAttendantEventSubscriber: roomAttendantEventSubscriber,
+		newPeerSubscriber:            newPeerSubscriber,
 		advertiser:                   advertiser,
 		messageBuffer:                messageBuffer,
 		createHistoryStreamHandler:   createHistoryStreamHandler,
@@ -82,6 +85,11 @@ func (s Service) Run(ctx context.Context) error {
 	runners++
 	go func() {
 		errCh <- s.roomAttendantEventSubscriber.Run(ctx)
+	}()
+
+	runners++
+	go func() {
+		errCh <- s.newPeerSubscriber.Run(ctx)
 	}()
 
 	runners++

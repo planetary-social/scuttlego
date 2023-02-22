@@ -140,7 +140,7 @@ func newAttendantEventPublisherMock() *attendantEventPublisherMock {
 	return &attendantEventPublisherMock{}
 }
 
-func (a *attendantEventPublisherMock) PublishAttendantEvent(portal transport.Peer, event rooms.RoomAttendantsEvent) error {
+func (a *attendantEventPublisherMock) PublishAttendantEvent(ctx context.Context, portal transport.Peer, event rooms.RoomAttendantsEvent) error {
 	a.PublishAttendantEventCalls = append(a.PublishAttendantEventCalls, publishAttendantEventCall{
 		Portal: portal,
 		Event:  event,

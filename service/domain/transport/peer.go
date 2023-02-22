@@ -20,7 +20,6 @@ type Connection interface {
 	// initiated by the remote peer.
 	WasInitiatedByRemote() bool
 
-	Context() context.Context
 	Close() error
 }
 

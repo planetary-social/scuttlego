@@ -53,7 +53,7 @@ func TestRequestStreams_RequestIsPassedToHandler(t *testing.T) {
 	})
 
 	ctx := fixtures.TestContext(t)
-	streams := rpc.NewRequestStreams(ctx, sender, handler, logger)
+	streams := rpc.NewRequestStreams(sender, handler, logger)
 
 	err = streams.HandleIncomingRequest(ctx, &msg)
 	require.NoError(t, err)
@@ -69,7 +69,7 @@ func TestRequestStreams_ResponsesAreRejectedIfPassedByAccident(t *testing.T) {
 	sender := NewSenderMock()
 	logger := fixtures.TestLogger(t)
 	ctx := fixtures.TestContext(t)
-	streams := rpc.NewRequestStreams(ctx, sender, nil, logger)
+	streams := rpc.NewRequestStreams(sender, nil, logger)
 
 	msg := someMessageWhichIsAResponse(t)
 
@@ -81,7 +81,7 @@ func TestRequestStreams_PassingRequestsToClosedStreamsWillFailEarly(t *testing.T
 	sender := NewSenderMock()
 	logger := fixtures.TestLogger(t)
 	ctx, cancel := context.WithCancel(fixtures.TestContext(t))
-	streams := rpc.NewRequestStreams(ctx, sender, nil, logger)
+	streams := rpc.NewRequestStreams(sender, nil, logger)
 
 	cancel()
 
@@ -119,7 +119,7 @@ func TestRequestStreams_PassingMalformedRequestIsNotAnError(t *testing.T) {
 	})
 
 	ctx := fixtures.TestContext(t)
-	streams := rpc.NewRequestStreams(ctx, sender, handler, logger)
+	streams := rpc.NewRequestStreams(sender, handler, logger)
 
 	err = streams.HandleIncomingRequest(ctx, &msg)
 	require.NoError(t, err, "handling a malformed request should not be an error")
@@ -145,7 +145,7 @@ func TestRequestStreams_ClosingContextTerminatesCreatedRequestStreams(t *testing
 	})
 
 	ctx, cancel := context.WithCancel(fixtures.TestContext(t))
-	streams := rpc.NewRequestStreams(ctx, sender, handler, logger)
+	streams := rpc.NewRequestStreams(sender, handler, logger)
 	msg := someMessageOpeningAStream(t)
 
 	err := streams.HandleIncomingRequest(ctx, &msg)
@@ -178,7 +178,7 @@ func TestRequestStreams_RemoteCanCloseRequestStreams(t *testing.T) {
 	})
 
 	ctx := fixtures.TestContext(t)
-	streams := rpc.NewRequestStreams(ctx, sender, handler, logger)
+	streams := rpc.NewRequestStreams(sender, handler, logger)
 
 	msgOpen := someMessageOpeningAStream(t)
 	msgTerminate := someMessageTerminatingAStream(t, msgOpen.Header.RequestNumber())
@@ -211,7 +211,7 @@ func TestRequestStreams_HandlerCanCloseRequestStreams(t *testing.T) {
 	})
 
 	ctx := fixtures.TestContext(t)
-	streams := rpc.NewRequestStreams(ctx, sender, handler, logger)
+	streams := rpc.NewRequestStreams(sender, handler, logger)
 
 	msgOpen := someMessageOpeningAStream(t)
 
@@ -240,7 +240,7 @@ func TestRequestStreams_RemoteCanSendTerminationAfterTheStreamIsClosed(t *testin
 	})
 
 	ctx := fixtures.TestContext(t)
-	streams := rpc.NewRequestStreams(ctx, sender, handler, logger)
+	streams := rpc.NewRequestStreams(sender, handler, logger)
 
 	msgOpen := someMessageOpeningAStream(t)
 	err := streams.HandleIncomingRequest(ctx, &msgOpen)
@@ -339,7 +339,7 @@ func TestRequestStreams_MultipleMessagesSentInDuplexStream(t *testing.T) {
 	})
 
 	ctx := fixtures.TestContext(t)
-	streams := rpc.NewRequestStreams(ctx, sender, handler, logger)
+	streams := rpc.NewRequestStreams(sender, handler, logger)
 
 	err = streams.HandleIncomingRequest(ctx, &requestMsg)
 	require.NoError(t, err)

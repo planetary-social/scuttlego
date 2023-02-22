@@ -22,6 +22,11 @@ const (
 	leaveUnpersistedMessagesFor = 15 * time.Second
 )
 
+type RawMessageIdentifier interface {
+	PeekRawMessage(raw message.RawMessage) (feeds.PeekedMessage, error)
+	VerifyRawMessage(raw message.RawMessage) (message.Message, error)
+}
+
 type ForkedFeedTracker interface {
 	AddForkedFeed(replicatedFrom identity.Public, feed refs.Feed)
 }
@@ -34,11 +39,17 @@ type MessageBuffer struct {
 	forcePersistOnce sync.Once
 
 	transaction       TransactionProvider
+	identifier        RawMessageIdentifier
 	forkedFeedTracker ForkedFeedTracker
 	logger            logging.Logger
 }
 
-func NewMessageBuffer(transaction TransactionProvider, forkedFeedTracker ForkedFeedTracker, logger logging.Logger) *MessageBuffer {
+func NewMessageBuffer(
+	transaction TransactionProvider,
+	identifier RawMessageIdentifier,
+	forkedFeedTracker ForkedFeedTracker,
+	logger logging.Logger,
+) *MessageBuffer {
 	return &MessageBuffer{
 		messages:     make(messagesList),
 		messagesLock: &sync.Mutex{},
@@ -46,6 +57,7 @@ func NewMessageBuffer(transaction TransactionProvider, forkedFeedTracker ForkedF
 		forcePersistCh: make(chan struct{}),
 
 		transaction:       transaction,
+		identifier:        identifier,
 		forkedFeedTracker: forkedFeedTracker,
 		logger:            logger.New("message_buffer"),
 	}
@@ -70,11 +82,16 @@ func (m *MessageBuffer) Run(ctx context.Context) error {
 	}
 }
 
-func (m *MessageBuffer) Handle(replicatedFrom identity.Public, msg message.Message) error {
+func (m *MessageBuffer) Handle(replicatedFrom identity.Public, rawMsg message.RawMessage) error {
 	m.messagesLock.Lock()
 	defer m.messagesLock.Unlock()
 
-	rm, err := messagebuffer.NewReceivedMessage(replicatedFrom, msg)
+	msg, err := m.identifier.PeekRawMessage(rawMsg)
+	if err != nil {
+		return errors.Wrap(err, "failed to identify the raw message")
+	}
+
+	rm, err := messagebuffer.NewReceivedMessage[feeds.PeekedMessage](replicatedFrom, msg)
 	if err != nil {
 		return errors.Wrap(err, "error creating received message")
 	}
@@ -168,8 +185,23 @@ func (m *MessageBuffer) persistTransaction(adapters Adapters) (map[string]messag
 		if err := adapters.Feed.UpdateFeed(feedRef, func(feed *feeds.Feed) error {
 			seq := m.getSequence(feed)
 			msgs := feedMessages.ConsecutiveSliceStartingWith(seq)
-
 			counterConsideredMessages += len(msgs)
+
+			var validatedMessages []messagebuffer.ReceivedMessage[message.Message]
+			for _, peekedMessage := range msgs {
+				msg, err := m.identifier.VerifyRawMessage(peekedMessage.Message().Raw())
+				if err != nil {
+					feedLogger.WithError(err).Error("error verifying message")
+					continue
+				}
+
+				receivedMsg, err := messagebuffer.NewReceivedMessage(peekedMessage.ReplicatedFrom(), msg)
+				if err != nil {
+					return errors.Wrap(err, "error creating received message")
+				}
+
+				validatedMessages = append(validatedMessages, receivedMsg)
+			}
 
 			feedLogger.
 				WithField("sequence_in_database", seq).
@@ -177,15 +209,16 @@ func (m *MessageBuffer) persistTransaction(adapters Adapters) (map[string]messag
 				WithField("messages_considered_for_persisting", len(msgs)).
 				Trace("persisting messages")
 
-			for _, msg := range msgs {
+			for _, msg := range validatedMessages {
 				if err := feed.AppendMessage(msg.Message()); err != nil {
+					// probably a forked feed
 					feedLogger.
 						WithError(err).
 						WithField("message_being_appended", msg).
 						Trace("error appending message")
-					feedMessages.Remove(msg.Message())
+					feedMessages.Remove(msg.Message().Raw()) // todo?
 					m.forkedFeedTracker.AddForkedFeed(msg.ReplicatedFrom(), msg.Message().Feed())
-					return nil // probably a forked feed
+					return nil
 				}
 			}
 
@@ -276,7 +309,7 @@ func (m *MessageBuffer) getSequence(feed *feeds.Feed) *message.Sequence {
 
 type messagesList map[string]*messagebuffer.FeedMessages
 
-func (f messagesList) AddMessage(t time.Time, rm messagebuffer.ReceivedMessage) error {
+func (f messagesList) AddMessage(t time.Time, rm messagebuffer.ReceivedMessage[feeds.PeekedMessage]) error {
 	return f.get(rm.Message().Feed()).Add(t, rm)
 }
 

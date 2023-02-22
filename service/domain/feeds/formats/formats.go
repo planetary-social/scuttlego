@@ -36,6 +36,21 @@ func (i RawMessageIdentifier) VerifyRawMessage(raw message.RawMessage) (message.
 	return message.Message{}, errors.Wrap(result, "unknown message")
 }
 
+func (i RawMessageIdentifier) PeekRawMessage(raw message.RawMessage) (feeds.PeekedMessage, error) {
+	var result error
+
+	for _, format := range i.formats {
+		msg, err := format.Peek(raw)
+		if err == nil {
+			return msg, nil
+		}
+
+		result = multierror.Append(result, err)
+	}
+
+	return feeds.PeekedMessage{}, errors.Wrap(result, "unknown message")
+}
+
 func (i RawMessageIdentifier) LoadRawMessage(raw message.VerifiedRawMessage) (message.MessageWithoutId, error) {
 	var result error
 

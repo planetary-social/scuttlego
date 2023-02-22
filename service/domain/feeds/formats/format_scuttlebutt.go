@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/boreq/errors"
+	"github.com/planetary-social/scuttlego/service/domain/feeds"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
@@ -95,6 +96,30 @@ func (s *Scuttlebutt) Load(verifiedRawMessage message.VerifiedRawMessage) (messa
 	}
 
 	return s.convert(dmsg, raw)
+}
+
+func (s *Scuttlebutt) Peek(raw message.RawMessage) (feeds.PeekedMessage, error) {
+	var dmsg peekedSsbMessage
+	if err := json.Unmarshal(raw.Bytes(), &dmsg); err != nil {
+		return feeds.PeekedMessage{}, errors.Wrap(err, "json unmarshal failed")
+	}
+
+	feed, err := refs.NewFeed(dmsg.Author)
+	if err != nil {
+		return feeds.PeekedMessage{}, errors.New("error creating a feed ref")
+	}
+
+	sequence, err := message.NewSequence(dmsg.Sequence)
+	if err != nil {
+		return feeds.PeekedMessage{}, errors.New("error creating a sequence")
+	}
+
+	return feeds.NewPeekedMessage(feed, sequence, raw)
+}
+
+type peekedSsbMessage struct {
+	Author   string `json:"author"`
+	Sequence int    `json:"sequence"`
 }
 
 func (s *Scuttlebutt) convert(ssbMessage legacy.DeserializedMessage, raw message.RawMessage) (message.MessageWithoutId, error) {

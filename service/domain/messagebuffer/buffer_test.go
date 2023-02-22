@@ -6,6 +6,7 @@ import (
 
 	"github.com/planetary-social/scuttlego/fixtures"
 	"github.com/planetary-social/scuttlego/internal"
+	"github.com/planetary-social/scuttlego/service/domain/feeds"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/messagebuffer"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
@@ -440,11 +441,11 @@ func TestFeedMessages_RemoveRemovesMessages(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, 2, v.Len())
-	v.Remove(msg2.Message())
+	v.Remove(msg2.Message().Raw())
 	require.Equal(t, 1, v.Len())
 }
 
-func messagesToSequences(msgs []messagebuffer.ReceivedMessage) []message.Sequence {
+func messagesToSequences(msgs []messagebuffer.ReceivedMessage[feeds.PeekedMessage]) []message.Sequence {
 	var result []message.Sequence
 	for _, msg := range msgs {
 		result = append(result, msg.Message().Sequence())
@@ -452,9 +453,13 @@ func messagesToSequences(msgs []messagebuffer.ReceivedMessage) []message.Sequenc
 	return result
 }
 
-func someReceivedMessage(seq message.Sequence, feed refs.Feed) messagebuffer.ReceivedMessage {
+func someReceivedMessage(seq message.Sequence, feed refs.Feed) messagebuffer.ReceivedMessage[feeds.PeekedMessage] {
 	return messagebuffer.MustNewReceivedMessage(
 		fixtures.SomePublicIdentity(),
-		fixtures.SomeMessage(seq, feed),
+		feeds.MustNewPeekedMessage(
+			feed,
+			seq,
+			fixtures.SomeRawMessage(),
+		),
 	)
 }

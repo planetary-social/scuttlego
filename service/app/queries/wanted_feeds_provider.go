@@ -78,16 +78,12 @@ func (b *WantedFeedsProvider) GetWantedFeeds() (replication.WantedFeeds, error) 
 }
 
 func (b *WantedFeedsProvider) getFeedState(adapters Adapters, feed refs.Feed) (replication.FeedState, error) {
-	f, err := adapters.Feed.GetFeed(feed)
+	seq, err := adapters.Feed.GetSequence(feed)
 	if err != nil {
 		if errors.Is(err, common.ErrFeedNotFound) {
 			return replication.NewEmptyFeedState(), nil
 		}
 		return replication.FeedState{}, errors.Wrapf(err, "could not load feed '%s'", feed)
-	}
-	seq, ok := f.Sequence()
-	if !ok {
-		return replication.FeedState{}, errors.New("we got a feed so it can't be empty")
 	}
 	return replication.NewFeedState(seq)
 }

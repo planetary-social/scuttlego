@@ -95,6 +95,14 @@ func (b FeedRepository) GetFeed(ref refs.Feed) (*feeds.Feed, error) {
 	return f, nil
 }
 
+func (b FeedRepository) GetSequence(ref refs.Feed) (message.Sequence, error) {
+	seq, _, err := b.lastEntry(ref)
+	if err != nil {
+		return message.Sequence{}, errors.Wrap(err, "error getting last entry")
+	}
+	return seq, nil
+}
+
 func (b FeedRepository) GetMessages(id refs.Feed, seq *message.Sequence, limit *int) ([]message.Message, error) {
 	var messages []message.Message
 
@@ -299,27 +307,12 @@ func (b FeedRepository) removeFeedData(ref refs.Feed) error {
 }
 
 func (b FeedRepository) loadFeed(ref refs.Feed) (*feeds.Feed, error) {
-	bucket := b.getFeedBucket(ref)
-
-	it := bucket.IteratorWithModifiedOptions(func(options *badger.IteratorOptions) {
-		options.Reverse = true
-		options.PrefetchValues = false
-	})
-	defer it.Close()
-
-	it.Seek(bucket.Prefix().Bytes())
-	if !it.Valid() {
-		return nil, nil
-	}
-
-	valueCopy, err := it.Item().ValueCopy(nil)
+	_, msgId, err := b.lastEntry(ref)
 	if err != nil {
-		return nil, errors.Wrap(err, "error getting value")
-	}
-
-	msgId, err := refs.NewMessage(string(valueCopy))
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create a message ref")
+		if errors.Is(err, common.ErrFeedNotFound) {
+			return nil, nil
+		}
+		return nil, errors.Wrap(err, "error getting last entry")
 	}
 
 	msg, err := b.messageRepository.Get(msgId)
@@ -333,6 +326,43 @@ func (b FeedRepository) loadFeed(ref refs.Feed) (*feeds.Feed, error) {
 	}
 
 	return feed, nil
+}
+
+func (b FeedRepository) lastEntry(ref refs.Feed) (message.Sequence, refs.Message, error) {
+	bucket := b.getFeedBucket(ref)
+
+	it := bucket.IteratorWithModifiedOptions(func(options *badger.IteratorOptions) {
+		options.Reverse = true
+		options.PrefetchValues = false
+	})
+	defer it.Close()
+
+	it.Seek(bucket.Prefix().Bytes())
+	if !it.Valid() {
+		return message.Sequence{}, refs.Message{}, common.ErrFeedNotFound
+	}
+
+	keyInBucket, err := bucket.KeyInBucket(it.Item())
+	if err != nil {
+		return message.Sequence{}, refs.Message{}, errors.Wrap(err, "error checking key in bucket")
+	}
+
+	msgSequence, err := b.unmarshalMessageKey(keyInBucket.Bytes())
+	if err != nil {
+		return message.Sequence{}, refs.Message{}, errors.Wrap(err, "error unmarshaling sequence")
+	}
+
+	valueCopy, err := it.Item().ValueCopy(nil)
+	if err != nil {
+		return message.Sequence{}, refs.Message{}, errors.Wrap(err, "error getting value")
+	}
+
+	msgId, err := refs.NewMessage(string(valueCopy))
+	if err != nil {
+		return message.Sequence{}, refs.Message{}, errors.Wrap(err, "failed to create a message ref")
+	}
+
+	return msgSequence, msgId, nil
 }
 
 type FeedMessage struct {

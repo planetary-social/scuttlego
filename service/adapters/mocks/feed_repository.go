@@ -63,6 +63,10 @@ func NewFeedRepositoryMock() *FeedRepositoryMock {
 	}
 }
 
+func (m *FeedRepositoryMock) GetSequence(ref refs.Feed) (message.Sequence, error) {
+	return message.Sequence{}, common.ErrFeedNotFound
+}
+
 func (m *FeedRepositoryMock) UpdateFeed(ref refs.Feed, f commands.UpdateFeedFn) error {
 	call := FeedRepositoryMockUpdateFeedCall{
 		Feed: ref,

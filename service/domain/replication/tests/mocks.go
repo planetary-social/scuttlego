@@ -21,15 +21,15 @@ func (r RawMessageHandlerMock) Handle(msg message.RawMessage) error {
 	panic("implement me")
 }
 
-type WantedFeedsRepositoryMock struct {
+type WantedFeedsProviderMock struct {
 	GetWantedFeedsReturnValue replication.WantedFeeds
 }
 
-func NewWantedFeedsRepositoryMock() *WantedFeedsRepositoryMock {
-	return &WantedFeedsRepositoryMock{}
+func NewWantedFeedsProviderMock() *WantedFeedsProviderMock {
+	return &WantedFeedsProviderMock{}
 }
 
-func (c WantedFeedsRepositoryMock) GetWantedFeeds() (replication.WantedFeeds, error) {
+func (c WantedFeedsProviderMock) GetWantedFeeds() (replication.WantedFeeds, error) {
 	return c.GetWantedFeedsReturnValue, nil
 }
 

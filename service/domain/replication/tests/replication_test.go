@@ -29,12 +29,12 @@ func TestReplicationFallsBackToCreateHistoryStream(t *testing.T) {
 	conn.SetWasInitiatedByRemote(false)
 	peer := transport.MustNewPeer(fixtures.SomePublicIdentity(), conn)
 
-	tr.ContactsRepository.GetWantedFeedsReturnValue = replication.NewWantedFeeds([]replication.Contact{
-		{
-			Who:       fixtures.SomeRefFeed(),
-			Hops:      graph.MustNewHops(fixtures.SomePositiveInt()),
-			FeedState: replication.NewEmptyFeedState(),
-		},
+	tr.ContactsRepository.GetWantedFeedsReturnValue = replication.MustNewWantedFeeds([]replication.Contact{
+		replication.MustNewContact(
+			fixtures.SomeRefFeed(),
+			graph.MustNewHops(fixtures.SomePositiveInt()),
+			replication.NewEmptyFeedState(),
+		),
 	}, nil)
 
 	var requests []*rpc.Request
@@ -105,17 +105,17 @@ func TestReplicationPullsOwnStreamUsingCreateHistoryStreamEvenIfEpidemicBroadcas
 
 	localFeed := fixtures.SomeRefFeed()
 
-	tr.ContactsRepository.GetWantedFeedsReturnValue = replication.NewWantedFeeds([]replication.Contact{
-		{
-			Who:       localFeed,
-			Hops:      graph.MustNewHops(0),
-			FeedState: replication.NewEmptyFeedState(),
-		},
-		{
-			Who:       fixtures.SomeRefFeed(),
-			Hops:      graph.MustNewHops(fixtures.SomePositiveInt()),
-			FeedState: replication.NewEmptyFeedState(),
-		},
+	tr.ContactsRepository.GetWantedFeedsReturnValue = replication.MustNewWantedFeeds([]replication.Contact{
+		replication.MustNewContact(
+			localFeed,
+			graph.MustNewHops(0),
+			replication.NewEmptyFeedState(),
+		),
+		replication.MustNewContact(
+			fixtures.SomeRefFeed(),
+			graph.MustNewHops(fixtures.SomePositiveInt()),
+			replication.NewEmptyFeedState(),
+		),
 	}, nil)
 
 	var requests []*rpc.Request

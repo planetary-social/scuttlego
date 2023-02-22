@@ -55,11 +55,11 @@ func TestSession_SendNotesSendsNonEmptyNotesDuringConsecutiveUpdates(t *testing.
 		s.Stream.sentNotes,
 	)
 
-	contact := replication.Contact{
-		Who:       fixtures.SomeRefFeed(),
-		Hops:      graph.MustNewHops(1),
-		FeedState: replication.NewEmptyFeedState(),
-	}
+	contact := replication.MustNewContact(
+		fixtures.SomeRefFeed(),
+		graph.MustNewHops(1),
+		replication.NewEmptyFeedState(),
+	)
 
 	s.ContactsStorage.contacts = []replication.Contact{contact}
 
@@ -71,7 +71,7 @@ func TestSession_SendNotesSendsNonEmptyNotesDuringConsecutiveUpdates(t *testing.
 			messages.MustNewEbtReplicateNotes(nil),
 			messages.MustNewEbtReplicateNotes([]messages.EbtReplicateNote{
 				messages.MustNewEbtReplicateNote(
-					contact.Who,
+					contact.Who(),
 					true,
 					true,
 					0,

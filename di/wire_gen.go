@@ -70,10 +70,8 @@ func BuildBadgerNoTxTestAdapters(t *testing.T) BadgerNoTxTestAdapters {
 	}
 	testTxAdaptersFactoryTransactionProvider := notx.NewTestTxAdaptersFactoryTransactionProvider(db, testTxAdaptersFactory, testAdaptersDependencies)
 	noTxBlobWantListRepository := notx.NewNoTxBlobWantListRepository(testTxAdaptersFactoryTransactionProvider)
-	noTxWantedFeedsRepository := notx.NewNoTxWantedFeedsRepository(testTxAdaptersFactoryTransactionProvider)
 	testAdapters := notx.TestAdapters{
 		NoTxBlobWantListRepository: noTxBlobWantListRepository,
-		NoTxWantedFeedsRepository:  noTxWantedFeedsRepository,
 	}
 	badgerTestAdaptersFactory := testAdaptersFactory()
 	testTransactionProvider := badger.NewTestTransactionProvider(db, testAdaptersDependencies, badgerTestAdaptersFactory)
@@ -143,7 +141,6 @@ func buildTestBadgerNoTxTxAdapters(txn *badger2.Txn, testAdaptersDependencies ba
 	messageHMAC := formats.NewDefaultMessageHMAC()
 	scuttlebutt := formats.NewScuttlebutt(parser, messageHMAC)
 	feedRepository := badger.NewFeedRepository(txn, socialGraphRepository, receiveLogRepository, messageRepository, pubRepository, blobRepository, banListRepository, scuttlebutt)
-	wantedFeedsRepository := badger.NewWantedFeedsRepository(socialGraphRepository, feedWantListRepository, feedRepository, banListRepository)
 	txAdapters := notx.TxAdapters{
 		BanListRepository:      banListRepository,
 		BlobRepository:         blobRepository,
@@ -154,7 +151,6 @@ func buildTestBadgerNoTxTxAdapters(txn *badger2.Txn, testAdaptersDependencies ba
 		SocialGraphRepository:  socialGraphRepository,
 		PubRepository:          pubRepository,
 		FeedRepository:         feedRepository,
-		WantedFeedsRepository:  wantedFeedsRepository,
 	}
 	return txAdapters, nil
 }
@@ -183,7 +179,6 @@ func buildBadgerNoTxTxAdapters(txn *badger2.Txn, public identity.Public, config 
 	socialGraphRepository := badger.NewSocialGraphRepository(txn, public, hops, banListRepository)
 	pubRepository := badger.NewPubRepository(txn)
 	feedRepository := badger.NewFeedRepository(txn, socialGraphRepository, receiveLogRepository, messageRepository, pubRepository, blobRepository, banListRepository, scuttlebutt)
-	wantedFeedsRepository := badger.NewWantedFeedsRepository(socialGraphRepository, feedWantListRepository, feedRepository, banListRepository)
 	txAdapters := notx.TxAdapters{
 		BanListRepository:      banListRepository,
 		BlobRepository:         blobRepository,
@@ -194,7 +189,6 @@ func buildBadgerNoTxTxAdapters(txn *badger2.Txn, public identity.Public, config 
 		SocialGraphRepository:  socialGraphRepository,
 		PubRepository:          pubRepository,
 		FeedRepository:         feedRepository,
-		WantedFeedsRepository:  wantedFeedsRepository,
 	}
 	return txAdapters, nil
 }
@@ -224,7 +218,6 @@ func buildBadgerTestAdapters(txn *badger2.Txn, testAdaptersDependencies badger.T
 	messageHMAC := formats.NewDefaultMessageHMAC()
 	scuttlebutt := formats.NewScuttlebutt(parser, messageHMAC)
 	feedRepository := badger.NewFeedRepository(txn, socialGraphRepository, receiveLogRepository, messageRepository, pubRepository, blobRepository, banListRepository, scuttlebutt)
-	wantedFeedsRepository := badger.NewWantedFeedsRepository(socialGraphRepository, feedWantListRepository, feedRepository, banListRepository)
 	testAdapters := badger.TestAdapters{
 		BanListRepository:      banListRepository,
 		BlobRepository:         blobRepository,
@@ -235,7 +228,6 @@ func buildBadgerTestAdapters(txn *badger2.Txn, testAdaptersDependencies badger.T
 		SocialGraphRepository:  socialGraphRepository,
 		PubRepository:          pubRepository,
 		FeedRepository:         feedRepository,
-		WantedFeedsRepository:  wantedFeedsRepository,
 	}
 	return testAdapters, nil
 }
@@ -300,10 +292,16 @@ func BuildTestQueries(t *testing.T) (TestQueries, error) {
 	feedRepositoryMock := mocks.NewFeedRepositoryMock()
 	receiveLogRepositoryMock := mocks.NewReceiveLogRepositoryMock()
 	messageRepositoryMock := mocks.NewMessageRepositoryMock()
+	socialGraphRepositoryMock := mocks.NewSocialGraphRepositoryMock()
+	feedWantListRepositoryMock := mocks.NewFeedWantListRepositoryMock()
+	banListRepositoryMock := mocks.NewBanListRepositoryMock()
 	queriesAdapters := queries.Adapters{
-		Feed:       feedRepositoryMock,
-		ReceiveLog: receiveLogRepositoryMock,
-		Message:    messageRepositoryMock,
+		Feed:         feedRepositoryMock,
+		ReceiveLog:   receiveLogRepositoryMock,
+		Message:      messageRepositoryMock,
+		SocialGraph:  socialGraphRepositoryMock,
+		FeedWantList: feedWantListRepositoryMock,
+		BanList:      banListRepositoryMock,
 	}
 	mockQueriesTransactionProvider := mocks.NewMockQueriesTransactionProvider(queriesAdapters)
 	messagePubSub := pubsub.NewMessagePubSub()
@@ -347,16 +345,21 @@ func BuildTestQueries(t *testing.T) (TestQueries, error) {
 		GetMessage:           getMessageHandler,
 		GetMessageBySequence: getMessageBySequenceHandler,
 	}
+	wantedFeedsProvider := queries.NewWantedFeedsProvider(mockQueriesTransactionProvider)
 	testQueries := TestQueries{
-		Queries:              appQueries,
-		FeedRepository:       feedRepositoryMock,
-		MessagePubSub:        messagePubSubMock,
-		MessageRepository:    messageRepositoryMock,
-		PeerManager:          peerManagerMock,
-		BlobStorage:          blobStorageMock,
-		ReceiveLogRepository: receiveLogRepositoryMock,
-		Dialer:               dialerMock,
-		LocalIdentity:        public,
+		Queries:                appQueries,
+		WantedFeedsProvider:    wantedFeedsProvider,
+		FeedRepository:         feedRepositoryMock,
+		MessageRepository:      messageRepositoryMock,
+		ReceiveLogRepository:   receiveLogRepositoryMock,
+		SocialGraphRepository:  socialGraphRepositoryMock,
+		FeedWantListRepository: feedWantListRepositoryMock,
+		BanListRepository:      banListRepositoryMock,
+		MessagePubSub:          messagePubSubMock,
+		PeerManager:            peerManagerMock,
+		BlobStorage:            blobStorageMock,
+		Dialer:                 dialerMock,
+		LocalIdentity:          public,
 	}
 	return testQueries, nil
 }
@@ -417,10 +420,15 @@ func buildBadgerQueriesAdapters(txn *badger2.Txn, public identity.Public, config
 	pubRepository := badger.NewPubRepository(txn)
 	blobRepository := badger.NewBlobRepository(txn)
 	feedRepository := badger.NewFeedRepository(txn, socialGraphRepository, receiveLogRepository, messageRepository, pubRepository, blobRepository, banListRepository, scuttlebutt)
+	currentTimeProvider := adapters.NewCurrentTimeProvider()
+	feedWantListRepository := badger.NewFeedWantListRepository(txn, currentTimeProvider)
 	queriesAdapters := queries.Adapters{
-		Feed:       feedRepository,
-		ReceiveLog: receiveLogRepository,
-		Message:    messageRepository,
+		Feed:         feedRepository,
+		ReceiveLog:   receiveLogRepository,
+		Message:      messageRepository,
+		SocialGraph:  socialGraphRepository,
+		FeedWantList: feedWantListRepository,
+		BanList:      banListRepository,
 	}
 	return queriesAdapters, nil
 }
@@ -475,12 +483,10 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	rawMessageIdentifier := formats.NewRawMessageIdentifier(v)
 	messageBuffer := commands.NewMessageBuffer(commandsTransactionProvider, logger)
 	rawMessageHandler := commands.NewRawMessageHandler(rawMessageIdentifier, messageBuffer, logger)
-	txAdaptersFactory := noTxTxAdaptersFactory(public, config, logger)
-	txAdaptersFactoryTransactionProvider := notx.NewTxAdaptersFactoryTransactionProvider(db, txAdaptersFactory)
-	noTxWantedFeedsRepository := notx.NewNoTxWantedFeedsRepository(txAdaptersFactoryTransactionProvider)
-	wantedFeedsCache := replication.NewWantedFeedsCache(noTxWantedFeedsRepository)
 	queriesAdaptersFactory := badgerQueriesAdaptersFactory(config, public, logger)
 	queriesTransactionProvider := badger.NewQueriesTransactionProvider(db, queriesAdaptersFactory)
+	wantedFeedsProvider := queries.NewWantedFeedsProvider(queriesTransactionProvider)
+	wantedFeedsCache := replication.NewWantedFeedsCache(wantedFeedsProvider)
 	messagePubSub := pubsub.NewMessagePubSub()
 	createHistoryStreamHandler := queries.NewCreateHistoryStreamHandler(queriesTransactionProvider, messagePubSub, logger)
 	createHistoryStreamHandlerAdapter := ebt2.NewCreateHistoryStreamHandlerAdapter(createHistoryStreamHandler)
@@ -493,6 +499,8 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	}
 	replicator := ebt.NewReplicator(sessionTracker, sessionRunner, gossipReplicator, logger)
 	negotiator := replication.NewNegotiator(logger, replicator, gossipReplicator)
+	txAdaptersFactory := noTxTxAdaptersFactory(public, config, logger)
+	txAdaptersFactoryTransactionProvider := notx.NewTxAdaptersFactoryTransactionProvider(db, txAdaptersFactory)
 	noTxBlobWantListRepository := notx.NewNoTxBlobWantListRepository(txAdaptersFactoryTransactionProvider)
 	noTxBlobsRepository := notx.NewNoTxBlobsRepository(txAdaptersFactoryTransactionProvider)
 	storageBlobsThatShouldBePushedProvider, err := replication2.NewStorageBlobsThatShouldBePushedProvider(noTxBlobsRepository, public, currentTimeProvider)
@@ -688,12 +696,10 @@ func buildIntegrationTestsService(t *testing.T) (IntegrationTestsService, func()
 	rawMessageIdentifier := formats.NewRawMessageIdentifier(v)
 	messageBuffer := commands.NewMessageBuffer(commandsTransactionProvider, logger)
 	rawMessageHandler := commands.NewRawMessageHandler(rawMessageIdentifier, messageBuffer, logger)
-	txAdaptersFactory := noTxTxAdaptersFactory(public, config, logger)
-	txAdaptersFactoryTransactionProvider := notx.NewTxAdaptersFactoryTransactionProvider(db, txAdaptersFactory)
-	noTxWantedFeedsRepository := notx.NewNoTxWantedFeedsRepository(txAdaptersFactoryTransactionProvider)
-	wantedFeedsCache := replication.NewWantedFeedsCache(noTxWantedFeedsRepository)
 	queriesAdaptersFactory := badgerQueriesAdaptersFactory(config, public, logger)
 	queriesTransactionProvider := badger.NewQueriesTransactionProvider(db, queriesAdaptersFactory)
+	wantedFeedsProvider := queries.NewWantedFeedsProvider(queriesTransactionProvider)
+	wantedFeedsCache := replication.NewWantedFeedsCache(wantedFeedsProvider)
 	messagePubSub := pubsub.NewMessagePubSub()
 	createHistoryStreamHandler := queries.NewCreateHistoryStreamHandler(queriesTransactionProvider, messagePubSub, logger)
 	createHistoryStreamHandlerAdapter := ebt2.NewCreateHistoryStreamHandlerAdapter(createHistoryStreamHandler)
@@ -706,6 +712,8 @@ func buildIntegrationTestsService(t *testing.T) (IntegrationTestsService, func()
 	}
 	replicator := ebt.NewReplicator(sessionTracker, sessionRunner, gossipReplicator, logger)
 	negotiator := replication.NewNegotiator(logger, replicator, gossipReplicator)
+	txAdaptersFactory := noTxTxAdaptersFactory(public, config, logger)
+	txAdaptersFactoryTransactionProvider := notx.NewTxAdaptersFactoryTransactionProvider(db, txAdaptersFactory)
 	noTxBlobWantListRepository := notx.NewNoTxBlobWantListRepository(txAdaptersFactoryTransactionProvider)
 	noTxBlobsRepository := notx.NewNoTxBlobsRepository(txAdaptersFactoryTransactionProvider)
 	storageBlobsThatShouldBePushedProvider, err := replication2.NewStorageBlobsThatShouldBePushedProvider(noTxBlobsRepository, public, currentTimeProvider)
@@ -895,13 +903,18 @@ type TestCommands struct {
 type TestQueries struct {
 	Queries app.Queries
 
-	FeedRepository       *mocks.FeedRepositoryMock
-	MessagePubSub        *mocks.MessagePubSubMock
-	MessageRepository    *mocks.MessageRepositoryMock
-	PeerManager          *mocks2.PeerManagerMock
-	BlobStorage          *mocks.BlobStorageMock
-	ReceiveLogRepository *mocks.ReceiveLogRepositoryMock
-	Dialer               *mocks.DialerMock
+	WantedFeedsProvider *queries.WantedFeedsProvider
+
+	FeedRepository         *mocks.FeedRepositoryMock
+	MessageRepository      *mocks.MessageRepositoryMock
+	ReceiveLogRepository   *mocks.ReceiveLogRepositoryMock
+	SocialGraphRepository  *mocks.SocialGraphRepositoryMock
+	FeedWantListRepository *mocks.FeedWantListRepositoryMock
+	BanListRepository      *mocks.BanListRepositoryMock
+	MessagePubSub          *mocks.MessagePubSubMock
+	PeerManager            *mocks2.PeerManagerMock
+	BlobStorage            *mocks.BlobStorageMock
+	Dialer                 *mocks.DialerMock
 
 	LocalIdentity identity.Public
 }
@@ -921,7 +934,7 @@ func BuildIntegrationTestsService(t *testing.T) (IntegrationTestsService, error)
 	return service, nil
 }
 
-var replicatorSet = wire.NewSet(gossip.NewManager, wire.Bind(new(gossip.ReplicationManager), new(*gossip.Manager)), gossip.NewGossipReplicator, wire.Bind(new(replication.CreateHistoryStreamReplicator), new(*gossip.GossipReplicator)), wire.Bind(new(ebt.SelfCreateHistoryStreamReplicator), new(*gossip.GossipReplicator)), ebt.NewReplicator, wire.Bind(new(replication.EpidemicBroadcastTreesReplicator), new(ebt.Replicator)), replication.NewWantedFeedsCache, wire.Bind(new(gossip.ContactsStorage), new(*replication.WantedFeedsCache)), wire.Bind(new(ebt.ContactsStorage), new(*replication.WantedFeedsCache)), ebt.NewSessionTracker, wire.Bind(new(ebt.Tracker), new(*ebt.SessionTracker)), ebt.NewSessionRunner, wire.Bind(new(ebt.Runner), new(*ebt.SessionRunner)), replication.NewNegotiator, wire.Bind(new(domain.MessageReplicator), new(*replication.Negotiator)))
+var replicatorSet = wire.NewSet(gossip.NewManager, wire.Bind(new(gossip.ReplicationManager), new(*gossip.Manager)), gossip.NewGossipReplicator, wire.Bind(new(replication.CreateHistoryStreamReplicator), new(*gossip.GossipReplicator)), wire.Bind(new(ebt.SelfCreateHistoryStreamReplicator), new(*gossip.GossipReplicator)), ebt.NewReplicator, wire.Bind(new(replication.EpidemicBroadcastTreesReplicator), new(ebt.Replicator)), queries.NewWantedFeedsProvider, wire.Bind(new(replication.WantedFeedsProvider), new(*queries.WantedFeedsProvider)), replication.NewWantedFeedsCache, wire.Bind(new(gossip.ContactsStorage), new(*replication.WantedFeedsCache)), wire.Bind(new(ebt.ContactsStorage), new(*replication.WantedFeedsCache)), ebt.NewSessionTracker, wire.Bind(new(ebt.Tracker), new(*ebt.SessionTracker)), ebt.NewSessionRunner, wire.Bind(new(ebt.Runner), new(*ebt.SessionRunner)), replication.NewNegotiator, wire.Bind(new(domain.MessageReplicator), new(*replication.Negotiator)))
 
 func newAdvertiser(l identity.Public, config Config) (*local.Advertiser, error) {
 	return local.NewAdvertiser(l, config.ListenAddress)

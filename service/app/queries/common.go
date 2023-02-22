@@ -6,6 +6,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/app/common"
 	"github.com/planetary-social/scuttlego/service/domain/feeds"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
+	"github.com/planetary-social/scuttlego/service/domain/graph"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
 	"github.com/planetary-social/scuttlego/service/domain/network"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
@@ -17,6 +18,22 @@ type LogMessage struct {
 	Sequence common.ReceiveLogSequence
 }
 
+type Dialer interface {
+	Dial(ctx context.Context, remote identity.Public, address network.Address) (transport.Peer, error)
+}
+
+type TransactionProvider interface {
+	Transact(func(adapters Adapters) error) error
+}
+
+type Adapters struct {
+	Feed         FeedRepository
+	ReceiveLog   ReceiveLogRepository
+	Message      MessageRepository
+	SocialGraph  SocialGraphRepository
+	FeedWantList FeedWantListRepository
+	BanList      BanListRepository
+}
 type FeedRepository interface {
 	// GetMessages returns messages with a sequence greater or equal to the
 	// provided sequence. If sequence is nil then messages starting from the
@@ -37,10 +54,6 @@ type FeedRepository interface {
 	Count() (int, error)
 }
 
-type Dialer interface {
-	Dial(ctx context.Context, remote identity.Public, address network.Address) (transport.Peer, error)
-}
-
 type ReceiveLogRepository interface {
 	// List returns messages from the log starting with the provided sequence.
 	// This is supposed to simulate the behaviour of go-ssb's receive log as
@@ -59,12 +72,22 @@ type ReceiveLogRepository interface {
 	GetSequences(ref refs.Message) ([]common.ReceiveLogSequence, error)
 }
 
-type Adapters struct {
-	Feed       FeedRepository
-	ReceiveLog ReceiveLogRepository
-	Message    MessageRepository
+type MessageRepository interface {
+	// Count returns the number of stored messages.
+	Count() (int, error)
+
+	// Get retrieves a message.
+	Get(id refs.Message) (message.Message, error)
 }
 
-type TransactionProvider interface {
-	Transact(func(adapters Adapters) error) error
+type SocialGraphRepository interface {
+	GetSocialGraph() (graph.SocialGraph, error)
+}
+
+type FeedWantListRepository interface {
+	List() ([]refs.Feed, error)
+}
+
+type BanListRepository interface {
+	ContainsFeed(feed refs.Feed) (bool, error)
 }

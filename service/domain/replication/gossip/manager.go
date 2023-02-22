@@ -158,7 +158,7 @@ func (m *Manager) sendFeedToReplicate(ctx context.Context, ch chan ReplicateFeed
 	for i := range contacts {
 		contact := contacts[i]
 
-		if localOnly && contact.Hops.Int() > 0 {
+		if localOnly && contact.Hops().Int() > 0 {
 			continue
 		}
 
@@ -169,8 +169,8 @@ func (m *Manager) sendFeedToReplicate(ctx context.Context, ch chan ReplicateFeed
 
 		if shouldSendTask {
 			task := ReplicateFeedTask{
-				Id:    contact.Who,
-				State: contact.FeedState,
+				Id:    contact.Who(),
+				State: contact.FeedState(),
 				Ctx:   ctx,
 				OnComplete: func(result TaskResult) {
 					m.finishReplication(remote, contact, result)
@@ -204,10 +204,10 @@ func (m *Manager) finishReplication(remote identity.Public, contact replication.
 
 	m.logger.
 		WithField("result", result).
-		WithField("contact", contact.Who).
+		WithField("contact", contact.Who().String()).
 		Trace("finished replication")
 
-	m.activeTasks.Delete(contact.Who)
+	m.activeTasks.Delete(contact.Who())
 
 	if result != TaskResultDidNotStart {
 		_, ok := m.peerState[remote.String()]
@@ -215,7 +215,7 @@ func (m *Manager) finishReplication(remote identity.Public, contact replication.
 			m.peerState[remote.String()] = make(peerState)
 		}
 
-		m.peerState[remote.String()][contact.Who.String()] = peerFeedState{
+		m.peerState[remote.String()][contact.Who().String()] = peerFeedState{
 			LastReplicated: time.Now(),
 			Result:         result,
 		}
@@ -235,12 +235,12 @@ func (m *Manager) startReplication(remote identity.Public, contact replication.C
 		return false, nil
 	}
 
-	m.activeTasks.Put(contact.Who)
+	m.activeTasks.Put(contact.Who())
 	return true, nil
 }
 
 func (m *Manager) shouldStartReplication(remote identity.Public, contact replication.Contact) (bool, error) {
-	if m.activeTasks.Contains(contact.Who) {
+	if m.activeTasks.Contains(contact.Who()) {
 		return false, nil
 	}
 
@@ -249,7 +249,7 @@ func (m *Manager) shouldStartReplication(remote identity.Public, contact replica
 		return true, nil
 	}
 
-	peerFeedState, ok := peerState[contact.Who.String()]
+	peerFeedState, ok := peerState[contact.Who().String()]
 	if !ok {
 		return true, nil
 	}
@@ -260,7 +260,7 @@ func (m *Manager) shouldStartReplication(remote identity.Public, contact replica
 	case TaskResultFailed:
 		return time.Since(peerFeedState.LastReplicated) > backoffFailed, nil
 	case TaskResultDoesNotHaveMoreMessages:
-		if contact.Hops.Int() > 1 {
+		if contact.Hops().Int() > 1 {
 			return time.Since(peerFeedState.LastReplicated) > backoff, nil
 		} else {
 			return time.Since(peerFeedState.LastReplicated) > backoffFriends, nil

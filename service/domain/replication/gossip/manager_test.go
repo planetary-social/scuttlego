@@ -17,11 +17,11 @@ func TestManager_OnlyOnePeerAtATimeWillBeAskedToReplicateAFeed(t *testing.T) {
 
 	m := newTestManager()
 
-	contact := replication.Contact{
-		Who:       fixtures.SomeRefFeed(),
-		Hops:      graph.MustNewHops(0),
-		FeedState: replication.NewEmptyFeedState(),
-	}
+	contact := replication.MustNewContact(
+		fixtures.SomeRefFeed(),
+		graph.MustNewHops(0),
+		replication.NewEmptyFeedState(),
+	)
 
 	m.Storage.Contacts = []replication.Contact{
 		contact,
@@ -33,7 +33,7 @@ func TestManager_OnlyOnePeerAtATimeWillBeAskedToReplicateAFeed(t *testing.T) {
 
 	select {
 	case task := <-feedsCh1:
-		require.Equal(t, contact.Who, task.Id)
+		require.Equal(t, contact.Who(), task.Id)
 	case <-time.After(1 * time.Second):
 		t.Fatal("first peer should have been asked to replicate the feed")
 	}
@@ -53,11 +53,11 @@ func TestManager_TheSamePeerWillBeAskedForAFeedAgainRightAwayIfNotAllMessagesThe
 
 	m := newTestManager()
 
-	contact := replication.Contact{
-		Who:       fixtures.SomeRefFeed(),
-		Hops:      graph.MustNewHops(0),
-		FeedState: replication.NewEmptyFeedState(),
-	}
+	contact := replication.MustNewContact(
+		fixtures.SomeRefFeed(),
+		graph.MustNewHops(0),
+		replication.NewEmptyFeedState(),
+	)
 
 	m.Storage.Contacts = []replication.Contact{
 		contact,
@@ -70,7 +70,7 @@ func TestManager_TheSamePeerWillBeAskedForAFeedAgainRightAwayIfNotAllMessagesThe
 
 		select {
 		case task := <-m.Manager.GetFeedsToReplicate(ctx, peer):
-			require.Equal(t, contact.Who, task.Id)
+			require.Equal(t, contact.Who(), task.Id)
 			task.OnComplete(gossip.TaskResultHasMoreMessages)
 		case <-time.After(1 * time.Second):
 			t.Fatal("first peer should have been asked to replicate the feed")
@@ -82,7 +82,7 @@ func TestManager_TheSamePeerWillBeAskedForAFeedAgainRightAwayIfNotAllMessagesThe
 
 		select {
 		case task := <-m.Manager.GetFeedsToReplicate(ctx, peer):
-			require.Equal(t, contact.Who, task.Id)
+			require.Equal(t, contact.Who(), task.Id)
 			task.OnComplete(gossip.TaskResultDoesNotHaveMoreMessages)
 		case <-time.After(1 * time.Second):
 			t.Fatal("second peer should have been asked to replicate the feed")
@@ -95,11 +95,11 @@ func TestManager_TheSamePeerWillNotBeAskedForAFeedAgainRightAwayIfAllMessagesThe
 
 	m := newTestManager()
 
-	contact := replication.Contact{
-		Who:       fixtures.SomeRefFeed(),
-		Hops:      graph.MustNewHops(0),
-		FeedState: replication.NewEmptyFeedState(),
-	}
+	contact := replication.MustNewContact(
+		fixtures.SomeRefFeed(),
+		graph.MustNewHops(0),
+		replication.NewEmptyFeedState(),
+	)
 
 	m.Storage.Contacts = []replication.Contact{
 		contact,
@@ -115,7 +115,7 @@ func TestManager_TheSamePeerWillNotBeAskedForAFeedAgainRightAwayIfAllMessagesThe
 
 		select {
 		case task := <-m.Manager.GetFeedsToReplicate(ctx, peer1):
-			require.Equal(t, contact.Who, task.Id)
+			require.Equal(t, contact.Who(), task.Id)
 			task.OnComplete(gossip.TaskResultDoesNotHaveMoreMessages)
 		case <-time.After(1 * time.Second):
 			t.Fatal("first peer should have been asked to replicate the feed")
@@ -127,7 +127,7 @@ func TestManager_TheSamePeerWillNotBeAskedForAFeedAgainRightAwayIfAllMessagesThe
 
 		select {
 		case task := <-m.Manager.GetFeedsToReplicate(ctx, peer2):
-			require.Equal(t, contact.Who, task.Id)
+			require.Equal(t, contact.Who(), task.Id)
 			task.OnComplete(gossip.TaskResultDoesNotHaveMoreMessages)
 		case <-time.After(1 * time.Second):
 			t.Fatal("second peer should have been asked to replicate the feed")
@@ -151,17 +151,17 @@ func TestManager_OnlyLocalFeedWillBeSentFromGetFeedsToReplicateSelf(t *testing.T
 
 	m := newTestManager()
 
-	contact1 := replication.Contact{
-		Who:       fixtures.SomeRefFeed(),
-		Hops:      graph.MustNewHops(0),
-		FeedState: replication.NewEmptyFeedState(),
-	}
+	contact1 := replication.MustNewContact(
+		fixtures.SomeRefFeed(),
+		graph.MustNewHops(0),
+		replication.NewEmptyFeedState(),
+	)
 
-	contact2 := replication.Contact{
-		Who:       fixtures.SomeRefFeed(),
-		Hops:      graph.MustNewHops(fixtures.SomePositiveInt()),
-		FeedState: replication.NewEmptyFeedState(),
-	}
+	contact2 := replication.MustNewContact(
+		fixtures.SomeRefFeed(),
+		graph.MustNewHops(fixtures.SomePositiveInt()),
+		replication.NewEmptyFeedState(),
+	)
 
 	m.Storage.Contacts = []replication.Contact{
 		contact1,
@@ -174,7 +174,7 @@ func TestManager_OnlyLocalFeedWillBeSentFromGetFeedsToReplicateSelf(t *testing.T
 
 	select {
 	case task := <-feedsCh:
-		require.Equal(t, contact1.Who, task.Id)
+		require.Equal(t, contact1.Who(), task.Id)
 	case <-time.After(1 * time.Second):
 		t.Fatal("peer should have been asked to replicate the local feed")
 	}

@@ -8,7 +8,6 @@ import (
 
 type TestAdapters struct {
 	NoTxBlobWantListRepository *NoTxBlobWantListRepository
-	NoTxWantedFeedsRepository  *NoTxWantedFeedsRepository
 }
 
 type TxAdapters struct {
@@ -21,7 +20,6 @@ type TxAdapters struct {
 	SocialGraphRepository  *badgeradapters.SocialGraphRepository
 	PubRepository          *badgeradapters.PubRepository
 	FeedRepository         *badgeradapters.FeedRepository
-	WantedFeedsRepository  *badgeradapters.WantedFeedsRepository
 }
 
 type TransactionProvider interface {

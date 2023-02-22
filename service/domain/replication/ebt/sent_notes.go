@@ -53,7 +53,7 @@ func (w *SentNotes) getMissing(newContacts []replication.Contact) map[string]mes
 
 	new := make(map[string]struct{})
 	for _, newContact := range newContacts {
-		new[newContact.Who.String()] = struct{}{}
+		new[newContact.Who().String()] = struct{}{}
 	}
 
 	for refString, note := range w.prevNotes {
@@ -78,8 +78,8 @@ func (w *SentNotes) cancellationNote(ref refs.Feed) (messages.EbtReplicateNote, 
 }
 
 func (w *SentNotes) contactToNote(contact replication.Contact) (messages.EbtReplicateNote, error) {
-	seq := w.feedStateAsInt(contact.FeedState)
-	return messages.NewEbtReplicateNote(contact.Who, true, true, seq)
+	seq := w.feedStateAsInt(contact.FeedState())
+	return messages.NewEbtReplicateNote(contact.Who(), true, true, seq)
 }
 
 func (w *SentNotes) shouldSend(note messages.EbtReplicateNote) bool {

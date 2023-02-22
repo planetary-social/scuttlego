@@ -1,31 +1,37 @@
 package messagebuffer
 
 import (
+	"bytes"
 	"sort"
 	"time"
 
 	"github.com/boreq/errors"
+	"github.com/planetary-social/scuttlego/service/domain/feeds"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 )
 
-type ReceivedMessage struct {
-	replicatedFrom identity.Public
-	message        message.Message
+type IsZeroer interface {
+	IsZero() bool
 }
 
-func NewReceivedMessage(replicatedFrom identity.Public, message message.Message) (ReceivedMessage, error) {
+type ReceivedMessage[T IsZeroer] struct {
+	replicatedFrom identity.Public
+	message        T
+}
+
+func NewReceivedMessage[T IsZeroer](replicatedFrom identity.Public, message T) (ReceivedMessage[T], error) {
 	if replicatedFrom.IsZero() {
-		return ReceivedMessage{}, errors.New("zero value of replicated from")
+		return ReceivedMessage[T]{}, errors.New("zero value of replicated from")
 	}
 	if message.IsZero() {
-		return ReceivedMessage{}, errors.New("zero value of message")
+		return ReceivedMessage[T]{}, errors.New("zero value of message")
 	}
-	return ReceivedMessage{replicatedFrom: replicatedFrom, message: message}, nil
+	return ReceivedMessage[T]{replicatedFrom: replicatedFrom, message: message}, nil
 }
 
-func MustNewReceivedMessage(replicatedFrom identity.Public, message message.Message) ReceivedMessage {
+func MustNewReceivedMessage[T IsZeroer](replicatedFrom identity.Public, message T) ReceivedMessage[T] {
 	v, err := NewReceivedMessage(replicatedFrom, message)
 	if err != nil {
 		panic(err)
@@ -33,11 +39,11 @@ func MustNewReceivedMessage(replicatedFrom identity.Public, message message.Mess
 	return v
 }
 
-func (r *ReceivedMessage) ReplicatedFrom() identity.Public {
+func (r *ReceivedMessage[T]) ReplicatedFrom() identity.Public {
 	return r.replicatedFrom
 }
 
-func (r *ReceivedMessage) Message() message.Message {
+func (r *ReceivedMessage[T]) Message() T {
 	return r.message
 }
 
@@ -50,7 +56,7 @@ func NewFeedMessages(feed refs.Feed) *FeedMessages {
 	return &FeedMessages{feed: feed}
 }
 
-func (m *FeedMessages) Add(t time.Time, rm ReceivedMessage) error {
+func (m *FeedMessages) Add(t time.Time, rm ReceivedMessage[feeds.PeekedMessage]) error {
 	if !rm.Message().Feed().Equal(m.feed) {
 		return errors.New("incorrect feed")
 	}
@@ -106,8 +112,8 @@ func (m *FeedMessages) Len() int {
 // provided sequence number is nil then the first element has a sequence number
 // equal to the output of message.NewFirstSequence. If those conditions can't be
 // satisfied an empty slice is returned.
-func (m *FeedMessages) ConsecutiveSliceStartingWith(seq *message.Sequence) []ReceivedMessage {
-	var result []ReceivedMessage
+func (m *FeedMessages) ConsecutiveSliceStartingWith(seq *message.Sequence) []ReceivedMessage[feeds.PeekedMessage] {
+	var result []ReceivedMessage[feeds.PeekedMessage]
 
 	for _, v := range m.messages {
 		if seq != nil && !v.Message().Sequence().ComesAfter(*seq) {
@@ -148,9 +154,9 @@ func (m *FeedMessages) Feed() refs.Feed {
 	return m.feed
 }
 
-func (m *FeedMessages) Remove(msgToRemove message.Message) {
+func (m *FeedMessages) Remove(msgToRemove message.RawMessage) {
 	for i, msg := range m.messages {
-		if msg.Message().Id().Equal(msgToRemove.Id()) {
+		if bytes.Equal(msg.Message().Raw().Bytes(), msgToRemove.Bytes()) {
 			m.messages = append(m.messages[:i], m.messages[i+1:]...)
 			return
 		}
@@ -158,6 +164,6 @@ func (m *FeedMessages) Remove(msgToRemove message.Message) {
 }
 
 type sortedMessage struct {
-	ReceivedMessage
+	ReceivedMessage[feeds.PeekedMessage]
 	T time.Time
 }

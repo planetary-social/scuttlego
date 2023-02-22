@@ -7,10 +7,6 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/identity"
 )
 
-type RawMessageIdentifier interface {
-	VerifyRawMessage(raw message.RawMessage) (message.Message, error)
-}
-
 type RawMessageHandler struct {
 	identifier RawMessageIdentifier
 	buffer     *MessageBuffer
@@ -30,14 +26,8 @@ func NewRawMessageHandler(
 }
 
 func (h *RawMessageHandler) Handle(replicatedFrom identity.Public, rawMsg message.RawMessage) error {
-	msg, err := h.identifier.VerifyRawMessage(rawMsg)
-	if err != nil {
-		return errors.Wrap(err, "failed to identify the raw message")
-	}
-
-	if err := h.buffer.Handle(replicatedFrom, msg); err != nil {
+	if err := h.buffer.Handle(replicatedFrom, rawMsg); err != nil {
 		return errors.Wrap(err, "failed to put the message in the buffer")
 	}
-
 	return nil
 }

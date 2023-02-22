@@ -422,6 +422,11 @@ type formatMock struct {
 	SignResult message.Message
 }
 
+func (f formatMock) Peek(raw message.RawMessage) (feeds.PeekedMessage, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
 func newFormatMock() *formatMock {
 	return &formatMock{}
 }

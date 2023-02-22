@@ -17,7 +17,7 @@ type TestReplication struct {
 	Negotiator *replication.Negotiator
 
 	RawMessageHandler  *RawMessageHandlerMock
-	ContactsRepository *WantedFeedsRepositoryMock
+	ContactsRepository *WantedFeedsProviderMock
 	MessageStreamer    *MessageStreamerMock
 }
 
@@ -50,8 +50,8 @@ func BuildTestReplication(t *testing.T) (TestReplication, error) {
 		NewRawMessageHandlerMock,
 		wire.Bind(new(replication.RawMessageHandler), new(*RawMessageHandlerMock)),
 
-		NewWantedFeedsRepositoryMock,
-		wire.Bind(new(replication.WantedFeedsRepository), new(*WantedFeedsRepositoryMock)),
+		NewWantedFeedsProviderMock,
+		wire.Bind(new(replication.WantedFeedsProvider), new(*WantedFeedsProviderMock)),
 
 		NewMessageStreamerMock,
 		wire.Bind(new(ebt.MessageStreamer), new(*MessageStreamerMock)),

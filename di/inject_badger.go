@@ -11,7 +11,6 @@ import (
 	"github.com/planetary-social/scuttlego/service/app/queries"
 	blobReplication "github.com/planetary-social/scuttlego/service/domain/blobs/replication"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
-	"github.com/planetary-social/scuttlego/service/domain/replication"
 )
 
 var badgerUnpackTestDependenciesSet = wire.NewSet(
@@ -35,9 +34,6 @@ var badgerNoTxRepositoriesSet = wire.NewSet(
 	wire.Bind(new(blobReplication.WantedBlobsProvider), new(*notx.NoTxBlobWantListRepository)),
 	wire.Bind(new(blobReplication.WantListRepository), new(*notx.NoTxBlobWantListRepository)),
 
-	notx.NewNoTxWantedFeedsRepository,
-	wire.Bind(new(replication.WantedFeedsRepository), new(*notx.NoTxWantedFeedsRepository)),
-
 	notx.NewNoTxBlobsRepository,
 	wire.Bind(new(blobReplication.BlobsRepository), new(*notx.NoTxBlobsRepository)),
 )
@@ -45,6 +41,7 @@ var badgerNoTxRepositoriesSet = wire.NewSet(
 var badgerRepositoriesSet = wire.NewSet(
 	badgeradapters.NewBanListRepository,
 	wire.Bind(new(commands.BanListRepository), new(*badgeradapters.BanListRepository)),
+	wire.Bind(new(queries.BanListRepository), new(*badgeradapters.BanListRepository)),
 
 	badgeradapters.NewBlobWantListRepository,
 	wire.Bind(new(commands.BlobWantListRepository), new(*badgeradapters.BlobWantListRepository)),
@@ -52,6 +49,7 @@ var badgerRepositoriesSet = wire.NewSet(
 
 	badgeradapters.NewFeedWantListRepository,
 	wire.Bind(new(commands.FeedWantListRepository), new(*badgeradapters.FeedWantListRepository)),
+	wire.Bind(new(queries.FeedWantListRepository), new(*badgeradapters.FeedWantListRepository)),
 
 	badgeradapters.NewReceiveLogRepository,
 	wire.Bind(new(commands.ReceiveLogRepository), new(*badgeradapters.ReceiveLogRepository)),
@@ -59,6 +57,7 @@ var badgerRepositoriesSet = wire.NewSet(
 
 	badgeradapters.NewSocialGraphRepository,
 	wire.Bind(new(commands.SocialGraphRepository), new(*badgeradapters.SocialGraphRepository)),
+	wire.Bind(new(queries.SocialGraphRepository), new(*badgeradapters.SocialGraphRepository)),
 
 	badgeradapters.NewFeedRepository,
 	wire.Bind(new(commands.FeedRepository), new(*badgeradapters.FeedRepository)),
@@ -67,7 +66,6 @@ var badgerRepositoriesSet = wire.NewSet(
 	badgeradapters.NewMessageRepository,
 	wire.Bind(new(queries.MessageRepository), new(*badgeradapters.MessageRepository)),
 
-	badgeradapters.NewWantedFeedsRepository,
 	badgeradapters.NewPubRepository,
 	badgeradapters.NewBlobRepository,
 )

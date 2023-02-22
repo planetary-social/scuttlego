@@ -43,7 +43,7 @@ func NewQueriesTransactionProvider(db *badger.DB, factory QueriesAdaptersFactory
 }
 
 func (t QueriesTransactionProvider) Transact(f func(adapters queries.Adapters) error) error {
-	return t.db.View(func(tx *badger.Txn) error {
+	return t.db.Update(func(tx *badger.Txn) error { // todo https://github.com/planetary-social/scuttlego/issues/100
 		adapters, err := t.factory(tx)
 		if err != nil {
 			return errors.Wrap(err, "failed to build adapters")
@@ -65,7 +65,6 @@ type TestAdapters struct {
 	SocialGraphRepository  *SocialGraphRepository
 	PubRepository          *PubRepository
 	FeedRepository         *FeedRepository
-	WantedFeedsRepository  *WantedFeedsRepository
 }
 
 type TestAdaptersDependencies struct {

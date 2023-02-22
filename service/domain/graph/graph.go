@@ -11,6 +11,10 @@ type SocialGraph struct {
 	graph map[string]Hops
 }
 
+func NewSocialGraph(graph map[string]Hops) SocialGraph {
+	return SocialGraph{graph: graph}
+}
+
 func (g SocialGraph) Contacts() []Contact {
 	var result []Contact
 	for key, distance := range g.graph {

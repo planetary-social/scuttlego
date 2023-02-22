@@ -9,6 +9,8 @@ import (
 
 type FeedWantListRepositoryMock struct {
 	AddCalls []FeedWantListRepositoryMockAddCall
+
+	ListReturnValue []refs.Feed
 }
 
 func NewFeedWantListRepositoryMock() *FeedWantListRepositoryMock {
@@ -24,7 +26,7 @@ func (f *FeedWantListRepositoryMock) Add(id refs.Feed, until time.Time) error {
 }
 
 func (f *FeedWantListRepositoryMock) List() ([]refs.Feed, error) {
-	return nil, errors.New("not implemented")
+	return f.ListReturnValue, nil
 }
 
 func (f *FeedWantListRepositoryMock) Contains(id refs.Feed) (bool, error) {

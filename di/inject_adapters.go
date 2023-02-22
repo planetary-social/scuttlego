@@ -28,6 +28,15 @@ var mockQueryAdaptersSet = wire.NewSet(
 
 	mocks.NewMessageRepositoryMock,
 	wire.Bind(new(queries.MessageRepository), new(*mocks.MessageRepositoryMock)),
+
+	mocks.NewSocialGraphRepositoryMock,
+	wire.Bind(new(queries.SocialGraphRepository), new(*mocks.SocialGraphRepositoryMock)),
+
+	mocks.NewFeedWantListRepositoryMock,
+	wire.Bind(new(queries.FeedWantListRepository), new(*mocks.FeedWantListRepositoryMock)),
+
+	mocks.NewBanListRepositoryMock,
+	wire.Bind(new(queries.BanListRepository), new(*mocks.BanListRepositoryMock)),
 )
 
 var blobsAdaptersSet = wire.NewSet(

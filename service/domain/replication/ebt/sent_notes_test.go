@@ -16,17 +16,17 @@ func TestSentNotes_UpdateReturnsNotesForNewContacts(t *testing.T) {
 	sn := ebt.NewSentNotes()
 
 	contact1Seq := fixtures.SomeSequence()
-	contact1 := replication.Contact{
-		Who:       fixtures.SomeRefFeed(),
-		Hops:      graph.MustNewHops(1),
-		FeedState: replication.MustNewFeedState(contact1Seq),
-	}
+	contact1 := replication.MustNewContact(
+		fixtures.SomeRefFeed(),
+		graph.MustNewHops(1),
+		replication.MustNewFeedState(contact1Seq),
+	)
 
-	contact2 := replication.Contact{
-		Who:       fixtures.SomeRefFeed(),
-		Hops:      graph.MustNewHops(2),
-		FeedState: replication.NewEmptyFeedState(),
-	}
+	contact2 := replication.MustNewContact(
+		fixtures.SomeRefFeed(),
+		graph.MustNewHops(2),
+		replication.NewEmptyFeedState(),
+	)
 
 	contacts := []replication.Contact{
 		contact1,
@@ -39,13 +39,13 @@ func TestSentNotes_UpdateReturnsNotesForNewContacts(t *testing.T) {
 	require.Equal(t,
 		[]messages.EbtReplicateNote{
 			messages.MustNewEbtReplicateNote(
-				contact1.Who,
+				contact1.Who(),
 				true,
 				true,
 				contact1Seq.Int(),
 			),
 			messages.MustNewEbtReplicateNote(
-				contact2.Who,
+				contact2.Who(),
 				true,
 				true,
 				0,
@@ -64,11 +64,11 @@ func TestSentNotes_UpdateReturnsUpdatesForOldContactsWithNewerSequenceNumbers(t 
 	contactSeq2 := message.MustNewSequence(10)
 
 	notes, err := sn.Update([]replication.Contact{
-		{
-			Who:       contactRef,
-			Hops:      graph.MustNewHops(1),
-			FeedState: replication.MustNewFeedState(contactSeq1),
-		},
+		replication.MustNewContact(
+			contactRef,
+			graph.MustNewHops(1),
+			replication.MustNewFeedState(contactSeq1),
+		),
 	})
 	require.NoError(t, err)
 
@@ -85,11 +85,11 @@ func TestSentNotes_UpdateReturnsUpdatesForOldContactsWithNewerSequenceNumbers(t 
 	)
 
 	notes, err = sn.Update([]replication.Contact{
-		{
-			Who:       contactRef,
-			Hops:      graph.MustNewHops(1),
-			FeedState: replication.MustNewFeedState(contactSeq2),
-		},
+		replication.MustNewContact(
+			contactRef,
+			graph.MustNewHops(1),
+			replication.MustNewFeedState(contactSeq2),
+		),
 	})
 	require.NoError(t, err)
 
@@ -113,11 +113,11 @@ func TestSentNotes_UpdateDoesNotReturnUpdatesForOldContactsWithIdenticalSequence
 	contactSeq := message.MustNewSequence(10)
 
 	contacts := []replication.Contact{
-		{
-			Who:       contactRef,
-			Hops:      graph.MustNewHops(1),
-			FeedState: replication.MustNewFeedState(contactSeq),
-		},
+		replication.MustNewContact(
+			contactRef,
+			graph.MustNewHops(1),
+			replication.MustNewFeedState(contactSeq),
+		),
 	}
 
 	notes, err := sn.Update(contacts)
@@ -147,11 +147,11 @@ func TestSentNotes_UpdateReturnsUpdatesForOldContactsWithOlderSequenceNumbers(t 
 	contactSeq2 := message.MustNewSequence(9)
 
 	notes, err := sn.Update([]replication.Contact{
-		{
-			Who:       contactRef,
-			Hops:      graph.MustNewHops(1),
-			FeedState: replication.MustNewFeedState(contactSeq1),
-		},
+		replication.MustNewContact(
+			contactRef,
+			graph.MustNewHops(1),
+			replication.MustNewFeedState(contactSeq1),
+		),
 	})
 	require.NoError(t, err)
 
@@ -168,11 +168,11 @@ func TestSentNotes_UpdateReturnsUpdatesForOldContactsWithOlderSequenceNumbers(t 
 	)
 
 	notes, err = sn.Update([]replication.Contact{
-		{
-			Who:       contactRef,
-			Hops:      graph.MustNewHops(1),
-			FeedState: replication.MustNewFeedState(contactSeq2),
-		},
+		replication.MustNewContact(
+			contactRef,
+			graph.MustNewHops(1),
+			replication.MustNewFeedState(contactSeq2),
+		),
 	})
 	require.NoError(t, err)
 
@@ -192,17 +192,17 @@ func TestSentNotes_UpdateReturnsUpdatesForOldContactsWithOlderSequenceNumbers(t 
 func TestSentNotes_UpdateReturnsCancellationUpdatesForMissingContactsAndSendsNotesAgainIfContactReappears(t *testing.T) {
 	sn := ebt.NewSentNotes()
 
-	contact1 := replication.Contact{
-		Who:       fixtures.SomeRefFeed(),
-		Hops:      graph.MustNewHops(1),
-		FeedState: replication.NewEmptyFeedState(),
-	}
+	contact1 := replication.MustNewContact(
+		fixtures.SomeRefFeed(),
+		graph.MustNewHops(1),
+		replication.NewEmptyFeedState(),
+	)
 
-	contact2 := replication.Contact{
-		Who:       fixtures.SomeRefFeed(),
-		Hops:      graph.MustNewHops(2),
-		FeedState: replication.NewEmptyFeedState(),
-	}
+	contact2 := replication.MustNewContact(
+		fixtures.SomeRefFeed(),
+		graph.MustNewHops(2),
+		replication.NewEmptyFeedState(),
+	)
 
 	notes, err := sn.Update([]replication.Contact{
 		contact1,
@@ -212,13 +212,13 @@ func TestSentNotes_UpdateReturnsCancellationUpdatesForMissingContactsAndSendsNot
 	require.Equal(t,
 		[]messages.EbtReplicateNote{
 			messages.MustNewEbtReplicateNote(
-				contact1.Who,
+				contact1.Who(),
 				true,
 				true,
 				0,
 			),
 			messages.MustNewEbtReplicateNote(
-				contact2.Who,
+				contact2.Who(),
 				true,
 				true,
 				0,
@@ -234,7 +234,7 @@ func TestSentNotes_UpdateReturnsCancellationUpdatesForMissingContactsAndSendsNot
 	require.Equal(t,
 		[]messages.EbtReplicateNote{
 			messages.MustNewEbtReplicateNote(
-				contact2.Who,
+				contact2.Who(),
 				false,
 				false,
 				-1,
@@ -251,7 +251,7 @@ func TestSentNotes_UpdateReturnsCancellationUpdatesForMissingContactsAndSendsNot
 	require.Equal(t,
 		[]messages.EbtReplicateNote{
 			messages.MustNewEbtReplicateNote(
-				contact2.Who,
+				contact2.Who(),
 				true,
 				true,
 				0,

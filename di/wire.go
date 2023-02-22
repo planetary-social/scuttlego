@@ -222,13 +222,18 @@ func BuildTestCommands(*testing.T) (TestCommands, error) {
 type TestQueries struct {
 	Queries app.Queries
 
-	FeedRepository       *mocks.FeedRepositoryMock
-	MessagePubSub        *mocks.MessagePubSubMock
-	MessageRepository    *mocks.MessageRepositoryMock
-	PeerManager          *domainmocks.PeerManagerMock
-	BlobStorage          *mocks.BlobStorageMock
-	ReceiveLogRepository *mocks.ReceiveLogRepositoryMock
-	Dialer               *mocks.DialerMock
+	WantedFeedsProvider *queries.WantedFeedsProvider
+
+	FeedRepository         *mocks.FeedRepositoryMock
+	MessageRepository      *mocks.MessageRepositoryMock
+	ReceiveLogRepository   *mocks.ReceiveLogRepositoryMock
+	SocialGraphRepository  *mocks.SocialGraphRepositoryMock
+	FeedWantListRepository *mocks.FeedWantListRepositoryMock
+	BanListRepository      *mocks.BanListRepositoryMock
+	MessagePubSub          *mocks.MessagePubSubMock
+	PeerManager            *domainmocks.PeerManagerMock
+	BlobStorage            *mocks.BlobStorageMock
+	Dialer                 *mocks.DialerMock
 
 	LocalIdentity identity.Public
 }
@@ -237,16 +242,12 @@ func BuildTestQueries(*testing.T) (TestQueries, error) {
 	wire.Build(
 		applicationSet,
 		mockQueryAdaptersSet,
+		replicatorSet,
 
 		mocks.NewMockQueriesTransactionProvider,
 		wire.Bind(new(queries.TransactionProvider), new(*mocks.MockQueriesTransactionProvider)),
 
-		wire.Struct(
-			new(queries.Adapters),
-			"Feed",
-			"ReceiveLog",
-			"Message",
-		),
+		wire.Struct(new(queries.Adapters), "*"),
 
 		pubsub.NewMessagePubSub,
 		mocks.NewMessagePubSubMock,
@@ -444,6 +445,9 @@ var replicatorSet = wire.NewSet(
 
 	ebt.NewReplicator,
 	wire.Bind(new(replication.EpidemicBroadcastTreesReplicator), new(ebt.Replicator)),
+
+	queries.NewWantedFeedsProvider,
+	wire.Bind(new(replication.WantedFeedsProvider), new(*queries.WantedFeedsProvider)),
 
 	replication.NewWantedFeedsCache,
 	wire.Bind(new(gossip.ContactsStorage), new(*replication.WantedFeedsCache)),

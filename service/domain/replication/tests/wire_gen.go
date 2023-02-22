@@ -21,8 +21,8 @@ func BuildTestReplication(t *testing.T) (TestReplication, error) {
 	devNullLogger := logging.NewDevNullLogger()
 	sessionTracker := ebt.NewSessionTracker()
 	rawMessageHandlerMock := NewRawMessageHandlerMock()
-	wantedFeedsRepositoryMock := NewWantedFeedsRepositoryMock()
-	wantedFeedsCache := replication.NewWantedFeedsCache(wantedFeedsRepositoryMock)
+	wantedFeedsProviderMock := NewWantedFeedsProviderMock()
+	wantedFeedsCache := replication.NewWantedFeedsCache(wantedFeedsProviderMock)
 	messageStreamerMock := NewMessageStreamerMock()
 	sessionRunner := ebt.NewSessionRunner(devNullLogger, rawMessageHandlerMock, wantedFeedsCache, messageStreamerMock)
 	manager := gossip.NewManager(devNullLogger, wantedFeedsCache)
@@ -35,7 +35,7 @@ func BuildTestReplication(t *testing.T) (TestReplication, error) {
 	testReplication := TestReplication{
 		Negotiator:         negotiator,
 		RawMessageHandler:  rawMessageHandlerMock,
-		ContactsRepository: wantedFeedsRepositoryMock,
+		ContactsRepository: wantedFeedsProviderMock,
 		MessageStreamer:    messageStreamerMock,
 	}
 	return testReplication, nil
@@ -47,6 +47,6 @@ type TestReplication struct {
 	Negotiator *replication.Negotiator
 
 	RawMessageHandler  *RawMessageHandlerMock
-	ContactsRepository *WantedFeedsRepositoryMock
+	ContactsRepository *WantedFeedsProviderMock
 	MessageStreamer    *MessageStreamerMock
 }

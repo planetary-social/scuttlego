@@ -6,6 +6,7 @@ import (
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/service/app/commands"
+	"github.com/planetary-social/scuttlego/service/app/common"
 	"github.com/planetary-social/scuttlego/service/domain/feeds"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
@@ -131,7 +132,7 @@ func (m *FeedRepositoryMock) GetMessage(feed refs.Feed, sequence message.Sequenc
 func (m *FeedRepositoryMock) GetFeed(ref refs.Feed) (*feeds.Feed, error) {
 	m.GetFeedCalls = append(m.GetFeedCalls, ref)
 	if m.GetFeedReturnValue == nil {
-		return nil, errors.New("feed not mocked")
+		return nil, errors.Wrap(common.ErrFeedNotFound, "feed not mocked")
 	}
 	return m.GetFeedReturnValue, nil
 }

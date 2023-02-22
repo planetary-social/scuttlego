@@ -62,12 +62,31 @@ Easily format your code with the following command:
 
     $ make fmt
 
-## Naming tests
+## Writing code
+
+Resources which are in my opinion informative and good to read:
+
+- [Effective Go][effective-go]
+- [Go Code Review Comments][code-review-comments]
+- [Uber Go Style Guide][uber-style-guide]
+
+### Naming tests
 
 When naming tests which tests a specific behaviour it is recommended to follow a
 pattern `TestNameOfType_ExpectedBehaviour`. Example:
 `TestCreateHistoryStream_IfOldAndLiveAreNotSetNothingIsWrittenAndStreamIsClosed`
 .
+
+### Panicking constructors
+
+Some constructors are prefixed with the word `Must`. Those constructors panic
+and should always be accompanied by a normal constructor which isn't prefixed
+with the `Must` and returns an error. The panicking constructors should only be
+used in the following cases:
+- when writing tests
+- when a static value has to be created e.g. `MustNewHops(1)` and this branch of
+  logic in the code is covered by tests
+
 
 ## Opening a pull request
 
@@ -78,8 +97,7 @@ see if the pipeline passes.
 It is always a good idea to try to [write a good commit message][commit-message]
 and avoid bundling unrelated changes together. If your commit history is messy
 and individual commits don't work by themselves it may be a good idea to squash
-your changes. [Effective Go][effective-go] and [Go Code Review
-Comments][code-review-comments] are good to read.
+your changes.
 
 ### Feature branches
 
@@ -92,5 +110,5 @@ This enables CI for that branch.
 [commit-message]: https://cbea.ms/git-commit/
 
 [effective-go]: http://golang.org/doc/effective_go.html
-
 [code-review-comments]: https://github.com/golang/go/wiki/CodeReviewComments
+[uber-style-guide]: https://github.com/uber-go/guide/blob/master/style.md

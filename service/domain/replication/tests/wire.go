@@ -41,8 +41,7 @@ func BuildTestReplication(t *testing.T) (TestReplication, error) {
 		wire.Bind(new(ebt.Runner), new(*ebt.SessionRunner)),
 
 		replication.NewWantedFeedsCache,
-		wire.Bind(new(ebt.ContactsStorage), new(*replication.WantedFeedsCache)),
-		wire.Bind(new(gossip.ContactsStorage), new(*replication.WantedFeedsCache)),
+		wire.Bind(new(replication.ContactsStorage), new(*replication.WantedFeedsCache)),
 
 		gossip.NewManager,
 		wire.Bind(new(gossip.ReplicationManager), new(*gossip.Manager)),

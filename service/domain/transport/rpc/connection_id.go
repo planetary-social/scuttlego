@@ -1,7 +1,6 @@
 package rpc
 
 import (
-	"context"
 	"strconv"
 )
 
@@ -15,20 +14,4 @@ func NewConnectionId(id int) ConnectionId {
 
 func (c ConnectionId) String() string {
 	return strconv.Itoa(c.id)
-}
-
-type connectionIdKeyType string
-
-const connectionIdKey connectionIdKeyType = "connection_id"
-
-func PutConnectionIdInContext(ctx context.Context, id ConnectionId) context.Context {
-	return context.WithValue(ctx, connectionIdKey, id)
-}
-
-func GetConnectionIdFromContext(ctx context.Context) (ConnectionId, bool) {
-	v := ctx.Value(connectionIdKey)
-	if v == nil {
-		return ConnectionId{}, false
-	}
-	return v.(ConnectionId), true
 }

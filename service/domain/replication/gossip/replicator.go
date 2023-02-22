@@ -122,7 +122,7 @@ func (r GossipReplicator) replicateFeed(peer transport.Peer, feed ReplicateFeedT
 			return counter, errors.Wrap(err, "could not create a raw message")
 		}
 
-		if err := r.handler.Handle(rawMsg); err != nil {
+		if err := r.handler.Handle(peer.Identity(), rawMsg); err != nil {
 			return counter, errors.Wrap(err, "could not process the raw message")
 		}
 

@@ -6,6 +6,7 @@ import (
 	"github.com/boreq/errors"
 	"github.com/hashicorp/go-multierror"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
+	"github.com/planetary-social/scuttlego/service/domain/identity"
 	"github.com/planetary-social/scuttlego/service/domain/messages"
 	"github.com/planetary-social/scuttlego/service/domain/replication"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
@@ -13,11 +14,16 @@ import (
 )
 
 type OutgoingStreamAdapter struct {
-	stream rpc.ResponseStream
+	remoteIdentity identity.Public
+	stream         rpc.ResponseStream
 }
 
-func NewOutgoingStreamAdapter(stream rpc.ResponseStream) *OutgoingStreamAdapter {
-	return &OutgoingStreamAdapter{stream: stream}
+func NewOutgoingStreamAdapter(remoteIdentity identity.Public, stream rpc.ResponseStream) *OutgoingStreamAdapter {
+	return &OutgoingStreamAdapter{remoteIdentity: remoteIdentity, stream: stream}
+}
+
+func (r *OutgoingStreamAdapter) RemoteIdentity() identity.Public {
+	return r.remoteIdentity
 }
 
 func (r *OutgoingStreamAdapter) IncomingMessages(ctx context.Context) <-chan IncomingMessage {
@@ -78,11 +84,16 @@ func (r *OutgoingStreamAdapter) SendMessage(msg *message.Message) error {
 }
 
 type IncomingStreamAdapter struct {
-	stream mux.Stream
+	remoteIdentity identity.Public
+	stream         mux.Stream
 }
 
-func NewIncomingStreamAdapter(stream mux.Stream) IncomingStreamAdapter {
-	return IncomingStreamAdapter{stream: stream}
+func NewIncomingStreamAdapter(remoteIdentity identity.Public, stream mux.Stream) IncomingStreamAdapter {
+	return IncomingStreamAdapter{remoteIdentity: remoteIdentity, stream: stream}
+}
+
+func (s IncomingStreamAdapter) RemoteIdentity() identity.Public {
+	return s.remoteIdentity
 }
 
 func (s IncomingStreamAdapter) IncomingMessages(ctx context.Context) <-chan IncomingMessage {

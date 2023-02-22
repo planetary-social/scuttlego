@@ -10,6 +10,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/feeds"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/graph"
+	"github.com/planetary-social/scuttlego/service/domain/identity"
 	"github.com/planetary-social/scuttlego/service/domain/messagebuffer"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 )
@@ -21,6 +22,10 @@ const (
 	leaveUnpersistedMessagesFor = 15 * time.Second
 )
 
+type ForkedFeedTracker interface {
+	AddForkedFeed(replicatedFrom identity.Public, feed refs.Feed)
+}
+
 type MessageBuffer struct {
 	messages     messagesList
 	messagesLock *sync.Mutex
@@ -28,19 +33,21 @@ type MessageBuffer struct {
 	forcePersistCh   chan struct{}
 	forcePersistOnce sync.Once
 
-	transaction TransactionProvider
-	logger      logging.Logger
+	transaction       TransactionProvider
+	forkedFeedTracker ForkedFeedTracker
+	logger            logging.Logger
 }
 
-func NewMessageBuffer(transaction TransactionProvider, logger logging.Logger) *MessageBuffer {
+func NewMessageBuffer(transaction TransactionProvider, forkedFeedTracker ForkedFeedTracker, logger logging.Logger) *MessageBuffer {
 	return &MessageBuffer{
 		messages:     make(messagesList),
 		messagesLock: &sync.Mutex{},
 
 		forcePersistCh: make(chan struct{}),
 
-		transaction: transaction,
-		logger:      logger.New("message_buffer"),
+		transaction:       transaction,
+		forkedFeedTracker: forkedFeedTracker,
+		logger:            logger.New("message_buffer"),
 	}
 }
 
@@ -63,11 +70,16 @@ func (m *MessageBuffer) Run(ctx context.Context) error {
 	}
 }
 
-func (m *MessageBuffer) Handle(msg message.Message) error {
+func (m *MessageBuffer) Handle(replicatedFrom identity.Public, msg message.Message) error {
 	m.messagesLock.Lock()
 	defer m.messagesLock.Unlock()
 
-	if err := m.messages.AddMessage(time.Now(), msg); err != nil {
+	rm, err := messagebuffer.NewReceivedMessage(replicatedFrom, msg)
+	if err != nil {
+		return errors.Wrap(err, "error creating received message")
+	}
+
+	if err := m.messages.AddMessage(time.Now(), rm); err != nil {
 		return errors.Wrap(err, "could not add a message")
 	}
 
@@ -166,12 +178,13 @@ func (m *MessageBuffer) persistTransaction(adapters Adapters) (map[string]messag
 				Trace("persisting messages")
 
 			for _, msg := range msgs {
-				if err := feed.AppendMessage(msg); err != nil {
+				if err := feed.AppendMessage(msg.Message()); err != nil {
 					feedLogger.
 						WithError(err).
 						WithField("message_being_appended", msg).
 						Trace("error appending message")
-					feedMessages.Remove(msg)
+					feedMessages.Remove(msg.Message())
+					m.forkedFeedTracker.AddForkedFeed(msg.ReplicatedFrom(), msg.Message().Feed())
 					return nil // probably a forked feed
 				}
 			}
@@ -263,8 +276,8 @@ func (m *MessageBuffer) getSequence(feed *feeds.Feed) *message.Sequence {
 
 type messagesList map[string]*messagebuffer.FeedMessages
 
-func (f messagesList) AddMessage(t time.Time, msg message.Message) error {
-	return f.get(msg.Feed()).Add(t, msg)
+func (f messagesList) AddMessage(t time.Time, rm messagebuffer.ReceivedMessage) error {
+	return f.get(rm.Message().Feed()).Add(t, rm)
 }
 
 func (f messagesList) get(feed refs.Feed) *messagebuffer.FeedMessages {

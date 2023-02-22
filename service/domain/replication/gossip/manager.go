@@ -65,12 +65,6 @@ type ReplicateFeedTask struct {
 	OnComplete TaskCompletedFn
 }
 
-type ContactsStorage interface {
-	// GetContacts returns a list of contacts. Contacts are sorted by hops,
-	// ascending. Contacts include the local feed.
-	GetContacts() ([]replication.Contact, error)
-}
-
 type ReplicationManager interface {
 	// GetFeedsToReplicate returns a channel on which replication tasks are
 	// received. The channel stays open as long as the passed context isn't
@@ -99,7 +93,7 @@ type ReplicationManager interface {
 // any new messages for a feed before attempting to ask it for messages from
 // that feed again. Backoff time is increased for feeds which are further away.
 type Manager struct {
-	storage ContactsStorage
+	storage replication.ContactsStorage
 	logger  logging.Logger
 
 	activeTasks *activeTasksSet
@@ -107,7 +101,7 @@ type Manager struct {
 	lock        sync.Mutex // locks activeTasks and peerState
 }
 
-func NewManager(logger logging.Logger, storage ContactsStorage) *Manager {
+func NewManager(logger logging.Logger, storage replication.ContactsStorage) *Manager {
 	return &Manager{
 		storage:     storage,
 		logger:      logger.New("manager"),
@@ -150,7 +144,7 @@ func (m *Manager) sendFeedsToReplicateLoop(ctx context.Context, ch chan Replicat
 }
 
 func (m *Manager) sendFeedToReplicate(ctx context.Context, ch chan ReplicateFeedTask, remote identity.Public, localOnly bool) error {
-	contacts, err := m.storage.GetContacts()
+	contacts, err := m.storage.GetContacts(remote)
 	if err != nil {
 		return errors.Wrap(err, "could not get contacts")
 	}

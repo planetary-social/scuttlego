@@ -9,6 +9,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/graph"
 	"github.com/planetary-social/scuttlego/service/domain/replication"
 	"github.com/planetary-social/scuttlego/service/domain/replication/gossip"
+	"github.com/planetary-social/scuttlego/service/domain/replication/mocks"
 	"github.com/stretchr/testify/require"
 )
 
@@ -189,28 +190,16 @@ func TestManager_OnlyLocalFeedWillBeSentFromGetFeedsToReplicateSelf(t *testing.T
 
 type testManager struct {
 	Manager *gossip.Manager
-	Storage *storageMock
+	Storage *mocks.ContactsStorageMock
 }
 
 func newTestManager() testManager {
 	logger := logging.NewDevNullLogger()
-	storage := newStorageMock()
+	storage := mocks.NewContactsStorageMock()
 	manager := gossip.NewManager(logger, storage)
 
 	return testManager{
 		Manager: manager,
 		Storage: storage,
 	}
-}
-
-type storageMock struct {
-	Contacts []replication.Contact
-}
-
-func newStorageMock() *storageMock {
-	return &storageMock{}
-}
-
-func (s storageMock) GetContacts() ([]replication.Contact, error) {
-	return s.Contacts, nil
 }

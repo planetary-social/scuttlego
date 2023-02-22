@@ -5,8 +5,10 @@ import (
 	"testing"
 
 	"github.com/boreq/errors"
+	"github.com/planetary-social/scuttlego/fixtures"
 	"github.com/planetary-social/scuttlego/service/app/commands"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
+	"github.com/planetary-social/scuttlego/service/domain/identity"
 	"github.com/planetary-social/scuttlego/service/domain/messages"
 	"github.com/planetary-social/scuttlego/service/domain/replication/ebt"
 	"github.com/stretchr/testify/require"
@@ -30,6 +32,10 @@ type mockStream struct {
 
 func newMockStream() *mockStream {
 	return &mockStream{}
+}
+
+func (m mockStream) RemoteIdentity() identity.Public {
+	return fixtures.SomePublicIdentity()
 }
 
 func (m mockStream) IncomingMessages(ctx context.Context) <-chan ebt.IncomingMessage {

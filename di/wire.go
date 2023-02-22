@@ -450,8 +450,8 @@ var replicatorSet = wire.NewSet(
 	wire.Bind(new(replication.WantedFeedsProvider), new(*queries.WantedFeedsProvider)),
 
 	replication.NewWantedFeedsCache,
-	wire.Bind(new(gossip.ContactsStorage), new(*replication.WantedFeedsCache)),
-	wire.Bind(new(ebt.ContactsStorage), new(*replication.WantedFeedsCache)),
+	wire.Bind(new(replication.ContactsStorage), new(*replication.WantedFeedsCache)),
+	wire.Bind(new(commands.ForkedFeedTracker), new(*replication.WantedFeedsCache)),
 
 	ebt.NewSessionTracker,
 	wire.Bind(new(ebt.Tracker), new(*ebt.SessionTracker)),

@@ -91,7 +91,7 @@ func (r Replicator) Replicate(ctx context.Context, peer transport.Peer) error {
 
 		go r.replicateSelf(rs.Ctx(), peer)
 
-		return r.runner.HandleStream(rs.Ctx(), NewOutgoingStreamAdapter(rs))
+		return r.runner.HandleStream(rs.Ctx(), NewOutgoingStreamAdapter(peer.Identity(), rs))
 	}
 
 	go r.replicateSelf(ctx, peer)

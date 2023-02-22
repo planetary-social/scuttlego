@@ -42,9 +42,11 @@ type FeedRepository interface {
 	// sequence criteria are returned.
 	GetMessages(id refs.Feed, seq *message.Sequence, limit *int) ([]message.Message, error)
 
-	// GetFeed returns a feed so that you can for example check its sequence
-	// number. Returns common.ErrFeedNotFound if the feed doesn't exist.
+	// GetFeed returns common.ErrFeedNotFound if the feed doesn't exist.
 	GetFeed(ref refs.Feed) (*feeds.Feed, error)
+
+	// GetSequence returns common.ErrFeedNotFound if the feed doesn't exist.
+	GetSequence(ref refs.Feed) (message.Sequence, error)
 
 	// GetMessage returns a message with a given sequence from the specified
 	// feed.

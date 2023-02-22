@@ -6,6 +6,7 @@ import (
 	"github.com/boreq/errors"
 	"github.com/hashicorp/go-multierror"
 	"github.com/planetary-social/scuttlego/service/adapters/badger"
+	"github.com/planetary-social/scuttlego/service/adapters/badger/notx"
 	"github.com/planetary-social/scuttlego/service/app"
 	"github.com/planetary-social/scuttlego/service/app/commands"
 	"github.com/planetary-social/scuttlego/service/app/queries"
@@ -26,6 +27,8 @@ type Service struct {
 	messageBuffer                *commands.MessageBuffer
 	createHistoryStreamHandler   *queries.CreateHistoryStreamHandler
 	badgerGarbageCollector       *badger.GarbageCollector
+	feedWantListRepository       *notx.NoTxFeedWantListRepository
+	blobWantListRepository       *notx.NoTxBlobWantListRepository
 }
 
 func NewService(
@@ -39,6 +42,8 @@ func NewService(
 	messageBuffer *commands.MessageBuffer,
 	createHistoryStreamHandler *queries.CreateHistoryStreamHandler,
 	badgerGarbageCollector *badger.GarbageCollector,
+	feedWantListRepository *notx.NoTxFeedWantListRepository,
+	blobWantListRepository *notx.NoTxBlobWantListRepository,
 ) Service {
 	return Service{
 		App: app,
@@ -52,6 +57,8 @@ func NewService(
 		messageBuffer:                messageBuffer,
 		createHistoryStreamHandler:   createHistoryStreamHandler,
 		badgerGarbageCollector:       badgerGarbageCollector,
+		feedWantListRepository:       feedWantListRepository,
+		blobWantListRepository:       blobWantListRepository,
 	}
 }
 
@@ -105,6 +112,16 @@ func (s Service) Run(ctx context.Context) error {
 	runners++
 	go func() {
 		errCh <- s.badgerGarbageCollector.Run(ctx)
+	}()
+
+	runners++
+	go func() {
+		errCh <- s.feedWantListRepository.CleanupLoop(ctx)
+	}()
+
+	runners++
+	go func() {
+		errCh <- s.blobWantListRepository.CleanupLoop(ctx)
 	}()
 
 	var err error

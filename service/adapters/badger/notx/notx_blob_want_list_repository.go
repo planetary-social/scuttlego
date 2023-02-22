@@ -1,22 +1,30 @@
 package notx
 
 import (
+	"context"
+	"time"
+
 	"github.com/boreq/errors"
+	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 )
 
 type NoTxBlobWantListRepository struct {
 	transaction TransactionProvider
+	logger      logging.Logger
 }
 
-func NewNoTxBlobWantListRepository(transaction TransactionProvider) *NoTxBlobWantListRepository {
-	return &NoTxBlobWantListRepository{transaction: transaction}
+func NewNoTxBlobWantListRepository(transaction TransactionProvider, logger logging.Logger) *NoTxBlobWantListRepository {
+	return &NoTxBlobWantListRepository{
+		transaction: transaction,
+		logger:      logger.New("no_tx_blob_want_list_repository"),
+	}
 }
 
 func (b NoTxBlobWantListRepository) GetWantedBlobs() ([]refs.Blob, error) {
 	var result []refs.Blob
 
-	if err := b.transaction.Update(func(adapters TxAdapters) error {
+	if err := b.transaction.View(func(adapters TxAdapters) error {
 		tmp, err := adapters.BlobWantListRepository.List()
 		if err != nil {
 			return errors.Wrap(err, "could not get blobs from tx repo")
@@ -56,4 +64,23 @@ func (b NoTxBlobWantListRepository) Delete(id refs.Blob) error {
 	}
 
 	return nil
+}
+
+const cleanupWantListsEvery = 1 * time.Minute
+
+func (r NoTxBlobWantListRepository) CleanupLoop(ctx context.Context) error {
+	for {
+		if err := r.transaction.Update(func(adapters TxAdapters) error {
+			return adapters.BlobWantListRepository.Cleanup()
+		}); err != nil {
+			r.logger.WithError(err).Error("transaction failed")
+		}
+
+		select {
+		case <-time.After(cleanupWantListsEvery):
+			continue
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
 }

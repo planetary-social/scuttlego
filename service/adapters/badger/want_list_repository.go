@@ -116,7 +116,6 @@ func (r WantListRepository) Delete(id string) error {
 
 func (r WantListRepository) List() ([]string, error) {
 	var result []string
-	var toDelete []string
 
 	bucket, err := r.createBucket()
 	if err != nil {
@@ -144,7 +143,6 @@ func (r WantListRepository) List() ([]string, error) {
 		}
 
 		if now.After(until) {
-			toDelete = append(toDelete, id)
 			return nil
 		}
 
@@ -154,13 +152,48 @@ func (r WantListRepository) List() ([]string, error) {
 		return nil, errors.Wrap(err, "for each failed")
 	}
 
-	for _, id := range toDelete {
-		if err := bucket.Delete(r.toKey(id)); err != nil {
-			return nil, errors.Wrap(err, "deletion failed")
-		}
+	return result, nil
+}
+
+func (r WantListRepository) Cleanup() error {
+	bucket, err := r.createBucket()
+	if err != nil {
+		return errors.Wrap(err, "failed to get the bucket")
 	}
 
-	return result, nil
+	now := r.currentTimeProvider.Get()
+
+	if err := bucket.ForEach(func(item utils.Item) error {
+		keyInBucket, err := bucket.KeyInBucket(item)
+		if err != nil {
+			return errors.Wrap(err, "error determining key in bucket")
+		}
+
+		id := r.fromKey(keyInBucket.Bytes())
+
+		val, err := item.ValueCopy(nil)
+		if err != nil {
+			return errors.Wrap(err, "could not get the value")
+		}
+
+		until, err := r.fromValue(val)
+		if err != nil {
+			return errors.Wrap(err, "could not read the value")
+		}
+
+		if now.After(until) {
+			if err := bucket.Delete(r.toKey(id)); err != nil {
+				return errors.Wrap(err, "deletion failed")
+			}
+			return nil
+		}
+
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "for each failed")
+	}
+
+	return nil
 }
 
 func (r WantListRepository) toKey(id string) []byte {

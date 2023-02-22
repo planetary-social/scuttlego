@@ -98,7 +98,7 @@ func TestNoTxBlobWantListRepository_Delete(t *testing.T) {
 	require.False(t, ok)
 }
 
-func TestNoTxBlobWantListRepository_GetWantedBlobsCanTriggerWrites(t *testing.T) {
+func TestNoTxBlobWantListRepository_GetWantedBlobsCanNotTriggerWrites(t *testing.T) {
 	ts := di.BuildBadgerNoTxTestAdapters(t)
 
 	until := time.Now()
@@ -106,7 +106,6 @@ func TestNoTxBlobWantListRepository_GetWantedBlobsCanTriggerWrites(t *testing.T)
 	beforeUntil := until.Add(-fixtures.SomeDuration())
 
 	err := ts.TransactionProvider.Update(func(adapters badger.TestAdapters) error {
-
 		err := adapters.BlobWantListRepository.Add(fixtures.SomeRefBlob(), until)
 		require.NoError(t, err)
 
@@ -130,5 +129,5 @@ func TestNoTxBlobWantListRepository_GetWantedBlobsCanTriggerWrites(t *testing.T)
 
 	l, err = ts.NoTxTestAdapters.NoTxBlobWantListRepository.GetWantedBlobs()
 	require.NoError(t, err)
-	require.Empty(t, l, "calling list should have cleaned up values for which the deadline has passed")
+	require.NotEmpty(t, l, "if the deadline hasn't passed the value should be returned")
 }

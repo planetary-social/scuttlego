@@ -12,10 +12,15 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/transport"
 )
 
+type NewPeerHandler interface {
+	HandleNewPeer(ctx context.Context, peer Peer)
+}
+
 type PeerInitializer struct {
 	handshaker            boxstream.Handshaker
 	requestHandler        rpc.RequestHandler
 	connectionIdGenerator *rpc.ConnectionIdGenerator
+	newPeerHandler        NewPeerHandler
 	logger                logging.Logger
 }
 
@@ -23,12 +28,14 @@ func NewPeerInitializer(
 	handshaker boxstream.Handshaker,
 	requestHandler rpc.RequestHandler,
 	connectionIdGenerator *rpc.ConnectionIdGenerator,
+	newPeerHandler NewPeerHandler,
 	logger logging.Logger,
 ) *PeerInitializer {
 	return &PeerInitializer{
 		handshaker:            handshaker,
 		requestHandler:        requestHandler,
 		connectionIdGenerator: connectionIdGenerator,
+		newPeerHandler:        newPeerHandler,
 		logger:                logger,
 	}
 }
@@ -60,10 +67,11 @@ func (i PeerInitializer) initializePeer(ctx context.Context, boxStream *boxstrea
 	logger := i.logger.WithCtx(ctx)
 
 	ctx = rpc.PutRemoteIdentityInContext(ctx, boxStream.Remote())
+	ctx = rpc.PutConnectionIdInContext(ctx, connectionId)
 
 	raw := transport.NewRawConnection(boxStream, logger)
 
-	rpcConn, err := rpc.NewConnection(ctx, connectionId, wasInitiatedByRemote, raw, i.requestHandler, logger)
+	rpcConn, err := rpc.NewConnection(connectionId, wasInitiatedByRemote, raw, i.requestHandler, logger)
 	if err != nil {
 		return Peer{}, errors.Wrap(err, "failed to establish an RPC connection")
 	}
@@ -72,6 +80,17 @@ func (i PeerInitializer) initializePeer(ctx context.Context, boxStream *boxstrea
 	if err != nil {
 		return Peer{}, errors.Wrap(err, "error creating a peer")
 	}
+
+	go func() {
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
+
+		i.newPeerHandler.HandleNewPeer(ctx, peer)
+
+		if err := rpcConn.Loop(ctx); err != nil {
+			logger.WithError(err).Debug("connection loop exited")
+		}
+	}()
 
 	return peer, nil
 }

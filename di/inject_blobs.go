@@ -4,7 +4,6 @@ import (
 	"github.com/google/wire"
 	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/app/commands"
-	"github.com/planetary-social/scuttlego/service/domain"
 	blobReplication "github.com/planetary-social/scuttlego/service/domain/blobs/replication"
 )
 
@@ -17,7 +16,7 @@ var blobReplicatorSet = wire.NewSet(
 	wire.Bind(new(blobReplication.ManagedWantsProcessFactory), new(*managedWantsProcessFactory)),
 
 	blobReplication.NewReplicator,
-	wire.Bind(new(domain.BlobReplicator), new(*blobReplication.Replicator)),
+	wire.Bind(new(commands.BlobReplicator), new(*blobReplication.Replicator)),
 
 	blobReplication.NewBlobsGetDownloader,
 	wire.Bind(new(blobReplication.Downloader), new(*blobReplication.BlobsGetDownloader)),

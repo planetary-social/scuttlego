@@ -30,7 +30,6 @@ func TestAcceptNewPeerHandler(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, 1, tc.PeerInitializer.InitializeServerPeerCalls())
-	require.Equal(t, 1, tc.NewPeerHandler.HandleNewPeerCalls())
 }
 
 type readWriteCloserMock struct {

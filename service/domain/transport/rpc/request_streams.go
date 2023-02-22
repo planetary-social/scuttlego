@@ -53,7 +53,7 @@ type RequestStreams struct {
 // NewRequestStreams creates new request streams which use the provided context
 // to run the loop cleaning up closed streams. The lifecycle of this context
 // should most likely be the same as the lifecycle of the underlying connection.
-func NewRequestStreams(ctx context.Context, raw MessageSender, handler RequestHandler, logger logging.Logger) *RequestStreams {
+func NewRequestStreams(raw MessageSender, handler RequestHandler, logger logging.Logger) *RequestStreams {
 	rs := &RequestStreams{
 		raw:           raw,
 		streams:       make(map[int]*RequestStream),
@@ -61,7 +61,6 @@ func NewRequestStreams(ctx context.Context, raw MessageSender, handler RequestHa
 		handler:       handler,
 		logger:        logger.New("response_streams"),
 	}
-	go rs.cleanupLoop(ctx)
 	return rs
 }
 

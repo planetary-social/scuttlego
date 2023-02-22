@@ -17,10 +17,11 @@ func NewRoomAttendantEventPubSub() *RoomAttendantEventPubSub {
 	}
 }
 
-func (p *RoomAttendantEventPubSub) PublishAttendantEvent(portal transport.Peer, event rooms.RoomAttendantsEvent) error {
+func (p *RoomAttendantEventPubSub) PublishAttendantEvent(ctx context.Context, portal transport.Peer, event rooms.RoomAttendantsEvent) error {
 	p.pubsub.Publish(RoomAttendantEvent{
-		Portal: portal,
-		Event:  event,
+		Context: ctx,
+		Portal:  portal,
+		Event:   event,
 	})
 	return nil
 }
@@ -30,6 +31,7 @@ func (p *RoomAttendantEventPubSub) SubscribeToAttendantEvents(ctx context.Contex
 }
 
 type RoomAttendantEvent struct {
-	Portal transport.Peer
-	Event  rooms.RoomAttendantsEvent
+	Context context.Context
+	Portal  transport.Peer
+	Event   rooms.RoomAttendantsEvent
 }

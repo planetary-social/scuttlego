@@ -20,9 +20,10 @@ import (
 
 func TestPeerManager_PeersAreTracked(t *testing.T) {
 	m := buildTestPeerManager(t)
+	ctx := fixtures.TestContext(t)
 
 	peer1 := transport.MustNewPeer(fixtures.SomePublicIdentity(), newConnectionMock())
-	m.Manager.HandleNewPeer(peer1)
+	m.Manager.TrackPeer(ctx, peer1)
 
 	require.Equal(t,
 		[]transport.Peer{
@@ -32,7 +33,7 @@ func TestPeerManager_PeersAreTracked(t *testing.T) {
 	)
 
 	peer2 := transport.MustNewPeer(fixtures.SomePublicIdentity(), newConnectionMock())
-	m.Manager.HandleNewPeer(peer2)
+	m.Manager.TrackPeer(ctx, peer2)
 
 	expectedPeers := []transport.Peer{
 		peer1,
@@ -50,12 +51,15 @@ func TestPeerManager_PeersAreTracked(t *testing.T) {
 	)
 }
 
-func TestPeerManager_IfConnectionClosesThenPeerIsRemovedFromManager(t *testing.T) {
+func TestPeerManager_IfContextClosesThenPeerIsRemovedFromManager(t *testing.T) {
 	m := buildTestPeerManager(t)
+	ctx := fixtures.TestContext(t)
 
 	conn := newConnectionMock()
 	peer := transport.MustNewPeer(fixtures.SomePublicIdentity(), conn)
-	m.Manager.HandleNewPeer(peer)
+
+	ctx, cancel := context.WithCancel(ctx)
+	m.Manager.TrackPeer(ctx, peer)
 
 	require.Equal(t,
 		[]transport.Peer{
@@ -64,8 +68,7 @@ func TestPeerManager_IfConnectionClosesThenPeerIsRemovedFromManager(t *testing.T
 		m.Manager.Peers(),
 	)
 
-	err := conn.Close()
-	require.NoError(t, err)
+	cancel()
 
 	eventually(t,
 		func() bool {
@@ -77,12 +80,13 @@ func TestPeerManager_IfConnectionClosesThenPeerIsRemovedFromManager(t *testing.T
 
 func TestPeerManager_OnlyLatestConnectionToIdentityIsKept(t *testing.T) {
 	m := buildTestPeerManager(t)
+	ctx := fixtures.TestContext(t)
 
 	iden := fixtures.SomePublicIdentity()
 
 	conn1 := newConnectionMock()
 	peer1 := transport.MustNewPeer(iden, conn1)
-	m.Manager.HandleNewPeer(peer1)
+	m.Manager.TrackPeer(ctx, peer1)
 
 	require.Equal(t,
 		[]transport.Peer{
@@ -93,7 +97,7 @@ func TestPeerManager_OnlyLatestConnectionToIdentityIsKept(t *testing.T) {
 
 	conn2 := newConnectionMock()
 	peer2 := transport.MustNewPeer(iden, conn2)
-	m.Manager.HandleNewPeer(peer2)
+	m.Manager.TrackPeer(ctx, peer2)
 
 	require.Equal(t,
 		[]transport.Peer{
@@ -112,6 +116,7 @@ func TestPeerManager_OnlyLatestConnectionToIdentityIsKept(t *testing.T) {
 
 func TestPeerManager_Connect_DialsAnIdentityIfNotConnectedToIt(t *testing.T) {
 	m := buildTestPeerManager(t)
+	ctx := fixtures.TestContext(t)
 
 	address := network.NewAddress("some address")
 	peer := transport.MustNewPeer(fixtures.SomePublicIdentity(), newConnectionMock())
@@ -119,7 +124,7 @@ func TestPeerManager_Connect_DialsAnIdentityIfNotConnectedToIt(t *testing.T) {
 
 	require.Empty(t, m.Manager.Peers())
 
-	err := m.Manager.Connect(peer.Identity(), address)
+	err := m.Manager.Connect(ctx, peer.Identity(), address)
 	require.NoError(t, err)
 
 	require.Equal(t,
@@ -128,23 +133,17 @@ func TestPeerManager_Connect_DialsAnIdentityIfNotConnectedToIt(t *testing.T) {
 		},
 		m.Dialer.DialedPeers,
 	)
-
-	require.Equal(t,
-		[]transport.Peer{
-			peer,
-		},
-		m.Manager.Peers(),
-	)
 }
 
 func TestPeerManager_Connect_DoesNotDialIfAlreadyConnectedToIdentity(t *testing.T) {
 	m := buildTestPeerManager(t)
+	ctx := fixtures.TestContext(t)
 
 	iden := fixtures.SomePublicIdentity()
 	alreadyConnectedPeer := transport.MustNewPeer(iden, newConnectionMock())
-	m.Manager.HandleNewPeer(alreadyConnectedPeer)
+	m.Manager.TrackPeer(ctx, alreadyConnectedPeer)
 
-	err := m.Manager.Connect(iden, network.NewAddress("someAddress"))
+	err := m.Manager.Connect(ctx, iden, network.NewAddress("someAddress"))
 	require.NoError(t, err)
 
 	require.Empty(t, m.Dialer.DialedPeers)
@@ -163,13 +162,14 @@ func TestPeerManager_EstablishNewConnections_ConnectsToPreferredPubs(t *testing.
 	}
 
 	m := buildTestPeerManagerWithConfig(t, config)
+	ctx := fixtures.TestContext(t)
 
 	peer := transport.MustNewPeer(pub.Identity, newConnectionMock())
 	m.Dialer.AddPeer(peer, pub.Address)
 
 	require.Empty(t, m.Manager.Peers())
 
-	err := m.Manager.EstablishNewConnections()
+	err := m.Manager.EstablishNewConnections(ctx)
 	require.NoError(t, err)
 
 	require.Equal(t,
@@ -177,13 +177,6 @@ func TestPeerManager_EstablishNewConnections_ConnectsToPreferredPubs(t *testing.
 			peer.Identity(),
 		},
 		m.Dialer.DialedPeers,
-	)
-
-	require.Equal(t,
-		[]transport.Peer{
-			peer,
-		},
-		m.Manager.Peers(),
 	)
 }
 
@@ -200,21 +193,22 @@ func TestPeerManager_EstablishNewConnections_DoesNotConnectToPreferredPubsIfAlre
 	}
 
 	m := buildTestPeerManagerWithConfig(t, config)
+	ctx := fixtures.TestContext(t)
 
 	peer := transport.MustNewPeer(pub.Identity, newConnectionMock())
 	m.Dialer.AddPeer(peer, pub.Address)
 
-	err := m.Manager.EstablishNewConnections()
+	m.Manager.TrackPeer(ctx, peer)
+
+	err := m.Manager.EstablishNewConnections(ctx)
 	require.NoError(t, err)
 
-	err = m.Manager.EstablishNewConnections()
-	require.NoError(t, err)
-
-	require.Len(t, m.Dialer.DialedPeers, 1)
+	require.Len(t, m.Dialer.DialedPeers, 0)
 }
 
 func TestPeerManager_ProcessNewLocalDiscovery_ConnectsToPeerOnDiscovery(t *testing.T) {
 	m := buildTestPeerManager(t)
+	ctx := fixtures.TestContext(t)
 
 	address := network.NewAddress("some address")
 	peer := transport.MustNewPeer(fixtures.SomePublicIdentity(), newConnectionMock())
@@ -222,7 +216,7 @@ func TestPeerManager_ProcessNewLocalDiscovery_ConnectsToPeerOnDiscovery(t *testi
 
 	require.Empty(t, m.Manager.Peers())
 
-	err := m.Manager.ProcessNewLocalDiscovery(peer.Identity(), address)
+	err := m.Manager.ProcessNewLocalDiscovery(ctx, peer.Identity(), address)
 	require.NoError(t, err)
 
 	require.Equal(t,
@@ -231,23 +225,17 @@ func TestPeerManager_ProcessNewLocalDiscovery_ConnectsToPeerOnDiscovery(t *testi
 		},
 		m.Dialer.DialedPeers,
 	)
-
-	require.Equal(t,
-		[]transport.Peer{
-			peer,
-		},
-		m.Manager.Peers(),
-	)
 }
 
 func TestPeerManager_ProcessNewLocalDiscovery_DoesNotConnectIfAlreadyConnected(t *testing.T) {
 	m := buildTestPeerManager(t)
+	ctx := fixtures.TestContext(t)
 
 	iden := fixtures.SomePublicIdentity()
 	alreadyConnectedPeer := transport.MustNewPeer(iden, newConnectionMock())
-	m.Manager.HandleNewPeer(alreadyConnectedPeer)
+	m.Manager.TrackPeer(ctx, alreadyConnectedPeer)
 
-	err := m.Manager.ProcessNewLocalDiscovery(iden, network.NewAddress("someAddress"))
+	err := m.Manager.ProcessNewLocalDiscovery(ctx, iden, network.NewAddress("someAddress"))
 	require.NoError(t, err)
 
 	require.Empty(t, m.Dialer.DialedPeers)
@@ -259,16 +247,12 @@ type testPeerManager struct {
 }
 
 func buildTestPeerManagerWithConfig(t *testing.T, config domain.PeerManagerConfig) testPeerManager {
-	ctx := fixtures.TestContext(t)
 	logger := logging.NewDevNullLogger()
 
 	dialer := newDialerMock()
 	roomDialer := newRoomDialerMock()
-	msgReplicator := newMessageReplicatorMock()
-	blobReplicator := newBlobReplicatorMock()
-	roomScanner := newRoomScannerMock()
 
-	manager := domain.NewPeerManager(ctx, config, dialer, roomDialer, msgReplicator, blobReplicator, roomScanner, logger)
+	manager := domain.NewPeerManager(config, dialer, roomDialer, logger)
 
 	return testPeerManager{
 		Manager: manager,
@@ -278,30 +262,6 @@ func buildTestPeerManagerWithConfig(t *testing.T, config domain.PeerManagerConfi
 
 func buildTestPeerManager(t *testing.T) testPeerManager {
 	return buildTestPeerManagerWithConfig(t, domain.PeerManagerConfig{})
-}
-
-type messageReplicatorMock struct {
-}
-
-func newMessageReplicatorMock() *messageReplicatorMock {
-	return &messageReplicatorMock{}
-}
-
-func (r messageReplicatorMock) Replicate(ctx context.Context, peer transport.Peer) error {
-	<-ctx.Done()
-	return ctx.Err()
-}
-
-type blobReplicatorMock struct {
-}
-
-func newBlobReplicatorMock() *blobReplicatorMock {
-	return &blobReplicatorMock{}
-}
-
-func (b blobReplicatorMock) Replicate(ctx context.Context, peer transport.Peer) error {
-	<-ctx.Done()
-	return ctx.Err()
 }
 
 type dialerMock struct {
@@ -381,17 +341,6 @@ func (c *connectionMock) IsClosed() bool {
 	default:
 		return false
 	}
-}
-
-type roomScannerMock struct {
-}
-
-func newRoomScannerMock() *roomScannerMock {
-	return &roomScannerMock{}
-}
-
-func (r roomScannerMock) Run(ctx context.Context, peer transport.Peer) error {
-	return errors.New("not implemented")
 }
 
 func eventually(t *testing.T, condition func() bool, msgAndArgs ...any) {

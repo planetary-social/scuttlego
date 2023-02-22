@@ -37,7 +37,47 @@ func TestFeedWantListRepository_ListDoesNotReturnValuesForWhichUntilIsBeforeCurr
 
 		l, err = adapters.FeedWantListRepository.List()
 		require.NoError(t, err)
-		require.Empty(t, l, "calling list should have cleaned up values for which the deadline has passed")
+		require.NotEmpty(t, l, "if the deadline hasn't passed the value should be returned")
+
+		return nil
+	})
+	require.NoError(t, err)
+}
+
+func TestFeedWantListRepository_Cleanup(t *testing.T) {
+	ts := di.BuildBadgerTestAdapters(t)
+
+	err := ts.TransactionProvider.Update(func(adapters badger.TestAdapters) error {
+		until := time.Now()
+		afterUntil := until.Add(fixtures.SomeDuration())
+		beforeUntil := until.Add(-fixtures.SomeDuration())
+
+		err := adapters.FeedWantListRepository.Add(fixtures.SomeRefFeed(), until)
+		require.NoError(t, err)
+
+		ts.Dependencies.CurrentTimeProvider.CurrentTime = beforeUntil
+
+		l, err := adapters.FeedWantListRepository.List()
+		require.NoError(t, err)
+		require.NotEmpty(t, l, "if the deadline hasn't passed the value should be returned")
+
+		err = adapters.FeedWantListRepository.Cleanup()
+		require.NoError(t, err)
+
+		l, err = adapters.FeedWantListRepository.List()
+		require.NoError(t, err)
+		require.NotEmpty(t, l, "if the deadline hasn't passed cleanup shouldn't have done anything")
+
+		ts.Dependencies.CurrentTimeProvider.CurrentTime = afterUntil
+
+		err = adapters.FeedWantListRepository.Cleanup()
+		require.NoError(t, err)
+
+		ts.Dependencies.CurrentTimeProvider.CurrentTime = beforeUntil
+
+		l, err = adapters.FeedWantListRepository.List()
+		require.NoError(t, err)
+		require.Empty(t, l, "cleanup should have worked now")
 
 		return nil
 	})

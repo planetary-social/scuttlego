@@ -60,3 +60,7 @@ func (r BlobWantListRepository) List() ([]refs.Blob, error) {
 
 	return result, nil
 }
+
+func (r BlobWantListRepository) Cleanup() error {
+	return r.repo.Cleanup()
+}

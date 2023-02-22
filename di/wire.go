@@ -54,6 +54,9 @@ func BuildBadgerNoTxTestAdapters(t *testing.T) BadgerNoTxTestAdapters {
 
 		fixtures.SomePublicIdentity,
 		fixtures.Badger,
+
+		logging.NewDevNullLogger,
+		wire.Bind(new(logging.Logger), new(logging.DevNullLogger)),
 	)
 
 	return BadgerNoTxTestAdapters{}

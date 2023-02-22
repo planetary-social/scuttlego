@@ -69,7 +69,8 @@ func BuildBadgerNoTxTestAdapters(t *testing.T) BadgerNoTxTestAdapters {
 		LocalIdentity:        public,
 	}
 	testTxAdaptersFactoryTransactionProvider := notx.NewTestTxAdaptersFactoryTransactionProvider(db, testTxAdaptersFactory, testAdaptersDependencies)
-	noTxBlobWantListRepository := notx.NewNoTxBlobWantListRepository(testTxAdaptersFactoryTransactionProvider)
+	devNullLogger := logging.NewDevNullLogger()
+	noTxBlobWantListRepository := notx.NewNoTxBlobWantListRepository(testTxAdaptersFactoryTransactionProvider, devNullLogger)
 	testAdapters := notx.TestAdapters{
 		NoTxBlobWantListRepository: noTxBlobWantListRepository,
 	}
@@ -501,7 +502,7 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 	negotiator := replication.NewNegotiator(logger, replicator, gossipReplicator)
 	txAdaptersFactory := noTxTxAdaptersFactory(public, config, logger)
 	txAdaptersFactoryTransactionProvider := notx.NewTxAdaptersFactoryTransactionProvider(db, txAdaptersFactory)
-	noTxBlobWantListRepository := notx.NewNoTxBlobWantListRepository(txAdaptersFactoryTransactionProvider)
+	noTxBlobWantListRepository := notx.NewNoTxBlobWantListRepository(txAdaptersFactoryTransactionProvider, logger)
 	noTxBlobsRepository := notx.NewNoTxBlobsRepository(txAdaptersFactoryTransactionProvider)
 	storageBlobsThatShouldBePushedProvider, err := replication2.NewStorageBlobsThatShouldBePushedProvider(noTxBlobsRepository, public, currentTimeProvider)
 	if err != nil {
@@ -639,7 +640,8 @@ func BuildService(contextContext context.Context, private identity.Private, conf
 		return Service{}, nil, err
 	}
 	garbageCollector := badger.NewGarbageCollector(db, logger)
-	service := NewService(application, listener, networkDiscoverer, connectionEstablisher, requestSubscriber, roomAttendantEventSubscriber, advertiser, messageBuffer, createHistoryStreamHandler, garbageCollector)
+	noTxFeedWantListRepository := notx.NewNoTxFeedWantListRepository(txAdaptersFactoryTransactionProvider, logger)
+	service := NewService(application, listener, networkDiscoverer, connectionEstablisher, requestSubscriber, roomAttendantEventSubscriber, advertiser, messageBuffer, createHistoryStreamHandler, garbageCollector, noTxFeedWantListRepository, noTxBlobWantListRepository)
 	return service, func() {
 		cleanup()
 	}, nil
@@ -714,7 +716,7 @@ func buildIntegrationTestsService(t *testing.T) (IntegrationTestsService, func()
 	negotiator := replication.NewNegotiator(logger, replicator, gossipReplicator)
 	txAdaptersFactory := noTxTxAdaptersFactory(public, config, logger)
 	txAdaptersFactoryTransactionProvider := notx.NewTxAdaptersFactoryTransactionProvider(db, txAdaptersFactory)
-	noTxBlobWantListRepository := notx.NewNoTxBlobWantListRepository(txAdaptersFactoryTransactionProvider)
+	noTxBlobWantListRepository := notx.NewNoTxBlobWantListRepository(txAdaptersFactoryTransactionProvider, logger)
 	noTxBlobsRepository := notx.NewNoTxBlobsRepository(txAdaptersFactoryTransactionProvider)
 	storageBlobsThatShouldBePushedProvider, err := replication2.NewStorageBlobsThatShouldBePushedProvider(noTxBlobsRepository, public, currentTimeProvider)
 	if err != nil {
@@ -852,7 +854,8 @@ func buildIntegrationTestsService(t *testing.T) (IntegrationTestsService, func()
 		return IntegrationTestsService{}, nil, err
 	}
 	garbageCollector := badger.NewGarbageCollector(db, logger)
-	service := NewService(application, listener, networkDiscoverer, connectionEstablisher, requestSubscriber, roomAttendantEventSubscriber, advertiser, messageBuffer, createHistoryStreamHandler, garbageCollector)
+	noTxFeedWantListRepository := notx.NewNoTxFeedWantListRepository(txAdaptersFactoryTransactionProvider, logger)
+	service := NewService(application, listener, networkDiscoverer, connectionEstablisher, requestSubscriber, roomAttendantEventSubscriber, advertiser, messageBuffer, createHistoryStreamHandler, garbageCollector, noTxFeedWantListRepository, noTxBlobWantListRepository)
 	banListHasher := adapters.NewBanListHasher()
 	integrationTestsService := IntegrationTestsService{
 		Service:       service,

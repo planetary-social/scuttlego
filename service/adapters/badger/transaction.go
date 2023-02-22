@@ -43,7 +43,7 @@ func NewQueriesTransactionProvider(db *badger.DB, factory QueriesAdaptersFactory
 }
 
 func (t QueriesTransactionProvider) Transact(f func(adapters queries.Adapters) error) error {
-	return t.db.Update(func(tx *badger.Txn) error { // todo https://github.com/planetary-social/scuttlego/issues/100
+	return t.db.View(func(tx *badger.Txn) error {
 		adapters, err := t.factory(tx)
 		if err != nil {
 			return errors.Wrap(err, "failed to build adapters")

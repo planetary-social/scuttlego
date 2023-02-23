@@ -4,7 +4,7 @@
 
 The project loosely follows [hexagonal architecture][hexagonal-architecture].
 Following this pattern we can distinguish four general areas of this codebase.
-To group them together and keep them apart them from the usual noise such as
+To group them together and keep them apart from the usual noise such as
 logging or test related code they were placed in the package `service`.
 
 The **domain** layer is located in `service/domain`. In this directory you can

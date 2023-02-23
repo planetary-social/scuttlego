@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	messageBufferPersistAtMessages = 1000
+	messageBufferPersistAtMessages = 250
 	messageBufferPersistEvery      = 5 * time.Second
 
 	leaveUnpersistedMessagesFor = 15 * time.Second

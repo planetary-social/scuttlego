@@ -89,9 +89,9 @@ func NewMessageHeader(flags MessageHeaderFlags, bodyLength uint32, requestNumber
 		return MessageHeader{}, errors.New("request number can not be set to zero")
 	}
 
-	if header.IsRequest() && !header.Flags().EndOrError() {
+	if header.Flags().EndOrError() {
 		if flags.BodyType() != MessageBodyTypeJSON {
-			return MessageHeader{}, errors.New("requests should have body type set to JSON")
+			return MessageHeader{}, errors.New("terminations should have body type set to JSON")
 		}
 	}
 

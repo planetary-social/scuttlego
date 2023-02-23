@@ -16,3 +16,8 @@ func ShuffleSlice[T any](slice []T) {
 		slice[i], slice[j] = slice[j], slice[i]
 	})
 }
+
+func RandomElement[T any](slice []T) T {
+	return slice[rand.Intn(len(slice))]
+
+}

@@ -7,6 +7,7 @@ import (
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/mux"
+	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/transport"
 )
 
 type ResponseStreamReadWriteCloserAdapter struct {
@@ -41,7 +42,7 @@ func (s ResponseStreamReadWriteCloserAdapter) Read(p []byte) (int, error) {
 }
 
 func (s ResponseStreamReadWriteCloserAdapter) Write(p []byte) (n int, err error) {
-	return len(p), s.stream.WriteMessage(p)
+	return len(p), s.stream.WriteMessage(p, transport.MessageBodyTypeBinary)
 }
 
 func (s ResponseStreamReadWriteCloserAdapter) Close() error {
@@ -82,7 +83,7 @@ func (s StreamReadWriteCloserAdapter) Read(p []byte) (n int, err error) {
 }
 
 func (s StreamReadWriteCloserAdapter) Write(p []byte) (n int, err error) {
-	return len(p), s.stream.WriteMessage(p)
+	return len(p), s.stream.WriteMessage(p, transport.MessageBodyTypeBinary)
 }
 
 func (s StreamReadWriteCloserAdapter) Close() error {

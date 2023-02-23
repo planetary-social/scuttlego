@@ -12,6 +12,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/messages"
 	transportrpc "github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/mux/mocks"
+	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/transport"
 	"github.com/planetary-social/scuttlego/service/ports/rpc"
 	"github.com/stretchr/testify/require"
 )
@@ -57,9 +58,10 @@ func TestCreateHistoryStream(t *testing.T) {
 
 			msgs := s.WrittenMessages()
 			require.Len(t, msgs, 1)
-			for _, body := range msgs {
+			for _, msg := range msgs {
 				keyJSON := []byte(`"key":`)
-				require.Equal(t, testCase.ContainsKeys, bytes.Contains(body, keyJSON))
+				require.Equal(t, testCase.ContainsKeys, bytes.Contains(msg.Body, keyJSON))
+				require.Equal(t, transport.MessageBodyTypeJSON, msg.BodyType)
 			}
 		})
 	}

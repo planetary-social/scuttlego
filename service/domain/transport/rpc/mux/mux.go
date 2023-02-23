@@ -8,16 +8,17 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
+	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/transport"
 )
 
 type Stream interface {
 	IncomingMessages() (<-chan rpc.IncomingMessage, error)
-	WriteMessage(body []byte) error
+	WriteMessage(body []byte, bodyType transport.MessageBodyType) error
 }
 
 type CloserStream interface {
 	IncomingMessages() (<-chan rpc.IncomingMessage, error)
-	WriteMessage(body []byte) error
+	WriteMessage(body []byte, bodyType transport.MessageBodyType) error
 	CloseWithError(err error) error
 }
 

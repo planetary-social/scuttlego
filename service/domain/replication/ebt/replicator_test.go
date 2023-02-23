@@ -13,6 +13,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/replication/ebt"
 	"github.com/planetary-social/scuttlego/service/domain/transport"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
+	rpctransport "github.com/planetary-social/scuttlego/service/domain/transport/rpc/transport"
 	"github.com/stretchr/testify/require"
 )
 
@@ -195,7 +196,7 @@ func newResponseStreamMock(ctx context.Context) *responseStreamMock {
 	return &responseStreamMock{ctx: ctx}
 }
 
-func (r responseStreamMock) WriteMessage(body []byte) error {
+func (r responseStreamMock) WriteMessage(body []byte, bodyType rpctransport.MessageBodyType) error {
 	return nil
 }
 

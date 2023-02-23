@@ -10,6 +10,7 @@ import (
 	"github.com/planetary-social/scuttlego/fixtures"
 	"github.com/planetary-social/scuttlego/service/domain/rooms/tunnel"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
+	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/transport"
 	"github.com/stretchr/testify/require"
 )
 
@@ -148,8 +149,11 @@ func TestResponseStreamReadWriteCloserAdapter_WriteCallsWriteMessage(t *testing.
 	require.NoError(t, err)
 	require.Equal(t, len(someBytes), n)
 	require.Equal(t,
-		[][]byte{
-			someBytes,
+		[]responseStreamMockWriteMessageCall{
+			{
+				Body:     someBytes,
+				BodyType: transport.MessageBodyTypeBinary,
+			},
 		},
 		stream.WriteMessageCalls,
 	)
@@ -269,8 +273,11 @@ func TestStreamReadWriterCloserAdapter_WriteCallsWriteMessage(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, len(someBytes), n)
 	require.Equal(t,
-		[][]byte{
-			someBytes,
+		[]streamMockWriteMessageCall{
+			{
+				Body:     someBytes,
+				BodyType: transport.MessageBodyTypeBinary,
+			},
 		},
 		stream.WriteMessageCalls,
 	)
@@ -288,10 +295,15 @@ func (m *cancelFuncMock) Cancel() {
 	m.Called = true
 }
 
+type responseStreamMockWriteMessageCall struct {
+	Body     []byte
+	BodyType transport.MessageBodyType
+}
+
 type responseStreamMock struct {
 	ctx               context.Context
 	ch                chan rpc.ResponseWithError
-	WriteMessageCalls [][]byte
+	WriteMessageCalls []responseStreamMockWriteMessageCall
 }
 
 func newResponseStreamMock(ctx context.Context, messagesToReceive []rpc.ResponseWithError) *responseStreamMock {
@@ -316,8 +328,11 @@ func newResponseStreamMock(ctx context.Context, messagesToReceive []rpc.Response
 	}
 }
 
-func (r *responseStreamMock) WriteMessage(body []byte) error {
-	r.WriteMessageCalls = append(r.WriteMessageCalls, body)
+func (r *responseStreamMock) WriteMessage(body []byte, bodyType transport.MessageBodyType) error {
+	r.WriteMessageCalls = append(r.WriteMessageCalls, responseStreamMockWriteMessageCall{
+		Body:     body,
+		BodyType: bodyType,
+	})
 	return nil
 }
 
@@ -329,9 +344,14 @@ func (r *responseStreamMock) Ctx() context.Context {
 	return r.ctx
 }
 
+type streamMockWriteMessageCall struct {
+	Body     []byte
+	BodyType transport.MessageBodyType
+}
+
 type streamMock struct {
 	ch                chan rpc.IncomingMessage
-	WriteMessageCalls [][]byte
+	WriteMessageCalls []streamMockWriteMessageCall
 }
 
 func newStreamMock(ctx context.Context, messagesToReceive []rpc.IncomingMessage) *streamMock {
@@ -359,7 +379,10 @@ func (s *streamMock) IncomingMessages() (<-chan rpc.IncomingMessage, error) {
 	return s.ch, nil
 }
 
-func (s *streamMock) WriteMessage(body []byte) error {
-	s.WriteMessageCalls = append(s.WriteMessageCalls, body)
+func (s *streamMock) WriteMessage(body []byte, bodyType transport.MessageBodyType) error {
+	s.WriteMessageCalls = append(s.WriteMessageCalls, streamMockWriteMessageCall{
+		Body:     body,
+		BodyType: bodyType,
+	})
 	return nil
 }

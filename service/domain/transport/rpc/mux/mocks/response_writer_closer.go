@@ -5,10 +5,11 @@ import (
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
+	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/transport"
 )
 
 type MockCloserStream struct {
-	writtenMessages [][]byte
+	writtenMessages []MockCloserStreamWriteMessageCall
 	writtenErrors   []error
 	lock            sync.Mutex // locks writtenMessages and writtenErrors
 }
@@ -17,21 +18,24 @@ func NewMockCloserStream() *MockCloserStream {
 	return &MockCloserStream{}
 }
 
-func (m *MockCloserStream) WriteMessage(body []byte) error {
+func (m *MockCloserStream) WriteMessage(body []byte, bodyType transport.MessageBodyType) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
 	cpy := make([]byte, len(body))
 	copy(cpy, body)
-	m.writtenMessages = append(m.writtenMessages, cpy)
+	m.writtenMessages = append(m.writtenMessages, MockCloserStreamWriteMessageCall{
+		Body:     cpy,
+		BodyType: bodyType,
+	})
 	return nil
 }
 
-func (m *MockCloserStream) WrittenMessages() [][]byte {
+func (m *MockCloserStream) WrittenMessages() []MockCloserStreamWriteMessageCall {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	tmp := make([][]byte, len(m.writtenMessages))
+	tmp := make([]MockCloserStreamWriteMessageCall, len(m.writtenMessages))
 	copy(tmp, m.writtenMessages)
 	return tmp
 }
@@ -55,4 +59,9 @@ func (m *MockCloserStream) WrittenErrors() []error {
 
 func (m *MockCloserStream) IncomingMessages() (<-chan rpc.IncomingMessage, error) {
 	return nil, errors.New("not implemented")
+}
+
+type MockCloserStreamWriteMessageCall struct {
+	Body     []byte
+	BodyType transport.MessageBodyType
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	transportrpc "github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/mux/mocks"
+	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/transport"
 	"github.com/planetary-social/scuttlego/service/ports/rpc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -42,12 +43,18 @@ func TestCreateWantsHandlerSendsValuesReturnedByCreateWantsCommand(t *testing.T)
 	require.Eventually(t,
 		func() bool {
 			for i, msg := range s.WrittenMessages() {
-				t.Log(i, string(msg))
+				t.Log(i, msg.BodyType, string(msg.Body))
 			}
 			return assert.ObjectsAreEqual(
-				[][]byte{
-					[]byte(`{"\u0026Uv38ByGCZU8WP18PmmIdcpVmx00QA3xNe7sEB9Hixkk=.sha256":123}`),
-					[]byte(`{"\u0026gYVaHgAWeTnLZpTSxCKs0gigByk5SH9pmeudGKRHhAQ=.sha256":-1}`),
+				[]mocks.MockCloserStreamWriteMessageCall{
+					{
+						Body:     []byte(`{"\u0026Uv38ByGCZU8WP18PmmIdcpVmx00QA3xNe7sEB9Hixkk=.sha256":123}`),
+						BodyType: transport.MessageBodyTypeJSON,
+					},
+					{
+						Body:     []byte(`{"\u0026gYVaHgAWeTnLZpTSxCKs0gigByk5SH9pmeudGKRHhAQ=.sha256":-1}`),
+						BodyType: transport.MessageBodyTypeJSON,
+					},
 				},
 				s.WrittenMessages(),
 			)

@@ -8,6 +8,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/messages"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/mux"
+	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/transport"
 )
 
 type CreateWantsCommandHandler interface {
@@ -50,7 +51,7 @@ func (h HandlerBlobsCreateWants) Handle(ctx context.Context, s mux.Stream, req *
 			return errors.Wrap(err, "json marshalling failed")
 		}
 
-		if err := s.WriteMessage(j); err != nil {
+		if err := s.WriteMessage(j, transport.MessageBodyTypeJSON); err != nil {
 			return errors.Wrap(err, "failed to send a message")
 		}
 	}

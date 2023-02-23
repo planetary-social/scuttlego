@@ -10,6 +10,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/messages"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/mux"
+	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/transport"
 )
 
 const (
@@ -74,7 +75,7 @@ func (h HandlerBlobsGet) Handle(ctx context.Context, s mux.Stream, req *rpc.Requ
 			return nil
 		}
 
-		if err := s.WriteMessage(buf.Bytes()); err != nil {
+		if err := s.WriteMessage(buf.Bytes(), transport.MessageBodyTypeBinary); err != nil {
 			return errors.Wrap(err, "failed to write the message")
 		}
 

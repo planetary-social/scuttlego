@@ -46,13 +46,14 @@ func TestRequestStream_WriteMessageCallsMessageSender(t *testing.T) {
 	require.NoError(t, err)
 
 	body := []byte("some body")
+	bodyType := fixtures.SomeMessageBodyType()
 
-	err = stream.WriteMessage(body)
+	err = stream.WriteMessage(body, bodyType)
 	require.NoError(t, err)
 
 	expectedMessage, err := transport.NewMessage(
 		transport.MustNewMessageHeader(
-			transport.MustNewMessageHeaderFlags(true, false, transport.MessageBodyTypeJSON),
+			transport.MustNewMessageHeaderFlags(true, false, bodyType),
 			uint32(len(body)),
 			int32(-requestNumber),
 		),

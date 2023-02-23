@@ -25,7 +25,7 @@ change.**
 ### Planned in the near future
 
 - Connection manager (dynamic discovery of pubs from feeds)
-- Handling blob wants recevied from remote peers
+- Handling blob wants received from remote peers
 - Cleaning up old blobs and messages
 
 ### Planned

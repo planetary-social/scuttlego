@@ -1,6 +1,7 @@
 package blobs
 
 import (
+	"bytes"
 	"encoding/base64"
 	"strings"
 	"unicode/utf8"
@@ -22,6 +23,10 @@ func NewScanner() *Scanner {
 }
 
 func (s *Scanner) Scan(content message.RawContent) ([]refs.Blob, error) {
+	if !bytes.Contains(content.Bytes(), []byte(refs.BlobPrefix)) {
+		return nil, nil
+	}
+
 	l := newLexer(content.Bytes())
 
 	if err := l.lex(); err != nil {

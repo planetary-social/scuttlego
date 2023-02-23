@@ -244,7 +244,7 @@ func TestNewMux_HandlerDoesNotBlock(t *testing.T) {
 		newMockHandler(
 			procedure,
 			func(ctx context.Context, s mux.Stream, req *rpc.Request) error {
-				if err := s.WriteMessage(fixtures.SomeBytes()); err != nil {
+				if err := s.WriteMessage(fixtures.SomeBytes(), fixtures.SomeMessageBodyType()); err != nil {
 					t.Fatal(err)
 				}
 				<-time.After(delay)
@@ -288,7 +288,7 @@ func TestNewMux_SynchronousHandlerBlocks(t *testing.T) {
 		newMockSynchronousHandler(
 			procedure,
 			func(ctx context.Context, s mux.Stream, req *rpc.Request) {
-				if err := s.WriteMessage(fixtures.SomeBytes()); err != nil {
+				if err := s.WriteMessage(fixtures.SomeBytes(), fixtures.SomeMessageBodyType()); err != nil {
 					t.Fatal(err)
 				}
 				<-time.After(delay)

@@ -11,6 +11,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/messages"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/mux"
+	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/transport"
 )
 
 // CreateHistoryStreamQueryHandler is here to make testing easier. See docs for
@@ -80,7 +81,7 @@ func (rw CreateHistoryStreamResponseWriter) WriteMessage(msg message.Message) er
 		return errors.Wrap(err, "could not create a response")
 	}
 
-	if err := rw.s.WriteMessage(b); err != nil {
+	if err := rw.s.WriteMessage(b, transport.MessageBodyTypeJSON); err != nil {
 		return errors.Wrap(err, "could not write the message")
 	}
 

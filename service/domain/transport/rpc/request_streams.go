@@ -19,7 +19,7 @@ type IncomingMessage struct {
 
 type Stream interface {
 	// WriteMessage sends a message over the underlying stream.
-	WriteMessage(body []byte) error
+	WriteMessage(body []byte, bodyType transport.MessageBodyType) error
 
 	// CloseWithError terminates the underlying stream. Error is sent to the
 	// other party. Error can be nil.

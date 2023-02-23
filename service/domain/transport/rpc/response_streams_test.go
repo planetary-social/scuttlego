@@ -127,6 +127,8 @@ func TestResponseStreams_RequestsAndInStreamMessagesAreCorrectlyMarshaledInDuple
 		rpc.ProcedureTypeDuplex,
 		fixtures.SomeJSON(),
 	)
+
+	inStreamMessageBodyType := fixtures.SomeMessageBodyType()
 	inStreamMessageData := fixtures.SomeBytes()
 
 	streams := rpc.NewResponseStreams(sender, logger)
@@ -134,7 +136,7 @@ func TestResponseStreams_RequestsAndInStreamMessagesAreCorrectlyMarshaledInDuple
 	stream, err := streams.Open(ctx, req)
 	require.NoError(t, err)
 
-	err = stream.WriteMessage(inStreamMessageData)
+	err = stream.WriteMessage(inStreamMessageData, inStreamMessageBodyType)
 	require.NoError(t, err)
 
 	cancel()
@@ -144,7 +146,7 @@ func TestResponseStreams_RequestsAndInStreamMessagesAreCorrectlyMarshaledInDuple
 		1,
 	}
 	expectedInStreamMessage := expectedFlagsAndRequestNumber{
-		transport.MustNewMessageHeaderFlags(true, false, transport.MessageBodyTypeJSON),
+		transport.MustNewMessageHeaderFlags(true, false, inStreamMessageBodyType),
 		1,
 	}
 	expectedTerminationMessage := expectedFlagsAndRequestNumber{
@@ -267,7 +269,7 @@ func TestResponseStreams_ReturnsImplementationForWhichWriteMessageWorksOnlyForDu
 				))
 			require.NoError(t, err)
 
-			err = stream.WriteMessage(fixtures.SomeBytes())
+			err = stream.WriteMessage(fixtures.SomeBytes(), transport.MessageBodyTypeBinary)
 			if testCase.ExpectedError {
 				require.EqualError(t, err, "not a duplex stream")
 			} else {
@@ -421,7 +423,7 @@ func createResponse(req *transport.Message) *transport.Message {
 
 func createCleanTermination(req *transport.Message) *transport.Message {
 	header, err := transport.NewMessageHeader(
-		transport.MustNewMessageHeaderFlags(fixtures.SomeBool(), true, fixtures.SomeMessageBodyType()),
+		transport.MustNewMessageHeaderFlags(fixtures.SomeBool(), true, transport.MessageBodyTypeJSON),
 		4,
 		int32(-req.Header.RequestNumber()),
 	)
@@ -439,7 +441,7 @@ func createCleanTermination(req *transport.Message) *transport.Message {
 
 func createErrorTermination(req *transport.Message) *transport.Message {
 	header, err := transport.NewMessageHeader(
-		transport.MustNewMessageHeaderFlags(fixtures.SomeBool(), true, fixtures.SomeMessageBodyType()),
+		transport.MustNewMessageHeaderFlags(fixtures.SomeBool(), true, transport.MessageBodyTypeJSON),
 		0,
 		int32(-req.Header.RequestNumber()),
 	)

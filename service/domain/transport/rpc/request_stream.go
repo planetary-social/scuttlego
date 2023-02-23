@@ -60,15 +60,19 @@ func NewRequestStream(ctx context.Context, number int, typ ProcedureType, raw Me
 	return rs, nil
 }
 
-func (rs *RequestStream) WriteMessage(body []byte) error {
+func (rs *RequestStream) WriteMessage(body []byte, bodyType transport.MessageBodyType) error {
+	if bodyType.IsZero() {
+		return errors.New("zero value of body type")
+	}
+
 	select {
 	case <-rs.ctx.Done():
 		return rs.ctx.Err()
 	default:
 	}
 
-	// todo do this correctly? are the flags correct?
-	flags, err := transport.NewMessageHeaderFlags(true, false, transport.MessageBodyTypeJSON)
+	// todo is the stream flag correct?
+	flags, err := transport.NewMessageHeaderFlags(true, false, bodyType)
 	if err != nil {
 		return errors.Wrap(err, "could not create message header flags")
 	}

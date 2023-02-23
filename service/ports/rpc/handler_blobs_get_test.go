@@ -15,6 +15,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	transportrpc "github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/mux/mocks"
+	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/transport"
 	"github.com/planetary-social/scuttlego/service/ports/rpc"
 	"github.com/stretchr/testify/require"
 )
@@ -136,8 +137,11 @@ func TestSmallBlobIsWrittenToResponseWriter(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t,
-		[][]byte{
-			mockData,
+		[]mocks.MockCloserStreamWriteMessageCall{
+			{
+				Body:     mockData,
+				BodyType: transport.MessageBodyTypeBinary,
+			},
 		},
 		s.WrittenMessages(),
 	)
@@ -169,10 +173,19 @@ func TestLargeBlobIsWrittenToResponseWriter(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t,
-		[][]byte{
-			payloadInFirstMessage,
-			payloadInSecondMessage,
-			payloadInThirdMessage,
+		[]mocks.MockCloserStreamWriteMessageCall{
+			{
+				Body:     payloadInFirstMessage,
+				BodyType: transport.MessageBodyTypeBinary,
+			},
+			{
+				Body:     payloadInSecondMessage,
+				BodyType: transport.MessageBodyTypeBinary,
+			},
+			{
+				Body:     payloadInThirdMessage,
+				BodyType: transport.MessageBodyTypeBinary,
+			},
 		},
 		s.WrittenMessages(),
 	)

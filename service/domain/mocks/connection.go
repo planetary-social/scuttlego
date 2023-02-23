@@ -5,6 +5,7 @@ import (
 
 	"github.com/planetary-social/scuttlego/fixtures"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
+	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/transport"
 )
 
 type ConnectionMock struct {
@@ -84,7 +85,7 @@ func newResponseStreamMock(chReceive chan rpc.ResponseWithError) *responseStream
 	}
 }
 
-func (r responseStreamMock) WriteMessage(body []byte) error {
+func (r responseStreamMock) WriteMessage(body []byte, bodyType transport.MessageBodyType) error {
 	return nil
 }
 

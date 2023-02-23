@@ -478,7 +478,7 @@ func TestPrematureTerminationByRemote(t *testing.T) {
 				},
 				&transport.Message{
 					Header: transport.MustNewMessageHeader(
-						transport.MustNewMessageHeaderFlags(fixtures.SomeBool(), true, fixtures.SomeMessageBodyType()),
+						transport.MustNewMessageHeaderFlags(fixtures.SomeBool(), true, transport.MessageBodyTypeJSON),
 						fixtures.SomeUint32(),
 						requestNumber,
 					),

@@ -61,32 +61,32 @@ func TestMessageHeader(t *testing.T) {
 		},
 
 		{
-			Name:          "request_body_type_can_not_be_binary",
+			Name:          "request_body_type_can_be_binary_in_duplex_streams",
 			Flags:         transport.MustNewMessageHeaderFlags(true, false, transport.MessageBodyTypeBinary),
 			BodyLength:    validBodyLength,
 			RequestNumber: validRequestNumber,
-			ExpectedError: errors.New("requests should have body type set to JSON"),
+			ExpectedError: nil,
 		},
 		{
-			Name:          "request_body_type_can_not_be_string",
+			Name:          "request_body_type_can_be_string_in_duplex_streams",
 			Flags:         transport.MustNewMessageHeaderFlags(true, false, transport.MessageBodyTypeString),
 			BodyLength:    validBodyLength,
 			RequestNumber: validRequestNumber,
-			ExpectedError: errors.New("requests should have body type set to JSON"),
+			ExpectedError: nil,
 		},
 		{
-			Name:          "request_body_type_can_be_binary_if_termination",
+			Name:          "request_body_type_can_not_be_binary_if_termination",
 			Flags:         transport.MustNewMessageHeaderFlags(true, true, transport.MessageBodyTypeBinary),
 			BodyLength:    validBodyLength,
 			RequestNumber: validRequestNumber,
-			ExpectedError: nil,
+			ExpectedError: errors.New("terminations should have body type set to JSON"),
 		},
 		{
-			Name:          "request_body_type_can_be_string_if_termination",
+			Name:          "request_body_type_can_not_be_string_if_termination",
 			Flags:         transport.MustNewMessageHeaderFlags(true, true, transport.MessageBodyTypeString),
 			BodyLength:    validBodyLength,
 			RequestNumber: validRequestNumber,
-			ExpectedError: nil,
+			ExpectedError: errors.New("terminations should have body type set to JSON"),
 		},
 
 		{

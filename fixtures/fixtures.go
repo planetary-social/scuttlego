@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/dgraph-io/badger/v3"
+	"github.com/planetary-social/scuttlego/internal"
 	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/app/common"
 	"github.com/planetary-social/scuttlego/service/domain/bans"
@@ -127,11 +128,12 @@ func SomeContent() message.Content {
 }
 
 func SomeMessageBodyType() transport.MessageBodyType {
-	if rand.Int()%2 == 0 {
-		return transport.MessageBodyTypeJSON
-	} else {
-		return transport.MessageBodyTypeBinary
+	choices := []transport.MessageBodyType{
+		transport.MessageBodyTypeBinary,
+		transport.MessageBodyTypeString,
+		transport.MessageBodyTypeJSON,
 	}
+	return internal.RandomElement(choices)
 }
 
 func SomeSequence() message.Sequence {

@@ -17,7 +17,7 @@ type MessageSender interface {
 
 // ResponseStream represents a stream that we initiated.
 type ResponseStream interface {
-	WriteMessage(body []byte) error
+	WriteMessage(body []byte, bodyType transport.MessageBodyType) error
 	Channel() <-chan ResponseWithError
 	Ctx() context.Context
 }
@@ -215,9 +215,13 @@ func newResponseStream(ctx context.Context, number int, typ ProcedureType, raw M
 	}, nil
 }
 
-func (rs responseStream) WriteMessage(body []byte) error {
+func (rs responseStream) WriteMessage(body []byte, bodyType transport.MessageBodyType) error {
 	if rs.typ != ProcedureTypeDuplex {
 		return errors.New("not a duplex stream")
+	}
+
+	if bodyType.IsZero() {
+		return errors.New("zero value of body type")
 	}
 
 	select {
@@ -226,8 +230,8 @@ func (rs responseStream) WriteMessage(body []byte) error {
 	default:
 	}
 
-	// todo do this correctly? are the flags correct?
-	flags, err := transport.NewMessageHeaderFlags(true, false, transport.MessageBodyTypeJSON)
+	// todo is the stream flag correct?
+	flags, err := transport.NewMessageHeaderFlags(true, false, bodyType)
 	if err != nil {
 		return errors.Wrap(err, "could not create message header flags")
 	}

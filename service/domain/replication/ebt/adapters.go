@@ -11,6 +11,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/replication"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/mux"
+	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/transport"
 )
 
 type OutgoingStreamAdapter struct {
@@ -76,11 +77,11 @@ func (r *OutgoingStreamAdapter) SendNotes(notes messages.EbtReplicateNotes) erro
 	if err != nil {
 		return errors.Wrap(err, "json marshal error")
 	}
-	return r.stream.WriteMessage(j)
+	return r.stream.WriteMessage(j, transport.MessageBodyTypeJSON)
 }
 
 func (r *OutgoingStreamAdapter) SendMessage(msg *message.Message) error {
-	return r.stream.WriteMessage(msg.Raw().Bytes())
+	return r.stream.WriteMessage(msg.Raw().Bytes(), transport.MessageBodyTypeJSON)
 }
 
 type IncomingStreamAdapter struct {
@@ -137,11 +138,11 @@ func (s IncomingStreamAdapter) SendNotes(notes messages.EbtReplicateNotes) error
 	if err != nil {
 		return errors.Wrap(err, "json marshal error")
 	}
-	return s.stream.WriteMessage(j)
+	return s.stream.WriteMessage(j, transport.MessageBodyTypeJSON)
 }
 
 func (s IncomingStreamAdapter) SendMessage(msg *message.Message) error {
-	return s.stream.WriteMessage(msg.Raw().Bytes())
+	return s.stream.WriteMessage(msg.Raw().Bytes(), transport.MessageBodyTypeJSON)
 }
 
 func parseIncomingMsg(b []byte) (IncomingMessage, error) {

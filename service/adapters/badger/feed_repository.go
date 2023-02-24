@@ -6,6 +6,7 @@ import (
 
 	"github.com/boreq/errors"
 	"github.com/dgraph-io/badger/v3"
+	"github.com/planetary-social/scuttlego/internal"
 	"github.com/planetary-social/scuttlego/service/adapters/badger/utils"
 	"github.com/planetary-social/scuttlego/service/app/commands"
 	"github.com/planetary-social/scuttlego/service/app/common"
@@ -104,35 +105,34 @@ func (b FeedRepository) GetSequence(ref refs.Feed) (message.Sequence, error) {
 }
 
 func (b FeedRepository) GetMessages(id refs.Feed, seq *message.Sequence, limit *int) ([]message.Message, error) {
-	var messages []message.Message
+	if seq == nil {
+		seq = internal.Ptr(message.NewFirstSequence())
+	}
 
 	bucket := b.getFeedBucket(id)
+	it := bucket.Iterator()
+	defer it.Close()
 
-	// todo not stupid implementation (with seek)
-	if err := bucket.ForEach(func(item utils.Item) error {
-		valueCopy, err := item.ValueCopy(nil)
+	var messages []message.Message
+	for it.Seek(b.marshalMessageKey(*seq)); it.ValidForBucket(); it.Next() {
+		valueCopy, err := it.Item().ValueCopy(nil)
 		if err != nil {
-			return errors.Wrap(err, "error getting value")
-
+			return nil, errors.Wrap(err, "error getting value")
 		}
 
 		msgId, err := refs.NewMessage(string(valueCopy))
 		if err != nil {
-			return errors.Wrap(err, "failed to create a message ref")
+			return nil, errors.Wrap(err, "failed to create a message ref")
 		}
 
 		msg, err := b.messageRepository.Get(msgId)
 		if err != nil {
-			return errors.Wrap(err, "failed to get the message")
+			return nil, errors.Wrap(err, "failed to get the message")
 		}
 
-		if (limit == nil || len(messages) < *limit) && (seq == nil || !seq.ComesAfter(msg.Sequence())) {
+		if limit == nil || len(messages) < *limit {
 			messages = append(messages, msg)
 		}
-
-		return nil
-	}); err != nil {
-		return nil, errors.Wrap(err, "failed to iterate")
 	}
 
 	return messages, nil

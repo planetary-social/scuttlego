@@ -15,7 +15,7 @@ import (
 func TestSocialGraphBuilder_FolloweesAreAddedToTheGraphUpToCertainDepth(t *testing.T) {
 	test := newTestSocialGraphBuilder(t)
 
-	local := fixtures.SomeRefIdentity()
+	local := test.Local
 
 	a := fixtures.SomeRefIdentity()
 	b := fixtures.SomeRefIdentity()
@@ -33,7 +33,7 @@ func TestSocialGraphBuilder_FolloweesAreAddedToTheGraphUpToCertainDepth(t *testi
 		},
 	}
 
-	g, err := test.Builder.Build(graph.MustNewHops(2), local)
+	g, err := test.Builder.Build()
 	require.NoError(t, err)
 
 	requireEqualContacts(t,
@@ -63,7 +63,7 @@ func TestSocialGraphBuilder_FolloweesAreAddedToTheGraphUpToCertainDepth(t *testi
 func TestSocialGraphBuilder_SmallerNumberOfHopsTakesPriority(t *testing.T) {
 	test := newTestSocialGraphBuilder(t)
 
-	local := fixtures.SomeRefIdentity()
+	local := test.Local
 
 	a := fixtures.SomeRefIdentity()
 	b := fixtures.SomeRefIdentity()
@@ -78,7 +78,7 @@ func TestSocialGraphBuilder_SmallerNumberOfHopsTakesPriority(t *testing.T) {
 		},
 	}
 
-	g, err := test.Builder.Build(graph.MustNewHops(2), local)
+	g, err := test.Builder.Build()
 	require.NoError(t, err)
 
 	requireEqualContacts(t,
@@ -103,7 +103,7 @@ func TestSocialGraphBuilder_SmallerNumberOfHopsTakesPriority(t *testing.T) {
 func TestSocialGraphBuilder_EdgesWhichAreBlockedOrNotSetAsFollowingAreNotFollowed(t *testing.T) {
 	test := newTestSocialGraphBuilder(t)
 
-	local := fixtures.SomeRefIdentity()
+	local := test.Local
 
 	a := fixtures.SomeRefIdentity()
 	b := fixtures.SomeRefIdentity()
@@ -123,7 +123,7 @@ func TestSocialGraphBuilder_EdgesWhichAreBlockedOrNotSetAsFollowingAreNotFollowe
 		},
 	}
 
-	g, err := test.Builder.Build(graph.MustNewHops(2), local)
+	g, err := test.Builder.Build()
 	require.NoError(t, err)
 
 	requireEqualContacts(t,
@@ -148,7 +148,7 @@ func TestSocialGraphBuilder_EdgesWhichAreBlockedOrNotSetAsFollowingAreNotFollowe
 func TestContacts_LocalBlockingTakesPriorityAndAlwaysExcludesFeeds(t *testing.T) {
 	test := newTestSocialGraphBuilder(t)
 
-	local := fixtures.SomeRefIdentity()
+	local := test.Local
 
 	a := fixtures.SomeRefIdentity()
 	b := fixtures.SomeRefIdentity()
@@ -172,7 +172,7 @@ func TestContacts_LocalBlockingTakesPriorityAndAlwaysExcludesFeeds(t *testing.T)
 		},
 	}
 
-	g, err := test.Builder.Build(graph.MustNewHops(2), local)
+	g, err := test.Builder.Build()
 	require.NoError(t, err)
 
 	requireEqualContacts(t,
@@ -201,7 +201,7 @@ func TestContacts_LocalBlockingTakesPriorityAndAlwaysExcludesFeeds(t *testing.T)
 func TestSocialGraphBuilder_BanningLocalFeedIsIgnored(t *testing.T) {
 	test := newTestSocialGraphBuilder(t)
 
-	local := fixtures.SomeRefIdentity()
+	local := test.Local
 
 	a := fixtures.SomeRefIdentity()
 
@@ -213,7 +213,7 @@ func TestSocialGraphBuilder_BanningLocalFeedIsIgnored(t *testing.T) {
 
 	test.BanList.Ban(local.MainFeed())
 
-	g, err := test.Builder.Build(graph.MustNewHops(2), local)
+	g, err := test.Builder.Build()
 	require.NoError(t, err)
 
 	requireEqualContacts(t,
@@ -234,7 +234,7 @@ func TestSocialGraphBuilder_BanningLocalFeedIsIgnored(t *testing.T) {
 func TestSocialGraphBuilder_BanListExcludesChildContacts(t *testing.T) {
 	test := newTestSocialGraphBuilder(t)
 
-	local := fixtures.SomeRefIdentity()
+	local := test.Local
 
 	a := fixtures.SomeRefIdentity()
 	b := fixtures.SomeRefIdentity()
@@ -258,7 +258,7 @@ func TestSocialGraphBuilder_BanListExcludesChildContacts(t *testing.T) {
 	test.BanList.Ban(local.MainFeed())
 	test.BanList.Ban(a.MainFeed())
 
-	g, err := test.Builder.Build(graph.MustNewHops(2), local)
+	g, err := test.Builder.Build()
 	require.NoError(t, err)
 
 	requireEqualContacts(t,
@@ -283,7 +283,7 @@ func TestSocialGraphBuilder_BanListExcludesChildContacts(t *testing.T) {
 func TestSocialGraphBuilder_ContactsStorageIsNotNeedlesslyQueried(t *testing.T) {
 	test := newTestSocialGraphBuilder(t)
 
-	local := fixtures.SomeRefIdentity()
+	local := test.Local
 
 	a := fixtures.SomeRefIdentity()
 	b := fixtures.SomeRefIdentity()
@@ -305,7 +305,7 @@ func TestSocialGraphBuilder_ContactsStorageIsNotNeedlesslyQueried(t *testing.T) 
 		},
 	}
 
-	g, err := test.Builder.Build(graph.MustNewHops(2), local)
+	g, err := test.Builder.Build()
 	require.NoError(t, err)
 
 	requireEqualContacts(t,
@@ -339,6 +339,61 @@ func TestSocialGraphBuilder_ContactsStorageIsNotNeedlesslyQueried(t *testing.T) 
 	)
 }
 
+func TestSocialGraphBuilder_HasContactDoesNotNeedlesslyQueryContactsStorage(t *testing.T) {
+	test := newTestSocialGraphBuilder(t)
+
+	local := test.Local
+
+	a := fixtures.SomeRefIdentity()
+	b := fixtures.SomeRefIdentity()
+	c := fixtures.SomeRefIdentity()
+	d := fixtures.SomeRefIdentity()
+
+	test.ContactsStorage.contacts = map[string][]*feeds.Contact{
+		local.String(): {
+			feeds.MustNewContactFromHistory(local, a, true, false),
+		},
+		a.String(): {
+			feeds.MustNewContactFromHistory(a, b, true, false),
+		},
+		b.String(): {
+			feeds.MustNewContactFromHistory(b, c, true, false),
+		},
+		c.String(): {
+			feeds.MustNewContactFromHistory(c, d, true, false),
+		},
+	}
+
+	ok, err := test.Builder.HasContact(a)
+	require.NoError(t, err)
+	require.True(t, ok)
+
+	require.Equal(t,
+		[]storageMockGetContactsCall{
+			{
+				Node: local,
+			},
+		},
+		test.ContactsStorage.GetContactsCalls,
+	)
+
+	ok, err = test.Builder.HasContact(b)
+	require.NoError(t, err)
+	require.True(t, ok)
+
+	require.Equal(t,
+		[]storageMockGetContactsCall{
+			{
+				Node: local,
+			},
+			{
+				Node: a,
+			},
+		},
+		test.ContactsStorage.GetContactsCalls,
+	)
+}
+
 func requireEqualContacts(t *testing.T, a []graph.Contact, b []graph.Contact) {
 	sort.Slice(a, func(i, j int) bool {
 		return a[i].Id.String() < a[j].Id.String()
@@ -354,16 +409,24 @@ type TestSocialGraphBuilder struct {
 
 	ContactsStorage *storageMock
 	BanList         *BanListMock
+
+	Hops  graph.Hops
+	Local refs.Identity
 }
 
 func newTestSocialGraphBuilder(t *testing.T) TestSocialGraphBuilder {
 	contactsStorage := newStorageMock()
 	banList := NewBanListMock()
+	hops := graph.MustNewHops(2)
+	local := fixtures.SomeRefIdentity()
 
 	return TestSocialGraphBuilder{
-		Builder:         graph.NewSocialGraphBuilder(contactsStorage, banList),
+		Builder:         graph.NewSocialGraphBuilder(contactsStorage, banList, hops, local),
 		ContactsStorage: contactsStorage,
 		BanList:         banList,
+
+		Hops:  hops,
+		Local: local,
 	}
 
 }

@@ -155,7 +155,7 @@ func (m *MessageBuffer) persist() error {
 }
 
 func (m *MessageBuffer) persistTransaction(adapters Adapters) (map[string]message.Sequence, error) {
-	socialGraph, err := adapters.SocialGraph.GetSocialGraph()
+	socialGraphBuilder, err := adapters.SocialGraph.GetSocialGraphBuilder()
 	if err != nil {
 		return nil, errors.Wrap(err, "could not load the social graph")
 	}
@@ -172,7 +172,7 @@ func (m *MessageBuffer) persistTransaction(adapters Adapters) (map[string]messag
 		feedRef := feedMessages.Feed()
 		feedLogger := m.logger.WithField("feed", feedRef)
 
-		shouldSave, err := m.shouldSave(adapters, socialGraph, feedRef)
+		shouldSave, err := m.shouldSave(adapters, socialGraphBuilder, feedRef)
 		if err != nil {
 			return nil, errors.Wrap(err, "error checking if this feed should be saved")
 		}
@@ -247,7 +247,7 @@ func (m *MessageBuffer) persistTransaction(adapters Adapters) (map[string]messag
 	return updatedSequences, nil
 }
 
-func (m *MessageBuffer) shouldSave(adapters Adapters, socialGraph graph.SocialGraph, feedRef refs.Feed) (bool, error) {
+func (m *MessageBuffer) shouldSave(adapters Adapters, socialGraphBuilder *graph.SocialGraphBuilder, feedRef refs.Feed) (bool, error) {
 	authorRef, err := refs.NewIdentityFromPublic(feedRef.Identity()) // todo cleanup
 	if err != nil {
 		return false, errors.Wrap(err, "error creating an identity")
@@ -267,7 +267,12 @@ func (m *MessageBuffer) shouldSave(adapters Adapters, socialGraph graph.SocialGr
 		return false, errors.Wrap(err, "error checking the want list")
 	}
 
-	if !socialGraph.HasContact(authorRef) && !wantListContains {
+	socialGraphContains, err := socialGraphBuilder.HasContact(authorRef)
+	if err != nil {
+		return false, errors.Wrap(err, "error checking the social graph")
+	}
+
+	if !socialGraphContains && !wantListContains {
 		return false, nil
 	}
 

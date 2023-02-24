@@ -37,7 +37,7 @@ type BadgerNoTxTestAdapters struct {
 	Dependencies        *badgeradapters.TestAdaptersDependencies
 }
 
-func BuildBadgerNoTxTestAdapters(t *testing.T) BadgerNoTxTestAdapters {
+func BuildBadgerNoTxTestAdapters(testing.TB) BadgerNoTxTestAdapters {
 	wire.Build(
 		wire.Struct(new(BadgerNoTxTestAdapters), "*"),
 
@@ -63,7 +63,7 @@ type BadgerTestAdapters struct {
 	Dependencies        *badgeradapters.TestAdaptersDependencies
 }
 
-func BuildBadgerTestAdapters(t *testing.T) BadgerTestAdapters {
+func BuildBadgerTestAdapters(testing.TB) BadgerTestAdapters {
 	wire.Build(
 		wire.Struct(new(BadgerTestAdapters), "*"),
 
@@ -158,7 +158,7 @@ type TestCommands struct {
 	ReceiveLog             *mocks.ReceiveLogRepositoryMock
 }
 
-func BuildTestCommands(*testing.T) (TestCommands, error) {
+func BuildTestCommands(testing.TB) (TestCommands, error) {
 	wire.Build(
 		commandsSet,
 		migrationCommandsSet,
@@ -233,7 +233,7 @@ type TestQueries struct {
 	LocalIdentity identity.Public
 }
 
-func BuildTestQueries(*testing.T) (TestQueries, error) {
+func BuildTestQueries(testing.TB) (TestQueries, error) {
 	wire.Build(
 		applicationSet,
 		mockQueryAdaptersSet,

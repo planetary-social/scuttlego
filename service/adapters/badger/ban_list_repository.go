@@ -178,6 +178,32 @@ func (b BanListRepository) LookupMapping(hash bans.Hash) (commands.BannableRef, 
 	}
 }
 
+func (b BanListRepository) List() ([]bans.Hash, error) {
+	bucket, err := b.hashesBucket()
+	if err != nil {
+		return nil, errors.Wrap(err, "error getting hashes bucket")
+	}
+
+	var result []bans.Hash
+	if err := bucket.ForEach(func(item utils.Item) error {
+		keyInBucket, err := bucket.KeyInBucket(item)
+		if err != nil {
+			return errors.Wrap(err, "error getting key in bucket")
+		}
+
+		h, err := bans.NewHash(keyInBucket.Bytes())
+		if err != nil {
+			return errors.Wrap(err, "error creating a hash")
+		}
+
+		result = append(result, h)
+		return nil
+	}); err != nil {
+		return nil, errors.Wrap(err, "foreach error")
+	}
+	return result, nil
+}
+
 func (b BanListRepository) hashesBucket() (utils.Bucket, error) {
 	return utils.NewBucket(b.tx, bucketBanListHashesKey)
 }

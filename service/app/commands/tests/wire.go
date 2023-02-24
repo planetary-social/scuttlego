@@ -16,7 +16,7 @@ type CommandIntegrationTest struct {
 	DeleteGoSSBRepositoryInOldFormat *commands.MigrationHandlerDeleteGoSSBRepositoryInOldFormat
 }
 
-func BuildCommandIntegrationTest(t *testing.T) CommandIntegrationTest {
+func BuildCommandIntegrationTest(t testing.TB) CommandIntegrationTest {
 	wire.Build(
 		wire.Struct(new(CommandIntegrationTest), "*"),
 

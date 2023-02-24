@@ -16,7 +16,7 @@ import (
 
 // Injectors from wire.go:
 
-func BuildCommandIntegrationTest(t *testing.T) CommandIntegrationTest {
+func BuildCommandIntegrationTest(t testing.TB) CommandIntegrationTest {
 	logger := fixtures.TestLogger(t)
 	goSSBRepoReader := migrations.NewGoSSBRepoReader(logger)
 	migrationHandlerDeleteGoSSBRepositoryInOldFormat := commands.NewMigrationHandlerDeleteGoSSBRepositoryInOldFormat(goSSBRepoReader, logger)

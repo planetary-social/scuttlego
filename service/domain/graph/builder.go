@@ -11,15 +11,15 @@ type ContactsStorage interface {
 	GetContacts(node refs.Identity) ([]*feeds.Contact, error)
 }
 
-type BanList interface {
+type BanListStorage interface {
 	ContainsFeed(feed refs.Feed) (bool, error)
 }
 
 type SocialGraphBuilder struct {
-	storage ContactsStorage
-	banList BanList
-	maxHops Hops
-	local   refs.Identity
+	contacts ContactsStorage
+	banList  BanListStorage
+	maxHops  Hops
+	local    refs.Identity
 
 	graph       SocialGraph
 	localBlocks internal.Set[string]
@@ -27,8 +27,8 @@ type SocialGraphBuilder struct {
 }
 
 func NewSocialGraphBuilder(
-	storage ContactsStorage,
-	banList BanList,
+	contacts ContactsStorage,
+	banList BanListStorage,
 	hops Hops,
 	local refs.Identity,
 ) *SocialGraphBuilder {
@@ -45,10 +45,10 @@ func NewSocialGraphBuilder(
 	})
 
 	return &SocialGraphBuilder{
-		storage: storage,
-		banList: banList,
-		maxHops: hops,
-		local:   local,
+		contacts: contacts,
+		banList:  banList,
+		maxHops:  hops,
+		local:    local,
 
 		graph:       g,
 		queue:       queue,
@@ -83,7 +83,7 @@ func (b *SocialGraphBuilder) buildUntil(buildUntil *refs.Identity) error {
 			break
 		}
 
-		childContacts, err := b.storage.GetContacts(current.Feed)
+		childContacts, err := b.contacts.GetContacts(current.Feed)
 		if err != nil {
 			return errors.Wrap(err, "could not get contacts")
 		}

@@ -107,7 +107,9 @@ func (b Bucket) targetKey(key []byte) ([]byte, error) {
 }
 
 func (b Bucket) KeyInBucket(item Item) (KeyComponent, error) {
-	itemKey, err := NewKeyFromBytes(item.KeyCopy(nil)) // todo copy only sometimes or later?
+	components := make([]KeyComponent, 0, len(b.prefix.components)+1)
+
+	itemKey, err := NewKeyFromBytesReusingComponents(item.KeyCopy(nil), components)
 	if err != nil {
 		return KeyComponent{}, errors.Wrap(err, "error parsing the key")
 	}

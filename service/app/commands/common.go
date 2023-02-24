@@ -92,7 +92,7 @@ type FeedRepository interface {
 }
 
 type SocialGraphRepository interface {
-	GetSocialGraph() (graph.SocialGraph, error)
+	GetSocialGraphBuilder() (*graph.SocialGraphBuilder, error)
 }
 
 type BlobWantListRepository interface {

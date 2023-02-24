@@ -40,7 +40,15 @@ func (s *SocialGraphRepository) GetSocialGraph() (graph.SocialGraph, error) {
 	if err != nil {
 		return graph.SocialGraph{}, errors.Wrap(err, "could not create a local ref")
 	}
-	return graph.NewSocialGraphBuilder(s, s.banList).Build(s.hops, localRef)
+	return graph.NewSocialGraphBuilder(s, s.banList, s.hops, localRef).Build()
+}
+
+func (s *SocialGraphRepository) GetSocialGraphBuilder() (*graph.SocialGraphBuilder, error) {
+	localRef, err := refs.NewIdentityFromPublic(s.local)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not create a local ref")
+	}
+	return graph.NewSocialGraphBuilder(s, s.banList, s.hops, localRef), nil
 }
 
 type UpdateContactFn func(*feeds.Contact) error

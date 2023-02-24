@@ -57,12 +57,6 @@ func (b *SocialGraphBuilder) Build(maxHops Hops, local refs.Identity) (SocialGra
 		}
 
 		for _, childContact := range childContacts {
-			childHops := MustNewHops(current.Hops.Int() + 1)
-
-			if childHops.Int() >= maxHops.Int()+1 {
-				continue
-			}
-
 			if _, visited := g.graph[childContact.Target().String()]; visited {
 				continue
 			}
@@ -76,8 +70,12 @@ func (b *SocialGraphBuilder) Build(maxHops Hops, local refs.Identity) (SocialGra
 				continue
 			}
 
+			childHops := MustNewHops(current.Hops.Int() + 1)
 			g.graph[childContact.Target().String()] = childHops
-			queue.Enqueue(feedWithDistance{Feed: childContact.Target(), Hops: childHops})
+
+			if childHops.Int() < maxHops.Int() {
+				queue.Enqueue(feedWithDistance{Feed: childContact.Target(), Hops: childHops})
+			}
 		}
 	}
 

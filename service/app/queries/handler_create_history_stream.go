@@ -15,7 +15,7 @@ import (
 const (
 	numCreateHistoryStreamWorkers = 10
 	noNewRequestsToProcessDelay   = 100 * time.Millisecond
-	cleanupDelay                  = 500 * time.Millisecond
+	cleanupDelay                  = 5 * time.Second
 )
 
 type MessageSubscriber interface {

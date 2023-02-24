@@ -11,7 +11,7 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/transport"
 )
 
-const requestStreamsCleanupDelay = 500 * time.Millisecond
+const requestStreamsCleanupDelay = 5 * time.Second
 
 type IncomingMessage struct {
 	Body []byte

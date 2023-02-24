@@ -3,7 +3,6 @@ package utils
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"math"
 
 	"github.com/boreq/errors"
@@ -70,29 +69,26 @@ func MustNewKey(components ...KeyComponent) Key {
 }
 
 func NewKeyFromBytes(b []byte) (Key, error) {
-	buf := bytes.NewBuffer(b)
-	var components []KeyComponent
+	return NewKeyFromBytesReusingComponents(b, nil)
+}
 
+func NewKeyFromBytesReusingComponents(b []byte, components []KeyComponent) (Key, error) {
 	for {
-		nextSequenceLen, err := buf.ReadByte()
-		if err != nil {
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			return Key{}, errors.Wrap(err, "error reading the next sequence length")
+		if len(b) == 0 {
+			break
 		}
 
-		nextSequenceBuf := make([]byte, nextSequenceLen)
-		n, err := buf.Read(nextSequenceBuf)
-		if err != nil {
-			return Key{}, errors.Wrap(err, "error reading the next sequence")
+		nextSequenceLen := int(b[0])
+		b = b[1:]
+
+		if len(b) < nextSequenceLen {
+			return Key{}, errors.New("remaining data length < next sequence length")
 		}
 
-		if n != int(nextSequenceLen) {
-			return Key{}, fmt.Errorf("read invalid length (%d != %d)", n, nextSequenceLen)
-		}
+		nextSequence := b[0:nextSequenceLen]
+		b = b[nextSequenceLen:]
 
-		component, err := NewKeyComponent(nextSequenceBuf)
+		component, err := NewKeyComponent(nextSequence)
 		if err != nil {
 			return Key{}, errors.Wrap(err, "error creating a key component")
 		}

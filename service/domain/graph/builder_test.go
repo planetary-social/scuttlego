@@ -198,7 +198,40 @@ func TestContacts_LocalBlockingTakesPriorityAndAlwaysExcludesFeeds(t *testing.T)
 	)
 }
 
-func TestSocialGraphBuilder_BanListExcludesContacts(t *testing.T) {
+func TestSocialGraphBuilder_BanningLocalFeedIsIgnored(t *testing.T) {
+	test := newTestSocialGraphBuilder(t)
+
+	local := fixtures.SomeRefIdentity()
+
+	a := fixtures.SomeRefIdentity()
+
+	test.ContactsStorage.contacts = map[string][]*feeds.Contact{
+		local.String(): {
+			feeds.MustNewContactFromHistory(local, a, true, false),
+		},
+	}
+
+	test.BanList.Ban(local.MainFeed())
+
+	g, err := test.Builder.Build(graph.MustNewHops(2), local)
+	require.NoError(t, err)
+
+	requireEqualContacts(t,
+		[]graph.Contact{
+			{
+				local,
+				graph.MustNewHops(0),
+			},
+			{
+				a,
+				graph.MustNewHops(1),
+			},
+		},
+		g.Contacts(),
+	)
+}
+
+func TestSocialGraphBuilder_BanListExcludesChildContacts(t *testing.T) {
 	test := newTestSocialGraphBuilder(t)
 
 	local := fixtures.SomeRefIdentity()
@@ -247,6 +280,65 @@ func TestSocialGraphBuilder_BanListExcludesContacts(t *testing.T) {
 	)
 }
 
+func TestSocialGraphBuilder_ContactsStorageIsNotNeedlesslyQueried(t *testing.T) {
+	test := newTestSocialGraphBuilder(t)
+
+	local := fixtures.SomeRefIdentity()
+
+	a := fixtures.SomeRefIdentity()
+	b := fixtures.SomeRefIdentity()
+	c := fixtures.SomeRefIdentity()
+	d := fixtures.SomeRefIdentity()
+
+	test.ContactsStorage.contacts = map[string][]*feeds.Contact{
+		local.String(): {
+			feeds.MustNewContactFromHistory(local, a, true, false),
+		},
+		a.String(): {
+			feeds.MustNewContactFromHistory(a, b, true, false),
+		},
+		b.String(): {
+			feeds.MustNewContactFromHistory(b, c, true, false),
+		},
+		c.String(): {
+			feeds.MustNewContactFromHistory(c, d, true, false),
+		},
+	}
+
+	g, err := test.Builder.Build(graph.MustNewHops(2), local)
+	require.NoError(t, err)
+
+	requireEqualContacts(t,
+		[]graph.Contact{
+			{
+				local,
+				graph.MustNewHops(0),
+			},
+			{
+				a,
+				graph.MustNewHops(1),
+			},
+			{
+				b,
+				graph.MustNewHops(2),
+			},
+		},
+		g.Contacts(),
+	)
+
+	require.Equal(t,
+		[]storageMockGetContactsCall{
+			{
+				Node: local,
+			},
+			{
+				Node: a,
+			},
+		},
+		test.ContactsStorage.GetContactsCalls,
+	)
+}
+
 func requireEqualContacts(t *testing.T, a []graph.Contact, b []graph.Contact) {
 	sort.Slice(a, func(i, j int) bool {
 		return a[i].Id.String() < a[j].Id.String()
@@ -260,12 +352,12 @@ func requireEqualContacts(t *testing.T, a []graph.Contact, b []graph.Contact) {
 type TestSocialGraphBuilder struct {
 	Builder *graph.SocialGraphBuilder
 
-	ContactsStorage *StorageMock
+	ContactsStorage *storageMock
 	BanList         *BanListMock
 }
 
 func newTestSocialGraphBuilder(t *testing.T) TestSocialGraphBuilder {
-	contactsStorage := NewStorageMock()
+	contactsStorage := newStorageMock()
 	banList := NewBanListMock()
 
 	return TestSocialGraphBuilder{
@@ -276,15 +368,21 @@ func newTestSocialGraphBuilder(t *testing.T) TestSocialGraphBuilder {
 
 }
 
-type StorageMock struct {
-	contacts map[string][]*feeds.Contact
+type storageMockGetContactsCall struct {
+	Node refs.Identity
 }
 
-func NewStorageMock() *StorageMock {
-	return &StorageMock{}
+type storageMock struct {
+	GetContactsCalls []storageMockGetContactsCall
+	contacts         map[string][]*feeds.Contact
 }
 
-func (s StorageMock) GetContacts(node refs.Identity) ([]*feeds.Contact, error) {
+func newStorageMock() *storageMock {
+	return &storageMock{}
+}
+
+func (s *storageMock) GetContacts(node refs.Identity) ([]*feeds.Contact, error) {
+	s.GetContactsCalls = append(s.GetContactsCalls, storageMockGetContactsCall{Node: node})
 	return s.contacts[node.String()], nil
 }
 

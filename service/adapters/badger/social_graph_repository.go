@@ -1,10 +1,9 @@
 package badger
 
 import (
-	"encoding/json"
-
 	"github.com/boreq/errors"
 	"github.com/dgraph-io/badger/v3"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/planetary-social/scuttlego/service/adapters/badger/utils"
 	"github.com/planetary-social/scuttlego/service/domain/feeds"
 	"github.com/planetary-social/scuttlego/service/domain/graph"
@@ -79,7 +78,7 @@ func (s *SocialGraphRepository) UpdateContact(author, target refs.Identity, f Up
 		return errors.Wrap(err, "error updating the contact")
 	}
 
-	b, err := json.Marshal(newStoredContact(contact))
+	b, err := jsoniter.Marshal(newStoredContact(contact))
 	if err != nil {
 		return errors.Wrap(err, "could not marshal contact")
 	}
@@ -153,7 +152,7 @@ func (s *SocialGraphRepository) loadOrCreateContact(bucket utils.Bucket, author,
 
 func (s *SocialGraphRepository) loadContact(author, target refs.Identity, storedValue []byte) (*feeds.Contact, error) {
 	var c storedContact
-	if err := json.Unmarshal(storedValue, &c); err != nil {
+	if err := jsoniter.Unmarshal(storedValue, &c); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal the existing value")
 	}
 	return feeds.NewContactFromHistory(author, target, c.Following, c.Blocking)

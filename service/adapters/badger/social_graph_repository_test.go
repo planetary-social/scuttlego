@@ -1,6 +1,7 @@
 package badger_test
 
 import (
+	"fmt"
 	"sort"
 	"testing"
 
@@ -122,6 +123,40 @@ func TestSocialGraphRepository_GetContacts(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func BenchmarkSocialGraphRepository_GetContacts(b *testing.B) {
+	for _, numberOfFollowees := range []int{1, 10, 100, 1000} {
+		b.Run(fmt.Sprintf("followees=%d", numberOfFollowees), func(b *testing.B) {
+			b.StopTimer()
+			b.ReportAllocs()
+
+			ts := di.BuildBadgerTestAdapters(b)
+			follower := fixtures.SomeRefIdentity()
+
+			err := ts.TransactionProvider.Update(func(adapters badger.TestAdapters) error {
+				for i := 0; i < numberOfFollowees; i++ {
+					applyContactAction(b, adapters, follower, fixtures.SomeRefIdentity(), known.ContactActionFollow)
+				}
+				return nil
+			})
+			require.NoError(b, err)
+
+			for i := 0; i < b.N; i++ {
+				err := ts.TransactionProvider.View(func(adapters badger.TestAdapters) error {
+					b.StartTimer()
+					contacts, err := adapters.SocialGraphRepository.GetContacts(follower)
+					b.StopTimer()
+
+					require.NoError(b, err)
+					require.Len(b, contacts, numberOfFollowees)
+
+					return nil
+				})
+				require.NoError(b, err)
+			}
+		})
+	}
+}
+
 func sortAndRequireEqualContacts(t *testing.T, a []*feeds.Contact, b []*feeds.Contact) {
 	sort.Slice(a, func(i, j int) bool {
 		return a[i].Target().String() < a[j].Target().String()
@@ -134,7 +169,7 @@ func sortAndRequireEqualContacts(t *testing.T, a []*feeds.Contact, b []*feeds.Co
 	require.Equal(t, a, b)
 }
 
-func applyContactAction(t *testing.T, adapters badger.TestAdapters, a refs.Identity, b refs.Identity, action known.ContactAction) {
+func applyContactAction(t testing.TB, adapters badger.TestAdapters, a refs.Identity, b refs.Identity, action known.ContactAction) {
 	err := adapters.SocialGraphRepository.UpdateContact(a, b, func(contact *feeds.Contact) error {
 		return contact.Update(known.MustNewContactActions([]known.ContactAction{action}))
 	})

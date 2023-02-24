@@ -1,12 +1,15 @@
 package badger_test
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/planetary-social/scuttlego/di"
 	"github.com/planetary-social/scuttlego/fixtures"
+	"github.com/planetary-social/scuttlego/internal"
 	badgeradapters "github.com/planetary-social/scuttlego/service/adapters/badger"
 	"github.com/planetary-social/scuttlego/service/app/commands"
+	"github.com/planetary-social/scuttlego/service/domain/bans"
 	"github.com/stretchr/testify/require"
 )
 
@@ -159,6 +162,50 @@ func TestBanListRepository_ContainsFeedCorrectlyLooksUpHashes(t *testing.T) {
 		ok, err = adapters.BanListRepository.Contains(banListHash)
 		require.NoError(t, err)
 		require.True(t, ok)
+
+		return nil
+	})
+	require.NoError(t, err)
+}
+
+func TestBanListRepository_ListReturnsHashesAddedToTheRepository(t *testing.T) {
+	ts := di.BuildBadgerTestAdapters(t)
+
+	banListHash1 := fixtures.SomeBanListHash()
+	banListHash2 := fixtures.SomeBanListHash()
+
+	err := ts.TransactionProvider.View(func(adapters badgeradapters.TestAdapters) error {
+		hashes, err := adapters.BanListRepository.List()
+		require.NoError(t, err)
+		require.Empty(t, hashes)
+
+		return nil
+	})
+	require.NoError(t, err)
+
+	err = ts.TransactionProvider.Update(func(adapters badgeradapters.TestAdapters) error {
+		err := adapters.BanListRepository.Add(banListHash1)
+		require.NoError(t, err)
+
+		err = adapters.BanListRepository.Add(banListHash2)
+		require.NoError(t, err)
+
+		return nil
+	})
+	require.NoError(t, err)
+
+	expectedHashes := []bans.Hash{banListHash1, banListHash2}
+
+	err = ts.TransactionProvider.View(func(adapters badgeradapters.TestAdapters) error {
+		hashes, err := adapters.BanListRepository.List()
+		require.NoError(t, err)
+
+		compare := func(a, b bans.Hash) bool {
+			return bytes.Compare(a.Bytes(), b.Bytes()) < 0
+		}
+		internal.SortSlice(expectedHashes, compare)
+		internal.SortSlice(hashes, compare)
+		require.Equal(t, expectedHashes, hashes)
 
 		return nil
 	})

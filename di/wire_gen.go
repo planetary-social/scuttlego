@@ -53,8 +53,8 @@ import (
 
 // Injectors from wire.go:
 
-func BuildBadgerNoTxTestAdapters(t *testing.T) BadgerNoTxTestAdapters {
-	db := fixtures.Badger(t)
+func BuildBadgerNoTxTestAdapters(tb testing.TB) BadgerNoTxTestAdapters {
+	db := fixtures.Badger(tb)
 	testTxAdaptersFactory := noTxTestTxAdaptersFactory()
 	banListHasherMock := mocks.NewBanListHasherMock()
 	currentTimeProviderMock := mocks.NewCurrentTimeProviderMock()
@@ -88,8 +88,8 @@ func BuildBadgerNoTxTestAdapters(t *testing.T) BadgerNoTxTestAdapters {
 	return badgerNoTxTestAdapters
 }
 
-func BuildBadgerTestAdapters(t *testing.T) BadgerTestAdapters {
-	db := fixtures.Badger(t)
+func BuildBadgerTestAdapters(tb testing.TB) BadgerTestAdapters {
+	db := fixtures.Badger(tb)
 	banListHasherMock := mocks.NewBanListHasherMock()
 	currentTimeProviderMock := mocks.NewCurrentTimeProviderMock()
 	rawMessageIdentifierMock := mocks.NewRawMessageIdentifierMock()
@@ -127,7 +127,7 @@ func buildTestBadgerNoTxTxAdapters(txn *badger2.Txn, testAdaptersDependencies ba
 	receiveLogRepository := badger.NewReceiveLogRepository(txn, messageRepository)
 	public := testAdaptersDependencies.LocalIdentity
 	hops := fixtures.SomeHops()
-	socialGraphRepository := badger.NewSocialGraphRepository(txn, public, hops, banListRepository)
+	socialGraphRepository := badger.NewSocialGraphRepository(txn, public, hops, banListRepository, banListHasherMock)
 	pubRepository := badger.NewPubRepository(txn)
 	messageContentMappings := transport.DefaultMappings()
 	logger := fixtures.SomeLogger()
@@ -175,7 +175,7 @@ func buildBadgerNoTxTxAdapters(txn *badger2.Txn, public identity.Public, config 
 	messageRepository := badger.NewMessageRepository(txn, rawMessageIdentifier)
 	receiveLogRepository := badger.NewReceiveLogRepository(txn, messageRepository)
 	hops := extractHopsFromConfig(config)
-	socialGraphRepository := badger.NewSocialGraphRepository(txn, public, hops, banListRepository)
+	socialGraphRepository := badger.NewSocialGraphRepository(txn, public, hops, banListRepository, banListHasher)
 	pubRepository := badger.NewPubRepository(txn)
 	feedRepository := badger.NewFeedRepository(txn, socialGraphRepository, receiveLogRepository, messageRepository, pubRepository, blobRepository, banListRepository, scuttlebutt)
 	txAdapters := notx.TxAdapters{
@@ -204,7 +204,7 @@ func buildBadgerTestAdapters(txn *badger2.Txn, testAdaptersDependencies badger.T
 	receiveLogRepository := badger.NewReceiveLogRepository(txn, messageRepository)
 	public := testAdaptersDependencies.LocalIdentity
 	hops := fixtures.SomeHops()
-	socialGraphRepository := badger.NewSocialGraphRepository(txn, public, hops, banListRepository)
+	socialGraphRepository := badger.NewSocialGraphRepository(txn, public, hops, banListRepository, banListHasherMock)
 	pubRepository := badger.NewPubRepository(txn)
 	messageContentMappings := transport.DefaultMappings()
 	logger := fixtures.SomeLogger()
@@ -231,7 +231,7 @@ func buildBadgerTestAdapters(txn *badger2.Txn, testAdaptersDependencies badger.T
 	return testAdapters, nil
 }
 
-func BuildTestCommands(t *testing.T) (TestCommands, error) {
+func BuildTestCommands(tb testing.TB) (TestCommands, error) {
 	dialerMock := mocks.NewDialerMock()
 	private, err := identity.NewPrivate()
 	if err != nil {
@@ -254,7 +254,7 @@ func BuildTestCommands(t *testing.T) (TestCommands, error) {
 	currentTimeProviderMock := mocks.NewCurrentTimeProviderMock()
 	downloadFeedHandler := commands.NewDownloadFeedHandler(mockCommandsTransactionProvider, currentTimeProviderMock)
 	inviteRedeemerMock := mocks.NewInviteRedeemerMock()
-	logger := fixtures.TestLogger(t)
+	logger := fixtures.TestLogger(tb)
 	redeemInviteHandler := commands.NewRedeemInviteHandler(inviteRedeemerMock, private, logger)
 	public := privateIdentityToPublicIdentity(private)
 	peerInitializerMock := mocks.NewPeerInitializerMock()
@@ -285,7 +285,7 @@ func BuildTestCommands(t *testing.T) (TestCommands, error) {
 	return testCommands, nil
 }
 
-func BuildTestQueries(t *testing.T) (TestQueries, error) {
+func BuildTestQueries(tb testing.TB) (TestQueries, error) {
 	feedRepositoryMock := mocks.NewFeedRepositoryMock()
 	receiveLogRepositoryMock := mocks.NewReceiveLogRepositoryMock()
 	messageRepositoryMock := mocks.NewMessageRepositoryMock()
@@ -303,7 +303,7 @@ func BuildTestQueries(t *testing.T) (TestQueries, error) {
 	mockQueriesTransactionProvider := mocks.NewMockQueriesTransactionProvider(queriesAdapters)
 	messagePubSub := pubsub.NewMessagePubSub()
 	messagePubSubMock := mocks.NewMessagePubSubMock(messagePubSub)
-	logger := fixtures.TestLogger(t)
+	logger := fixtures.TestLogger(tb)
 	createHistoryStreamHandler := queries.NewCreateHistoryStreamHandler(mockQueriesTransactionProvider, messagePubSubMock, logger)
 	receiveLogHandler := queries.NewReceiveLogHandler(mockQueriesTransactionProvider)
 	private, err := identity.NewPrivate()
@@ -365,7 +365,7 @@ func buildBadgerCommandsAdapters(txn *badger2.Txn, public identity.Public, confi
 	hops := extractHopsFromConfig(config)
 	banListHasher := adapters.NewBanListHasher()
 	banListRepository := badger.NewBanListRepository(txn, banListHasher)
-	socialGraphRepository := badger.NewSocialGraphRepository(txn, public, hops, banListRepository)
+	socialGraphRepository := badger.NewSocialGraphRepository(txn, public, hops, banListRepository, banListHasher)
 	messageContentMappings := transport.DefaultMappings()
 	marshaler, err := transport.NewMarshaler(messageContentMappings, logger)
 	if err != nil {
@@ -400,7 +400,7 @@ func buildBadgerQueriesAdapters(txn *badger2.Txn, public identity.Public, config
 	hops := extractHopsFromConfig(config)
 	banListHasher := adapters.NewBanListHasher()
 	banListRepository := badger.NewBanListRepository(txn, banListHasher)
-	socialGraphRepository := badger.NewSocialGraphRepository(txn, public, hops, banListRepository)
+	socialGraphRepository := badger.NewSocialGraphRepository(txn, public, hops, banListRepository, banListHasher)
 	messageContentMappings := transport.DefaultMappings()
 	marshaler, err := transport.NewMarshaler(messageContentMappings, logger)
 	if err != nil {

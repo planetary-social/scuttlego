@@ -15,10 +15,11 @@ import (
 const socialGraphRepositoryBucket = "graph"
 
 type SocialGraphRepository struct {
-	tx      *badger.Txn
-	local   identity.Public
-	hops    graph.Hops
-	banList *BanListRepository
+	tx            *badger.Txn
+	local         identity.Public
+	hops          graph.Hops
+	banList       *BanListRepository
+	banListHasher BanListHasher
 }
 
 func NewSocialGraphRepository(
@@ -26,12 +27,14 @@ func NewSocialGraphRepository(
 	local identity.Public,
 	hops graph.Hops,
 	banList *BanListRepository,
+	banListHasher BanListHasher,
 ) *SocialGraphRepository {
 	return &SocialGraphRepository{
-		tx:      tx,
-		local:   local,
-		hops:    hops,
-		banList: banList,
+		tx:            tx,
+		local:         local,
+		hops:          hops,
+		banList:       banList,
+		banListHasher: banListHasher,
 	}
 }
 
@@ -40,7 +43,11 @@ func (s *SocialGraphRepository) GetSocialGraph() (graph.SocialGraph, error) {
 	if err != nil {
 		return graph.SocialGraph{}, errors.Wrap(err, "could not create a local ref")
 	}
-	return graph.NewSocialGraphBuilder(s, s.banList, s.hops, localRef).Build()
+	banList, err := graph.NewCachedBanList(s.banListHasher, s.banList)
+	if err != nil {
+		return graph.SocialGraph{}, errors.Wrap(err, "could not create a cached ban list")
+	}
+	return graph.NewSocialGraphBuilder(s, banList, s.hops, localRef).Build()
 }
 
 func (s *SocialGraphRepository) GetSocialGraphBuilder() (*graph.SocialGraphBuilder, error) {
@@ -48,7 +55,11 @@ func (s *SocialGraphRepository) GetSocialGraphBuilder() (*graph.SocialGraphBuild
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create a local ref")
 	}
-	return graph.NewSocialGraphBuilder(s, s.banList, s.hops, localRef), nil
+	banList, err := graph.NewCachedBanList(s.banListHasher, s.banList)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not create a cached ban list")
+	}
+	return graph.NewSocialGraphBuilder(s, banList, s.hops, localRef), nil
 }
 
 type UpdateContactFn func(*feeds.Contact) error

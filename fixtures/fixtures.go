@@ -40,11 +40,11 @@ func SomeLogger() logging.Logger {
 	return logging.NewContextLogger(logging.NewLogrusLoggingSystem(logger), "test")
 }
 
-func TestLogger(t *testing.T) logging.Logger {
+func TestLogger(t testing.TB) logging.Logger {
 	return newTestingLogger(t.Name(), t)
 }
 
-func TestContext(t *testing.T) context.Context {
+func TestContext(t testing.TB) context.Context {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	return ctx
@@ -272,7 +272,7 @@ func SomeMessageHMAC() formats.MessageHMAC {
 	return formats.MustNewMessageHMAC(SomeBytesOfLength(formats.MessageHMACLength))
 }
 
-func Directory(t *testing.T) string {
+func Directory(t testing.TB) string {
 	name, err := os.MkdirTemp("", "scuttlego-test")
 	if err != nil {
 		t.Fatal(err)
@@ -289,7 +289,7 @@ func Directory(t *testing.T) string {
 	return name
 }
 
-func File(t *testing.T) string {
+func File(t testing.TB) string {
 	file, err := os.CreateTemp("", "scuttlego-test")
 	if err != nil {
 		t.Fatal(err)
@@ -306,7 +306,7 @@ func File(t *testing.T) string {
 	return file.Name()
 }
 
-func Badger(t *testing.T) *badger.DB {
+func Badger(t testing.TB) *badger.DB {
 	dir := Directory(t)
 
 	db, err := badger.Open(badger.DefaultOptions(dir))
@@ -334,11 +334,11 @@ func TestFileRelativePath(elem ...string) string {
 
 type testingLogger struct {
 	name string
-	t    *testing.T
+	t    testing.TB
 	log  func(args ...any)
 }
 
-func newTestingLogger(name string, t *testing.T) testingLogger {
+func newTestingLogger(name string, t testing.TB) testingLogger {
 	return testingLogger{name: name, t: t, log: t.Log}
 }
 

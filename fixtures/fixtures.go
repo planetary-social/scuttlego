@@ -309,7 +309,10 @@ func File(t testing.TB) string {
 func Badger(t testing.TB) *badger.DB {
 	dir := Directory(t)
 
-	db, err := badger.Open(badger.DefaultOptions(dir))
+	options := badger.DefaultOptions(dir)
+	options.Logger = nil
+
+	db, err := badger.Open(options)
 	if err != nil {
 		t.Fatal(err)
 	}

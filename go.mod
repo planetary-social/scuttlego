@@ -8,6 +8,7 @@ require (
 	github.com/dgraph-io/badger/v3 v3.2103.5
 	github.com/google/wire v0.5.0
 	github.com/hashicorp/go-multierror v1.1.1
+	github.com/json-iterator/go v1.1.12
 	github.com/sirupsen/logrus v1.8.1
 	github.com/ssbc/go-luigi v0.3.7-0.20230119190114-bd28e676fa99
 	github.com/ssbc/go-netwrap v0.1.5-0.20221019160355-cd323bb2e29d
@@ -43,6 +44,8 @@ require (
 	github.com/keks/persist v0.0.0-20210520094901-9bdd97c1fad2 // indirect
 	github.com/klauspost/compress v1.15.12 // indirect
 	github.com/libp2p/go-reuseport v0.2.0 // indirect
+	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
+	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/ssbc/go-gabbygrove v0.2.2 // indirect

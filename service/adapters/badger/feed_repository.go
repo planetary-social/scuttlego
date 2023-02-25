@@ -16,6 +16,12 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 )
 
+var (
+	feedRepositoryBucketFeeds        = utils.MustNewKeyComponent([]byte("feeds"))
+	feedRepositoryBucketFeedsEntries = utils.MustNewKeyComponent([]byte("entries"))
+	feedRepositoryBucketMeta         = utils.MustNewKeyComponent([]byte("meta"))
+)
+
 type FeedRepository struct {
 	tx                *badger.Txn
 	graph             *SocialGraphRepository
@@ -523,15 +529,15 @@ func (b FeedRepository) getMetaBucket() utils.Bucket {
 
 func (b FeedRepository) feedBucketPath(ref refs.Feed) utils.Key {
 	return utils.MustNewKey(
-		utils.MustNewKeyComponent([]byte("feeds")),
-		utils.MustNewKeyComponent([]byte("entries")),
+		feedRepositoryBucketFeeds,
+		feedRepositoryBucketFeedsEntries,
 		utils.MustNewKeyComponent([]byte(ref.String())),
 	)
 }
 
 func (b FeedRepository) metaBucketPath() utils.Key {
 	return utils.MustNewKey(
-		utils.MustNewKeyComponent([]byte("feeds")),
-		utils.MustNewKeyComponent([]byte("meta")),
+		feedRepositoryBucketFeeds,
+		feedRepositoryBucketMeta,
 	)
 }

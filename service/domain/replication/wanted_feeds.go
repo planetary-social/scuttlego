@@ -169,35 +169,17 @@ func (c *WantedFeedsCache) GetContacts(peer identity.Public) ([]Contact, error) 
 	defer c.lock.Unlock()
 
 	if time.Since(c.cacheTimestamp) > refreshContactsEvery {
-		v, err := c.provider.GetWantedFeeds()
-		if err != nil {
-			return nil, errors.Wrap(err, "could not get fresh data")
+		if err := c.refreshCache(); err != nil {
+			return nil, errors.Wrap(err, "error refreshing cache")
 		}
-
-		// todo this is a hack because I don't want to touch the replicators now, this has to be changed later so that it doesn't create fake contacts
-		// https://github.com/planetary-social/scuttlego/issues/106
-		var contacts []Contact
-		for _, wantedFeed := range v.OtherFeeds() {
-			contact, err := NewContact(
-				wantedFeed.Who(),
-				graph.MustNewHops(1),
-				wantedFeed.FeedState(),
-			)
-			if err != nil {
-				return nil, errors.Wrap(err, "error creating fake contact")
-			}
-			contacts = append(contacts, contact)
-		}
-		contacts = append(contacts, v.Contacts()...)
-		// todo contacts can contain dupes?
-
-		c.cache = contacts
-		c.cacheTimestamp = time.Now()
 	}
+
+	// key is created outside the loop to reduce the number of allocs
+	peerKey := peer.String()
 
 	var contacts []Contact
 	for _, contact := range c.cache {
-		feeds, ok := c.feedsWhichShouldNotBeReplicatedWithPeer[peer.String()]
+		feeds, ok := c.feedsWhichShouldNotBeReplicatedWithPeer[peerKey]
 		if ok {
 			if feeds.Contains(contact.Who().String()) {
 				continue
@@ -206,4 +188,32 @@ func (c *WantedFeedsCache) GetContacts(peer identity.Public) ([]Contact, error) 
 		contacts = append(contacts, contact)
 	}
 	return contacts, nil
+}
+
+func (c *WantedFeedsCache) refreshCache() error {
+	v, err := c.provider.GetWantedFeeds()
+	if err != nil {
+		return errors.Wrap(err, "could not get fresh data")
+	}
+
+	// todo this is a hack because I don't want to touch the replicators now, this has to be changed later so that it doesn't create fake contacts
+	// https://github.com/planetary-social/scuttlego/issues/106
+	var contacts []Contact
+	for _, wantedFeed := range v.OtherFeeds() {
+		contact, err := NewContact(
+			wantedFeed.Who(),
+			graph.MustNewHops(1),
+			wantedFeed.FeedState(),
+		)
+		if err != nil {
+			return errors.Wrap(err, "error creating fake contact")
+		}
+		contacts = append(contacts, contact)
+	}
+	contacts = append(contacts, v.Contacts()...)
+	// todo contacts can contain dupes?
+
+	c.cache = contacts
+	c.cacheTimestamp = time.Now()
+	return nil
 }

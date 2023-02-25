@@ -1,9 +1,10 @@
 package replication_test
 
 import (
+	"testing"
+
 	"github.com/planetary-social/scuttlego/fixtures"
 	"github.com/planetary-social/scuttlego/service/domain/replication"
-	"testing"
 )
 
 func BenchmarkWantedFeedsCache_GetContacts(b *testing.B) {

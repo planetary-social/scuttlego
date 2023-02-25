@@ -11,7 +11,11 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 )
 
-const socialGraphRepositoryBucket = "graph"
+var (
+	socialGraphRepositoryBucketGraph = utils.MustNewKeyComponent([]byte("graph"))
+)
+
+type UpdateContactFn func(*feeds.Contact) error
 
 type SocialGraphRepository struct {
 	tx            *badger.Txn
@@ -61,13 +65,8 @@ func (s *SocialGraphRepository) GetSocialGraphBuilder() (*graph.SocialGraphBuild
 	return graph.NewSocialGraphBuilder(s, banList, s.hops, localRef), nil
 }
 
-type UpdateContactFn func(*feeds.Contact) error
-
 func (s *SocialGraphRepository) UpdateContact(author, target refs.Identity, f UpdateContactFn) error {
-	bucket, err := s.createFeedBucket(author)
-	if err != nil {
-		return errors.Wrap(err, "could not create a bucket")
-	}
+	bucket := s.getFeedBucket(author)
 
 	contact, err := s.loadOrCreateContact(bucket, author, target)
 	if err != nil {
@@ -87,14 +86,12 @@ func (s *SocialGraphRepository) UpdateContact(author, target refs.Identity, f Up
 }
 
 func (s *SocialGraphRepository) Remove(author refs.Identity) error {
-	return s.deleteFeedBucket(author)
+	bucket := s.getFeedBucket(author)
+	return bucket.DeleteBucket()
 }
 
 func (s *SocialGraphRepository) GetContacts(node refs.Identity) ([]*feeds.Contact, error) {
-	bucket, err := s.createFeedBucket(node)
-	if err != nil {
-		return nil, errors.Wrap(err, "could not create a bucket")
-	}
+	bucket := s.getFeedBucket(node)
 
 	var result []*feeds.Contact
 
@@ -158,21 +155,13 @@ func (s *SocialGraphRepository) loadContact(author, target refs.Identity, stored
 	return feeds.NewContactFromHistory(author, target, c.Following, c.Blocking)
 }
 
-func (s *SocialGraphRepository) createFeedBucket(ref refs.Identity) (utils.Bucket, error) {
-	return utils.NewBucket(s.tx, s.pathFunc(ref))
-}
-
-func (s *SocialGraphRepository) deleteFeedBucket(ref refs.Identity) error {
-	bucket, err := s.createFeedBucket(ref)
-	if err != nil {
-		return errors.Wrap(err, "error creating the bucket")
-	}
-	return bucket.DeleteBucket()
+func (s *SocialGraphRepository) getFeedBucket(ref refs.Identity) utils.Bucket {
+	return utils.MustNewBucket(s.tx, s.pathFunc(ref))
 }
 
 func (s *SocialGraphRepository) pathFunc(who refs.Identity) utils.Key {
 	return utils.MustNewKey(
-		utils.MustNewKeyComponent([]byte(socialGraphRepositoryBucket)),
+		socialGraphRepositoryBucketGraph,
 		utils.MustNewKeyComponent([]byte(who.String())),
 	)
 }

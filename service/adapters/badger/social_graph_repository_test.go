@@ -124,11 +124,8 @@ func TestSocialGraphRepository_GetContacts(t *testing.T) {
 }
 
 func BenchmarkSocialGraphRepository_GetContacts(b *testing.B) {
-	for _, numberOfFollowees := range []int{1, 10, 100, 1000} {
+	for _, numberOfFollowees := range []int{0, 1, 10, 100, 1000} {
 		b.Run(fmt.Sprintf("followees=%d", numberOfFollowees), func(b *testing.B) {
-			b.StopTimer()
-			b.ReportAllocs()
-
 			ts := di.BuildBadgerTestAdapters(b)
 			follower := fixtures.SomeRefIdentity()
 
@@ -140,12 +137,12 @@ func BenchmarkSocialGraphRepository_GetContacts(b *testing.B) {
 			})
 			require.NoError(b, err)
 
+			b.ResetTimer()
+			b.ReportAllocs()
+
 			for i := 0; i < b.N; i++ {
 				err := ts.TransactionProvider.View(func(adapters badger.TestAdapters) error {
-					b.StartTimer()
 					contacts, err := adapters.SocialGraphRepository.GetContacts(follower)
-					b.StopTimer()
-
 					require.NoError(b, err)
 					require.Len(b, contacts, numberOfFollowees)
 

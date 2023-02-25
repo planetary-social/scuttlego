@@ -61,15 +61,17 @@ func (b Bucket) Get(key []byte) (Item, error) {
 }
 
 func (b Bucket) ForEach(fn func(item Item) error) error {
-	it := b.tx.NewIterator(badger.DefaultIteratorOptions)
+	it := b.IteratorWithModifiedOptions(func(options *badger.IteratorOptions) {
+		options.PrefetchValues = false
+	})
 	defer it.Close()
 
-	prefix := b.prefix.Bytes()
-	for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
-		if err := fn(newItemAdapter(it.Item())); err != nil {
+	for it.Rewind(); it.ValidForBucket(); it.Next() {
+		if err := fn(it.Item()); err != nil {
 			return errors.Wrap(err, "function returned an error")
 		}
 	}
+
 	return nil
 }
 

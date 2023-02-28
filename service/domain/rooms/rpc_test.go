@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/planetary-social/scuttlego/fixtures"
+	"github.com/planetary-social/scuttlego/internal/fixtures"
 	"github.com/planetary-social/scuttlego/service/domain/mocks"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/planetary-social/scuttlego/service/domain/rooms"

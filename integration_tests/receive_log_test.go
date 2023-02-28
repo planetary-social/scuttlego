@@ -5,7 +5,7 @@ import (
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/di"
-	"github.com/planetary-social/scuttlego/fixtures"
+	"github.com/planetary-social/scuttlego/internal/fixtures"
 	"github.com/planetary-social/scuttlego/service/app/commands"
 	"github.com/planetary-social/scuttlego/service/app/common"
 	"github.com/planetary-social/scuttlego/service/app/queries"

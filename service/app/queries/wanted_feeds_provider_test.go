@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/planetary-social/scuttlego/di"
-	"github.com/planetary-social/scuttlego/fixtures"
+	"github.com/planetary-social/scuttlego/internal/fixtures"
 	"github.com/planetary-social/scuttlego/service/domain/graph"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/planetary-social/scuttlego/service/domain/replication"

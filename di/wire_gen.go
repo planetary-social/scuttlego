@@ -12,7 +12,7 @@ import (
 
 	"github.com/boreq/errors"
 	badger2 "github.com/dgraph-io/badger/v3"
-	"github.com/planetary-social/scuttlego/fixtures"
+	"github.com/planetary-social/scuttlego/internal/fixtures"
 	"github.com/planetary-social/scuttlego/logging"
 	migrations2 "github.com/planetary-social/scuttlego/migrations"
 	"github.com/planetary-social/scuttlego/service/adapters"

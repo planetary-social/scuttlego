@@ -3,7 +3,7 @@ package log
 import (
 	"testing"
 
-	"github.com/planetary-social/scuttlego/fixtures"
+	"github.com/planetary-social/scuttlego/internal/fixtures"
 	"github.com/stretchr/testify/require"
 )
 

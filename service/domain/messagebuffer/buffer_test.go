@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/planetary-social/scuttlego/fixtures"
 	"github.com/planetary-social/scuttlego/internal"
+	"github.com/planetary-social/scuttlego/internal/fixtures"
 	"github.com/planetary-social/scuttlego/service/domain/feeds"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/messagebuffer"

@@ -5,7 +5,7 @@ import (
 	"path"
 	"testing"
 
-	"github.com/planetary-social/scuttlego/fixtures"
+	"github.com/planetary-social/scuttlego/internal/fixtures"
 	"github.com/planetary-social/scuttlego/service/adapters/migrations"
 	"github.com/stretchr/testify/require"
 )

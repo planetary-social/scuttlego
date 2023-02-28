@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/planetary-social/scuttlego/di"
-	"github.com/planetary-social/scuttlego/fixtures"
+	"github.com/planetary-social/scuttlego/internal/fixtures"
 	"github.com/planetary-social/scuttlego/service/adapters/mocks"
 	"github.com/planetary-social/scuttlego/service/app/commands"
 	"github.com/stretchr/testify/require"

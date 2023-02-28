@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/planetary-social/scuttlego/fixtures"
 	"github.com/planetary-social/scuttlego/internal"
+	"github.com/planetary-social/scuttlego/internal/fixtures"
 	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/adapters/mocks"
 	"github.com/planetary-social/scuttlego/service/domain/blobs"

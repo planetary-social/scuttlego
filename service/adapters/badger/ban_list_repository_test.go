@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/planetary-social/scuttlego/di"
-	"github.com/planetary-social/scuttlego/fixtures"
 	"github.com/planetary-social/scuttlego/internal"
+	"github.com/planetary-social/scuttlego/internal/fixtures"
 	badgeradapters "github.com/planetary-social/scuttlego/service/adapters/badger"
 	"github.com/planetary-social/scuttlego/service/app/commands"
 	"github.com/planetary-social/scuttlego/service/domain/bans"

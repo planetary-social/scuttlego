@@ -3,7 +3,7 @@ package migrations
 import (
 	"testing"
 
-	"github.com/planetary-social/scuttlego/fixtures"
+	"github.com/planetary-social/scuttlego/internal/fixtures"
 	"github.com/planetary-social/scuttlego/migrations"
 	"github.com/stretchr/testify/require"
 )

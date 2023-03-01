@@ -114,8 +114,12 @@ func (k Key) Components() []KeyComponent {
 }
 
 func (k Key) Bytes() []byte {
-	buf := bytes.NewBuffer(nil)
+	var initialLen int
+	for _, component := range k.components {
+		initialLen += 1 + len(component.b)
+	}
 
+	buf := bytes.NewBuffer(make([]byte, 0, initialLen))
 	for _, component := range k.components {
 		buf.WriteByte(encodeComponentLength(component))
 		buf.Write(component.b)

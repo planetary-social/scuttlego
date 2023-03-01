@@ -46,10 +46,7 @@ func NewBanListRepository(
 }
 
 func (b BanListRepository) Add(hash bans.Hash) error {
-	bucket, err := b.hashesBucket()
-	if err != nil {
-		return errors.Wrap(err, "create bucket error")
-	}
+	bucket := b.hashesBucket()
 
 	if err := bucket.Set(hash.Bytes(), nil); err != nil {
 		return errors.Wrap(err, "put failed")
@@ -59,10 +56,7 @@ func (b BanListRepository) Add(hash bans.Hash) error {
 }
 
 func (b BanListRepository) Remove(hash bans.Hash) error {
-	bucket, err := b.hashesBucket()
-	if err != nil {
-		return errors.Wrap(err, "create bucket error")
-	}
+	bucket := b.hashesBucket()
 
 	if err := bucket.Delete(hash.Bytes()); err != nil {
 		return errors.Wrap(err, "delete failed")
@@ -71,11 +65,14 @@ func (b BanListRepository) Remove(hash bans.Hash) error {
 	return nil
 }
 
+func (b BanListRepository) Clear() error {
+	bucket := b.hashesBucket()
+
+	return bucket.DeleteBucket()
+}
+
 func (b BanListRepository) Contains(hash bans.Hash) (bool, error) {
-	bucket, err := b.hashesBucket()
-	if err != nil {
-		return false, errors.Wrap(err, "create bucket error")
-	}
+	bucket := b.hashesBucket()
 
 	if _, err := bucket.Get(hash.Bytes()); err != nil {
 		if errors.Is(err, badger.ErrKeyNotFound) {
@@ -103,10 +100,7 @@ func (b BanListRepository) CreateFeedMapping(ref refs.Feed) error {
 		return errors.Wrap(err, "failed to generate a hash")
 	}
 
-	bucket, err := b.mappingBucket()
-	if err != nil {
-		return errors.Wrap(err, "create bucket error")
-	}
+	bucket := b.mappingBucket()
 
 	v, err := json.Marshal(storedBannableRef{
 		Typ: storedBannableRefTypeFeed,
@@ -129,10 +123,7 @@ func (b BanListRepository) RemoveFeedMapping(ref refs.Feed) error {
 		return errors.Wrap(err, "failed to generate a hash")
 	}
 
-	bucket, err := b.mappingBucket()
-	if err != nil {
-		return errors.Wrap(err, "get bucket error")
-	}
+	bucket := b.mappingBucket()
 
 	if err := bucket.Delete(hash.Bytes()); err != nil {
 		return errors.Wrap(err, "bucket delete failed")
@@ -142,10 +133,7 @@ func (b BanListRepository) RemoveFeedMapping(ref refs.Feed) error {
 }
 
 func (b BanListRepository) LookupMapping(hash bans.Hash) (commands.BannableRef, error) {
-	bucket, err := b.mappingBucket()
-	if err != nil {
-		return commands.BannableRef{}, errors.Wrap(err, "get bucket error")
-	}
+	bucket := b.mappingBucket()
 
 	item, err := bucket.Get(hash.Bytes())
 	if err != nil {
@@ -179,10 +167,7 @@ func (b BanListRepository) LookupMapping(hash bans.Hash) (commands.BannableRef, 
 }
 
 func (b BanListRepository) List() ([]bans.Hash, error) {
-	bucket, err := b.hashesBucket()
-	if err != nil {
-		return nil, errors.Wrap(err, "error getting hashes bucket")
-	}
+	bucket := b.hashesBucket()
 
 	var result []bans.Hash
 	if err := bucket.ForEach(func(item utils.Item) error {
@@ -204,12 +189,12 @@ func (b BanListRepository) List() ([]bans.Hash, error) {
 	return result, nil
 }
 
-func (b BanListRepository) hashesBucket() (utils.Bucket, error) {
-	return utils.NewBucket(b.tx, bucketBanListHashesKey)
+func (b BanListRepository) hashesBucket() utils.Bucket {
+	return utils.MustNewBucket(b.tx, bucketBanListHashesKey)
 }
 
-func (b BanListRepository) mappingBucket() (utils.Bucket, error) {
-	return utils.NewBucket(b.tx, bucketBanListMappingKey)
+func (b BanListRepository) mappingBucket() utils.Bucket {
+	return utils.MustNewBucket(b.tx, bucketBanListMappingKey)
 }
 
 const (

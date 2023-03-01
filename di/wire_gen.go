@@ -484,6 +484,7 @@ func BuildService(private identity.Private, config Config) (Service, func(), err
 	createBlobHandler := commands.NewCreateBlobHandler(filesystemStorage)
 	addToBanListHandler := commands.NewAddToBanListHandler(commandsTransactionProvider)
 	removeFromBanListHandler := commands.NewRemoveFromBanListHandler(commandsTransactionProvider)
+	setBanListHandler := commands.NewSetBanListHandler(commandsTransactionProvider)
 	roomsAliasRegisterHandler := commands.NewRoomsAliasRegisterHandler(dialer, private)
 	roomsAliasRevokeHandler := commands.NewRoomsAliasRevokeHandler(dialer)
 	badgerStorage := migrations.NewBadgerStorage(db)
@@ -518,6 +519,7 @@ func BuildService(private identity.Private, config Config) (Service, func(), err
 		CreateBlob:           createBlobHandler,
 		AddToBanList:         addToBanListHandler,
 		RemoveFromBanList:    removeFromBanListHandler,
+		SetBanList:           setBanListHandler,
 		RoomsAliasRegister:   roomsAliasRegisterHandler,
 		RoomsAliasRevoke:     roomsAliasRevokeHandler,
 		RunMigrations:        runMigrationsHandler,
@@ -699,6 +701,7 @@ func buildIntegrationTestsService(t *testing.T) (IntegrationTestsService, func()
 	createBlobHandler := commands.NewCreateBlobHandler(filesystemStorage)
 	addToBanListHandler := commands.NewAddToBanListHandler(commandsTransactionProvider)
 	removeFromBanListHandler := commands.NewRemoveFromBanListHandler(commandsTransactionProvider)
+	setBanListHandler := commands.NewSetBanListHandler(commandsTransactionProvider)
 	roomsAliasRegisterHandler := commands.NewRoomsAliasRegisterHandler(dialer, private)
 	roomsAliasRevokeHandler := commands.NewRoomsAliasRevokeHandler(dialer)
 	badgerStorage := migrations.NewBadgerStorage(db)
@@ -733,6 +736,7 @@ func buildIntegrationTestsService(t *testing.T) (IntegrationTestsService, func()
 		CreateBlob:           createBlobHandler,
 		AddToBanList:         addToBanListHandler,
 		RemoveFromBanList:    removeFromBanListHandler,
+		SetBanList:           setBanListHandler,
 		RoomsAliasRegister:   roomsAliasRegisterHandler,
 		RoomsAliasRevoke:     roomsAliasRevokeHandler,
 		RunMigrations:        runMigrationsHandler,

@@ -1,8 +1,6 @@
 package graph
 
 import (
-	"encoding/hex"
-
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/internal"
 	"github.com/planetary-social/scuttlego/service/domain/bans"
@@ -31,7 +29,7 @@ func NewCachedBanList(hasher BanListHasher, lister BanListLister) (*CachedBanLis
 
 	hashesSet := internal.NewSet[string]()
 	for _, hash := range hashes {
-		hashesSet.Put(hex.EncodeToString(hash.Bytes()))
+		hashesSet.Put(string(hash.Bytes()))
 	}
 
 	return &CachedBanList{hasher: hasher, hashes: hashesSet}, nil
@@ -43,5 +41,5 @@ func (c CachedBanList) ContainsFeed(feed refs.Feed) (bool, error) {
 		return false, errors.New("error calculating the ban list hash")
 	}
 
-	return c.hashes.Contains(hex.EncodeToString(hashForFeed.Bytes())), nil
+	return c.hashes.Contains(string(hashForFeed.Bytes())), nil
 }

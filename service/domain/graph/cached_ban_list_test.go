@@ -48,6 +48,28 @@ func TestCachedBanList(t *testing.T) {
 	require.False(t, ok)
 }
 
+func BenchmarkContainsFeed(b *testing.B) {
+	hasher := mocks.NewBanListHasherMock()
+	lister := newBanListListerMock()
+
+	feed := fixtures.SomeRefFeed()
+	hash := fixtures.SomeBanListHash()
+
+	hasher.Mock(feed, hash)
+
+	list, err := graph.NewCachedBanList(hasher, lister)
+	require.NoError(b, err)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		if _, err := list.ContainsFeed(feed); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 type banListListerMock struct {
 	ListReturnValue []bans.Hash
 }

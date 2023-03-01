@@ -25,6 +25,7 @@ type Commands struct {
 
 	AddToBanList      *commands.AddToBanListHandler
 	RemoveFromBanList *commands.RemoveFromBanListHandler
+	SetBanList        *commands.SetBanListHandler
 
 	RoomsAliasRegister *commands.RoomsAliasRegisterHandler
 	RoomsAliasRevoke   *commands.RoomsAliasRevokeHandler

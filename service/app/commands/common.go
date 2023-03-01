@@ -16,6 +16,10 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/transport"
 )
 
+var ErrBanListMappingNotFound = errors.New("ban list mapping not found")
+
+type UpdateFeedFn func(feed *feeds.Feed) error
+
 type PeerManager interface {
 	// Connect instructs the peer manager that it should establish
 	// communications with the specified node. The peer manager may ignore this
@@ -43,20 +47,35 @@ type PeerManager interface {
 	TrackPeer(ctx context.Context, peer transport.Peer)
 }
 
-type TransactionProvider interface {
-	Transact(func(adapters Adapters) error) error
+type CurrentTimeProvider interface {
+	Get() time.Time
 }
 
-type ReceiveLogRepository interface {
-	PutUnderSpecificSequence(id refs.Message, sequence common.ReceiveLogSequence) error
+// BannableRef wraps a feed ref.
+type BannableRef struct {
+	v any
+}
 
-	// ReserveSequencesUpTo ensures that sequences all the way to and including
-	// the provided sequence will not be used for automatic sequence generation.
-	ReserveSequencesUpTo(sequence common.ReceiveLogSequence) error
+func NewBannableRef(v any) (BannableRef, error) {
+	switch v.(type) {
+	case refs.Feed:
+	default:
+		return BannableRef{}, errors.New("must carry a feed ref")
+	}
+	return BannableRef{v: v}, nil
+}
 
-	// GetMessage returns the message that the provided receive log sequence
-	// points to. Returns common.ErrReceiveLogEntryNotFound if not found.
-	GetMessage(seq common.ReceiveLogSequence) (message.Message, error)
+func (b *BannableRef) Value() any {
+	return b.v
+}
+
+type Dialer interface {
+	DialWithInitializer(ctx context.Context, initializer network.ClientPeerInitializer, remote identity.Public, addr network.Address) (transport.Peer, error)
+	Dial(ctx context.Context, remote identity.Public, address network.Address) (transport.Peer, error)
+}
+
+type TransactionProvider interface {
+	Transact(func(adapters Adapters) error) error
 }
 
 type Adapters struct {
@@ -67,8 +86,6 @@ type Adapters struct {
 	FeedWantList FeedWantListRepository
 	BanList      BanListRepository
 }
-
-type UpdateFeedFn func(feed *feeds.Feed) error
 
 type FeedRepository interface {
 	// UpdateFeed updates the specified feed by calling the provided function on
@@ -89,6 +106,18 @@ type FeedRepository interface {
 	// RemoveMessagesAtOrAboveSequence removes all feed messages with sequence
 	// greater or equal to the given one.
 	RemoveMessagesAtOrAboveSequence(ref refs.Feed, sequence message.Sequence) error
+}
+
+type ReceiveLogRepository interface {
+	PutUnderSpecificSequence(id refs.Message, sequence common.ReceiveLogSequence) error
+
+	// ReserveSequencesUpTo ensures that sequences all the way to and including
+	// the provided sequence will not be used for automatic sequence generation.
+	ReserveSequencesUpTo(sequence common.ReceiveLogSequence) error
+
+	// GetMessage returns the message that the provided receive log sequence
+	// points to. Returns common.ErrReceiveLogEntryNotFound if not found.
+	GetMessage(seq common.ReceiveLogSequence) (message.Message, error)
 }
 
 type SocialGraphRepository interface {
@@ -114,28 +143,6 @@ type FeedWantListRepository interface {
 	Contains(id refs.Feed) (bool, error)
 }
 
-type CurrentTimeProvider interface {
-	Get() time.Time
-}
-
-// BannableRef wraps a feed ref.
-type BannableRef struct {
-	v any
-}
-
-func NewBannableRef(v any) (BannableRef, error) {
-	switch v.(type) {
-	case refs.Feed:
-	default:
-		return BannableRef{}, errors.New("must carry a feed ref")
-	}
-	return BannableRef{v: v}, nil
-}
-
-func (b *BannableRef) Value() any {
-	return b.v
-}
-
 type BanListRepository interface {
 	// Add adds a hash to the ban list.
 	Add(hash bans.Hash) error
@@ -144,17 +151,13 @@ type BanListRepository interface {
 	// no errors are returned.
 	Remove(hash bans.Hash) error
 
+	// Clear removes all entries from the ban list.
+	Clear() error
+
 	// ContainsFeed checks if the particular feed is banned.
 	ContainsFeed(feed refs.Feed) (bool, error)
 
 	// LookupMapping returns ErrBanListMappingNotFound error if a ref can not be
 	// found.
 	LookupMapping(hash bans.Hash) (BannableRef, error)
-}
-
-var ErrBanListMappingNotFound = errors.New("ban list mapping not found")
-
-type Dialer interface {
-	DialWithInitializer(ctx context.Context, initializer network.ClientPeerInitializer, remote identity.Public, addr network.Address) (transport.Peer, error)
-	Dial(ctx context.Context, remote identity.Public, address network.Address) (transport.Peer, error)
 }

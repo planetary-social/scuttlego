@@ -61,3 +61,24 @@ func BenchmarkNewKeyFromBytes(b *testing.B) {
 		})
 	}
 }
+
+func BenchmarkKeyBytes(b *testing.B) {
+	for _, numberOfComponents := range []int{1, 3, 5, 7, 9} {
+		b.Run(fmt.Sprintf("components-%d", numberOfComponents), func(b *testing.B) {
+			var components []utils.KeyComponent
+			for i := 0; i < numberOfComponents; i++ {
+				components = append(components, utils.MustNewKeyComponent(fixtures.SomeBytes()))
+			}
+
+			key, err := utils.NewKey(components...)
+			require.NoError(b, err)
+
+			b.ResetTimer()
+			b.ReportAllocs()
+
+			for i := 0; i < b.N; i++ {
+				key.Bytes()
+			}
+		})
+	}
+}

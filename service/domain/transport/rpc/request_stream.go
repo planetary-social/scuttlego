@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"net"
 	"sync"
 
 	"github.com/boreq/errors"
@@ -104,7 +105,13 @@ func (rs *RequestStream) CloseWithError(err error) error {
 
 	rs.cancel()
 	rs.sentCloseStream = true
-	return sendCloseStream(rs.raw, -rs.requestNumber, err)
+	if err := sendCloseStream(rs.raw, -rs.requestNumber, err); err != nil {
+		if errors.Is(err, net.ErrClosed) {
+			return nil
+		}
+		return errors.Wrap(err, "failed to send close stream")
+	}
+	return nil
 }
 
 func (rs *RequestStream) IncomingMessages() (<-chan IncomingMessage, error) {

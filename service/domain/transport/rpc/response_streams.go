@@ -3,6 +3,7 @@ package rpc
 import (
 	"bytes"
 	"context"
+	"net"
 	"sync"
 	"sync/atomic"
 
@@ -178,7 +179,9 @@ func (s *ResponseStreams) waitAndCloseResponseStream(rs *responseStream) {
 	if rs.typ != ProcedureTypeAsync {
 		go func() {
 			if err := sendCloseStream(s.raw, rs.number, nil); err != nil {
-				s.logger.WithError(err).Debug("failed to close the stream")
+				if !errors.Is(err, net.ErrClosed) {
+					s.logger.WithError(err).Debug("failed to close the stream")
+				}
 			}
 		}()
 	}

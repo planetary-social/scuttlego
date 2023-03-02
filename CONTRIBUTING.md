@@ -104,10 +104,18 @@ your changes.
 When naming long-lived feature branches please follow the pattern `feature/...`.
 This enables CI for that branch.
 
+### Changelog
+
+We try to keep a changelog which documents all notable changes. The format is
+based on [Keep a Changelog][keep-a-changelog]. It is good to
+try to update it when preparing a pull request.
+
+
 
 [hexagonal-architecture]: https://en.wikipedia.org/wiki/Hexagonal_architecture_(software)
 
 [commit-message]: https://cbea.ms/git-commit/
+[keep-a-changelog]: https://keepachangelog.com/en/1.0.0/
 
 [effective-go]: http://golang.org/doc/effective_go.html
 [code-review-comments]: https://github.com/golang/go/wiki/CodeReviewComments

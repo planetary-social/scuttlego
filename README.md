@@ -2,10 +2,9 @@
 
 A Go implementation of the [Secure Scuttlebutt][ssb] protocol. This
 implementation was designed to be used by the [Planetary][planetary] client and
-attempts to be efficient, stable and keep a relatively low memory footprint.
-
-**Work in progress. The exposed interfaces and format of the persisted data may
-change.**
+attempts to be efficient, stable and keep a relatively low memory footprint. As
+scuttlego is under active development the exposed interfaces may undergo some
+changes as its API stabilizes.
 
 ## Features
 
@@ -19,17 +18,15 @@ change.**
 - Replication scheduler (prioritise closer feeds, avoid replicating the same
   messages simultaneously from various peers etc.)
 - Replicating and creating blobs
+- Pushing blobs
 - Tunneling via rooms
 - Some commands and queries for managing room aliases
 
-### Planned in the near future
+### Planned
 
 - Connection manager (dynamic discovery of pubs from feeds)
 - Handling blob wants received from remote peers
 - Cleaning up old blobs and messages
-
-### Planned
-
 - Private messages
 - Private groups
 - Support for other feed formats

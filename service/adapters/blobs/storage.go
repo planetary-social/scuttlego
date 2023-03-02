@@ -36,14 +36,6 @@ func NewFilesystemStorage(path string, logger logging.Logger) (*FilesystemStorag
 		logger: logger,
 	}
 
-	if err := s.createStorage(); err != nil {
-		return nil, errors.Wrap(err, "failed to create the storage directory")
-	}
-
-	if err := s.createTemporary(); err != nil {
-		return nil, errors.Wrap(err, "failed to create the temporary directory")
-	}
-
 	if err := s.removeTemporaryFiles(); err != nil {
 		return nil, errors.Wrap(err, "failed to remove old temporary files")
 	}
@@ -52,6 +44,10 @@ func NewFilesystemStorage(path string, logger logging.Logger) (*FilesystemStorag
 }
 
 func (f FilesystemStorage) Store(id refs.Blob, r io.Reader) error {
+	if err := f.ensureDirectoriesExist(); err != nil {
+		return errors.Wrap(err, "error ensuring that directories exist")
+	}
+
 	hexRef := hex.EncodeToString(id.Bytes())
 
 	pattern := fmt.Sprintf("%s%s%d%s*%s", hexRef, filenameSeparator, time.Now().Unix(), filenameSeparator, partialFileSuffix)
@@ -85,6 +81,10 @@ func (f FilesystemStorage) Store(id refs.Blob, r io.Reader) error {
 }
 
 func (f FilesystemStorage) Create(r io.Reader) (refs.Blob, error) {
+	if err := f.ensureDirectoriesExist(); err != nil {
+		return refs.Blob{}, errors.Wrap(err, "error ensuring that directories exist")
+	}
+
 	pattern := fmt.Sprintf("%d%s*%s", time.Now().Unix(), filenameSeparator, partialFileSuffix)
 
 	tmpFile, err := os.CreateTemp(f.dirTemporary(), pattern)
@@ -160,6 +160,18 @@ func (f FilesystemStorage) Has(id refs.Blob) (bool, error) {
 	return true, nil
 }
 
+func (f FilesystemStorage) ensureDirectoriesExist() error {
+	if err := f.createStorage(); err != nil {
+		return errors.Wrap(err, "failed to create the storage directory")
+	}
+
+	if err := f.createTemporary(); err != nil {
+		return errors.Wrap(err, "failed to create the temporary directory")
+	}
+
+	return nil
+}
+
 func (f FilesystemStorage) createStorage() error {
 	return os.MkdirAll(f.dirStorage(), onlyForMe)
 }
@@ -185,6 +197,12 @@ func (f FilesystemStorage) pathStorage(id refs.Blob) string {
 
 func (f FilesystemStorage) removeTemporaryFiles() error {
 	return filepath.WalkDir(f.dirTemporary(), func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			if os.IsNotExist(err) {
+				return nil
+			}
+			return errors.Wrap(err, "error removing temporary files")
+		}
 		if !d.IsDir() {
 			if err := os.Remove(path); err != nil {
 				return errors.Wrap(err, "could not remove one of the old temporary files")

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -42,6 +43,35 @@ func TestStorageStore(t *testing.T) {
 	require.Equal(t, data, readData)
 }
 
+func TestStorage_StoreShouldNotFailIfDirectoryDisappearsAfterCreatingFilesystemStorage(t *testing.T) {
+	directory := fixtures.Directory(t)
+	logger := logging.NewDevNullLogger()
+
+	storage, err := blobs.NewFilesystemStorage(directory, logger)
+	require.NoError(t, err)
+
+	err = os.RemoveAll(directory)
+	require.NoError(t, err)
+
+	id, r, data := newFakeBlob(t)
+
+	err = storage.Store(id, r)
+	require.NoError(t, err)
+
+	size, err := storage.Size(id)
+	require.NoError(t, err)
+	require.EqualValues(t, len(data), size.InBytes())
+
+	rc, err := storage.Get(id)
+	require.NoError(t, err)
+	defer rc.Close()
+
+	readData, err := io.ReadAll(rc)
+	require.NoError(t, err)
+
+	require.Equal(t, data, readData)
+}
+
 func TestSizeReturnsBlobNotFound(t *testing.T) {
 	directory := fixtures.Directory(t)
 	logger := logging.NewDevNullLogger()
@@ -58,6 +88,36 @@ func TestStorageCreate(t *testing.T) {
 	logger := logging.NewDevNullLogger()
 
 	storage, err := blobs.NewFilesystemStorage(directory, logger)
+	require.NoError(t, err)
+
+	bts := fixtures.SomeBytes()
+
+	id, err := storage.Create(bytes.NewReader(bts))
+	require.NoError(t, err)
+	require.NotEmpty(t, id.String())
+
+	size, err := storage.Size(id)
+	require.NoError(t, err)
+	require.EqualValues(t, len(bts), size.InBytes())
+
+	rc, err := storage.Get(id)
+	require.NoError(t, err)
+	defer rc.Close()
+
+	readData, err := io.ReadAll(rc)
+	require.NoError(t, err)
+
+	require.Equal(t, bts, readData)
+}
+
+func TestStorage_CreateShouldNotFailIfDirectoryDisappearsAfterCreatingFilesystemStorage(t *testing.T) {
+	directory := fixtures.Directory(t)
+	logger := logging.NewDevNullLogger()
+
+	storage, err := blobs.NewFilesystemStorage(directory, logger)
+	require.NoError(t, err)
+
+	err = os.RemoveAll(directory)
 	require.NoError(t, err)
 
 	bts := fixtures.SomeBytes()

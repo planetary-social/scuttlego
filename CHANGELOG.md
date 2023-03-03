@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Improved blob replication performance by caching the list of blobs which
+  should be pushed.
+
 ## [0.0.1]
 
 ### Added

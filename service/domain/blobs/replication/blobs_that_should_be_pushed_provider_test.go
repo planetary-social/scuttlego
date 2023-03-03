@@ -110,6 +110,32 @@ func TestStorageBlobsThatShouldBePushedProvider_GetBlobsThatShouldBePushed(t *te
 	}
 }
 
+func TestCacheBlobsThatShouldBePushedProvider_GetBlobsThatShouldBePushedCachesTheValueAndCallsTheUnderlyingProviderOnce(t *testing.T) {
+	provider := newProviderMock()
+	cacheProvider := replication.NewCacheBlobsThatShouldBePushedProvider(provider)
+
+	_, err := cacheProvider.GetBlobsThatShouldBePushed()
+	require.NoError(t, err)
+
+	_, err = cacheProvider.GetBlobsThatShouldBePushed()
+	require.NoError(t, err)
+
+	require.Equal(t, 1, provider.GetBlobsThatShouldBePushedCalls)
+}
+
+type providerMock struct {
+	GetBlobsThatShouldBePushedCalls int
+}
+
+func newProviderMock() *providerMock {
+	return &providerMock{}
+}
+
+func (p *providerMock) GetBlobsThatShouldBePushed() ([]refs.Blob, error) {
+	p.GetBlobsThatShouldBePushedCalls++
+	return nil, nil
+}
+
 type blobsRepositoryMock struct {
 	GetFeedBlobsReturnValue []replication.MessageBlobs
 }

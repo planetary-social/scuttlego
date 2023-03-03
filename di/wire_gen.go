@@ -588,9 +588,10 @@ func BuildService(private identity.Private, config Config) (Service, func(), err
 		cleanup()
 		return Service{}, nil, err
 	}
+	cacheBlobsThatShouldBePushedProvider := newCacheBlobsThatShouldBePushedProvider(storageBlobsThatShouldBePushedProvider)
 	blobsGetDownloader := replication.NewBlobsGetDownloader(filesystemStorage, logger)
 	hasHandler := replication.NewHasHandler(filesystemStorage, noTxBlobWantListRepository, blobsGetDownloader, blobDownloadedPubSub, logger)
-	diManagedWantsProcessFactory := newManagedWantsProcessFactory(noTxBlobWantListRepository, storageBlobsThatShouldBePushedProvider, filesystemStorage, hasHandler, logger)
+	diManagedWantsProcessFactory := newManagedWantsProcessFactory(noTxBlobWantListRepository, cacheBlobsThatShouldBePushedProvider, filesystemStorage, hasHandler, logger)
 	manager := replication.NewManager(diManagedWantsProcessFactory, logger)
 	createWantsHandler := commands.NewCreateWantsHandler(manager)
 	handlerBlobsCreateWants := rpc2.NewHandlerBlobsCreateWants(createWantsHandler)
@@ -805,9 +806,10 @@ func buildIntegrationTestsService(t *testing.T) (IntegrationTestsService, func()
 		cleanup()
 		return IntegrationTestsService{}, nil, err
 	}
+	cacheBlobsThatShouldBePushedProvider := newCacheBlobsThatShouldBePushedProvider(storageBlobsThatShouldBePushedProvider)
 	blobsGetDownloader := replication.NewBlobsGetDownloader(filesystemStorage, logger)
 	hasHandler := replication.NewHasHandler(filesystemStorage, noTxBlobWantListRepository, blobsGetDownloader, blobDownloadedPubSub, logger)
-	diManagedWantsProcessFactory := newManagedWantsProcessFactory(noTxBlobWantListRepository, storageBlobsThatShouldBePushedProvider, filesystemStorage, hasHandler, logger)
+	diManagedWantsProcessFactory := newManagedWantsProcessFactory(noTxBlobWantListRepository, cacheBlobsThatShouldBePushedProvider, filesystemStorage, hasHandler, logger)
 	manager := replication.NewManager(diManagedWantsProcessFactory, logger)
 	createWantsHandler := commands.NewCreateWantsHandler(manager)
 	handlerBlobsCreateWants := rpc2.NewHandlerBlobsCreateWants(createWantsHandler)

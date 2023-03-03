@@ -25,8 +25,14 @@ var blobReplicatorSet = wire.NewSet(
 	wire.Bind(new(blobReplication.HasBlobHandler), new(*blobReplication.HasHandler)),
 
 	blobReplication.NewStorageBlobsThatShouldBePushedProvider,
-	wire.Bind(new(blobReplication.BlobsThatShouldBePushedProvider), new(*blobReplication.StorageBlobsThatShouldBePushedProvider)),
+
+	newCacheBlobsThatShouldBePushedProvider,
+	wire.Bind(new(blobReplication.BlobsThatShouldBePushedProvider), new(*blobReplication.CacheBlobsThatShouldBePushedProvider)),
 )
+
+func newCacheBlobsThatShouldBePushedProvider(provider *blobReplication.StorageBlobsThatShouldBePushedProvider) *blobReplication.CacheBlobsThatShouldBePushedProvider {
+	return blobReplication.NewCacheBlobsThatShouldBePushedProvider(provider)
+}
 
 type managedWantsProcessFactory struct {
 	wantedBlobsProvider             blobReplication.WantedBlobsProvider

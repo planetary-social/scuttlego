@@ -1,6 +1,7 @@
 package replication
 
 import (
+	"sync"
 	"time"
 
 	"github.com/boreq/errors"
@@ -28,6 +29,41 @@ type CurrentTimeProvider interface {
 	Get() time.Time
 }
 
+type CacheBlobsThatShouldBePushedProvider struct {
+	provider BlobsThatShouldBePushedProvider
+
+	refreshCacheEvery time.Duration
+
+	cache          []refs.Blob
+	cacheTimestamp time.Time
+	cacheLock      sync.Mutex
+}
+
+func NewCacheBlobsThatShouldBePushedProvider(provider BlobsThatShouldBePushedProvider) *CacheBlobsThatShouldBePushedProvider {
+	return &CacheBlobsThatShouldBePushedProvider{
+		provider: provider,
+
+		refreshCacheEvery: 15 * time.Second,
+	}
+}
+
+func (c *CacheBlobsThatShouldBePushedProvider) GetBlobsThatShouldBePushed() ([]refs.Blob, error) {
+	c.cacheLock.Lock()
+	defer c.cacheLock.Unlock()
+
+	if c.cacheTimestamp.IsZero() || time.Since(c.cacheTimestamp) > c.refreshCacheEvery {
+		tmp, err := c.provider.GetBlobsThatShouldBePushed()
+		if err != nil {
+			return nil, errors.Wrap(err, "error refreshing the cache")
+		}
+
+		c.cache = tmp
+		c.cacheTimestamp = time.Now()
+	}
+
+	return c.cache, nil
+}
+
 type StorageBlobsThatShouldBePushedProvider struct {
 	blobs               BlobsRepository
 	localRef            refs.Identity
@@ -51,7 +87,7 @@ func NewStorageBlobsThatShouldBePushedProvider(
 	}, nil
 }
 
-func (s StorageBlobsThatShouldBePushedProvider) GetBlobsThatShouldBePushed() ([]refs.Blob, error) {
+func (s *StorageBlobsThatShouldBePushedProvider) GetBlobsThatShouldBePushed() ([]refs.Blob, error) {
 	feedBlobs, err := s.blobs.GetFeedBlobs(s.localRef.MainFeed())
 	if err != nil {
 		return nil, errors.Wrap(err, "error getting blobs")

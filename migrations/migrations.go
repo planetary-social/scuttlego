@@ -163,7 +163,7 @@ func (r Runner) runMigration(ctx context.Context, migration Migration, onRunning
 
 	logger := r.logger.WithField("migration_name", migration.Name())
 
-	logger.Trace("considering migration")
+	logger.Trace().Message("considering migration")
 
 	shouldRun, err := r.shouldRun(migration)
 	if err != nil {
@@ -171,7 +171,7 @@ func (r Runner) runMigration(ctx context.Context, migration Migration, onRunning
 	}
 
 	if !shouldRun {
-		logger.Debug("not running this migration")
+		logger.Debug().Message("not running this migration")
 		return nil
 	}
 
@@ -187,7 +187,7 @@ func (r Runner) runMigration(ctx context.Context, migration Migration, onRunning
 		return errors.Wrap(err, "state json marshal error")
 	}
 
-	logger.WithField("state", string(humanReadableState)).Debug("executing migration")
+	logger.Debug().WithField("state", string(humanReadableState)).Message("executing migration")
 
 	saveStateFunc := func(state State) error {
 		return r.storage.SaveState(migration.Name(), state)

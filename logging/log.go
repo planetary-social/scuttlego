@@ -9,74 +9,150 @@ const (
 	loggerFieldError = "error"
 )
 
+type Level int
+
+const (
+	LevelTrace Level = iota
+	LevelDebug
+	LevelError
+	LevelDisabled
+)
+
 type Logger interface {
 	New(name string) Logger
 	WithCtx(ctx context.Context) Logger
 	WithError(err error) Logger
 	WithField(key string, v any) Logger
 
-	Error(message string)
-	Debug(message string)
-	Trace(message string)
+	Error() Entry
+	Debug() Entry
+	Trace() Entry
+}
+
+type Entry interface {
+	WithError(err error) Entry
+	WithField(key string, v any) Entry
+	Message(msg string)
 }
 
 type LoggingSystem interface {
-	WithField(key string, v any) LoggingSystem
-	Error(message string)
-	Debug(message string)
-	Trace(message string)
+	EnabledLevel() Level
+	Error() LoggingSystemEntry
+	Debug() LoggingSystemEntry
+	Trace() LoggingSystemEntry
+}
+
+type LoggingSystemEntry interface {
+	WithField(key string, v any) LoggingSystemEntry
+	Message(msg string)
 }
 
 type ContextLogger struct {
-	name   string
-	logger LoggingSystem
 	ctx    context.Context
-}
+	fields map[string]any
 
-func newContextLogger(logger LoggingSystem, name string, ctx context.Context) Logger {
-	return ContextLogger{
-		name:   name,
-		logger: logger,
-		ctx:    ctx,
-	}
+	logger LoggingSystem
 }
 
 func NewContextLogger(logger LoggingSystem, name string) Logger {
-	return newContextLogger(logger, name, nil)
+	if logger.EnabledLevel() >= LevelDisabled {
+		return NewDevNullLogger()
+	}
+	return newContextLogger(logger, nil, map[string]any{loggerFieldName: name})
+}
+
+func newContextLogger(logger LoggingSystem, ctx context.Context, fields map[string]any) ContextLogger {
+	newLogger := ContextLogger{
+		ctx:    ctx,
+		fields: make(map[string]any),
+
+		logger: logger,
+	}
+
+	for k, v := range fields {
+		newLogger.fields[k] = v
+	}
+
+	return newLogger
+}
+
+func (l ContextLogger) Error() Entry {
+	if l.logger.EnabledLevel() > LevelError {
+		return newDevNullLoggerEntry()
+	}
+	return l.withFields(newEntry(l.logger.Error()))
+}
+
+func (l ContextLogger) Debug() Entry {
+	if l.logger.EnabledLevel() > LevelDebug {
+		return newDevNullLoggerEntry()
+	}
+	return l.withFields(newEntry(l.logger.Debug()))
+}
+
+func (l ContextLogger) Trace() Entry {
+	if l.logger.EnabledLevel() > LevelTrace {
+		return newDevNullLoggerEntry()
+	}
+	return l.withFields(newEntry(l.logger.Trace()))
 }
 
 func (l ContextLogger) New(name string) Logger {
-	return newContextLogger(l.logger, l.name+"."+name, l.ctx)
+	newLogger := newContextLogger(l.logger, l.ctx, l.fields)
+	v, okExists := l.fields[loggerFieldName]
+	if okExists {
+		if stringV, okType := v.(string); okType {
+			newLogger.fields[loggerFieldName] = stringV + "." + name
+			return newLogger
+		}
+		return newLogger
+	}
+	newLogger.fields[loggerFieldName] = name
+	return newLogger
 }
 
 func (l ContextLogger) WithCtx(ctx context.Context) Logger {
-	return newContextLogger(l.logger, l.name, ctx)
+	return newContextLogger(l.logger, ctx, l.fields)
 }
 
 func (l ContextLogger) WithError(err error) Logger {
-	return newContextLogger(l.logger.WithField(loggerFieldError, err), l.name, l.ctx)
+	newLogger := newContextLogger(l.logger, l.ctx, l.fields)
+	newLogger.fields[loggerFieldError] = err
+	return newLogger
 }
 
 func (l ContextLogger) WithField(key string, v any) Logger {
-	return newContextLogger(l.logger.WithField(key, v), l.name, l.ctx)
+	newLogger := newContextLogger(l.logger, l.ctx, l.fields)
+	newLogger.fields[key] = v
+	return newLogger
 }
 
-func (l ContextLogger) Error(message string) {
-	l.withFields().Error(message)
+func (l ContextLogger) withFields(entry Entry) Entry {
+	for k, v := range l.fields {
+		entry = entry.WithField(k, v)
+	}
+	entry = addContextFields(entry, l.ctx)
+	return entry
 }
 
-func (l ContextLogger) Debug(message string) {
-	l.withFields().Debug(message)
+type entry struct {
+	loggingSystemEntry LoggingSystemEntry
 }
 
-func (l ContextLogger) Trace(message string) {
-	l.withFields().Trace(message)
+func newEntry(loggingSystemEntry LoggingSystemEntry) entry {
+	return entry{loggingSystemEntry: loggingSystemEntry}
 }
 
-func (l ContextLogger) withFields() LoggingSystem {
-	logger := l.logger.WithField(loggerFieldName, l.name)
-	logger = addContextFields(logger, l.ctx)
-	return logger
+func (e entry) WithError(err error) Entry {
+	return newEntry(e.loggingSystemEntry.WithField(loggerFieldError, err))
+}
+
+func (e entry) WithField(key string, v any) Entry {
+	return newEntry(e.loggingSystemEntry.WithField(key, v))
+}
+
+func (e entry) Message(msg string) {
+	e.loggingSystemEntry.Message(msg)
 }
 
 type DevNullLogger struct {
@@ -102,23 +178,44 @@ func (d DevNullLogger) WithField(key string, v any) Logger {
 	return d
 }
 
-func (d DevNullLogger) Error(message string) {
+func (d DevNullLogger) Error() Entry {
+	return newDevNullLoggerEntry()
 }
 
-func (d DevNullLogger) Debug(message string) {
+func (d DevNullLogger) Debug() Entry {
+	return newDevNullLoggerEntry()
 }
 
-func (d DevNullLogger) Trace(message string) {
+func (d DevNullLogger) Trace() Entry {
+	return newDevNullLoggerEntry()
 }
 
-func addContextFields(logger LoggingSystem, ctx context.Context) LoggingSystem {
+type devNullLoggerEntry struct {
+}
+
+func newDevNullLoggerEntry() devNullLoggerEntry {
+	return devNullLoggerEntry{}
+}
+
+func (d devNullLoggerEntry) WithError(err error) Entry {
+	return d
+}
+
+func (d devNullLoggerEntry) WithField(key string, v any) Entry {
+	return d
+}
+
+func (d devNullLoggerEntry) Message(msg string) {
+}
+
+func addContextFields(entry Entry, ctx context.Context) Entry {
 	if ctx == nil {
-		return logger
+		return entry
 	}
 
 	for label, value := range GetLoggingContext(ctx) {
-		logger = logger.WithField(label, value)
+		entry = entry.WithField(label, value)
 	}
 
-	return logger
+	return entry
 }

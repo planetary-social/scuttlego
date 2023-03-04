@@ -114,7 +114,7 @@ func (p PeerManager) Connect(ctx context.Context, remote identity.Public, addres
 		return nil
 	}
 
-	p.logger.WithField("remote", remote).WithField("address", address).Debug("dialing")
+	p.logger.Debug().WithField("remote", remote).WithField("address", address).Message("dialing")
 
 	_, err := p.dialer.Dial(ctx, remote, address)
 	if err != nil {
@@ -131,7 +131,7 @@ func (p PeerManager) ConnectViaRoom(ctx context.Context, portal transport.Peer, 
 		return nil
 	}
 
-	p.logger.WithField("target", target).WithField("portal", portal).Debug("dialing via room")
+	p.logger.Debug().WithField("target", target).WithField("portal", portal).Message("dialing via room")
 
 	_, err := p.roomDialer.DialViaRoom(ctx, portal, target)
 	if err != nil {

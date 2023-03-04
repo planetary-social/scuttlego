@@ -69,7 +69,7 @@ func (a *PeerRPCAdapter) GetAttendants(ctx context.Context, peer transport.Peer)
 		defer close(ch)
 
 		if err := a.streamAttendants(ctx, ch, stream); err != nil {
-			a.logger.WithError(err).Debug("attendants stream error")
+			a.logger.Debug().WithError(err).Message("attendants stream error")
 		}
 	}()
 

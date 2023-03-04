@@ -76,7 +76,7 @@ func (h MigrationHandlerDeleteGoSSBRepositoryInOldFormat) canReadData(ctx contex
 	}
 
 	if err := msgOrError.Err; err != nil {
-		h.logger.WithError(err).Debug("received an error")
+		h.logger.Debug().WithError(err).Message("received an error")
 		return false, nil
 	}
 

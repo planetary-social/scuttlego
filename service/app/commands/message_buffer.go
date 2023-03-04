@@ -66,7 +66,7 @@ func NewMessageBuffer(
 func (m *MessageBuffer) Run(ctx context.Context) error {
 	for {
 		if err := m.persist(); err != nil {
-			m.logger.WithError(err).Error("error persisting messages")
+			m.logger.Error().WithError(err).Message("error persisting messages")
 		}
 
 		m.cleanup()
@@ -138,18 +138,19 @@ func (m *MessageBuffer) persist() error {
 	for key, updatedSequence := range updatedSequences {
 		logger := m.logger.WithField("key", key).WithField("updated_sequence", updatedSequence.Int())
 
-		logger.Trace("leaving only after")
+		logger.Trace().Message("leaving only after")
 		m.messages[key].LeaveOnlyAfter(updatedSequence)
 
 		if m.messages[key].Len() == 0 {
-			logger.Trace("deleting")
+			logger.Trace().Message("deleting")
 			delete(m.messages, key)
 		}
 	}
 
 	m.logger.
+		Debug().
 		WithField("duration", time.Since(start)).
-		Debug("persisted messages")
+		Message("persisted messages")
 
 	return nil
 }
@@ -191,7 +192,7 @@ func (m *MessageBuffer) persistTransaction(adapters Adapters) (map[string]messag
 			for _, peekedMessage := range msgs {
 				msg, err := m.identifier.VerifyRawMessage(peekedMessage.Message().Raw())
 				if err != nil {
-					feedLogger.WithError(err).Error("error verifying message")
+					feedLogger.Error().WithError(err).Message("error verifying message")
 					continue
 				}
 
@@ -204,18 +205,20 @@ func (m *MessageBuffer) persistTransaction(adapters Adapters) (map[string]messag
 			}
 
 			feedLogger.
+				Trace().
 				WithField("sequence_in_database", seq).
 				WithField("sequences_in_buffer", feedMessages.Sequences()).
 				WithField("messages_considered_for_persisting", len(msgs)).
-				Trace("persisting messages")
+				Message("persisting messages")
 
 			for _, msg := range validatedMessages {
 				if err := feed.AppendMessage(msg.Message()); err != nil {
 					// probably a forked feed
 					feedLogger.
+						Trace().
 						WithError(err).
 						WithField("message_being_appended", msg).
-						Trace("error appending message")
+						Message("error appending message")
 					feedMessages.Remove(msg.Message().Raw()) // todo?
 					m.forkedFeedTracker.AddForkedFeed(msg.ReplicatedFrom(), msg.Message().Feed())
 					return nil
@@ -236,13 +239,14 @@ func (m *MessageBuffer) persistTransaction(adapters Adapters) (map[string]messag
 	}
 
 	m.logger.
+		Debug().
 		WithField("remaining_messages", m.messages.MessageCount()).
 		WithField("remaining_feeds", len(m.messages)).
 		WithField("messages_all", counterAllMessages).
 		WithField("messages_considered", counterConsideredMessages).
 		WithField("messages_persisted", counterPersistedMessages).
 		WithField("health", float64(counterPersistedMessages)/float64(counterAllMessages)).
-		Debug("update complete")
+		Message("update complete")
 
 	return updatedSequences, nil
 }
@@ -297,11 +301,12 @@ func (m *MessageBuffer) cleanup() {
 	feedsAfter := len(m.messages)
 
 	m.logger.
+		Trace().
 		WithField("messages_before", messagesBefore).
 		WithField("messages_after", messagesAfter).
 		WithField("feeds_before", feedsBefore).
 		WithField("feeds_after", feedsAfter).
-		Trace("cleanup complete")
+		Message("cleanup complete")
 }
 
 func (m *MessageBuffer) getSequence(feed *feeds.Feed) *message.Sequence {

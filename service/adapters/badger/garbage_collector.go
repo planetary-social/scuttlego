@@ -24,7 +24,7 @@ func (g *GarbageCollector) Run(ctx context.Context) error {
 	for {
 		if err := g.gc(); err != nil {
 			if !errors.Is(err, badger.ErrNoRewrite) {
-				g.logger.WithError(err).Error("error performing garbage collection")
+				g.logger.Debug().WithError(err).Message("error performing garbage collection")
 			}
 
 			select {
@@ -35,7 +35,7 @@ func (g *GarbageCollector) Run(ctx context.Context) error {
 			}
 		}
 
-		g.logger.Debug("garbage collected a file")
+		g.logger.Debug().Message("garbage collected a file")
 
 		select {
 		case <-ctx.Done():

@@ -54,14 +54,10 @@ func (n Negotiator) Replicate(ctx context.Context, peer transport.Peer) error {
 }
 
 func (n Negotiator) fallbackToCreateHistoryStream(ctx context.Context, peer transport.Peer) error {
-	n.peerLogger(peer).Debug("peer does not support EBT replication, falling back to create history stream")
+	n.logger.Debug().WithField("peer", peer).Message("peer does not support EBT replication, falling back to create history stream")
 
 	if err := n.chsReplicator.Replicate(ctx, peer); err != nil {
 		return errors.Wrap(err, "CHS replicator error")
 	}
 	return nil
-}
-
-func (n Negotiator) peerLogger(peer transport.Peer) logging.Logger {
-	return n.logger.WithField("peer", peer)
 }

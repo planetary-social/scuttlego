@@ -1,14 +1,12 @@
 package transport_test
 
 import (
-	"io"
+	"errors"
 	"testing"
 
-	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/internal/fixtures"
 	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/transport"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 )
 
@@ -25,12 +23,7 @@ func BenchmarkRawConnection_Next(b *testing.B) {
 	require.NoError(b, err)
 
 	rwc := newRwcMock(headerBytes, bodyBytes)
-
-	logrusLogger := logrus.New()
-	logrusLogger.SetOutput(io.Discard)
-
-	system := logging.NewLogrusLoggingSystem(logrusLogger)
-	logger := logging.NewContextLogger(system, "bench")
+	logger := logging.NewDevNullLogger()
 
 	connection := transport.NewRawConnection(rwc, logger)
 

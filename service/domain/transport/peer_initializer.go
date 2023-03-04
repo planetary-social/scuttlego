@@ -88,7 +88,7 @@ func (i PeerInitializer) initializePeer(ctx context.Context, boxStream *boxstrea
 		i.newPeerHandler.HandleNewPeer(ctx, peer)
 
 		if err := rpcConn.Loop(ctx); err != nil {
-			logger.WithError(err).Debug("connection loop exited")
+			logger.Debug().WithError(err).Message("connection loop exited")
 		}
 	}()
 

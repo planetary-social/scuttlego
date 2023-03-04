@@ -49,7 +49,7 @@ func (s RawConnection) Next() (*Message, error) {
 		return nil, errors.Wrap(err, "could not create a message")
 	}
 
-	s.loggerWithMessageFields(&msg).Trace("received a message")
+	loggerWithMessageFields(s.logger.Trace(), &msg).Message("received a message")
 
 	return &msg, nil
 }
@@ -59,7 +59,7 @@ func (s RawConnection) Send(msg *Message) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	s.loggerWithMessageFields(msg).Trace("sending a message")
+	loggerWithMessageFields(s.logger.Trace(), msg).Message("sending a message")
 
 	b, err := msg.Header.Bytes()
 	if err != nil {
@@ -84,17 +84,6 @@ func (s RawConnection) Close() error {
 	return s.rwc.Close()
 }
 
-func (s RawConnection) loggerWithMessageFields(msg *Message) logging.Logger {
-	l := s.logger.
-		WithField("header.flags", msg.Header.Flags()).
-		WithField("header.number", msg.Header.RequestNumber()).
-		WithField("header.bodyLength", msg.Header.BodyLength())
-	if msg.Header.Flags().BodyType() != MessageBodyTypeBinary {
-		l = l.WithField("body", string(msg.Body))
-	}
-	return l
-}
-
 func isTermination(bytes []byte) bool {
 	for _, b := range bytes {
 		if b != 0 {
@@ -102,4 +91,15 @@ func isTermination(bytes []byte) bool {
 		}
 	}
 	return true
+}
+
+func loggerWithMessageFields(entry logging.Entry, msg *Message) logging.Entry {
+	entry = entry.
+		WithField("header.flags", msg.Header.Flags()).
+		WithField("header.number", msg.Header.RequestNumber()).
+		WithField("header.bodyLength", msg.Header.BodyLength())
+	if msg.Header.Flags().BodyType() != MessageBodyTypeBinary {
+		entry = entry.WithField("body", string(msg.Body))
+	}
+	return entry
 }

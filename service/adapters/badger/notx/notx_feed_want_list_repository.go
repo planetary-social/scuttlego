@@ -24,7 +24,7 @@ func (r NoTxFeedWantListRepository) CleanupLoop(ctx context.Context) error {
 		if err := r.transaction.Update(func(adapters TxAdapters) error {
 			return adapters.FeedWantListRepository.Cleanup()
 		}); err != nil {
-			r.logger.WithError(err).Error("transaction failed")
+			r.logger.Error().WithError(err).Message("transaction failed")
 		}
 
 		select {

@@ -38,7 +38,7 @@ func NewRedeemInviteHandler(
 func (h *RedeemInviteHandler) Handle(ctx context.Context, cmd RedeemInvite) error {
 	if err := h.redeemer.RedeemInvite(ctx, cmd.Invite, h.local.Public()); err != nil {
 		if errors.Is(err, invites.ErrAlreadyFollowing) {
-			h.logger.Debug("pub reported that it is already following the user")
+			h.logger.Debug().Message("pub reported that it is already following the user")
 			return nil
 		}
 		return errors.Wrap(err, "could not contact the pub and redeem the invite")

@@ -7,15 +7,32 @@ func NewDevNullLoggingSystem() DevNullLoggingSystem {
 	return DevNullLoggingSystem{}
 }
 
-func (d DevNullLoggingSystem) WithField(key string, v any) LoggingSystem {
+func (d DevNullLoggingSystem) EnabledLevel() Level {
+	return LevelDisabled
+}
+
+func (d DevNullLoggingSystem) Error() LoggingSystemEntry {
+	return newDevNullEntry()
+}
+
+func (d DevNullLoggingSystem) Debug() LoggingSystemEntry {
+	return newDevNullEntry()
+}
+
+func (d DevNullLoggingSystem) Trace() LoggingSystemEntry {
+	return newDevNullEntry()
+}
+
+type devNullEntry struct {
+}
+
+func newDevNullEntry() devNullEntry {
+	return devNullEntry{}
+}
+
+func (d devNullEntry) WithField(string, any) LoggingSystemEntry {
 	return d
 }
 
-func (d DevNullLoggingSystem) Error(message string) {
-}
-
-func (d DevNullLoggingSystem) Debug(message string) {
-}
-
-func (d DevNullLoggingSystem) Trace(message string) {
+func (d devNullEntry) Message(string) {
 }

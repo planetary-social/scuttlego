@@ -54,7 +54,7 @@ func (l *Listener) ListenAndServe(ctx context.Context) error {
 	go func() {
 		<-ctx.Done()
 		if err := listener.Close(); err != nil {
-			l.logger.WithError(err).Error("error closing the listener")
+			l.logger.Error().WithError(err).Message("error closing the listener")
 		}
 	}()
 
@@ -72,7 +72,7 @@ func (l *Listener) handleNewConnection(ctx context.Context, conn net.Conn) {
 	_, err := l.initializer.InitializeServerPeer(ctx, conn)
 	if err != nil {
 		conn.Close()
-		l.logger.WithError(err).Debug("could not init a peer")
+		l.logger.Debug().WithError(err).Message("could not init a peer")
 		return
 	}
 }

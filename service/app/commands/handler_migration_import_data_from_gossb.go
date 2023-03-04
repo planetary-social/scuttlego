@@ -105,9 +105,10 @@ func (h MigrationHandlerImportDataFromGoSSB) Handle(ctx context.Context, cmd Imp
 	}
 
 	h.logger.
+		Debug().
 		WithField("directory", cmd.directory).
 		WithField("resume_from_sequence", cmd.resumeFromSequence).
-		Debug("import starting")
+		Message("import starting")
 
 	msgs := newMessagesToImport()
 	successCounter := 0
@@ -116,10 +117,11 @@ func (h MigrationHandlerImportDataFromGoSSB) Handle(ctx context.Context, cmd Imp
 
 	defer func() {
 		h.logger.
+			Debug().
 			WithField("success_counter", successCounter).
 			WithField("error_counter", errorCounter).
 			WithField("elapsed_time", time.Since(start).String()).
-			Debug("import ended")
+			Message("import ended")
 	}()
 
 	gossbMessageCh, err := h.repoReader.GetMessages(ctx, cmd.directory, cmd.resumeFromSequence)
@@ -197,9 +199,10 @@ func (h MigrationHandlerImportDataFromGoSSB) startConversionLoop(ctx context.Con
 			}
 
 			h.logger.
+				Trace().
 				WithField("receive_log_sequence", v.Value.ReceiveLogSequence.Int()).
 				WithField("message_id", v.Value.Message.Key().Sigil()).
-				Trace("converting message")
+				Message("converting message")
 
 			msg, err := h.convertMessage(v.Value.Message)
 			if err != nil {
@@ -267,12 +270,13 @@ func (h MigrationHandlerImportDataFromGoSSB) saveMessagesPerFeed(
 			for _, msg := range msgsPerFeed.messages {
 				if err := feed.AppendMessage(msg.Message); err != nil {
 					h.logger.
+						Error().
 						WithError(err).
 						WithField("msg.feed", msg.Message.Feed().String()).
 						WithField("msg.id", msg.Message.Id().String()).
 						WithField("msg.sequence", msg.Message.Sequence().Int()).
 						WithField("receive_log_sequence", msg.ReceiveLogSequence.Int()).
-						Error("error appending a message")
+						Message("error appending a message")
 					continue
 				}
 			}
@@ -342,10 +346,11 @@ func (h MigrationHandlerImportDataFromGoSSB) saveMessagesPerFeed(
 	}
 
 	h.logger.
+		Trace().
 		WithField("successes", feedSuccesses).
 		WithField("errors", feedErrors).
 		WithField("elapsed", time.Since(start).String()).
-		Trace("saved messages for feed")
+		Message("saved messages for feed")
 
 	*errorCounter += feedErrors
 	*successCounter += feedSuccesses
@@ -407,7 +412,10 @@ func (h MigrationHandlerImportDataFromGoSSB) maybePersistSequence(
 		return errors.Wrap(err, "error saving the receive log sequence")
 	}
 
-	h.logger.WithField("sequence", sequenceToSave.Int()).Debug("saved the receive log sequence")
+	h.logger.
+		Debug().
+		WithField("sequence", sequenceToSave.Int()).
+		Message("saved the receive log sequence")
 	*lastSavedSequencePtr = &sequenceToSave
 
 	return nil

@@ -29,31 +29,35 @@ func NewLogger(logger logging.LoggingSystem, level LoggerLevel) Logger {
 func (l Logger) Errorf(s string, i ...interface{}) {
 	if l.level >= LoggerLevelError {
 		l.logger.
+			Error().
 			WithField(originalLogLevelField, "error").
-			Error(fmt.Sprintf(s, i...))
+			Message(fmt.Sprintf(s, i...))
 	}
 }
 
 func (l Logger) Warningf(s string, i ...interface{}) {
 	if l.level >= LoggerLevelWarning {
 		l.logger.
+			Error().
 			WithField(originalLogLevelField, "warning").
-			Error(fmt.Sprintf(s, i...))
+			Message(fmt.Sprintf(s, i...))
 	}
 }
 
 func (l Logger) Infof(s string, i ...interface{}) {
 	if l.level >= LoggerLevelInfo {
 		l.logger.
+			Debug().
 			WithField(originalLogLevelField, "info").
-			Debug(fmt.Sprintf(s, i...))
+			Message(fmt.Sprintf(s, i...))
 	}
 }
 
 func (l Logger) Debugf(s string, i ...interface{}) {
 	if l.level >= LoggerLevelDebug {
 		l.logger.
+			Debug().
 			WithField(originalLogLevelField, "debug").
-			Debug(fmt.Sprintf(s, i...))
+			Message(fmt.Sprintf(s, i...))
 	}
 }

@@ -34,7 +34,7 @@ func NewConnectionEstablisher(
 func (d ConnectionEstablisher) Run(ctx context.Context) error {
 	for {
 		if err := d.handler.Handle(ctx); err != nil {
-			d.logger.WithError(err).Debug("failed to establish new connections")
+			d.logger.Debug().WithError(err).Message("failed to establish new connections")
 		}
 
 		select {

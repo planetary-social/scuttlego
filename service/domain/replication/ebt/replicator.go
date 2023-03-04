@@ -76,7 +76,7 @@ func (r Replicator) Replicate(ctx context.Context, peer transport.Peer) error {
 	logger := r.logger.WithField("peer", peer)
 
 	if !peer.Conn().WasInitiatedByRemote() {
-		logger.Debug("initializing an EBT session")
+		logger.Debug().Message("initializing an EBT session")
 
 		done, err := r.tracker.OpenSession(connectionId)
 		if err != nil {
@@ -96,7 +96,7 @@ func (r Replicator) Replicate(ctx context.Context, peer transport.Peer) error {
 
 	go r.replicateSelf(ctx, peer)
 
-	logger.Debug("waiting for an EBT session")
+	logger.Debug().Message("waiting for an EBT session")
 	ok, err := r.tracker.WaitForSession(ctx, connectionId, waitForRemoteToStartEbtSessionFor)
 	if err != nil {
 		return errors.Wrap(err, "error waiting for a session")
@@ -109,7 +109,7 @@ func (r Replicator) Replicate(ctx context.Context, peer transport.Peer) error {
 
 func (r Replicator) replicateSelf(ctx context.Context, peer transport.Peer) {
 	if err := r.selfCreateHistoryStreamReplicator.ReplicateSelf(ctx, peer); err != nil {
-		r.logger.WithError(err).Error("error replicating self")
+		r.logger.Error().WithError(err).Message("error replicating self")
 	}
 }
 
@@ -127,7 +127,7 @@ func (r Replicator) HandleIncoming(ctx context.Context, version int, format mess
 		return errors.New("connection id not found in context")
 	}
 
-	r.logger.WithField("connection_id", connectionId).Debug("incoming EBT session")
+	r.logger.Debug().WithField("connection_id", connectionId).Message("incoming EBT session")
 
 	done, err := r.tracker.OpenSession(connectionId)
 	if err != nil {

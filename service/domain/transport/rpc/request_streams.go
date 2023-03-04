@@ -134,7 +134,7 @@ func (s *RequestStreams) openNewRequestStream(ctx context.Context, msg *transpor
 
 	req, err := unmarshalRequest(msg)
 	if err != nil {
-		s.logger.WithError(err).Debug("ignoring malformed request")
+		s.logger.Debug().WithError(err).Message("ignoring malformed request")
 
 		if sendCloseStreamErr := sendCloseStream(
 			s.raw,
@@ -142,7 +142,7 @@ func (s *RequestStreams) openNewRequestStream(ctx context.Context, msg *transpor
 			errors.New("received malformed request"),
 		); sendCloseStreamErr != nil {
 			if !errors.Is(sendCloseStreamErr, net.ErrClosed) {
-				s.logger.WithError(sendCloseStreamErr).Error("error sending close stream message")
+				s.logger.Error().WithError(sendCloseStreamErr).Message("error sending close stream message")
 			}
 		}
 

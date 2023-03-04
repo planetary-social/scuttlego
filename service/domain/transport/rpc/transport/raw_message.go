@@ -47,8 +47,8 @@ type MessageHeader struct {
 	requestNumber int32
 }
 
-// NewMessageHeaderFromBytes loads a message header from the wire format. The provided slice must be exactly
-// MessageHeaderSize bytes long.
+// NewMessageHeaderFromBytes loads a message header from the wire format. The
+// provided slice must be exactly MessageHeaderSize bytes long.
 func NewMessageHeaderFromBytes(header []byte) (MessageHeader, error) {
 	if l := len(header); l != MessageHeaderSize {
 		return MessageHeader{}, fmt.Errorf("invalid header length %d", l)
@@ -59,17 +59,8 @@ func NewMessageHeaderFromBytes(header []byte) (MessageHeader, error) {
 		return MessageHeader{}, errors.Wrap(err, "could not parse header flags")
 	}
 
-	buffer := bytes.NewBuffer(header[1:])
-
-	var bodyLength uint32
-	if err = binary.Read(buffer, binary.BigEndian, &bodyLength); err != nil {
-		return MessageHeader{}, errors.Wrap(err, "could not read body length")
-	}
-
-	var requestNumber int32
-	if err = binary.Read(buffer, binary.BigEndian, &requestNumber); err != nil {
-		return MessageHeader{}, errors.Wrap(err, "could not read request number")
-	}
+	bodyLength := binary.BigEndian.Uint32(header[1:5])
+	requestNumber := int32(binary.BigEndian.Uint32(header[5:9]))
 
 	return NewMessageHeader(flags, bodyLength, requestNumber)
 }

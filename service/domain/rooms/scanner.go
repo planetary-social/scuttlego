@@ -61,10 +61,11 @@ func (s Scanner) Run(ctx context.Context, peer transport.Peer) error {
 
 	for event := range attendants {
 		s.logger.
+			Debug().
 			WithField("peer", peer).
 			WithField("event_type", event.typ).
 			WithField("event_ref", event.id.String()).
-			Debug("publishing an attendant event")
+			Message("publishing an attendant event")
 
 		if err := s.publisher.PublishAttendantEvent(ctx, peer, event); err != nil {
 			return errors.Wrap(err, "error publishing an event")

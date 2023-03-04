@@ -46,7 +46,7 @@ func NewWantsProcess(
 }
 
 func (p *WantsProcess) AddIncoming(ctx context.Context, ch chan<- messages.BlobWithSizeOrWantDistance) {
-	p.logger.Trace("adding incoming")
+	p.logger.Trace().Message("adding incoming")
 
 	p.incomingLock.Lock()
 	defer p.incomingLock.Unlock()
@@ -58,7 +58,7 @@ func (p *WantsProcess) AddIncoming(ctx context.Context, ch chan<- messages.BlobW
 		defer close(ch)
 		defer func() {
 			if err := p.cleanupIncomingStream(stream); err != nil {
-				p.logger.WithError(err).Error("could not clean up a stream")
+				p.logger.Error().WithError(err).Message("could not clean up a stream")
 			}
 		}()
 		p.incomingLoop(stream.ctx, stream.ch)
@@ -66,19 +66,19 @@ func (p *WantsProcess) AddIncoming(ctx context.Context, ch chan<- messages.BlobW
 }
 
 func (p *WantsProcess) AddOutgoing(ctx context.Context, ch <-chan messages.BlobWithSizeOrWantDistance, peer transport.Peer) {
-	p.logger.Trace("adding outgoing")
+	p.logger.Trace().Message("adding outgoing")
 	go p.outgoingLoop(ctx, ch, peer)
 }
 
 func (p *WantsProcess) incomingLoop(ctx context.Context, ch chan<- messages.BlobWithSizeOrWantDistance) {
 	if err := p.respondToPreviousWants(); err != nil {
-		p.logger.WithError(err).Error("failed to respond to previous wants")
+		p.logger.Error().WithError(err).Message("failed to respond to previous wants")
 	}
 
 	for {
 		if err := p.sendWantList(ctx, ch); err != nil {
 			if !errors.Is(err, context.Canceled) {
-				p.logger.WithError(err).Error("error sending want list")
+				p.logger.Error().WithError(err).Message("error sending want list")
 			}
 		}
 
@@ -107,7 +107,7 @@ func (p *WantsProcess) sendWantList(ctx context.Context, ch chan<- messages.Blob
 		return errors.Wrap(err, "could not build the want list")
 	}
 
-	p.logger.WithField("want_list_size", wantList.Len()).Trace("built the want list")
+	p.logger.Trace().WithField("want_list_size", wantList.Len()).Message("built the want list")
 
 	for _, wantedBlob := range wantList.List() {
 		v, err := messages.NewBlobWithWantDistance(wantedBlob.Id, wantedBlob.Distance)
@@ -116,9 +116,10 @@ func (p *WantsProcess) sendWantList(ctx context.Context, ch chan<- messages.Blob
 		}
 
 		p.logger.
+			Trace().
 			WithField("blob", wantedBlob.Id.String()).
 			WithField("distance", wantedBlob.Distance.Int()).
-			Trace("sending wants")
+			Message("sending wants")
 
 		select {
 		case ch <- v:
@@ -149,17 +150,17 @@ func (p *WantsProcess) outgoingLoop(ctx context.Context, ch <-chan messages.Blob
 		logger := p.logger.WithField("blob", hasOrWant.Id().String())
 
 		if size, ok := hasOrWant.SizeOrWantDistance().Size(); ok {
-			logger.WithField("size", size.InBytes()).Debug("received has")
+			logger.Trace().WithField("size", size.InBytes()).Message("received has")
 
 			go p.hasHandler.OnHasReceived(ctx, peer, hasOrWant.Id(), size)
 			continue
 		}
 
 		if distance, ok := hasOrWant.SizeOrWantDistance().WantDistance(); ok {
-			logger.WithField("distance", distance.Int()).Trace("received want")
+			logger.Trace().WithField("distance", distance.Int()).Message("received want")
 
 			if err := p.onReceiveWant(hasOrWant.Id()); err != nil {
-				logger.WithError(err).Error("error processing a want")
+				logger.Error().WithError(err).Message("error processing a want")
 			}
 			continue
 		}
@@ -199,7 +200,7 @@ func (p *WantsProcess) respondToWant(id refs.Blob) error {
 	size, err := p.blobStorage.Size(id)
 	if err != nil {
 		if errors.Is(err, ErrBlobNotFound) {
-			p.logger.WithField("blob", id).Trace("we don't have this blob")
+			p.logger.Trace().WithField("blob", id).Message("we don't have this blob")
 			return nil
 		}
 		return errors.Wrap(err, "could not get blob size")
@@ -219,9 +220,10 @@ func (p *WantsProcess) sendToAllIncomingStreams(wantOrHas messages.BlobWithSizeO
 	defer p.incomingLock.Unlock()
 
 	p.logger.
+		Debug().
 		WithField("v", wantOrHas).
 		WithField("num_incoming", len(p.incoming)).
-		Debug("sending want or has")
+		Message("sending want or has")
 
 	for _, incoming := range p.incoming {
 		select {

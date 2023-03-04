@@ -52,10 +52,10 @@ func NewHasHandler(
 }
 
 func (d *HasHandler) OnHasReceived(ctx context.Context, peer transport.Peer, blob refs.Blob, size blobs.Size) {
-	d.logger.WithField("blob", blob.String()).Debug("has")
+	d.logger.Debug().WithField("blob", blob.String()).Message("has")
 
 	if err := d.onHasReceived(ctx, peer, blob, size); err != nil {
-		d.logger.WithError(err).Error("failed to download a blob")
+		d.logger.Error().WithError(err).Message("failed to download a blob")
 	}
 }
 

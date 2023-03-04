@@ -180,7 +180,7 @@ func (s *ResponseStreams) waitAndCloseResponseStream(rs *responseStream) {
 		go func() {
 			if err := sendCloseStream(s.raw, rs.number, nil); err != nil {
 				if !errors.Is(err, net.ErrClosed) {
-					s.logger.WithError(err).Debug("failed to close the stream")
+					s.logger.Debug().WithError(err).Message("failed to close the stream")
 				}
 			}
 		}()

@@ -50,6 +50,6 @@ func (d Discoverer) handleNewDiscovery(ctx context.Context, v local.IdentityWith
 			Address: v.Address,
 		},
 	); err != nil {
-		d.logger.WithError(err).Error("failed to handle a discovered peer")
+		d.logger.Error().WithError(err).Message("failed to handle a discovered peer")
 	}
 }

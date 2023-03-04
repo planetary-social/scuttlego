@@ -130,7 +130,7 @@ func (m *Manager) sendFeedsToReplicateLoop(ctx context.Context, ch chan Replicat
 
 	for {
 		if err := m.sendFeedToReplicate(ctx, ch, remote, localOnly); err != nil {
-			m.logger.WithError(err).Error("send feed to replicate failed")
+			m.logger.Error().WithError(err).Message("send feed to replicate failed")
 		}
 
 		select {
@@ -195,9 +195,10 @@ func (m *Manager) finishReplication(remote identity.Public, contact replication.
 	defer m.lock.Unlock()
 
 	m.logger.
+		Trace().
 		WithField("result", result).
 		WithField("contact", contact.Who().String()).
-		Trace("finished replication")
+		Message("finished replication")
 
 	m.activeTasks.Delete(contact.Who())
 

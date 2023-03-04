@@ -53,7 +53,7 @@ func (m *Marshaler) Unmarshal(b message.RawContent) (known.KnownMessageContent, 
 	if err != nil {
 		// todo how to deal with box
 		if !strings.HasSuffix(string(b.Bytes()), ".box\"") {
-			logger.WithError(err).Error("failed to identify message content type")
+			logger.Error().WithError(err).Message("failed to identify message content type")
 		}
 		return nil, content.ErrUnknownContent
 	}
@@ -65,7 +65,7 @@ func (m *Marshaler) Unmarshal(b message.RawContent) (known.KnownMessageContent, 
 
 	knownContent, err := mapping.Unmarshal(b.Bytes())
 	if err != nil {
-		logger.WithField("typ", typ).WithError(err).Error("mapping returned an error")
+		logger.Error().WithField("typ", typ).WithError(err).Message("mapping returned an error")
 		return nil, content.ErrUnknownContent
 	}
 

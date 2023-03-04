@@ -354,7 +354,7 @@ func TestIncomingRequests(t *testing.T) {
 
 			go func() {
 				if err := conn.Loop(ctx); err != nil {
-					logger.WithError(err).Debug("conn loop exited")
+					logger.Debug().WithError(err).Message("conn loop exited")
 				}
 			}()
 			defer conn.Close()
@@ -468,7 +468,7 @@ func TestPrematureTerminationByRemote(t *testing.T) {
 
 			go func() {
 				if err := conn.Loop(ctx); err != nil {
-					logger.WithError(err).Debug("conn loop exited")
+					logger.Debug().WithError(err).Message("conn loop exited")
 				}
 			}()
 			defer conn.Close()

@@ -35,12 +35,12 @@ func (p *RoomAttendantEventSubscriber) Run(ctx context.Context) error {
 	for event := range p.pubsub.SubscribeToAttendantEvents(ctx) {
 		cmd, err := commands.NewProcessRoomAttendantEvent(event.Portal, event.Event)
 		if err != nil {
-			p.logger.WithError(err).Debug("error creating the command")
+			p.logger.Debug().WithError(err).Message("error creating the command")
 			continue
 		}
 
 		if err := p.handler.Handle(event.Context, cmd); err != nil {
-			p.logger.WithError(err).Debug("error handling the command")
+			p.logger.Debug().WithError(err).Message("error handling the command")
 			continue
 		}
 	}

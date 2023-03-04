@@ -67,7 +67,7 @@ func (h *InviteRedeemer) RedeemInvite(ctx context.Context, invite Invite, target
 		return errors.Wrap(err, "received an error")
 	}
 
-	h.logger.WithField("response", string(response.Value.Bytes())).Debug("response received")
+	h.logger.Debug().WithField("response", string(response.Value.Bytes())).Message("response received")
 
 	return nil
 }

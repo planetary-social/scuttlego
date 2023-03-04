@@ -115,10 +115,10 @@ func (h *CreateHistoryStreamHandler) worker(ctx context.Context) {
 
 		if err := h.processRequest(req.Ctx(), req.Query()); err != nil {
 			if closeErr := req.Query().ResponseWriter.CloseWithError(err); closeErr != nil {
-				h.logger.WithError(closeErr).Debug("closing failed")
+				h.logger.Debug().WithError(closeErr).Message("closing failed")
 			}
 			if !errors.Is(err, context.Canceled) {
-				h.logger.WithError(err).Error("error processing an incoming request")
+				h.logger.Error().WithError(err).Message("error processing an incoming request")
 			}
 		}
 	}
@@ -178,7 +178,7 @@ func (h *CreateHistoryStreamHandler) processRequest(ctx context.Context, query C
 		}
 	} else {
 		if closeErr := query.ResponseWriter.CloseWithError(nil); closeErr != nil {
-			h.logger.WithError(closeErr).Debug("closing failed")
+			h.logger.Debug().WithError(closeErr).Message("closing failed")
 		}
 	}
 
@@ -217,11 +217,11 @@ func (h *LiveHistoryStreams) HandleLiveMessage(msg message.Message) {
 		if err := stream.OnLiveMessage(msg); err != nil {
 			if errors.Is(err, ErrLimitReached) {
 				if closeErr := stream.CloseWithError(nil); closeErr != nil {
-					h.logger.WithError(closeErr).Debug("closing failed")
+					h.logger.Debug().WithError(closeErr).Message("closing failed")
 				}
 			} else {
 				if closeErr := stream.CloseWithError(err); closeErr != nil {
-					h.logger.WithError(closeErr).Debug("closing failed")
+					h.logger.Debug().WithError(closeErr).Message("closing failed")
 				}
 			}
 			h.streams[key] = append(h.streams[key][:i], h.streams[key][i+1:]...)
@@ -237,7 +237,7 @@ func (h *LiveHistoryStreams) CleanupClosedStreams() {
 		for i := len(h.streams[key]) - 1; i >= 0; i-- {
 			if h.streams[key][i].IsClosed() {
 				if closeErr := h.streams[key][i].CloseWithError(nil); closeErr != nil {
-					h.logger.WithError(closeErr).Debug("closing failed")
+					h.logger.Debug().WithError(closeErr).Message("closing failed")
 				}
 				h.streams[key] = append(h.streams[key][:i], h.streams[key][i+1:]...)
 			}

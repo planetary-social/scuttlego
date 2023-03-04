@@ -74,16 +74,16 @@ func (r GossipReplicator) replicateFeedTask(ctx context.Context, peer transport.
 		WithField("state", task.State).
 		New("task")
 
-	logger.Trace("starting")
+	logger.Trace().Message("starting")
 
 	n, err := r.replicateFeed(ctx, peer, task)
 	if err != nil && !errors.Is(err, rpc.ErrRemoteEnd) {
-		logger.WithField("received_messages", n).WithError(err).Error("failed")
+		logger.Error().WithField("received_messages", n).WithError(err).Message("failed")
 		task.OnComplete(TaskResultFailed)
 		return
 	}
 
-	logger.WithField("received_messages", n).Trace("finished")
+	logger.Trace().WithField("received_messages", n).Message("finished")
 
 	if n < limit {
 		task.OnComplete(TaskResultDoesNotHaveMoreMessages)

@@ -154,7 +154,7 @@ func (s *Session) HandleIncomingMessagesLoop() error {
 func (s *Session) SendNotesLoop() {
 	for {
 		if err := s.SendNotes(); err != nil {
-			s.logger.WithError(err).Debug("error sending our notes")
+			s.logger.Debug().WithError(err).Message("error sending our notes")
 		}
 
 		select {
@@ -184,8 +184,9 @@ func (s *Session) SendNotes() error {
 	s.sentNotesAtLeastOnce = true
 
 	s.logger.
+		Trace().
 		WithField("number_of_notes", len(notesToSend.Notes())).
-		Trace("sending notes")
+		Message("sending notes")
 
 	return s.stream.SendNotes(notesToSend)
 }
@@ -197,7 +198,7 @@ func (s *Session) handleIncomingMessage(ctx context.Context, incoming IncomingMe
 
 	notes, ok := incoming.Notes()
 	if ok {
-		s.logger.WithField("number_of_notes", len(notes.Notes())).Trace("received notes")
+		s.logger.Trace().WithField("number_of_notes", len(notes.Notes())).Message("received notes")
 		return s.handleIncomingNotes(ctx, notes)
 	}
 
@@ -205,7 +206,7 @@ func (s *Session) handleIncomingMessage(ctx context.Context, incoming IncomingMe
 	if ok {
 		if err := s.rawMessageHandler.Handle(s.stream.RemoteIdentity(), msg); err != nil {
 			// todo ban this feed somehow
-			s.logger.WithError(err).Debug("error handling a raw message")
+			s.logger.Debug().WithError(err).Message("error handling a raw message")
 			return nil
 		}
 		return nil

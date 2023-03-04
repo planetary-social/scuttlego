@@ -52,13 +52,14 @@ func (m GoSSBRepoReader) GetMessages(ctx context.Context, directory string, resu
 
 	closeReceiveLog := func() {
 		if err := receiveLog.Close(); err != nil {
-			m.logger.WithError(err).Error("error closing receive log")
+			m.logger.Error().WithError(err).Message("error closing receive log")
 		}
 	}
 
 	m.logger.
+		Debug().
 		WithField("max_receive_log_sequence", receiveLog.Seq()).
-		Debug("created the receive log")
+		Message("created the receive log")
 
 	src, err := m.queryReceiveLog(receiveLog, resumeFromSequence)
 	if err != nil {

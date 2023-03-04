@@ -91,6 +91,6 @@ func (d *BlobsGetDownloader) copyBlobContent(pipeWriter *io.PipeWriter, rs rpc.R
 func (d *BlobsGetDownloader) storeBlob(id refs.Blob, r io.ReadCloser) {
 	err := d.storer.Store(id, r)
 	if err != nil {
-		d.logger.WithError(err).Error("failed to save a blob")
+		d.logger.Error().WithError(err).Message("failed to save a blob")
 	}
 }

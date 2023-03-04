@@ -45,7 +45,7 @@ func NewAcceptNewPeerHandler(
 }
 
 func (h *AcceptNewPeerHandler) Handle(ctx context.Context, peer transport.Peer) {
-	h.logger.WithField("peer", peer).Debug("accepting a new peer")
+	h.logger.Debug().WithField("peer", peer).Message("accepting a new peer")
 
 	h.peerManager.TrackPeer(ctx, peer)
 	go h.processConnection(ctx, peer)
@@ -53,7 +53,7 @@ func (h *AcceptNewPeerHandler) Handle(ctx context.Context, peer transport.Peer) 
 
 func (h *AcceptNewPeerHandler) processConnection(ctx context.Context, peer transport.Peer) {
 	if err := h.runTasks(ctx, peer); err != nil {
-		h.logger.WithError(err).WithField("peer", peer).Debug("all tasks ended")
+		h.logger.Debug().WithError(err).WithField("peer", peer).Message("all tasks ended")
 	}
 }
 
@@ -88,7 +88,11 @@ func (h *AcceptNewPeerHandler) startTask(
 	*tasks = *tasks + 1
 	go func() {
 		err := fn(ctx, peer)
-		peerLogger.WithError(err).WithField("task", taskName).Debug("task terminating")
+		peerLogger.
+			Debug().
+			WithError(err).
+			WithField("task", taskName).
+			Message("task terminating")
 		ch <- err
 	}()
 }

@@ -93,10 +93,10 @@ func (m Mux) HandleRequest(ctx context.Context, s CloserStream, req *rpc.Request
 		go func() {
 			err := handler.Handle(ctx, s, req)
 			if err != nil {
-				m.logger.WithError(err).Debug("handler returned an error")
+				m.logger.Debug().WithError(err).Message("handler returned an error")
 			}
 			if closeErr := s.CloseWithError(err); closeErr != nil {
-				m.logger.WithError(closeErr).Debug("could not write an error returned by the handler")
+				m.logger.Debug().WithError(closeErr).Message("could not write an error returned by the handler")
 			}
 		}()
 		return
@@ -112,10 +112,10 @@ func (m Mux) HandleRequest(ctx context.Context, s CloserStream, req *rpc.Request
 		findHandlerErr = multierror.Append(findHandlerErr, err)
 	}
 
-	m.logger.WithError(findHandlerErr).Debug("handler not found")
+	m.logger.Debug().WithError(findHandlerErr).Message("handler not found")
 
 	if err := s.CloseWithError(findHandlerErr); err != nil {
-		m.logger.WithError(err).Debug("could not write an error")
+		m.logger.Debug().WithError(err).Message("could not write an error")
 	}
 }
 
@@ -126,7 +126,7 @@ func (m Mux) addHandler(handler Handler) error {
 		return errors.Wrap(err, "handler is not unique")
 	}
 
-	m.logger.WithField("key", key).Trace("adding handler")
+	m.logger.Trace().WithField("key", key).Message("adding handler")
 	m.handlers[key] = handler
 	return nil
 }
@@ -138,7 +138,7 @@ func (m Mux) addSynchronousHandler(handler SynchronousHandler) error {
 		return errors.Wrap(err, "handler is not unique")
 	}
 
-	m.logger.WithField("key", key).Trace("adding synchronous handler")
+	m.logger.Trace().WithField("key", key).Message("adding synchronous handler")
 	m.synchronousHandlers[key] = handler
 	return nil
 }

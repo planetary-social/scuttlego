@@ -58,7 +58,7 @@ func (d *Discoverer) Run(ctx context.Context) <-chan IdentityWithAddress {
 		for update := range ssbCh {
 			v, err := d.convert(update)
 			if err != nil {
-				d.logger.WithError(err).Error("conversion failed")
+				d.logger.Error().WithError(err).Message("conversion failed")
 				continue
 			}
 

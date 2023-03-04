@@ -43,7 +43,7 @@ func (h *HandlerCreateHistoryStream) Handle(ctx context.Context, s mux.CloserStr
 	args, err := messages.NewCreateHistoryStreamArgumentsFromBytes(req.Arguments())
 	if err != nil {
 		if closeErr := s.CloseWithError(err); closeErr != nil {
-			h.logger.WithError(closeErr).Debug("could not close the stream")
+			h.logger.Debug().WithError(closeErr).Message("could not close the stream")
 		}
 		return
 	}

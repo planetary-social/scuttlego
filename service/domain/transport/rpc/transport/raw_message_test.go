@@ -1,6 +1,7 @@
 package transport_test
 
 import (
+	"encoding/hex"
 	"testing"
 
 	"github.com/boreq/errors"
@@ -129,15 +130,66 @@ func TestMessageHeader(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
-			_, err := transport.NewMessageHeader(testCase.Flags, testCase.BodyLength, testCase.RequestNumber)
+			h, err := transport.NewMessageHeader(testCase.Flags, testCase.BodyLength, testCase.RequestNumber)
 			if testCase.ExpectedError == nil {
 				require.NoError(t, err)
+
+				headerBytes, err := h.Bytes()
+				require.NoError(t, err)
+
+				t.Log(hex.EncodeToString(headerBytes))
+
+				headerFromBytes, err := transport.NewMessageHeaderFromBytes(headerBytes)
+				require.NoError(t, err)
+
+				require.Equal(t, h, headerFromBytes)
 			} else {
 				require.EqualError(t, err, testCase.ExpectedError.Error())
 			}
 		})
 	}
+}
 
+func TestNewMessageHeaderFromBytes(t *testing.T) {
+	testCases := []struct {
+		Name             string
+		HeaderBytesInHex string
+		ExpectedHeader   transport.MessageHeader
+	}{
+		{
+			Name:             "request",
+			HeaderBytesInHex: "020000000a00000001",
+			ExpectedHeader: transport.MustNewMessageHeader(
+				transport.MustNewMessageHeaderFlags(false, false, transport.MessageBodyTypeJSON),
+				10,
+				1,
+			),
+		},
+		{
+			Name:             "response",
+			HeaderBytesInHex: "020000000affffffff",
+			ExpectedHeader: transport.MustNewMessageHeader(
+				transport.MustNewMessageHeaderFlags(false, false, transport.MessageBodyTypeJSON),
+				10,
+				-1,
+			),
+		},
+	}
+
+	for _, testCase := range testCases {
+		headerBytes, err := hex.DecodeString(testCase.HeaderBytesInHex)
+		require.NoError(t, err)
+
+		header, err := transport.NewMessageHeaderFromBytes(headerBytes)
+		require.NoError(t, err)
+
+		require.Equal(t, testCase.ExpectedHeader, header)
+	}
+}
+
+func TestNewMessageHeaderFromBytes_DoesNotPanicOnInvalidHeaderLength(t *testing.T) {
+	_, err := transport.NewMessageHeaderFromBytes(nil)
+	require.EqualError(t, err, "invalid header length 0")
 }
 
 func TestMessageHeaderFlags(t *testing.T) {

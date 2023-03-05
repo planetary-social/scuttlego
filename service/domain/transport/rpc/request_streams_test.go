@@ -402,14 +402,10 @@ func BenchmarkRequestStreams_HandleIncomingRequest(b *testing.B) {
 			b.Fatal(err)
 		}
 
-		ctx, cancel := context.WithCancel(ctx)
-
 		err = streams.HandleIncomingRequest(ctx, &requestMsg)
 		if err != nil {
 			b.Fatal(err)
 		}
-
-		cancel()
 	}
 }
 

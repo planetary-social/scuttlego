@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/boreq/errors"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/transport"
 )
 
@@ -76,7 +77,7 @@ func encodeProcedureType(t ProcedureType) (string, error) {
 
 func unmarshalRequest(msg *transport.Message) (*Request, error) {
 	var requestBody RequestBody
-	if err := json.Unmarshal(msg.Body, &requestBody); err != nil {
+	if err := jsoniter.Unmarshal(msg.Body, &requestBody); err != nil {
 		return nil, errors.Wrap(err, "could not unmarshal the request body")
 	}
 

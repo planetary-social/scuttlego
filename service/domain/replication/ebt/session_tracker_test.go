@@ -44,38 +44,27 @@ func TestSessionTracker_WaitForSessionExitsAndReturnsTrueIfSessionExistsButTermi
 	ctx := fixtures.TestContext(t)
 	connectionId := fixtures.SomeConnectionId()
 
-	doneCh := make(chan bool)
 	var doneDuration time.Duration
 
 	done, err := tracker.OpenSession(connectionId)
 	require.NoError(t, err)
 
-	go func() {
-		defer close(doneCh)
+	start := time.Now()
 
-		start := time.Now()
-		ok, err := tracker.WaitForSession(ctx, connectionId, testWaitDuration)
-		require.NoError(t, err)
-		doneDuration = time.Since(start)
-		select {
-		case <-ctx.Done():
-		case doneCh <- ok:
-		}
+	go func() {
+		<-time.After(2 * testWaitDuration)
+		done()
 	}()
 
-	<-time.After(2 * testWaitDuration)
-	done()
+	ok, err := tracker.WaitForSession(ctx, connectionId, testWaitDuration)
+	require.NoError(t, err)
 
-	select {
-	case result, ok := <-doneCh:
-		require.True(t, ok)
-		require.True(t, result)
-		require.NotZero(t, doneDuration)
-		require.Greater(t, doneDuration, 2*testWaitDuration, "wait for session exited before the session was marked as done (probably due to the timer)")
-		require.False(t, tracker.SomeoneIsWaiting(connectionId))
-	case <-time.After(4 * testWaitDuration):
-		t.Fatal("timeout")
-	}
+	doneDuration = time.Since(start)
+
+	require.True(t, ok)
+	require.NotZero(t, doneDuration)
+	require.Greater(t, doneDuration, 2*testWaitDuration, "wait for session exited before the session was marked as done (probably due to the timer)")
+	require.False(t, tracker.SomeoneIsWaiting(connectionId))
 }
 
 func TestSessionTracker_WaitForSessionExitsAndReturnsTrueIfSessionExistsButTerminatesBeforeGracePeriod_OpenFirst(t *testing.T) {

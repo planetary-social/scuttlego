@@ -14,6 +14,7 @@ import (
 
 const (
 	timeout = 1 * time.Second
+	tick    = 100 * time.Millisecond
 )
 
 func TestRequestStreams_RequestIsPassedToHandler(t *testing.T) {

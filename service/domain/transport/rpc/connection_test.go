@@ -378,7 +378,7 @@ func TestIncomingRequests(t *testing.T) {
 					return len(sentMessages) == len(testCase.ExpectedSentMessages)
 				},
 				5*time.Second,
-				100*time.Millisecond,
+				tick,
 			)
 
 			sentMessages := raw.SentMessages()
@@ -467,7 +467,7 @@ func TestCloseWithErrorAndReceivingInStreamMessagesDoNotDeadlock(t *testing.T) {
 			return len(raw.SentMessages()) > 0
 		},
 		5*time.Second,
-		100*time.Millisecond,
+		tick,
 		"a likely deadlock",
 	)
 }

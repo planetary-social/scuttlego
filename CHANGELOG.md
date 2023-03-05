@@ -2,16 +2,52 @@
 
 ## [Unreleased]
 
+
+### Added 
+
+- ...
+
+### Changed 
+
+- ...
+
+### Deprecated 
+
+- ...
+
+### Removed 
+
+- ...
+
+### Fixed 
+
+- ...
+
+### Security 
+
+- ...
+
+
+## [v0.0.2]
+
+### Changed
+
+- Logging interfaces have changed to improve logging performance and enable
+  optimizations.
+
 ### Fixed
 
 - Improved blob replication performance by caching the list of blobs which
   should be pushed.
+- Improved overall performance by optimising a hot path related to receiving
+  RPC messages.
 
-## [0.0.1]
+## [v0.0.1]
 
 ### Added
 
 - This CHANGELOG file.
 
-[unreleased]: https://github.com/planetary-social/scuttlego/compare/v0.0.1...HEAD
-[0.0.1]: https://github.com/planetary-social/scuttlego/releases/tag/v0.0.1
+[unreleased]: https://github.com/planetary-social/scuttlego/compare/v0.0.2...HEAD
+[v0.0.2]: https://github.com/planetary-social/scuttlego/releases/tag/v0.0.2
+[v0.0.1]: https://github.com/planetary-social/scuttlego/releases/tag/v0.0.1

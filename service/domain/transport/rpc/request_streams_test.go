@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/planetary-social/scuttlego/internal/fixtures"
+	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/transport"
 	"github.com/stretchr/testify/require"
@@ -372,6 +373,46 @@ func TestRequestStreams_MultipleMessagesSentInDuplexStream(t *testing.T) {
 		streamMessages)
 }
 
+func BenchmarkRequestStreams_HandleIncomingRequest(b *testing.B) {
+	sender := NewSenderMock()
+	handler := newNoopRequestHandler()
+	logger := logging.NewDevNullLogger()
+	streams := rpc.NewRequestStreams(sender, handler, logger)
+
+	ctx := fixtures.TestContext(b)
+	requestMsgData := []byte(`{"name":["some", "request"],"type":"duplex","args":["some", "args"]}`)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		requestMsg, err := transport.NewMessage(
+			transport.MustNewMessageHeader(
+				transport.MustNewMessageHeaderFlags(
+					fixtures.SomeBool(),
+					false,
+					transport.MessageBodyTypeJSON,
+				),
+				uint32(len(requestMsgData)),
+				int32(i+1),
+			),
+			requestMsgData,
+		)
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		ctx, cancel := context.WithCancel(ctx)
+
+		err = streams.HandleIncomingRequest(ctx, &requestMsg)
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		cancel()
+	}
+}
+
 func someMessageOpeningAStream(t *testing.T) transport.Message {
 	data := []byte(`{"name":["aaa"]}`)
 
@@ -418,4 +459,14 @@ func someMessageWhichIsAResponse(t *testing.T) transport.Message {
 	require.NoError(t, err)
 
 	return msg
+}
+
+type noopRequestHandler struct {
+}
+
+func newNoopRequestHandler() *noopRequestHandler {
+	return &noopRequestHandler{}
+}
+
+func (r *noopRequestHandler) HandleRequest(ctx context.Context, s rpc.Stream, req *rpc.Request) {
 }

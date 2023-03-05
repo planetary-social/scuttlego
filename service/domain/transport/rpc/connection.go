@@ -53,9 +53,8 @@ func (c *Connection) Loop(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	defer c.raw.Close()
+	defer c.requestStreams.Close()
 	defer c.responseStreams.Close()
-
-	go c.requestStreams.cleanupLoop(ctx)
 
 	for {
 		if err := c.read(ctx); err != nil {

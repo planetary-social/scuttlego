@@ -15,22 +15,24 @@ import (
 
 func TestRequestStream_RequestNumberMustBePositive(t *testing.T) {
 	ctx := fixtures.TestContext(t)
+	onLocalClose := newOnLocalCloseMock()
 	sender := NewSenderMock()
 
-	_, err := rpc.NewRequestStream(ctx, -123, rpc.ProcedureTypeAsync, sender)
+	_, err := rpc.NewRequestStream(ctx, onLocalClose.Fn, -123, rpc.ProcedureTypeAsync, sender)
 	require.EqualError(t, err, "number must be positive")
 
-	_, err = rpc.NewRequestStream(ctx, 0, rpc.ProcedureTypeAsync, sender)
+	_, err = rpc.NewRequestStream(ctx, onLocalClose.Fn, 0, rpc.ProcedureTypeAsync, sender)
 	require.EqualError(t, err, "number must be positive")
 }
 
-func TestRequestStream_RequestNumber(t *testing.T) {
+func TestRequestStream_RequestNumberIsReturnedFromTheGetter(t *testing.T) {
 	ctx := fixtures.TestContext(t)
+	onLocalClose := newOnLocalCloseMock()
 	sender := NewSenderMock()
 
 	requestNumber := fixtures.SomeNonNegativeInt()
 
-	stream, err := rpc.NewRequestStream(ctx, requestNumber, rpc.ProcedureTypeAsync, sender)
+	stream, err := rpc.NewRequestStream(ctx, onLocalClose.Fn, requestNumber, rpc.ProcedureTypeAsync, sender)
 	require.NoError(t, err)
 
 	require.Equal(t, requestNumber, stream.RequestNumber())
@@ -38,11 +40,12 @@ func TestRequestStream_RequestNumber(t *testing.T) {
 
 func TestRequestStream_WriteMessageCallsMessageSender(t *testing.T) {
 	ctx := fixtures.TestContext(t)
+	onLocalClose := newOnLocalCloseMock()
 	sender := NewSenderMock()
 
 	requestNumber := fixtures.SomeNonNegativeInt()
 
-	stream, err := rpc.NewRequestStream(ctx, requestNumber, rpc.ProcedureTypeAsync, sender)
+	stream, err := rpc.NewRequestStream(ctx, onLocalClose.Fn, requestNumber, rpc.ProcedureTypeAsync, sender)
 	require.NoError(t, err)
 
 	body := []byte("some body")
@@ -67,34 +70,9 @@ func TestRequestStream_WriteMessageCallsMessageSender(t *testing.T) {
 		},
 		sender.SendCalls(),
 	)
-
 }
 
-func TestRequestStream_TerminatedByRemoteCanBeCalledManyTimes(t *testing.T) {
-	ctx := fixtures.TestContext(t)
-	sender := NewSenderMock()
-
-	stream, err := rpc.NewRequestStream(ctx, fixtures.SomeNonNegativeInt(), rpc.ProcedureTypeAsync, sender)
-	require.NoError(t, err)
-
-	stream.TerminatedByRemote()
-	select {
-	case <-stream.Context().Done():
-		t.Log("ok, stream is closed ")
-	case <-time.After(timeout):
-		t.Fatal("timeout, stream is not closed")
-	}
-
-	stream.TerminatedByRemote()
-	select {
-	case <-stream.Context().Done():
-		t.Log("ok, stream is closed ")
-	case <-time.After(timeout):
-		t.Fatal("timeout, stream is not closed")
-	}
-}
-
-func TestRequestStream_CloseWithError(t *testing.T) {
+func TestRequestStream_CloseWithErrorSendsMessageAndCallsOnLocalClose(t *testing.T) {
 	testCases := []struct {
 		Name         string
 		Err          error
@@ -115,11 +93,12 @@ func TestRequestStream_CloseWithError(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
 			ctx := fixtures.TestContext(t)
+			onLocalClose := newOnLocalCloseMock()
 			sender := NewSenderMock()
 
 			requestNumber := 1
 
-			stream, err := rpc.NewRequestStream(ctx, requestNumber, rpc.ProcedureTypeAsync, sender)
+			stream, err := rpc.NewRequestStream(ctx, onLocalClose.Fn, requestNumber, rpc.ProcedureTypeAsync, sender)
 			require.NoError(t, err)
 
 			err = stream.CloseWithError(testCase.Err)
@@ -141,17 +120,20 @@ func TestRequestStream_CloseWithError(t *testing.T) {
 				},
 				sender.SendCalls(),
 			)
+
+			require.Equal(t, 1, onLocalClose.Calls)
 		})
 	}
 }
 
 func TestRequestStream_CloseWithErrorReturnsAnErrorWhenCalledForTheSecondTime(t *testing.T) {
 	ctx := fixtures.TestContext(t)
+	onLocalClose := newOnLocalCloseMock()
 	sender := NewSenderMock()
 
 	requestNumber := 1
 
-	stream, err := rpc.NewRequestStream(ctx, requestNumber, rpc.ProcedureTypeAsync, sender)
+	stream, err := rpc.NewRequestStream(ctx, onLocalClose.Fn, requestNumber, rpc.ProcedureTypeAsync, sender)
 	require.NoError(t, err)
 
 	err = stream.CloseWithError(nil)
@@ -161,6 +143,7 @@ func TestRequestStream_CloseWithErrorReturnsAnErrorWhenCalledForTheSecondTime(t 
 	require.EqualError(t, err, "already sent close stream")
 
 	require.Len(t, sender.SendCalls(), 1)
+	require.Equal(t, 1, onLocalClose.Calls)
 }
 
 func TestRequestStream_HandleNewMessageReturnsAnErrorForProceduresThatAreNotDuplex(t *testing.T) {
@@ -194,11 +177,12 @@ func TestRequestStream_HandleNewMessageReturnsAnErrorForProceduresThatAreNotDupl
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
 			ctx := fixtures.TestContext(t)
+			onLocalClose := newOnLocalCloseMock()
 			sender := NewSenderMock()
 
 			requestNumber := 1
 
-			stream, err := rpc.NewRequestStream(ctx, requestNumber, testCase.ProcedureType, sender)
+			stream, err := rpc.NewRequestStream(ctx, onLocalClose.Fn, requestNumber, testCase.ProcedureType, sender)
 			require.NoError(t, err)
 
 			msg := someDuplexIncomingMessage(t, requestNumber)
@@ -254,9 +238,10 @@ func TestRequestStream_IncomingMessagesReturnsAnErrorForProceduresThatAreNotDupl
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
 			ctx := fixtures.TestContext(t)
+			onLocalClose := newOnLocalCloseMock()
 			sender := NewSenderMock()
 
-			stream, err := rpc.NewRequestStream(ctx, fixtures.SomePositiveInt(), testCase.ProcedureType, sender)
+			stream, err := rpc.NewRequestStream(ctx, onLocalClose.Fn, fixtures.SomePositiveInt(), testCase.ProcedureType, sender)
 			require.NoError(t, err)
 
 			_, err = stream.IncomingMessages()
@@ -271,11 +256,12 @@ func TestRequestStream_IncomingMessagesReturnsAnErrorForProceduresThatAreNotDupl
 
 func TestRequestStream_IncomingMessagesBlockUntilStreamIsClosed(t *testing.T) {
 	ctx := fixtures.TestContext(t)
+	onLocalClose := newOnLocalCloseMock()
 	sender := NewSenderMock()
 
 	requestNumber := fixtures.SomePositiveInt()
 
-	stream, err := rpc.NewRequestStream(ctx, requestNumber, rpc.ProcedureTypeDuplex, sender)
+	stream, err := rpc.NewRequestStream(ctx, onLocalClose.Fn, requestNumber, rpc.ProcedureTypeDuplex, sender)
 	require.NoError(t, err)
 
 	ch, err := stream.IncomingMessages()
@@ -291,11 +277,12 @@ func TestRequestStream_IncomingMessagesBlockUntilStreamIsClosed(t *testing.T) {
 
 func TestRequestStream_IncomingMessagesReturnsClosedChannelIfStreamIsClosed(t *testing.T) {
 	ctx := fixtures.TestContext(t)
+	onLocalClose := newOnLocalCloseMock()
 	sender := NewSenderMock()
 
 	requestNumber := fixtures.SomePositiveInt()
 
-	stream, err := rpc.NewRequestStream(ctx, requestNumber, rpc.ProcedureTypeDuplex, sender)
+	stream, err := rpc.NewRequestStream(ctx, onLocalClose.Fn, requestNumber, rpc.ProcedureTypeDuplex, sender)
 	require.NoError(t, err)
 
 	err = stream.CloseWithError(nil)
@@ -320,11 +307,12 @@ func TestRequestStream_IncomingMessagesReturnsClosedChannelIfStreamIsClosed(t *t
 
 func TestRequestStream_IncomingMessagesReceivesIncomingMessagesAndThenClosesWhenStreamCloses(t *testing.T) {
 	ctx := fixtures.TestContext(t)
+	onLocalClose := newOnLocalCloseMock()
 	sender := NewSenderMock()
 
 	requestNumber := fixtures.SomePositiveInt()
 
-	stream, err := rpc.NewRequestStream(ctx, requestNumber, rpc.ProcedureTypeDuplex, sender)
+	stream, err := rpc.NewRequestStream(ctx, onLocalClose.Fn, requestNumber, rpc.ProcedureTypeDuplex, sender)
 	require.NoError(t, err)
 
 	ch, err := stream.IncomingMessages()
@@ -391,4 +379,16 @@ func someDuplexIncomingMessage(t *testing.T, requestNumber int) transport.Messag
 	require.NoError(t, err)
 
 	return msg
+}
+
+type onLocalCloseMock struct {
+	Calls int
+}
+
+func newOnLocalCloseMock() *onLocalCloseMock {
+	return &onLocalCloseMock{}
+}
+
+func (m *onLocalCloseMock) Fn(rs *rpc.RequestStream) {
+	m.Calls++
 }

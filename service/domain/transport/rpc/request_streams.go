@@ -4,14 +4,11 @@ import (
 	"context"
 	"net"
 	"sync"
-	"time"
 
 	"github.com/boreq/errors"
 	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/transport"
 )
-
-const requestStreamsCleanupDelay = 5 * time.Second
 
 type IncomingMessage struct {
 	Body []byte
@@ -115,13 +112,22 @@ func (s *RequestStreams) HandleIncomingRequest(ctx context.Context, msg *transpo
 	existingStream, ok := s.streams[requestNumber]
 	if ok {
 		if msg.Header.Flags().EndOrError() {
-			existingStream.TerminatedByRemote()
+			s.onRemoteClosedStream(existingStream)
 			return nil
 		}
 		return existingStream.HandleNewMessage(*msg)
 	}
 
 	return s.openNewRequestStream(ctx, msg)
+}
+
+func (s *RequestStreams) Close() {
+	s.streamsLock.Lock()
+	defer s.streamsLock.Unlock()
+
+	for _, stream := range s.streams {
+		s.onClosedStream(stream)
+	}
 }
 
 // openNewRequestStream unmarshalls the request contained in the provided
@@ -149,49 +155,34 @@ func (s *RequestStreams) openNewRequestStream(ctx context.Context, msg *transpor
 		return nil
 	}
 
-	rs, err := NewRequestStream(ctx, requestNumber, req.Type(), s.raw)
+	rs, err := NewRequestStream(ctx, s.onLocalClosedStream, requestNumber, req.Type(), s.raw)
 	if err != nil {
 		return errors.Wrap(err, "could not create a request stream")
 	}
 
 	s.streams[requestNumber] = rs
 
-	go s.handler.HandleRequest(rs.Context(), rs, req)
+	go s.handler.HandleRequest(rs.ctx, rs, req)
 
 	return nil
 }
 
-func (s *RequestStreams) cleanupLoop(ctx context.Context) {
-	for {
-		s.cleanup()
-
-		select {
-		case <-time.After(requestStreamsCleanupDelay):
-			continue
-		case <-ctx.Done():
-			return
-		}
-	}
-}
-
-// cleanup removes request streams which were closed by either party and marks
-// them as closed so that future incoming messages for this stream can be
-// ignored. This cleanup doesn't need to happen right away as:
-//   - closing a stream many times is allowed
-//   - if someone sends repeated messages then HandleNewMessage method should be
-//     able to handle it for async streams and the message will be rejected anyway
-//     for all other streams
-func (s *RequestStreams) cleanup() {
+func (s *RequestStreams) onLocalClosedStream(stream *RequestStream) {
 	s.streamsLock.Lock()
 	defer s.streamsLock.Unlock()
 
-	for _, rs := range s.streams {
-		select {
-		case <-rs.Context().Done():
-			delete(s.streams, rs.RequestNumber())
-			s.closedStreams[rs.RequestNumber()] = struct{}{}
-		default:
-			continue
-		}
+	s.onClosedStream(stream)
+}
+
+func (s *RequestStreams) onRemoteClosedStream(stream *RequestStream) {
+	s.onClosedStream(stream)
+}
+
+func (s *RequestStreams) onClosedStream(stream *RequestStream) {
+	if _, ok := s.streams[stream.RequestNumber()]; ok {
+		close(stream.incomingMessages)
+		stream.cancelContext()
+		delete(s.streams, stream.RequestNumber())
+		s.closedStreams[stream.RequestNumber()] = struct{}{}
 	}
 }

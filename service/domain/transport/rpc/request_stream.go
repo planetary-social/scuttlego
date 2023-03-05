@@ -9,6 +9,8 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/transport"
 )
 
+type onLocalCloseFn func(rs *RequestStream)
+
 type RequestStream struct {
 	requestNumber int
 	typ           ProcedureType
@@ -16,16 +18,17 @@ type RequestStream struct {
 	sentCloseStream     bool
 	sentCloseStreamLock sync.Mutex
 
-	ctx    context.Context
-	cancel context.CancelFunc
-	raw    MessageSender
+	raw MessageSender
 
-	incomingMessages       chan IncomingMessage
-	incomingMessagesLock   sync.Mutex
-	incomingMessagesClosed bool
+	ctx           context.Context
+	cancelContext context.CancelFunc
+
+	onLocalClose onLocalCloseFn
+
+	incomingMessages chan IncomingMessage
 }
 
-func NewRequestStream(ctx context.Context, number int, typ ProcedureType, raw MessageSender) (*RequestStream, error) {
+func NewRequestStream(ctx context.Context, onLocalClose onLocalCloseFn, number int, typ ProcedureType, raw MessageSender) (*RequestStream, error) {
 	if number <= 0 {
 		return nil, errors.New("number must be positive")
 	}
@@ -40,22 +43,13 @@ func NewRequestStream(ctx context.Context, number int, typ ProcedureType, raw Me
 		requestNumber: number,
 		typ:           typ,
 
-		ctx:    ctx,
-		cancel: cancel,
-		raw:    raw,
+		raw: raw,
+
+		ctx:           ctx,
+		cancelContext: cancel,
+		onLocalClose:  onLocalClose,
 
 		incomingMessages: make(chan IncomingMessage),
-	}
-
-	if typ == ProcedureTypeDuplex {
-		go func() {
-			<-ctx.Done()
-
-			rs.incomingMessagesLock.Lock()
-			rs.incomingMessagesClosed = true
-			close(rs.incomingMessages)
-			rs.incomingMessagesLock.Unlock()
-		}()
 	}
 
 	return rs, nil
@@ -103,8 +97,10 @@ func (rs *RequestStream) CloseWithError(err error) error {
 		return errors.New("already sent close stream")
 	}
 
-	rs.cancel()
+	rs.onLocalClose(rs)
+
 	rs.sentCloseStream = true
+
 	if err := sendCloseStream(rs.raw, -rs.requestNumber, err); err != nil {
 		if errors.Is(err, net.ErrClosed) {
 			return nil
@@ -121,28 +117,13 @@ func (rs *RequestStream) IncomingMessages() (<-chan IncomingMessage, error) {
 	return rs.incomingMessages, nil
 }
 
-func (rs *RequestStream) Context() context.Context {
-	return rs.ctx
-}
-
 func (rs *RequestStream) RequestNumber() int {
 	return rs.requestNumber
-}
-
-func (rs *RequestStream) TerminatedByRemote() {
-	rs.cancel()
 }
 
 func (rs *RequestStream) HandleNewMessage(msg transport.Message) error {
 	if rs.typ != ProcedureTypeDuplex {
 		return errors.New("only duplex streams can receive messages")
-	}
-
-	rs.incomingMessagesLock.Lock()
-	defer rs.incomingMessagesLock.Unlock()
-
-	if rs.incomingMessagesClosed {
-		return nil
 	}
 
 	select {

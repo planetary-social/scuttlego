@@ -168,6 +168,8 @@ func (s *RequestStreams) openNewRequestStream(ctx context.Context, msg *transpor
 }
 
 func (s *RequestStreams) onLocalClosedStream(stream *RequestStream) {
+	stream.cancelContext()
+
 	s.streamsLock.Lock()
 	defer s.streamsLock.Unlock()
 
@@ -175,13 +177,13 @@ func (s *RequestStreams) onLocalClosedStream(stream *RequestStream) {
 }
 
 func (s *RequestStreams) onRemoteClosedStream(stream *RequestStream) {
+	stream.cancelContext()
 	s.onClosedStream(stream)
 }
 
 func (s *RequestStreams) onClosedStream(stream *RequestStream) {
 	if _, ok := s.streams[stream.RequestNumber()]; ok {
 		close(stream.incomingMessages)
-		stream.cancelContext()
 		delete(s.streams, stream.RequestNumber())
 		s.closedStreams[stream.RequestNumber()] = struct{}{}
 	}

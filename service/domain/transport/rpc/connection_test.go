@@ -400,6 +400,78 @@ func TestIncomingRequests(t *testing.T) {
 	}
 }
 
+func TestCloseWithErrorAndReceivingInStreamMessagesDoNotDeadlock(t *testing.T) {
+	ctx := fixtures.TestContext(t)
+	logger := fixtures.SomeLogger()
+	raw := newRawConnectionMock()
+
+	messagesToReceive := []*transport.Message{
+		{
+			Header: transport.MustNewMessageHeader(
+				transport.MustNewMessageHeaderFlags(true, false, transport.MessageBodyTypeJSON),
+				fixtures.SomeUint32(),
+				1,
+			),
+			Body: rpc.MustMarshalRequestBody(
+				rpc.MustNewRequest(
+					fixtures.SomeProcedureName(),
+					rpc.ProcedureTypeDuplex,
+					[]byte("[]"),
+				),
+			),
+		},
+		{
+			Header: transport.MustNewMessageHeader(
+				transport.MustNewMessageHeaderFlags(true, false, transport.MessageBodyTypeBinary),
+				fixtures.SomeUint32(),
+				1,
+			),
+			Body: []byte("12345"),
+		},
+	}
+
+	messagesWereReceivedCh := make(chan struct{})
+
+	go func() {
+		raw.ReceiveMessages(messagesToReceive...)
+		close(messagesWereReceivedCh)
+	}()
+
+	handler := newRequestHandlerFunc(func(ctx context.Context, s rpc.Stream, req *rpc.Request) {
+		<-messagesWereReceivedCh
+		err := s.CloseWithError(nil)
+		require.NoError(t, err)
+	})
+
+	conn, err := rpc.NewConnection(fixtures.SomeConnectionId(), fixtures.SomeBool(), raw, handler, logger)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(ctx)
+
+	connectionLoopClosed := make(chan struct{})
+	t.Cleanup(func() {
+		cancel()
+		<-connectionLoopClosed
+	})
+
+	go func() {
+		defer close(connectionLoopClosed)
+		if err := conn.Loop(ctx); err != nil {
+			logger.Debug().WithError(err).Message("conn loop exited")
+		}
+	}()
+	defer conn.Close()
+
+	require.Eventually(t,
+		func() bool {
+			return len(raw.SentMessages()) > 0
+		},
+		5*time.Second,
+		100*time.Millisecond,
+		"a likely deadlock",
+	)
+}
+
 func TestPrematureTerminationByRemote(t *testing.T) {
 	const requestNumber = 1
 

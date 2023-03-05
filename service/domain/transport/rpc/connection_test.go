@@ -340,7 +340,7 @@ func TestIncomingRequests(t *testing.T) {
 		t.Run(testCase.Name, func(t *testing.T) {
 			t.Parallel()
 
-			ctx := fixtures.TestContext(t)
+			ctx, cancel := context.WithCancel(fixtures.TestContext(t))
 			logger := fixtures.SomeLogger()
 			raw := newRawConnectionMock()
 
@@ -352,7 +352,14 @@ func TestIncomingRequests(t *testing.T) {
 			conn, err := rpc.NewConnection(fixtures.SomeConnectionId(), fixtures.SomeBool(), raw, handler, logger)
 			require.NoError(t, err)
 
+			connectionLoopClosed := make(chan struct{})
+			t.Cleanup(func() {
+				cancel()
+				<-connectionLoopClosed
+			})
+
 			go func() {
+				defer close(connectionLoopClosed)
 				if err := conn.Loop(ctx); err != nil {
 					logger.Debug().WithError(err).Message("conn loop exited")
 				}
@@ -364,13 +371,14 @@ func TestIncomingRequests(t *testing.T) {
 			require.Eventually(t,
 				func() bool {
 					sentMessages := raw.SentMessages()
+					t.Log("number of sent messages:", len(sentMessages))
 					for i, msg := range sentMessages {
 						t.Log(i, fmt.Sprintf("%#v", msg))
 					}
 					return len(sentMessages) == len(testCase.ExpectedSentMessages)
 				},
-				10*time.Second,
-				10*time.Millisecond,
+				5*time.Second,
+				100*time.Millisecond,
 			)
 
 			sentMessages := raw.SentMessages()

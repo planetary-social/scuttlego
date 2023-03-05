@@ -1,7 +1,7 @@
 package rpc_test
 
 import (
-	"sync"
+	"context"
 	"testing"
 	"time"
 
@@ -9,7 +9,6 @@ import (
 	"github.com/planetary-social/scuttlego/internal/fixtures"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/transport"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -180,9 +179,9 @@ func TestRequestStream_HandleNewMessageReturnsAnErrorForProceduresThatAreNotDupl
 			onLocalClose := newOnLocalCloseMock()
 			sender := NewSenderMock()
 
-			requestNumber := 1
+			requestNumber := fixtures.SomePositiveInt32()
 
-			stream, err := rpc.NewRequestStream(ctx, onLocalClose.Fn, requestNumber, testCase.ProcedureType, sender)
+			stream, err := rpc.NewRequestStream(ctx, onLocalClose.Fn, int(requestNumber), testCase.ProcedureType, sender)
 			require.NoError(t, err)
 
 			msg := someDuplexIncomingMessage(t, requestNumber)
@@ -276,103 +275,144 @@ func TestRequestStream_IncomingMessagesBlockUntilStreamIsClosed(t *testing.T) {
 }
 
 func TestRequestStream_IncomingMessagesReturnsClosedChannelIfStreamIsClosed(t *testing.T) {
-	ctx := fixtures.TestContext(t)
-	onLocalClose := newOnLocalCloseMock()
-	sender := NewSenderMock()
+	messagesToReceive := []*transport.Message{
+		{
+			Header: transport.MustNewMessageHeader(
+				transport.MustNewMessageHeaderFlags(true, false, transport.MessageBodyTypeJSON),
+				fixtures.SomeUint32(),
+				1,
+			),
+			Body: rpc.MustMarshalRequestBody(
+				rpc.MustNewRequest(
+					fixtures.SomeProcedureName(),
+					rpc.ProcedureTypeDuplex,
+					[]byte("[]"),
+				),
+			),
+		},
+	}
 
-	requestNumber := fixtures.SomePositiveInt()
+	handlerEndedProcessingCh := make(chan struct{})
 
-	stream, err := rpc.NewRequestStream(ctx, onLocalClose.Fn, requestNumber, rpc.ProcedureTypeDuplex, sender)
-	require.NoError(t, err)
+	handler := newRequestHandlerFunc(func(ctx context.Context, s rpc.Stream, req *rpc.Request) {
+		defer close(handlerEndedProcessingCh)
 
-	err = stream.CloseWithError(nil)
-	require.NoError(t, err)
+		err := s.CloseWithError(nil)
+		require.NoError(t, err)
 
-	require.Eventually(t,
-		func() bool {
-			ch, err := stream.IncomingMessages()
-			if err != nil {
-				return false
-			}
+		require.Eventually(t,
+			func() bool {
+				ch, err := s.IncomingMessages()
+				if err != nil {
+					return false
+				}
 
-			select {
-			case _, ok := <-ch:
-				return ok == false
-			default:
-				return false
-			}
+				select {
+				case _, ok := <-ch:
+					return ok == false
+				default:
+					return false
+				}
 
-		}, timeout, 10*time.Millisecond)
+			}, timeout, tick)
+	})
+
+	ts := newTestConnection(t, handler)
+	go ts.Raw.ReceiveMessages(messagesToReceive...)
+
+	select {
+	case <-handlerEndedProcessingCh:
+		t.Log("ok")
+	case <-time.After(timeout):
+		t.Fatal("timeout")
+	}
 }
 
 func TestRequestStream_IncomingMessagesReceivesIncomingMessagesAndThenClosesWhenStreamCloses(t *testing.T) {
-	ctx := fixtures.TestContext(t)
-	onLocalClose := newOnLocalCloseMock()
-	sender := NewSenderMock()
+	requestNumber := fixtures.SomePositiveInt32()
+	openingMessage := someDuplexOpeningMessage(t, requestNumber)
+	incomingMessage := someDuplexIncomingMessage(t, requestNumber)
 
-	requestNumber := fixtures.SomePositiveInt()
+	messagesToReceive := []*transport.Message{
+		&openingMessage,
+		&incomingMessage,
+	}
 
-	stream, err := rpc.NewRequestStream(ctx, onLocalClose.Fn, requestNumber, rpc.ProcedureTypeDuplex, sender)
-	require.NoError(t, err)
-
-	ch, err := stream.IncomingMessages()
-	require.NoError(t, err)
+	handlerEndedProcessingCh := make(chan struct{})
+	handlerGotOneIncomingMessageCh := make(chan struct{})
 
 	var incomingMessages []rpc.IncomingMessage
-	var incomingMessagesLock sync.Mutex
 
-	doneCh := make(chan struct{})
+	handler := newRequestHandlerFunc(func(ctx context.Context, s rpc.Stream, req *rpc.Request) {
+		ch, err := s.IncomingMessages()
+		require.NoError(t, err)
 
-	go func() {
-		defer close(doneCh)
+		go func() {
+			defer close(handlerEndedProcessingCh)
 
-		for v := range ch {
-			incomingMessagesLock.Lock()
-			incomingMessages = append(incomingMessages, v)
-			incomingMessagesLock.Unlock()
-		}
-	}()
+			for v := range ch {
+				if len(incomingMessages) == 0 {
+					close(handlerGotOneIncomingMessageCh)
+				}
+				incomingMessages = append(incomingMessages, v)
+			}
+		}()
 
-	msg := someDuplexIncomingMessage(t, requestNumber)
+		<-handlerGotOneIncomingMessageCh
+		err = s.CloseWithError(nil)
+		require.NoError(t, err)
+	})
 
-	err = stream.HandleNewMessage(msg)
-	require.NoError(t, err)
-
-	require.Eventually(t,
-		func() bool {
-			incomingMessagesLock.Lock()
-			defer incomingMessagesLock.Unlock()
-
-			return assert.ObjectsAreEqual(
-				[]rpc.IncomingMessage{
-					{
-						Body: msg.Body,
-					},
-				},
-				incomingMessages,
-			)
-		},
-		1*time.Second, 10*time.Millisecond)
-
-	err = stream.CloseWithError(nil)
-	require.NoError(t, err)
+	ts := newTestConnection(t, handler)
+	go ts.Raw.ReceiveMessages(messagesToReceive...)
 
 	select {
 	case <-time.After(timeout):
 		t.Fatal("timeout")
-	case <-doneCh:
-		t.Log("ok, the channel was closed")
+	case <-handlerEndedProcessingCh:
+		t.Log("ok")
 	}
+
+	require.Equal(t,
+		[]rpc.IncomingMessage{
+			{
+				Body: incomingMessage.Body,
+			},
+		},
+		incomingMessages,
+	)
 }
 
-func someDuplexIncomingMessage(t *testing.T, requestNumber int) transport.Message {
+func someDuplexOpeningMessage(t *testing.T, requestNumber int32) transport.Message {
+	data := rpc.MustMarshalRequestBody(
+		rpc.MustNewRequest(
+			fixtures.SomeProcedureName(),
+			rpc.ProcedureTypeDuplex,
+			[]byte("[]"),
+		),
+	)
+
+	msg, err := transport.NewMessage(
+		transport.MustNewMessageHeader(
+			transport.MustNewMessageHeaderFlags(fixtures.SomeBool(), false, transport.MessageBodyTypeJSON),
+			uint32(len(data)),
+			requestNumber,
+		),
+		data,
+	)
+	require.NoError(t, err)
+
+	return msg
+}
+
+func someDuplexIncomingMessage(t *testing.T, requestNumber int32) transport.Message {
 	data := fixtures.SomeBytes()
 
 	msg, err := transport.NewMessage(
 		transport.MustNewMessageHeader(
 			transport.MustNewMessageHeaderFlags(fixtures.SomeBool(), false, transport.MessageBodyTypeJSON),
 			uint32(len(data)),
-			int32(requestNumber),
+			requestNumber,
 		),
 		data,
 	)
@@ -391,4 +431,44 @@ func newOnLocalCloseMock() *onLocalCloseMock {
 
 func (m *onLocalCloseMock) Fn(rs *rpc.RequestStream) {
 	m.Calls++
+}
+
+type testConnection struct {
+	Connection *rpc.Connection
+	Ctx        context.Context
+	Raw        *rawConnectionMock
+}
+
+func newTestConnection(tb testing.TB, handler rpc.RequestHandler) testConnection {
+	ctx := fixtures.TestContext(tb)
+	logger := fixtures.SomeLogger()
+	raw := newRawConnectionMock()
+
+	conn, err := rpc.NewConnection(fixtures.SomeConnectionId(), fixtures.SomeBool(), raw, handler, logger)
+	require.NoError(tb, err)
+
+	loopCtx, cancelLoopCtx := context.WithCancel(ctx)
+
+	connectionLoopClosedCh := make(chan struct{})
+	tb.Cleanup(func() {
+		cancelLoopCtx()
+		<-connectionLoopClosedCh
+	})
+
+	go func() {
+		defer close(connectionLoopClosedCh)
+		if err := conn.Loop(loopCtx); err != nil {
+			logger.Debug().WithError(err).Message("conn loop exited")
+		}
+	}()
+
+	tb.Cleanup(func() {
+		conn.Close()
+	})
+
+	return testConnection{
+		Connection: conn,
+		Ctx:        ctx,
+		Raw:        raw,
+	}
 }

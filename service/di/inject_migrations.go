@@ -3,6 +3,7 @@ package di
 import (
 	"github.com/google/wire"
 	"github.com/planetary-social/scuttlego/migrations"
+	"github.com/planetary-social/scuttlego/service"
 	migrationsadapters "github.com/planetary-social/scuttlego/service/adapters/migrations"
 	"github.com/planetary-social/scuttlego/service/app/commands"
 )
@@ -34,7 +35,7 @@ var migrationCommandsSet = wire.NewSet(
 )
 
 func newCommandDeleteGoSsbRepositoryInOldFormatAdapter(
-	config Config,
+	config service.Config,
 	m commands.Migrations,
 ) *migrationsadapters.CommandDeleteGoSsbRepositoryInOldFormatAdapter {
 	return migrationsadapters.NewCommandDeleteGoSsbRepositoryInOldFormatAdapter(
@@ -44,7 +45,7 @@ func newCommandDeleteGoSsbRepositoryInOldFormatAdapter(
 }
 
 func newCommandImportDataFromGoSSBHandlerAdapter(
-	config Config,
+	config service.Config,
 	m commands.Migrations,
 ) *migrationsadapters.CommandImportDataFromGoSSBHandlerAdapter {
 	return migrationsadapters.NewCommandImportDataFromGoSSBHandlerAdapter(

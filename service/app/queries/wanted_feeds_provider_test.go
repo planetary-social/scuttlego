@@ -3,8 +3,8 @@ package queries_test
 import (
 	"testing"
 
-	"github.com/planetary-social/scuttlego/di"
 	"github.com/planetary-social/scuttlego/internal/fixtures"
+	"github.com/planetary-social/scuttlego/service/di"
 	"github.com/planetary-social/scuttlego/service/domain/graph"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/planetary-social/scuttlego/service/domain/replication"

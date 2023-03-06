@@ -4,11 +4,11 @@ import (
 	"testing"
 
 	"github.com/boreq/errors"
-	"github.com/planetary-social/scuttlego/di"
 	"github.com/planetary-social/scuttlego/internal"
 	"github.com/planetary-social/scuttlego/internal/fixtures"
 	"github.com/planetary-social/scuttlego/service/adapters/badger"
 	"github.com/planetary-social/scuttlego/service/app/common"
+	"github.com/planetary-social/scuttlego/service/di"
 	"github.com/planetary-social/scuttlego/service/domain/feeds"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/refs"

@@ -5,6 +5,7 @@ import (
 	"github.com/google/wire"
 	mocks2 "github.com/planetary-social/scuttlego/internal/mocks"
 	"github.com/planetary-social/scuttlego/logging"
+	"github.com/planetary-social/scuttlego/service"
 	badgeradapters "github.com/planetary-social/scuttlego/service/adapters/badger"
 	"github.com/planetary-social/scuttlego/service/adapters/badger/notx"
 	"github.com/planetary-social/scuttlego/service/app/commands"
@@ -116,7 +117,7 @@ func noTxTestTxAdaptersFactory() notx.TestTxAdaptersFactory {
 	}
 }
 
-func noTxTxAdaptersFactory(local identity.Public, conf Config, logger logging.Logger) notx.TxAdaptersFactory {
+func noTxTxAdaptersFactory(local identity.Public, conf service.Config, logger logging.Logger) notx.TxAdaptersFactory {
 	return func(tx *badger.Txn) (notx.TxAdapters, error) {
 		return buildBadgerNoTxTxAdapters(tx, local, conf, logger)
 	}
@@ -128,13 +129,13 @@ func testAdaptersFactory() badgeradapters.TestAdaptersFactory {
 	}
 }
 
-func badgerCommandsAdaptersFactory(config Config, local identity.Public, logger logging.Logger) badgeradapters.CommandsAdaptersFactory {
+func badgerCommandsAdaptersFactory(config service.Config, local identity.Public, logger logging.Logger) badgeradapters.CommandsAdaptersFactory {
 	return func(tx *badger.Txn) (commands.Adapters, error) {
 		return buildBadgerCommandsAdapters(tx, local, config, logger)
 	}
 }
 
-func badgerQueriesAdaptersFactory(config Config, local identity.Public, logger logging.Logger) badgeradapters.QueriesAdaptersFactory {
+func badgerQueriesAdaptersFactory(config service.Config, local identity.Public, logger logging.Logger) badgeradapters.QueriesAdaptersFactory {
 	return func(tx *badger.Txn) (queries.Adapters, error) {
 		return buildBadgerQueriesAdapters(tx, local, config, logger)
 	}

@@ -2,11 +2,12 @@ package messages
 
 import (
 	"encoding/json"
+	"strconv"
 
 	"github.com/boreq/errors"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
-	"github.com/ssbc/go-ssb"
 )
 
 var (
@@ -136,8 +137,8 @@ type EbtReplicateNotes struct {
 }
 
 func NewEbtReplicateNotesFromBytes(b []byte) (EbtReplicateNotes, error) {
-	var frontier ssb.NetworkFrontier
-	if err := json.Unmarshal(b, &frontier); err != nil {
+	var frontier map[string]ebtReplicateNoteTransport
+	if err := jsoniter.Unmarshal(b, &frontier); err != nil {
 		return EbtReplicateNotes{}, errors.Wrap(err, "json unmarshal error")
 	}
 
@@ -149,7 +150,7 @@ func NewEbtReplicateNotesFromBytes(b []byte) (EbtReplicateNotes, error) {
 			return EbtReplicateNotes{}, errors.Wrap(err, "error creating a ref")
 		}
 
-		note, err := NewEbtReplicateNote(ref, note.Receive, note.Replicate, int(note.Seq))
+		note, err := NewEbtReplicateNote(ref, note.Receive, note.Replicate, note.Seq)
 		if err != nil {
 			return EbtReplicateNotes{}, errors.Wrap(err, "error creating a note")
 		}
@@ -200,17 +201,15 @@ func (n *EbtReplicateNotes) Empty() bool {
 }
 
 func (n *EbtReplicateNotes) MarshalJSON() ([]byte, error) {
-	frontier := make(ssb.NetworkFrontier)
-
+	frontier := make(map[string]ebtReplicateNoteTransport, len(n.notes))
 	for _, note := range n.notes {
-		frontier[note.Ref().String()] = ssb.Note{
-			Seq:       int64(note.Sequence()),
+		frontier[note.Ref().String()] = ebtReplicateNoteTransport{
+			Seq:       note.Sequence(),
 			Replicate: note.Replicate(),
 			Receive:   note.Receive(),
 		}
 	}
-
-	return json.Marshal(frontier)
+	return jsoniter.Marshal(frontier)
 }
 
 type EbtReplicateNote struct {
@@ -268,11 +267,44 @@ func (e EbtReplicateNote) Equal(o EbtReplicateNote) bool {
 		e.sequence == o.sequence
 }
 
-func (e *EbtReplicateNote) MarshalJSON() ([]byte, error) {
-	note := ssb.Note{
-		Seq:       int64(e.Sequence()),
-		Replicate: e.Replicate(),
-		Receive:   e.Receive(),
+func (e EbtReplicateNote) MarshalJSON() ([]byte, error) {
+	v := &ebtReplicateNoteTransport{
+		Seq:       e.sequence,
+		Replicate: e.replicate,
+		Receive:   e.receive,
 	}
-	return json.Marshal(note)
+	return v.MarshalJSON()
+}
+
+type ebtReplicateNoteTransport struct {
+	Seq       int
+	Replicate bool
+	Receive   bool
+}
+
+func (s *ebtReplicateNoteTransport) UnmarshalJSON(b []byte) error {
+	i, err := strconv.ParseInt(string(b), 10, 32)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal the number")
+	}
+
+	s.Replicate = i != -1
+	s.Receive = !(i&1 == 1)
+	s.Seq = int(i >> 1)
+	return nil
+}
+
+func (s *ebtReplicateNoteTransport) MarshalJSON() ([]byte, error) {
+	var i int
+	if !s.Replicate {
+		return []byte("-1"), nil
+	}
+	i = s.Seq
+	i = i << 1 // make room for the rx bit
+	if s.Receive {
+		i |= 0
+	} else {
+		i |= 1
+	}
+	return []byte(strconv.FormatInt(int64(i), 10)), nil
 }

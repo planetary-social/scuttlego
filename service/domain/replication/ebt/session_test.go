@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/planetary-social/scuttlego/internal/fixtures"
+	"github.com/planetary-social/scuttlego/internal/mocks"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/graph"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
@@ -14,7 +15,6 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/planetary-social/scuttlego/service/domain/replication"
 	"github.com/planetary-social/scuttlego/service/domain/replication/ebt"
-	"github.com/planetary-social/scuttlego/service/domain/replication/mocks"
 	"github.com/stretchr/testify/require"
 )
 

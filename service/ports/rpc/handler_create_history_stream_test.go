@@ -7,11 +7,11 @@ import (
 
 	"github.com/planetary-social/scuttlego/internal"
 	"github.com/planetary-social/scuttlego/internal/fixtures"
+	"github.com/planetary-social/scuttlego/internal/mocks"
 	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/app/queries"
 	"github.com/planetary-social/scuttlego/service/domain/messages"
 	transportrpc "github.com/planetary-social/scuttlego/service/domain/transport/rpc"
-	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/mux/mocks"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc/transport"
 	"github.com/planetary-social/scuttlego/service/ports/rpc"
 	"github.com/stretchr/testify/require"

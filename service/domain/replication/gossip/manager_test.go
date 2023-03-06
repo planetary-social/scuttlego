@@ -5,11 +5,11 @@ import (
 	"time"
 
 	"github.com/planetary-social/scuttlego/internal/fixtures"
+	"github.com/planetary-social/scuttlego/internal/mocks"
 	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/domain/graph"
 	"github.com/planetary-social/scuttlego/service/domain/replication"
 	"github.com/planetary-social/scuttlego/service/domain/replication/gossip"
-	"github.com/planetary-social/scuttlego/service/domain/replication/mocks"
 	"github.com/stretchr/testify/require"
 )
 

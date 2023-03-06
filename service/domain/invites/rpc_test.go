@@ -5,9 +5,9 @@ import (
 	"testing"
 
 	"github.com/planetary-social/scuttlego/internal/fixtures"
+	"github.com/planetary-social/scuttlego/internal/mocks"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
 	"github.com/planetary-social/scuttlego/service/domain/invites"
-	"github.com/planetary-social/scuttlego/service/domain/mocks"
 	"github.com/planetary-social/scuttlego/service/domain/network"
 	"github.com/planetary-social/scuttlego/service/domain/transport"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"

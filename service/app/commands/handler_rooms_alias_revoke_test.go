@@ -7,9 +7,9 @@ import (
 
 	"github.com/planetary-social/scuttlego/di"
 	"github.com/planetary-social/scuttlego/internal/fixtures"
+	"github.com/planetary-social/scuttlego/internal/mocks"
 	"github.com/planetary-social/scuttlego/service/app/commands"
 	"github.com/planetary-social/scuttlego/service/domain/messages"
-	"github.com/planetary-social/scuttlego/service/domain/mocks"
 	"github.com/planetary-social/scuttlego/service/domain/network"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 	"github.com/stretchr/testify/require"

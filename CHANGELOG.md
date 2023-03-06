@@ -22,6 +22,7 @@
 ### Fixed 
 
 - Fewer goroutines are created during EBT replication.
+- Optimized marshaling and unmarshaling EBT notes.
 
 ### Security 
 

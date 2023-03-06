@@ -2,14 +2,13 @@
 
 ## [Unreleased]
 
-
 ### Added 
 
 - ...
 
 ### Changed 
 
-- Moved package `di` to `service` and moved `di.Service` and `di.Config` to `service`.
+- ...
 
 ### Deprecated 
 
@@ -21,14 +20,23 @@
 
 ### Fixed 
 
-- Fewer goroutines are created during EBT replication.
-- Optimized marshaling and unmarshaling EBT notes.
-- Optimized marshaling and unmarshaling createHistoryStream arguments.
+- ...
 
 ### Security 
 
 - ...
 
+## [v0.0.3]
+
+### Changed 
+
+- Moved package `di` to `service` and moved `di.Service` and `di.Config` to `service`.
+
+### Fixed 
+
+- Fewer goroutines are created during EBT replication.
+- Optimized marshaling and unmarshaling EBT notes.
+- Optimized marshaling and unmarshaling createHistoryStream arguments.
 
 ## [v0.0.2]
 
@@ -50,6 +58,7 @@
 
 - This CHANGELOG file.
 
-[unreleased]: https://github.com/planetary-social/scuttlego/compare/v0.0.2...HEAD
+[unreleased]: https://github.com/planetary-social/scuttlego/compare/v0.0.3...HEAD
+[v0.0.3]: https://github.com/planetary-social/scuttlego/releases/tag/v0.0.3
 [v0.0.2]: https://github.com/planetary-social/scuttlego/releases/tag/v0.0.2
 [v0.0.1]: https://github.com/planetary-social/scuttlego/releases/tag/v0.0.1

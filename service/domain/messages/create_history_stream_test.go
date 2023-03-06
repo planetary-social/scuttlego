@@ -4,7 +4,9 @@ import (
 	"testing"
 
 	"github.com/boreq/errors"
+	"github.com/planetary-social/scuttlego/internal"
 	"github.com/planetary-social/scuttlego/internal/fixtures"
+	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/messages"
 	"github.com/stretchr/testify/require"
 )
@@ -66,6 +68,88 @@ func TestCreateHistoryStreamSequence(t *testing.T) {
 				require.Equal(t, args.Sequence().Int(), 1537)
 			} else {
 				require.EqualError(t, err, testCase.ExpectedError.Error())
+			}
+		})
+	}
+}
+
+func BenchmarkNewCreateHistoryStreamArgumentsFromBytes(b *testing.B) {
+	testCases := []struct {
+		Name   string
+		String string
+	}{
+		{
+			Name:   "patchwork",
+			String: `[{"id":"@tgzHDm9HEN0k5wFRLFmNPyGZYNF/M5KpkZqCRhgowVE=.ed25519","seq":1537,"live":true,"keys":false}]`,
+		},
+		{
+			Name:   "protocol_guide",
+			String: `[{"id":"@tgzHDm9HEN0k5wFRLFmNPyGZYNF/M5KpkZqCRhgowVE=.ed25519","sequence":1537,"live":true,"keys":false}]`,
+		},
+		{
+			Name:   "both",
+			String: `[{"id":"@tgzHDm9HEN0k5wFRLFmNPyGZYNF/M5KpkZqCRhgowVE=.ed25519","sequence":1537,"seq":1537,"live":true,"keys":false}]`,
+		},
+	}
+
+	for _, testCase := range testCases {
+		b.Run(testCase.Name, func(b *testing.B) {
+			b.ReportAllocs()
+
+			for i := 0; i < b.N; i++ {
+				_, err := messages.NewCreateHistoryStreamArgumentsFromBytes([]byte(testCase.String))
+				if err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkCreateHistoryStreamArguments_MarshalJSON(b *testing.B) {
+	allFields, err := messages.NewCreateHistoryStreamArguments(
+		fixtures.SomeRefFeed(),
+		internal.Ptr(message.MustNewSequence(123)),
+		internal.Ptr(1000),
+		internal.Ptr(false),
+		internal.Ptr(true),
+		internal.Ptr(false),
+	)
+	require.NoError(b, err)
+
+	someFields, err := messages.NewCreateHistoryStreamArguments(
+		fixtures.SomeRefFeed(),
+		nil,
+		internal.Ptr(1000),
+		nil,
+		nil,
+		nil,
+	)
+	require.NoError(b, err)
+
+	testCases := []struct {
+		Name string
+		Args messages.CreateHistoryStreamArguments
+	}{
+		{
+			Name: "all_fields",
+			Args: allFields,
+		},
+		{
+			Name: "some_fields",
+			Args: someFields,
+		},
+	}
+
+	for _, testCase := range testCases {
+		b.Run(testCase.Name, func(b *testing.B) {
+			b.ReportAllocs()
+
+			for i := 0; i < b.N; i++ {
+				_, err := testCase.Args.MarshalJSON()
+				if err != nil {
+					b.Fatal(err)
+				}
 			}
 		})
 	}

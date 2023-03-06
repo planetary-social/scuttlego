@@ -21,7 +21,7 @@
 
 ### Fixed 
 
-- ...
+- Fewer goroutines are created during EBT replication.
 
 ### Security 
 

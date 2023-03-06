@@ -1,10 +1,9 @@
 package messages
 
 import (
-	"encoding/json"
-
 	"github.com/boreq/errors"
 	"github.com/hashicorp/go-multierror"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/planetary-social/scuttlego/service/domain/blobs"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
@@ -76,7 +75,7 @@ func NewBlobsGetArgumentsFromBytes(b []byte) (BlobsGetArguments, error) {
 func newBlobsGetArgumentsFromBytesString(b []byte) (BlobsGetArguments, error) {
 	var args []string
 
-	if err := json.Unmarshal(b, &args); err != nil {
+	if err := jsoniter.Unmarshal(b, &args); err != nil {
 		return BlobsGetArguments{}, errors.Wrap(err, "json unmarshal failed")
 	}
 
@@ -95,7 +94,7 @@ func newBlobsGetArgumentsFromBytesString(b []byte) (BlobsGetArguments, error) {
 func newBlobsGetArgumentsFromBytesObject(b []byte) (BlobsGetArguments, error) {
 	var args []blobsGetArgumentsTransport
 
-	if err := json.Unmarshal(b, &args); err != nil {
+	if err := jsoniter.Unmarshal(b, &args); err != nil {
 		return BlobsGetArguments{}, errors.Wrap(err, "json unmarshal failed")
 	}
 
@@ -149,7 +148,7 @@ func (a BlobsGetArguments) MarshalJSON() ([]byte, error) {
 			a.hash.String(),
 		}
 
-		return json.Marshal(args)
+		return jsoniter.Marshal(args)
 	}
 
 	args := []blobsGetArgumentsTransport{
@@ -168,7 +167,7 @@ func (a BlobsGetArguments) MarshalJSON() ([]byte, error) {
 		args[0].Max = &v
 	}
 
-	return json.Marshal(args)
+	return jsoniter.Marshal(args)
 }
 
 func (a BlobsGetArguments) Hash() refs.Blob {

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/boreq/errors"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/planetary-social/scuttlego/cmd/log-debugger/debugger/log"
 	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/domain/messages"
@@ -143,7 +144,7 @@ func prettifyBody(body string) (string, error) {
 			annotatedNotes[note.Ref().String()] = fmt.Sprintf("%s (sequence=%d, receive=%t replicate=%t)", string(b), note.Sequence(), note.Receive(), note.Replicate())
 		}
 
-		j, err := json.Marshal(annotatedNotes)
+		j, err := jsoniter.Marshal(annotatedNotes)
 		if err != nil {
 			return "", errors.Wrap(err, "error marshaling annotated notes")
 		}

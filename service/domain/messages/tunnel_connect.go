@@ -1,9 +1,8 @@
 package messages
 
 import (
-	"encoding/json"
-
 	"github.com/boreq/errors"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 )
@@ -65,7 +64,7 @@ func NewTunnelConnectToPortalArguments(
 }
 
 func (i TunnelConnectToPortalArguments) MarshalJSON() ([]byte, error) {
-	return json.Marshal([]tunnelConnectToPortalArgumentsTransport{
+	return jsoniter.Marshal([]tunnelConnectToPortalArgumentsTransport{
 		{
 			Portal: i.portal.String(),
 			Target: i.target.String(),
@@ -105,7 +104,7 @@ func NewTunnelConnectToTargetArguments(
 
 func NewTunnelConnectToTargetArgumentsFromBytes(b []byte) (TunnelConnectToTargetArguments, error) {
 	var args []tunnelConnectToTargetArgumentsTransport
-	if err := json.Unmarshal(b, &args); err != nil {
+	if err := jsoniter.Unmarshal(b, &args); err != nil {
 		return TunnelConnectToTargetArguments{}, errors.Wrap(err, "json unmarshal failed")
 	}
 
@@ -148,7 +147,7 @@ func (t TunnelConnectToTargetArguments) Origin() refs.Identity {
 }
 
 func (t TunnelConnectToTargetArguments) MarshalJSON() ([]byte, error) {
-	return json.Marshal([]tunnelConnectToTargetArgumentsTransport{
+	return jsoniter.Marshal([]tunnelConnectToTargetArgumentsTransport{
 		{
 			Portal: t.portal.String(),
 			Target: t.target.String(),

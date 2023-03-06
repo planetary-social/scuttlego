@@ -1,9 +1,8 @@
 package messages
 
 import (
-	"encoding/json"
-
 	"github.com/boreq/errors"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/planetary-social/scuttlego/service/domain/rooms/aliases"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 )
@@ -45,7 +44,7 @@ func NewRoomRevokeAliasArguments(
 }
 
 func (i RoomRevokeAliasArguments) MarshalJSON() ([]byte, error) {
-	return json.Marshal([]string{
+	return jsoniter.Marshal([]string{
 		i.alias.String(),
 	})
 }

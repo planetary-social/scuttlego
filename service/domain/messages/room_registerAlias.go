@@ -2,9 +2,9 @@ package messages
 
 import (
 	"encoding/base64"
-	"encoding/json"
 
 	"github.com/boreq/errors"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/planetary-social/scuttlego/service/domain/rooms/aliases"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 )
@@ -53,7 +53,7 @@ func NewRoomRegisterAliasArguments(
 }
 
 func (i RoomRegisterAliasArguments) MarshalJSON() ([]byte, error) {
-	return json.Marshal([]string{
+	return jsoniter.Marshal([]string{
 		i.alias.String(),
 		base64.StdEncoding.EncodeToString(i.signature.Bytes()) + ".sig.ed25519",
 	})

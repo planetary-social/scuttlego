@@ -177,7 +177,7 @@ func (c CreateHistoryStreamResponse) MarshalJSON() ([]byte, error) {
 		Value:     c.value.Bytes(),
 		Timestamp: c.timestamp.UnixMilli(),
 	}
-	return json.Marshal(transport)
+	return jsoniter.Marshal(transport)
 }
 
 func sequencePointerToIntPointer(sequence *message.Sequence) *int {

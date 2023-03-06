@@ -1,7 +1,6 @@
 package messages
 
 import (
-	"encoding/json"
 	"strconv"
 
 	"github.com/boreq/errors"
@@ -52,7 +51,7 @@ func NewEbtReplicateArguments(
 func NewEbtReplicateArgumentsFromBytes(b []byte) (EbtReplicateArguments, error) {
 	var args []ebtReplicateArgumentsTransport
 
-	if err := json.Unmarshal(b, &args); err != nil {
+	if err := jsoniter.Unmarshal(b, &args); err != nil {
 		return EbtReplicateArguments{}, errors.Wrap(err, "json unmarshal failed")
 	}
 
@@ -92,7 +91,7 @@ func (c EbtReplicateArguments) MarshalJSON() ([]byte, error) {
 			Format:  f,
 		},
 	}
-	return json.Marshal(transport)
+	return jsoniter.Marshal(transport)
 }
 
 const ebtReplicateFormatTransportClassic = "classic"

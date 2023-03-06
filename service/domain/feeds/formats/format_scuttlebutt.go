@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/boreq/errors"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/planetary-social/scuttlego/service/domain/feeds"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
@@ -91,7 +92,7 @@ func (s *Scuttlebutt) Load(verifiedRawMessage message.VerifiedRawMessage) (messa
 	}
 
 	var dmsg legacy.DeserializedMessage
-	if err := json.Unmarshal(verifiedRawMessage.Bytes(), &dmsg); err != nil {
+	if err := jsoniter.Unmarshal(verifiedRawMessage.Bytes(), &dmsg); err != nil {
 		return message.MessageWithoutId{}, errors.Wrap(err, "json unmarshal failed")
 	}
 
@@ -100,7 +101,7 @@ func (s *Scuttlebutt) Load(verifiedRawMessage message.VerifiedRawMessage) (messa
 
 func (s *Scuttlebutt) Peek(raw message.RawMessage) (feeds.PeekedMessage, error) {
 	var dmsg peekedSsbMessage
-	if err := json.Unmarshal(raw.Bytes(), &dmsg); err != nil {
+	if err := jsoniter.Unmarshal(raw.Bytes(), &dmsg); err != nil {
 		return feeds.PeekedMessage{}, errors.Wrap(err, "json unmarshal failed")
 	}
 

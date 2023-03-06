@@ -1,10 +1,10 @@
 package messages
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/boreq/errors"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 )
@@ -30,7 +30,7 @@ type RoomAttendantsResponseState struct {
 
 func NewRoomAttendantsResponseStateFromBytes(b []byte) (RoomAttendantsResponseState, error) {
 	var transport roomAttendantsResponseStateTransport
-	if err := json.Unmarshal(b, &transport); err != nil {
+	if err := jsoniter.Unmarshal(b, &transport); err != nil {
 		return RoomAttendantsResponseState{}, errors.Wrap(err, "json unmarshal failed")
 	}
 
@@ -65,7 +65,7 @@ type RoomAttendantsResponseJoinedOrLeft struct {
 
 func NewRoomAttendantsResponseJoinedOrLeftFromBytes(b []byte) (RoomAttendantsResponseJoinedOrLeft, error) {
 	var transport roomAttendantsResponseJoinedOrLeftTransport
-	if err := json.Unmarshal(b, &transport); err != nil {
+	if err := jsoniter.Unmarshal(b, &transport); err != nil {
 		return RoomAttendantsResponseJoinedOrLeft{}, errors.Wrap(err, "json unmarshal failed")
 	}
 

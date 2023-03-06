@@ -2,11 +2,11 @@ package migrations
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/boreq/errors"
 	"github.com/hashicorp/go-multierror"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/planetary-social/scuttlego/internal"
 	"github.com/planetary-social/scuttlego/logging"
 )
@@ -182,7 +182,7 @@ func (r Runner) runMigration(ctx context.Context, migration Migration, onRunning
 		return errors.Wrap(err, "error loading state")
 	}
 
-	humanReadableState, err := json.Marshal(state)
+	humanReadableState, err := jsoniter.Marshal(state)
 	if err != nil {
 		return errors.Wrap(err, "state json marshal error")
 	}

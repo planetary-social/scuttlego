@@ -136,7 +136,7 @@ func TestNewBlobsGetArgumentsFromBytesObject(t *testing.T) {
 		{
 			Name:          "different_key_and_hash",
 			Payload:       `[{"hash":"&2b3zi3R00MZ6X+9jXgZMCS6/N1W1PGM2leOEKvpKQjA=.sha256","key":"&eb3zi3R00MZ6X+9jXgZMCS6/N1W1PGM2leOEKvpKQjA=.sha256","max":5242880}]`,
-			ExpectedError: errors.New("2 errors occurred:\n\t* error unmarshaling arguments as string: json unmarshal failed: json: cannot unmarshal object into Go value of type string\n\t* error unmarshaling arguments as object: could not create a blob ref: key and hash are set but have different values\n\n"),
+			ExpectedError: errors.New("2 errors occurred:\n\t* error unmarshaling arguments as string: json unmarshal failed: []string: ReadString: expects \" or n, but found {, error found in #2 byte of ...|[{\"hash\":\"&2|..., bigger context ...|[{\"hash\":\"&2b3zi3R00MZ6X+9jXgZMCS6/N1W1PGM2leOEKvpKQ|...\n\t* error unmarshaling arguments as object: could not create a blob ref: key and hash are set but have different values\n\n"),
 		},
 	}
 

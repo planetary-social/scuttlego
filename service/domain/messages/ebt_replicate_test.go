@@ -104,6 +104,61 @@ func TestNewEbtReplicateNotesFromBytes(t *testing.T) {
 	}
 }
 
+func BenchmarkNewEbtReplicateNotesFromBytes(b *testing.B) {
+	for _, numberOfNotes := range []int{1, 10, 100, 1000} {
+		b.Run(fmt.Sprintf("number_of_notes_%d", numberOfNotes), func(b *testing.B) {
+			var notes []messages.EbtReplicateNote
+			for i := 0; i < numberOfNotes; i++ {
+				note, err := messages.NewEbtReplicateNote(fixtures.SomeRefFeed(), true, true, 0)
+				require.NoError(b, err)
+
+				notes = append(notes, note)
+			}
+			replicateNotes, err := messages.NewEbtReplicateNotes(notes)
+			require.NoError(b, err)
+
+			notesJSON, err := replicateNotes.MarshalJSON()
+			require.NoError(b, err)
+
+			b.ResetTimer()
+			b.ReportAllocs()
+
+			for i := 0; i < b.N; i++ {
+				_, err := messages.NewEbtReplicateNotesFromBytes(notesJSON)
+				if err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkEbtReplicateNotes_MarshalJSON(b *testing.B) {
+	for _, numberOfNotes := range []int{1, 10, 100, 1000} {
+		b.Run(fmt.Sprintf("number_of_notes_%d", numberOfNotes), func(b *testing.B) {
+			var notes []messages.EbtReplicateNote
+			for i := 0; i < numberOfNotes; i++ {
+				note, err := messages.NewEbtReplicateNote(fixtures.SomeRefFeed(), true, true, 0)
+				require.NoError(b, err)
+
+				notes = append(notes, note)
+			}
+			replicateNotes, err := messages.NewEbtReplicateNotes(notes)
+			require.NoError(b, err)
+
+			b.ResetTimer()
+			b.ReportAllocs()
+
+			for i := 0; i < b.N; i++ {
+				_, err := replicateNotes.MarshalJSON()
+				if err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
 func TestEbtReplicateNotes_Empty(t *testing.T) {
 	t.Run("not_empty", func(t *testing.T) {
 		notes, err := messages.NewEbtReplicateNotes([]messages.EbtReplicateNote{

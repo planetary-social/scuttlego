@@ -1,11 +1,11 @@
 package messages
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
 	"github.com/boreq/errors"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/planetary-social/scuttlego/service/domain/blobs"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
@@ -33,7 +33,7 @@ type BlobsCreateWantsResponse struct {
 func NewBlobsCreateWantsResponseFromBytes(b []byte) (BlobsCreateWantsResponse, error) {
 	m := make(blobsCreateWantsResponseTransport)
 
-	if err := json.Unmarshal(b, &m); err != nil {
+	if err := jsoniter.Unmarshal(b, &m); err != nil {
 		return BlobsCreateWantsResponse{}, errors.Wrap(err, "json unmarshal failed")
 	}
 
@@ -99,7 +99,7 @@ func (resp BlobsCreateWantsResponse) MarshalJSON() ([]byte, error) {
 		panic("not all cases are covered")
 	}
 
-	return json.Marshal(m)
+	return jsoniter.Marshal(m)
 }
 
 type blobsCreateWantsResponseTransport map[string]int64

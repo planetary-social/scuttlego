@@ -1,11 +1,11 @@
 package transport
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
 	"github.com/boreq/errors"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/content"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/content/known"
@@ -74,7 +74,7 @@ func (m *Marshaler) Unmarshal(b message.RawContent) (known.KnownMessageContent, 
 
 func (m *Marshaler) identifyContentType(b message.RawContent) (known.MessageContentType, error) {
 	var typ MessageContentType
-	if err := json.Unmarshal(b.Bytes(), &typ); err != nil {
+	if err := jsoniter.Unmarshal(b.Bytes(), &typ); err != nil {
 		return "", errors.Wrap(err, "json unmarshal of message content type failed")
 	}
 	if typ.MessageContentType == "" {

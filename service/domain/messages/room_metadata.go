@@ -1,9 +1,8 @@
 package messages
 
 import (
-	"encoding/json"
-
 	"github.com/boreq/errors"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/planetary-social/scuttlego/service/domain/rooms/features"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 )
@@ -30,7 +29,7 @@ type RoomMetadataResponse struct {
 
 func NewRoomMetadataResponseFromBytes(b []byte) (RoomMetadataResponse, error) {
 	var transport roomMetadataTransport
-	if err := json.Unmarshal(b, &transport); err != nil {
+	if err := jsoniter.Unmarshal(b, &transport); err != nil {
 		return RoomMetadataResponse{}, errors.Wrap(err, "json unmarshal failed")
 	}
 

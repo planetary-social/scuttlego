@@ -2,9 +2,9 @@ package messages_test
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"testing"
 
+	jsoniter "github.com/json-iterator/go"
 	"github.com/planetary-social/scuttlego/internal/fixtures"
 	"github.com/planetary-social/scuttlego/service/domain/messages"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
@@ -34,7 +34,7 @@ func TestNewRoomRegisterAlias(t *testing.T) {
 	require.Equal(t, rpc.MustNewProcedureName([]string{"room", "registerAlias"}), req.Name())
 
 	var actualArgs []string
-	err = json.Unmarshal(req.Arguments(), &actualArgs)
+	err = jsoniter.Unmarshal(req.Arguments(), &actualArgs)
 	require.NoError(t, err)
 	require.Equal(t,
 		[]string{

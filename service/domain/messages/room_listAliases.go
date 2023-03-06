@@ -1,9 +1,8 @@
 package messages
 
 import (
-	"encoding/json"
-
 	"github.com/boreq/errors"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/planetary-social/scuttlego/service/domain/rooms/aliases"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
@@ -46,7 +45,7 @@ func NewRoomListAliasesArguments(
 }
 
 func (i RoomListAliasesArguments) MarshalJSON() ([]byte, error) {
-	return json.Marshal([]string{
+	return jsoniter.Marshal([]string{
 		i.identity.String(),
 	})
 }
@@ -57,7 +56,7 @@ type RoomListAliasesResponse struct {
 
 func NewRoomListAliasesResponseFromBytes(b []byte) (RoomListAliasesResponse, error) {
 	var aliasesAsStrings []string
-	if err := json.Unmarshal(b, &aliasesAsStrings); err != nil {
+	if err := jsoniter.Unmarshal(b, &aliasesAsStrings); err != nil {
 		return RoomListAliasesResponse{}, errors.Wrap(err, "json unmarshal failed")
 	}
 

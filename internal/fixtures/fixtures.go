@@ -4,7 +4,6 @@ import (
 	"context"
 	cryptorand "crypto/rand"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"math"
 	"math/rand"
@@ -16,6 +15,7 @@ import (
 	"time"
 
 	"github.com/dgraph-io/badger/v3"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/planetary-social/scuttlego/internal"
 	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/app/common"
@@ -192,7 +192,7 @@ func SomeRawContent() message.RawContent {
 		"type":       SomeString(),
 		SomeString(): SomeString(),
 	}
-	j, err := json.Marshal(v)
+	j, err := jsoniter.Marshal(v)
 	if err != nil {
 		panic(err)
 	}

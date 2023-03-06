@@ -27,7 +27,7 @@ func MarshalRequestBody(req *Request) ([]byte, error) {
 		Args: req.Arguments(),
 	}
 
-	j, err := json.Marshal(body)
+	j, err := jsoniter.Marshal(body)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not marshal the request body")
 	}
@@ -152,10 +152,10 @@ func sendCloseStream(raw MessageSender, number int, errToSent error) error {
 
 	var content []byte
 	if errToSent == nil {
-		content = []byte("true") // todo why true, is there any reason for this? do we have to send something specific? is this documented?
+		content = []byte("true")
 	} else {
 		var mErr error
-		content, mErr = json.Marshal(struct {
+		content, mErr = jsoniter.Marshal(struct {
 			Error string `json:"error"`
 		}{errToSent.Error()})
 		if mErr != nil {

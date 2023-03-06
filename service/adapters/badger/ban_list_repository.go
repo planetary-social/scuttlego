@@ -1,11 +1,11 @@
 package badger
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/boreq/errors"
 	"github.com/dgraph-io/badger/v3"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/planetary-social/scuttlego/service/adapters/badger/utils"
 	"github.com/planetary-social/scuttlego/service/app/commands"
 	"github.com/planetary-social/scuttlego/service/domain/bans"
@@ -102,7 +102,7 @@ func (b BanListRepository) CreateFeedMapping(ref refs.Feed) error {
 
 	bucket := b.mappingBucket()
 
-	v, err := json.Marshal(storedBannableRef{
+	v, err := jsoniter.Marshal(storedBannableRef{
 		Typ: storedBannableRefTypeFeed,
 		Ref: ref.String(),
 	})
@@ -150,7 +150,7 @@ func (b BanListRepository) LookupMapping(hash bans.Hash) (commands.BannableRef, 
 	}
 
 	var v storedBannableRef
-	if err := json.Unmarshal(value, &v); err != nil {
+	if err := jsoniter.Unmarshal(value, &v); err != nil {
 		return commands.BannableRef{}, errors.Wrap(err, "unmarshal failed")
 	}
 

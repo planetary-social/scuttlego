@@ -20,7 +20,8 @@
 
 ### Fixed 
 
-- ...
+- Improved performance by using "github.com/json-iterator/go" instead of
+  "encoding/json".
 
 ### Security 
 

@@ -1,9 +1,8 @@
 package messages
 
 import (
-	"encoding/json"
-
 	"github.com/boreq/errors"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
 )
@@ -42,7 +41,7 @@ func NewInviteUseArguments(feed refs.Identity) (InviteUseArguments, error) {
 func NewInviteUseArgumentsFromBytes(b []byte) (InviteUseArguments, error) {
 	var args []inviteUseArgumentsTransport
 
-	if err := json.Unmarshal(b, &args); err != nil {
+	if err := jsoniter.Unmarshal(b, &args); err != nil {
 		return InviteUseArguments{}, errors.Wrap(err, "json unmarshal failed")
 	}
 
@@ -59,7 +58,7 @@ func NewInviteUseArgumentsFromBytes(b []byte) (InviteUseArguments, error) {
 }
 
 func (i InviteUseArguments) MarshalJSON() ([]byte, error) {
-	return json.Marshal([]inviteUseArgumentsTransport{
+	return jsoniter.Marshal([]inviteUseArgumentsTransport{
 		{
 			Feed: i.feed.String(),
 		},

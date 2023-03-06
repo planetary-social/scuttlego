@@ -1,9 +1,8 @@
 package transport
 
 import (
-	"encoding/json"
-
 	"github.com/boreq/errors"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/content/known"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 )
@@ -21,12 +20,12 @@ var PubMapping = MessageContentMapping{
 			},
 		}
 
-		return json.Marshal(t)
+		return jsoniter.Marshal(t)
 	},
 	Unmarshal: func(b []byte) (known.KnownMessageContent, error) {
 		var t transportPub
 
-		if err := json.Unmarshal(b, &t); err != nil {
+		if err := jsoniter.Unmarshal(b, &t); err != nil {
 			return nil, errors.Wrap(err, "json unmarshal failed")
 		}
 

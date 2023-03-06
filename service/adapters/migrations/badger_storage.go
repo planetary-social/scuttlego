@@ -1,10 +1,9 @@
 package migrations
 
 import (
-	"encoding/json"
-
 	"github.com/boreq/errors"
 	"github.com/dgraph-io/badger/v3"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/planetary-social/scuttlego/migrations"
 	"github.com/planetary-social/scuttlego/service/adapters/badger/utils"
 )
@@ -42,7 +41,7 @@ func (b *BadgerStorage) LoadState(name string) (migrations.State, error) {
 			return errors.Wrap(err, "error getting value")
 		}
 
-		if err := json.Unmarshal(value, &state); err != nil {
+		if err := jsoniter.Unmarshal(value, &state); err != nil {
 			return errors.Wrap(err, "error unmarshaling state")
 		}
 
@@ -58,7 +57,7 @@ func (b *BadgerStorage) LoadState(name string) (migrations.State, error) {
 }
 
 func (b *BadgerStorage) SaveState(name string, state migrations.State) error {
-	marshaledState, err := json.Marshal(state)
+	marshaledState, err := jsoniter.Marshal(state)
 	if err != nil {
 		return errors.Wrap(err, "error marshaling state")
 	}

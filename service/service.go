@@ -1,4 +1,4 @@
-package di
+package service
 
 import (
 	"context"

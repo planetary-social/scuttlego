@@ -4,10 +4,10 @@ import (
 	"testing"
 
 	"github.com/boreq/errors"
-	"github.com/planetary-social/scuttlego/di"
 	"github.com/planetary-social/scuttlego/internal"
 	"github.com/planetary-social/scuttlego/internal/fixtures"
 	"github.com/planetary-social/scuttlego/service/app/queries"
+	"github.com/planetary-social/scuttlego/service/di"
 	"github.com/planetary-social/scuttlego/service/domain/blobs"
 	"github.com/stretchr/testify/require"
 )

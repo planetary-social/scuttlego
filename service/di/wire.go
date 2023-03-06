@@ -13,6 +13,7 @@ import (
 	"github.com/planetary-social/scuttlego/internal/fixtures"
 	mocks2 "github.com/planetary-social/scuttlego/internal/mocks"
 	"github.com/planetary-social/scuttlego/logging"
+	"github.com/planetary-social/scuttlego/service"
 	badgeradapters "github.com/planetary-social/scuttlego/service/adapters/badger"
 	"github.com/planetary-social/scuttlego/service/adapters/badger/notx"
 	"github.com/planetary-social/scuttlego/service/adapters/pubsub"
@@ -98,7 +99,7 @@ func buildTestBadgerNoTxTxAdapters(*badger.Txn, badgeradapters.TestAdaptersDepen
 	return notx.TxAdapters{}, nil
 }
 
-func buildBadgerNoTxTxAdapters(*badger.Txn, identity.Public, Config, logging.Logger) (notx.TxAdapters, error) {
+func buildBadgerNoTxTxAdapters(*badger.Txn, identity.Public, service.Config, logging.Logger) (notx.TxAdapters, error) {
 	wire.Build(
 		wire.Struct(new(notx.TxAdapters), "*"),
 
@@ -270,7 +271,7 @@ func BuildTestQueries(testing.TB) (TestQueries, error) {
 	return TestQueries{}, nil
 }
 
-func buildBadgerCommandsAdapters(*badger.Txn, identity.Public, Config, logging.Logger) (commands.Adapters, error) {
+func buildBadgerCommandsAdapters(*badger.Txn, identity.Public, service.Config, logging.Logger) (commands.Adapters, error) {
 	wire.Build(
 		wire.Struct(new(commands.Adapters), "*"),
 
@@ -284,7 +285,7 @@ func buildBadgerCommandsAdapters(*badger.Txn, identity.Public, Config, logging.L
 	return commands.Adapters{}, nil
 }
 
-func buildBadgerQueriesAdapters(*badger.Txn, identity.Public, Config, logging.Logger) (queries.Adapters, error) {
+func buildBadgerQueriesAdapters(*badger.Txn, identity.Public, service.Config, logging.Logger) (queries.Adapters, error) {
 	wire.Build(
 		wire.Struct(new(queries.Adapters), "*"),
 
@@ -300,9 +301,9 @@ func buildBadgerQueriesAdapters(*badger.Txn, identity.Public, Config, logging.Lo
 
 // BuildService creates a new service which uses the provided context as a long-term context used as a base context for
 // e.g. established connections.
-func BuildService(identity.Private, Config) (Service, func(), error) {
+func BuildService(identity.Private, service.Config) (service.Service, func(), error) {
 	wire.Build(
-		NewService,
+		service.NewService,
 
 		domain.NewPeerManager,
 		wire.Bind(new(commands.PeerManager), new(*domain.PeerManager)),
@@ -350,11 +351,11 @@ func BuildService(identity.Private, Config) (Service, func(), error) {
 		migrationsSet,
 		contentSet,
 	)
-	return Service{}, nil, nil
+	return service.Service{}, nil, nil
 }
 
 type IntegrationTestsService struct {
-	Service Service
+	Service service.Service
 
 	BanListHasher badgeradapters.BanListHasher
 }
@@ -375,7 +376,7 @@ func buildIntegrationTestsService(t *testing.T) (IntegrationTestsService, func()
 		newIntegrationTestConfig,
 		fixtures.SomePrivateIdentity,
 
-		NewService,
+		service.NewService,
 
 		domain.NewPeerManager,
 		wire.Bind(new(commands.PeerManager), new(*domain.PeerManager)),
@@ -426,15 +427,15 @@ func buildIntegrationTestsService(t *testing.T) (IntegrationTestsService, func()
 	return IntegrationTestsService{}, nil, nil
 }
 
-func newAdvertiser(l identity.Public, config Config) (*local.Advertiser, error) {
+func newAdvertiser(l identity.Public, config service.Config) (*local.Advertiser, error) {
 	return local.NewAdvertiser(l, config.ListenAddress)
 }
 
-func newIntegrationTestConfig(t *testing.T) Config {
+func newIntegrationTestConfig(t *testing.T) service.Config {
 	dataDirectory := fixtures.Directory(t)
 	oldDataDirectory := fixtures.Directory(t)
 
-	cfg := Config{
+	cfg := service.Config{
 		DataDirectory:      dataDirectory,
 		GoSSBDataDirectory: oldDataDirectory,
 		NetworkKey:         fixtures.SomeNetworkKey(),
@@ -444,14 +445,14 @@ func newIntegrationTestConfig(t *testing.T) Config {
 	return cfg
 }
 
-func newBadger(system logging.LoggingSystem, logger logging.Logger, config Config) (*badger.DB, func(), error) {
+func newBadger(system logging.LoggingSystem, logger logging.Logger, config service.Config) (*badger.DB, func(), error) {
 	badgerDirectory := filepath.Join(config.DataDirectory, "badger")
 
 	options := badger.DefaultOptions(badgerDirectory)
 	options.Logger = badgeradapters.NewLogger(system, badgeradapters.LoggerLevelWarning)
 
 	if config.ModifyBadgerOptions != nil {
-		adapter := NewBadgerOptionsAdapter(&options)
+		adapter := service.NewBadgerOptionsAdapter(&options)
 		config.ModifyBadgerOptions(adapter)
 	}
 

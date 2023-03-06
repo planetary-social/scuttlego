@@ -3,7 +3,7 @@ package commands_test
 import (
 	"testing"
 
-	"github.com/planetary-social/scuttlego/di"
+	"github.com/planetary-social/scuttlego/service/di"
 	"github.com/stretchr/testify/require"
 )
 

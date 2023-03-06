@@ -7,11 +7,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/planetary-social/scuttlego/di"
 	"github.com/planetary-social/scuttlego/internal/fixtures"
 	mocks2 "github.com/planetary-social/scuttlego/internal/mocks"
 	"github.com/planetary-social/scuttlego/service/app/commands"
 	"github.com/planetary-social/scuttlego/service/app/common"
+	"github.com/planetary-social/scuttlego/service/di"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	gossbrefs "github.com/ssbc/go-ssb-refs"

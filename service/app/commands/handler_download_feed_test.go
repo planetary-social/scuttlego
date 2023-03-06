@@ -4,10 +4,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/planetary-social/scuttlego/di"
 	"github.com/planetary-social/scuttlego/internal/fixtures"
 	"github.com/planetary-social/scuttlego/internal/mocks"
 	"github.com/planetary-social/scuttlego/service/app/commands"
+	"github.com/planetary-social/scuttlego/service/di"
 	"github.com/stretchr/testify/require"
 )
 

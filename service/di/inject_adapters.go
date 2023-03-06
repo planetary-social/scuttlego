@@ -6,6 +6,7 @@ import (
 	"github.com/google/wire"
 	mocks2 "github.com/planetary-social/scuttlego/internal/mocks"
 	"github.com/planetary-social/scuttlego/logging"
+	"github.com/planetary-social/scuttlego/service"
 	"github.com/planetary-social/scuttlego/service/adapters"
 	"github.com/planetary-social/scuttlego/service/adapters/badger"
 	"github.com/planetary-social/scuttlego/service/adapters/blobs"
@@ -48,7 +49,7 @@ var blobsAdaptersSet = wire.NewSet(
 	wire.Bind(new(commands.BlobCreator), new(*blobs.FilesystemStorage)),
 )
 
-func newFilesystemStorage(logger logging.Logger, config Config) (*blobs.FilesystemStorage, error) {
+func newFilesystemStorage(logger logging.Logger, config service.Config) (*blobs.FilesystemStorage, error) {
 	return blobs.NewFilesystemStorage(path.Join(config.GoSSBDataDirectory, "blobs"), logger)
 }
 

@@ -7,12 +7,12 @@ import (
 	"time"
 
 	"github.com/boreq/errors"
-	"github.com/planetary-social/scuttlego/di"
 	"github.com/planetary-social/scuttlego/internal"
 	"github.com/planetary-social/scuttlego/internal/fixtures"
 	"github.com/planetary-social/scuttlego/internal/mocks"
 	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/app/queries"
+	"github.com/planetary-social/scuttlego/service/di"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

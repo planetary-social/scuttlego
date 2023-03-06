@@ -16,6 +16,7 @@ import (
 	"github.com/planetary-social/scuttlego/internal/mocks"
 	"github.com/planetary-social/scuttlego/logging"
 	migrations2 "github.com/planetary-social/scuttlego/migrations"
+	"github.com/planetary-social/scuttlego/service"
 	"github.com/planetary-social/scuttlego/service/adapters"
 	"github.com/planetary-social/scuttlego/service/adapters/badger"
 	"github.com/planetary-social/scuttlego/service/adapters/badger/notx"
@@ -153,7 +154,7 @@ func buildTestBadgerNoTxTxAdapters(txn *badger2.Txn, testAdaptersDependencies ba
 	return txAdapters, nil
 }
 
-func buildBadgerNoTxTxAdapters(txn *badger2.Txn, public identity.Public, config Config, logger logging.Logger) (notx.TxAdapters, error) {
+func buildBadgerNoTxTxAdapters(txn *badger2.Txn, public identity.Public, config service.Config, logger logging.Logger) (notx.TxAdapters, error) {
 	banListHasher := adapters.NewBanListHasher()
 	banListRepository := badger.NewBanListRepository(txn, banListHasher)
 	blobRepository := badger.NewBlobRepository(txn)
@@ -360,7 +361,7 @@ func BuildTestQueries(tb testing.TB) (TestQueries, error) {
 	return testQueries, nil
 }
 
-func buildBadgerCommandsAdapters(txn *badger2.Txn, public identity.Public, config Config, logger logging.Logger) (commands.Adapters, error) {
+func buildBadgerCommandsAdapters(txn *badger2.Txn, public identity.Public, config service.Config, logger logging.Logger) (commands.Adapters, error) {
 	hops := extractHopsFromConfig(config)
 	banListHasher := adapters.NewBanListHasher()
 	banListRepository := badger.NewBanListRepository(txn, banListHasher)
@@ -395,7 +396,7 @@ func buildBadgerCommandsAdapters(txn *badger2.Txn, public identity.Public, confi
 	return commandsAdapters, nil
 }
 
-func buildBadgerQueriesAdapters(txn *badger2.Txn, public identity.Public, config Config, logger logging.Logger) (queries.Adapters, error) {
+func buildBadgerQueriesAdapters(txn *badger2.Txn, public identity.Public, config service.Config, logger logging.Logger) (queries.Adapters, error) {
 	hops := extractHopsFromConfig(config)
 	banListHasher := adapters.NewBanListHasher()
 	banListRepository := badger.NewBanListRepository(txn, banListHasher)
@@ -431,12 +432,12 @@ func buildBadgerQueriesAdapters(txn *badger2.Txn, public identity.Public, config
 
 // BuildService creates a new service which uses the provided context as a long-term context used as a base context for
 // e.g. established connections.
-func BuildService(private identity.Private, config Config) (Service, func(), error) {
+func BuildService(private identity.Private, config service.Config) (service.Service, func(), error) {
 	networkKey := extractNetworkKeyFromConfig(config)
 	currentTimeProvider := adapters.NewCurrentTimeProvider()
 	handshaker, err := boxstream.NewHandshaker(private, networkKey, currentTimeProvider)
 	if err != nil {
-		return Service{}, nil, err
+		return service.Service{}, nil, err
 	}
 	requestPubSub := pubsub.NewRequestPubSub()
 	connectionIdGenerator := rpc.NewConnectionIdGenerator()
@@ -446,14 +447,14 @@ func BuildService(private identity.Private, config Config) (Service, func(), err
 	peerInitializer := transport2.NewPeerInitializer(handshaker, requestPubSub, connectionIdGenerator, newPeerPubSub, logger)
 	dialer, err := network.NewDialer(peerInitializer, logger)
 	if err != nil {
-		return Service{}, nil, err
+		return service.Service{}, nil, err
 	}
 	inviteDialer := invites.NewInviteDialer(dialer, networkKey, requestPubSub, connectionIdGenerator, currentTimeProvider, logger)
 	inviteRedeemer := invites2.NewInviteRedeemer(inviteDialer, logger)
 	redeemInviteHandler := commands.NewRedeemInviteHandler(inviteRedeemer, private, logger)
 	db, cleanup, err := newBadger(loggingSystem, logger, config)
 	if err != nil {
-		return Service{}, nil, err
+		return service.Service{}, nil, err
 	}
 	public := privateIdentityToPublicIdentity(private)
 	commandsAdaptersFactory := badgerCommandsAdaptersFactory(config, public, logger)
@@ -462,7 +463,7 @@ func BuildService(private identity.Private, config Config) (Service, func(), err
 	marshaler, err := transport.NewMarshaler(messageContentMappings, logger)
 	if err != nil {
 		cleanup()
-		return Service{}, nil, err
+		return service.Service{}, nil, err
 	}
 	followHandler := commands.NewFollowHandler(commandsTransactionProvider, private, marshaler, logger)
 	transactionRawMessagePublisher := commands.NewTransactionRawMessagePublisher(commandsTransactionProvider)
@@ -478,7 +479,7 @@ func BuildService(private identity.Private, config Config) (Service, func(), err
 	filesystemStorage, err := newFilesystemStorage(logger, config)
 	if err != nil {
 		cleanup()
-		return Service{}, nil, err
+		return service.Service{}, nil, err
 	}
 	createBlobHandler := commands.NewCreateBlobHandler(filesystemStorage)
 	addToBanListHandler := commands.NewAddToBanListHandler(commandsTransactionProvider)
@@ -503,7 +504,7 @@ func BuildService(private identity.Private, config Config) (Service, func(), err
 	migrationsMigrations, err := migrations2.NewMigrations(v)
 	if err != nil {
 		cleanup()
-		return Service{}, nil, err
+		return service.Service{}, nil, err
 	}
 	runMigrationsHandler := commands.NewRunMigrationsHandler(runner, migrationsMigrations)
 	appCommands := app.Commands{
@@ -531,20 +532,20 @@ func BuildService(private identity.Private, config Config) (Service, func(), err
 	publishedLogHandler, err := queries.NewPublishedLogHandler(queriesTransactionProvider, public)
 	if err != nil {
 		cleanup()
-		return Service{}, nil, err
+		return service.Service{}, nil, err
 	}
 	statusHandler := queries.NewStatusHandler(queriesTransactionProvider, peerManager)
 	getBlobHandler, err := queries.NewGetBlobHandler(filesystemStorage)
 	if err != nil {
 		cleanup()
-		return Service{}, nil, err
+		return service.Service{}, nil, err
 	}
 	blobDownloadedPubSub := pubsub.NewBlobDownloadedPubSub()
 	blobDownloadedEventsHandler := queries.NewBlobDownloadedEventsHandler(blobDownloadedPubSub)
 	roomsListAliasesHandler, err := queries.NewRoomsListAliasesHandler(dialer, public)
 	if err != nil {
 		cleanup()
-		return Service{}, nil, err
+		return service.Service{}, nil, err
 	}
 	getMessageHandler := queries.NewGetMessageHandler(queriesTransactionProvider)
 	getMessageBySequenceHandler := queries.NewGetMessageBySequenceHandler(queriesTransactionProvider)
@@ -566,12 +567,12 @@ func BuildService(private identity.Private, config Config) (Service, func(), err
 	listener, err := newListener(peerInitializer, config, logger)
 	if err != nil {
 		cleanup()
-		return Service{}, nil, err
+		return service.Service{}, nil, err
 	}
 	discoverer, err := local.NewDiscoverer(public, logger)
 	if err != nil {
 		cleanup()
-		return Service{}, nil, err
+		return service.Service{}, nil, err
 	}
 	processNewLocalDiscoveryHandler := commands.NewProcessNewLocalDiscoveryHandler(peerManager)
 	networkDiscoverer := network2.NewDiscoverer(discoverer, processNewLocalDiscoveryHandler, logger)
@@ -585,7 +586,7 @@ func BuildService(private identity.Private, config Config) (Service, func(), err
 	storageBlobsThatShouldBePushedProvider, err := replication.NewStorageBlobsThatShouldBePushedProvider(noTxBlobsRepository, public, currentTimeProvider)
 	if err != nil {
 		cleanup()
-		return Service{}, nil, err
+		return service.Service{}, nil, err
 	}
 	cacheBlobsThatShouldBePushedProvider := newCacheBlobsThatShouldBePushedProvider(storageBlobsThatShouldBePushedProvider)
 	blobsGetDownloader := replication.NewBlobsGetDownloader(filesystemStorage, logger)
@@ -609,7 +610,7 @@ func BuildService(private identity.Private, config Config) (Service, func(), err
 	gossipReplicator, err := gossip.NewGossipReplicator(gossipManager, rawMessageHandler, logger)
 	if err != nil {
 		cleanup()
-		return Service{}, nil, err
+		return service.Service{}, nil, err
 	}
 	replicator := ebt.NewReplicator(sessionTracker, sessionRunner, gossipReplicator, logger)
 	handleIncomingEbtReplicateHandler := commands.NewHandleIncomingEbtReplicateHandler(replicator)
@@ -622,7 +623,7 @@ func BuildService(private identity.Private, config Config) (Service, func(), err
 	muxMux, err := mux.NewMux(logger, v3, v4)
 	if err != nil {
 		cleanup()
-		return Service{}, nil, err
+		return service.Service{}, nil, err
 	}
 	requestSubscriber := pubsub2.NewRequestSubscriber(requestPubSub, muxMux)
 	roomAttendantEventPubSub := pubsub.NewRoomAttendantEventPubSub()
@@ -637,12 +638,12 @@ func BuildService(private identity.Private, config Config) (Service, func(), err
 	advertiser, err := newAdvertiser(public, config)
 	if err != nil {
 		cleanup()
-		return Service{}, nil, err
+		return service.Service{}, nil, err
 	}
 	garbageCollector := badger.NewGarbageCollector(db, logger)
 	noTxFeedWantListRepository := notx.NewNoTxFeedWantListRepository(txAdaptersFactoryTransactionProvider, logger)
-	service := NewService(application, listener, networkDiscoverer, connectionEstablisher, requestSubscriber, roomAttendantEventSubscriber, newPeerSubscriber, advertiser, messageBuffer, createHistoryStreamHandler, garbageCollector, noTxFeedWantListRepository, noTxBlobWantListRepository)
-	return service, func() {
+	serviceService := service.NewService(application, listener, networkDiscoverer, connectionEstablisher, requestSubscriber, roomAttendantEventSubscriber, newPeerSubscriber, advertiser, messageBuffer, createHistoryStreamHandler, garbageCollector, noTxFeedWantListRepository, noTxBlobWantListRepository)
+	return serviceService, func() {
 		cleanup()
 	}, nil
 }
@@ -859,10 +860,10 @@ func buildIntegrationTestsService(t *testing.T) (IntegrationTestsService, func()
 	}
 	garbageCollector := badger.NewGarbageCollector(db, logger)
 	noTxFeedWantListRepository := notx.NewNoTxFeedWantListRepository(txAdaptersFactoryTransactionProvider, logger)
-	service := NewService(application, listener, networkDiscoverer, connectionEstablisher, requestSubscriber, roomAttendantEventSubscriber, newPeerSubscriber, advertiser, messageBuffer, createHistoryStreamHandler, garbageCollector, noTxFeedWantListRepository, noTxBlobWantListRepository)
+	serviceService := service.NewService(application, listener, networkDiscoverer, connectionEstablisher, requestSubscriber, roomAttendantEventSubscriber, newPeerSubscriber, advertiser, messageBuffer, createHistoryStreamHandler, garbageCollector, noTxFeedWantListRepository, noTxBlobWantListRepository)
 	banListHasher := adapters.NewBanListHasher()
 	integrationTestsService := IntegrationTestsService{
-		Service:       service,
+		Service:       serviceService,
 		BanListHasher: banListHasher,
 	}
 	return integrationTestsService, func() {
@@ -926,29 +927,29 @@ type TestQueries struct {
 }
 
 type IntegrationTestsService struct {
-	Service Service
+	Service service.Service
 
 	BanListHasher badger.BanListHasher
 }
 
 func BuildIntegrationTestsService(t *testing.T) (IntegrationTestsService, error) {
-	service, cleanup, err := buildIntegrationTestsService(t)
+	service2, cleanup, err := buildIntegrationTestsService(t)
 	if err != nil {
 		return IntegrationTestsService{}, errors.Wrap(err, "error calling wire builder")
 	}
 	t.Cleanup(cleanup)
-	return service, nil
+	return service2, nil
 }
 
-func newAdvertiser(l identity.Public, config Config) (*local.Advertiser, error) {
+func newAdvertiser(l identity.Public, config service.Config) (*local.Advertiser, error) {
 	return local.NewAdvertiser(l, config.ListenAddress)
 }
 
-func newIntegrationTestConfig(t *testing.T) Config {
+func newIntegrationTestConfig(t *testing.T) service.Config {
 	dataDirectory := fixtures.Directory(t)
 	oldDataDirectory := fixtures.Directory(t)
 
-	cfg := Config{
+	cfg := service.Config{
 		DataDirectory:      dataDirectory,
 		GoSSBDataDirectory: oldDataDirectory,
 		NetworkKey:         fixtures.SomeNetworkKey(),
@@ -958,14 +959,14 @@ func newIntegrationTestConfig(t *testing.T) Config {
 	return cfg
 }
 
-func newBadger(system logging.LoggingSystem, logger logging.Logger, config Config) (*badger2.DB, func(), error) {
+func newBadger(system logging.LoggingSystem, logger logging.Logger, config service.Config) (*badger2.DB, func(), error) {
 	badgerDirectory := filepath.Join(config.DataDirectory, "badger")
 
 	options := badger2.DefaultOptions(badgerDirectory)
 	options.Logger = badger.NewLogger(system, badger.LoggerLevelWarning)
 
 	if config.ModifyBadgerOptions != nil {
-		adapter := NewBadgerOptionsAdapter(&options)
+		adapter := service.NewBadgerOptionsAdapter(&options)
 		config.ModifyBadgerOptions(adapter)
 	}
 

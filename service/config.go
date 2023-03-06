@@ -1,4 +1,4 @@
-package di
+package service
 
 import (
 	"github.com/dgraph-io/badger/v3"

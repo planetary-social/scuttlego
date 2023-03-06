@@ -9,7 +9,7 @@
 
 ### Changed 
 
-- ...
+- Moved package `di` to `service` and moved `di.Service` and `di.Config` to `service`.
 
 ### Deprecated 
 

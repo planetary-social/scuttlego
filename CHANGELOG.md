@@ -23,6 +23,7 @@
 
 - Fewer goroutines are created during EBT replication.
 - Optimized marshaling and unmarshaling EBT notes.
+- Optimized marshaling and unmarshaling createHistoryStream arguments.
 
 ### Security 
 

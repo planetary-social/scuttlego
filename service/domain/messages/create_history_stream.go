@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/boreq/errors"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/planetary-social/scuttlego/service/domain/transport/rpc"
@@ -53,8 +54,6 @@ func NewCreateHistoryStreamArguments(
 	old *bool,
 	keys *bool,
 ) (CreateHistoryStreamArguments, error) {
-	// todo checks as some arguments can't be used together? note: I think they can after all
-
 	return CreateHistoryStreamArguments{
 		id:       id,
 		sequence: sequence,
@@ -67,8 +66,7 @@ func NewCreateHistoryStreamArguments(
 
 func NewCreateHistoryStreamArgumentsFromBytes(b []byte) (CreateHistoryStreamArguments, error) {
 	var args []createHistoryStreamArgumentsTransport
-
-	if err := json.Unmarshal(b, &args); err != nil {
+	if err := jsoniter.Unmarshal(b, &args); err != nil {
 		return CreateHistoryStreamArguments{}, errors.Wrap(err, "json unmarshal failed")
 	}
 
@@ -152,7 +150,7 @@ func (c CreateHistoryStreamArguments) MarshalJSON() ([]byte, error) {
 			Keys:     nilIfDefault(c.keys, defaultKeys),
 		},
 	}
-	return json.Marshal(transport)
+	return jsoniter.Marshal(transport)
 }
 
 type CreateHistoryStreamResponse struct {

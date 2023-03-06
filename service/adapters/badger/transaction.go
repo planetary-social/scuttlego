@@ -3,7 +3,7 @@ package badger
 import (
 	"github.com/boreq/errors"
 	"github.com/dgraph-io/badger/v3"
-	"github.com/planetary-social/scuttlego/service/adapters/mocks"
+	mocks2 "github.com/planetary-social/scuttlego/internal/mocks"
 	"github.com/planetary-social/scuttlego/service/app/commands"
 	"github.com/planetary-social/scuttlego/service/app/queries"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
@@ -68,9 +68,9 @@ type TestAdapters struct {
 }
 
 type TestAdaptersDependencies struct {
-	BanListHasher        *mocks.BanListHasherMock
-	CurrentTimeProvider  *mocks.CurrentTimeProviderMock
-	RawMessageIdentifier *mocks.RawMessageIdentifierMock
+	BanListHasher        *mocks2.BanListHasherMock
+	CurrentTimeProvider  *mocks2.CurrentTimeProviderMock
+	RawMessageIdentifier *mocks2.RawMessageIdentifierMock
 	LocalIdentity        identity.Public
 }
 

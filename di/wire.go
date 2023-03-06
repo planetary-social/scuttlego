@@ -11,10 +11,10 @@ import (
 	"github.com/dgraph-io/badger/v3"
 	"github.com/google/wire"
 	"github.com/planetary-social/scuttlego/internal/fixtures"
+	mocks2 "github.com/planetary-social/scuttlego/internal/mocks"
 	"github.com/planetary-social/scuttlego/logging"
 	badgeradapters "github.com/planetary-social/scuttlego/service/adapters/badger"
 	"github.com/planetary-social/scuttlego/service/adapters/badger/notx"
-	"github.com/planetary-social/scuttlego/service/adapters/mocks"
 	"github.com/planetary-social/scuttlego/service/adapters/pubsub"
 	"github.com/planetary-social/scuttlego/service/app"
 	"github.com/planetary-social/scuttlego/service/app/commands"
@@ -25,7 +25,6 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/feeds/formats"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
 	"github.com/planetary-social/scuttlego/service/domain/invites"
-	domainmocks "github.com/planetary-social/scuttlego/service/domain/mocks"
 	"github.com/planetary-social/scuttlego/service/domain/network/local"
 	"github.com/planetary-social/scuttlego/service/domain/rooms"
 	"github.com/planetary-social/scuttlego/service/domain/rooms/tunnel"
@@ -146,16 +145,16 @@ type TestCommands struct {
 
 	MigrationImportDataFromGoSSB *commands.MigrationHandlerImportDataFromGoSSB
 
-	PeerManager            *domainmocks.PeerManagerMock
-	Dialer                 *mocks.DialerMock
-	FeedWantListRepository *mocks.FeedWantListRepositoryMock
-	CurrentTimeProvider    *mocks.CurrentTimeProviderMock
-	InviteRedeemer         *mocks.InviteRedeemerMock
+	PeerManager            *mocks2.PeerManagerMock
+	Dialer                 *mocks2.DialerMock
+	FeedWantListRepository *mocks2.FeedWantListRepositoryMock
+	CurrentTimeProvider    *mocks2.CurrentTimeProviderMock
+	InviteRedeemer         *mocks2.InviteRedeemerMock
 	Local                  identity.Public
-	PeerInitializer        *mocks.PeerInitializerMock
-	GoSSBRepoReader        *mocks.GoSSBRepoReaderMock
-	FeedRepository         *mocks.FeedRepositoryMock
-	ReceiveLog             *mocks.ReceiveLogRepositoryMock
+	PeerInitializer        *mocks2.PeerInitializerMock
+	GoSSBRepoReader        *mocks2.GoSSBRepoReaderMock
+	FeedRepository         *mocks2.FeedRepositoryMock
+	ReceiveLog             *mocks2.ReceiveLogRepositoryMock
 }
 
 func BuildTestCommands(testing.TB) (TestCommands, error) {
@@ -163,17 +162,17 @@ func BuildTestCommands(testing.TB) (TestCommands, error) {
 		commandsSet,
 		migrationCommandsSet,
 
-		mocks.NewDialerMock,
-		wire.Bind(new(commands.Dialer), new(*mocks.DialerMock)),
+		mocks2.NewDialerMock,
+		wire.Bind(new(commands.Dialer), new(*mocks2.DialerMock)),
 
-		domainmocks.NewPeerManagerMock,
-		wire.Bind(new(commands.PeerManager), new(*domainmocks.PeerManagerMock)),
+		mocks2.NewPeerManagerMock,
+		wire.Bind(new(commands.PeerManager), new(*mocks2.PeerManagerMock)),
 
 		identity.NewPrivate,
 		privateIdentityToPublicIdentity,
 
-		mocks.NewMockCommandsTransactionProvider,
-		wire.Bind(new(commands.TransactionProvider), new(*mocks.MockCommandsTransactionProvider)),
+		mocks2.NewMockCommandsTransactionProvider,
+		wire.Bind(new(commands.TransactionProvider), new(*mocks2.MockCommandsTransactionProvider)),
 
 		wire.Struct(
 			new(commands.Adapters),
@@ -182,29 +181,29 @@ func BuildTestCommands(testing.TB) (TestCommands, error) {
 			"ReceiveLog",
 		),
 
-		mocks.NewFeedWantListRepositoryMock,
-		wire.Bind(new(commands.FeedWantListRepository), new(*mocks.FeedWantListRepositoryMock)),
+		mocks2.NewFeedWantListRepositoryMock,
+		wire.Bind(new(commands.FeedWantListRepository), new(*mocks2.FeedWantListRepositoryMock)),
 
-		mocks.NewCurrentTimeProviderMock,
-		wire.Bind(new(commands.CurrentTimeProvider), new(*mocks.CurrentTimeProviderMock)),
+		mocks2.NewCurrentTimeProviderMock,
+		wire.Bind(new(commands.CurrentTimeProvider), new(*mocks2.CurrentTimeProviderMock)),
 
-		mocks.NewInviteRedeemerMock,
-		wire.Bind(new(commands.InviteRedeemer), new(*mocks.InviteRedeemerMock)),
+		mocks2.NewInviteRedeemerMock,
+		wire.Bind(new(commands.InviteRedeemer), new(*mocks2.InviteRedeemerMock)),
 
-		mocks.NewPeerInitializerMock,
-		wire.Bind(new(commands.ServerPeerInitializer), new(*mocks.PeerInitializerMock)),
+		mocks2.NewPeerInitializerMock,
+		wire.Bind(new(commands.ServerPeerInitializer), new(*mocks2.PeerInitializerMock)),
 
-		mocks.NewGoSSBRepoReaderMock,
-		wire.Bind(new(commands.GoSSBRepoReader), new(*mocks.GoSSBRepoReaderMock)),
+		mocks2.NewGoSSBRepoReaderMock,
+		wire.Bind(new(commands.GoSSBRepoReader), new(*mocks2.GoSSBRepoReaderMock)),
 
-		mocks.NewContentParser,
-		wire.Bind(new(commands.ContentParser), new(*mocks.ContentParser)),
+		mocks2.NewContentParser,
+		wire.Bind(new(commands.ContentParser), new(*mocks2.ContentParser)),
 
-		mocks.NewFeedRepositoryMock,
-		wire.Bind(new(commands.FeedRepository), new(*mocks.FeedRepositoryMock)),
+		mocks2.NewFeedRepositoryMock,
+		wire.Bind(new(commands.FeedRepository), new(*mocks2.FeedRepositoryMock)),
 
-		mocks.NewReceiveLogRepositoryMock,
-		wire.Bind(new(commands.ReceiveLogRepository), new(*mocks.ReceiveLogRepositoryMock)),
+		mocks2.NewReceiveLogRepositoryMock,
+		wire.Bind(new(commands.ReceiveLogRepository), new(*mocks2.ReceiveLogRepositoryMock)),
 
 		fixtures.TestLogger,
 
@@ -219,16 +218,16 @@ type TestQueries struct {
 
 	WantedFeedsProvider *queries.WantedFeedsProvider
 
-	FeedRepository         *mocks.FeedRepositoryMock
-	MessageRepository      *mocks.MessageRepositoryMock
-	ReceiveLogRepository   *mocks.ReceiveLogRepositoryMock
-	SocialGraphRepository  *mocks.SocialGraphRepositoryMock
-	FeedWantListRepository *mocks.FeedWantListRepositoryMock
-	BanListRepository      *mocks.BanListRepositoryMock
-	MessagePubSub          *mocks.MessagePubSubMock
-	PeerManager            *domainmocks.PeerManagerMock
-	BlobStorage            *mocks.BlobStorageMock
-	Dialer                 *mocks.DialerMock
+	FeedRepository         *mocks2.FeedRepositoryMock
+	MessageRepository      *mocks2.MessageRepositoryMock
+	ReceiveLogRepository   *mocks2.ReceiveLogRepositoryMock
+	SocialGraphRepository  *mocks2.SocialGraphRepositoryMock
+	FeedWantListRepository *mocks2.FeedWantListRepositoryMock
+	BanListRepository      *mocks2.BanListRepositoryMock
+	MessagePubSub          *mocks2.MessagePubSubMock
+	PeerManager            *mocks2.PeerManagerMock
+	BlobStorage            *mocks2.BlobStorageMock
+	Dialer                 *mocks2.DialerMock
 
 	LocalIdentity identity.Public
 }
@@ -239,29 +238,29 @@ func BuildTestQueries(testing.TB) (TestQueries, error) {
 		mockQueryAdaptersSet,
 		replicationSet,
 
-		mocks.NewMockQueriesTransactionProvider,
-		wire.Bind(new(queries.TransactionProvider), new(*mocks.MockQueriesTransactionProvider)),
+		mocks2.NewMockQueriesTransactionProvider,
+		wire.Bind(new(queries.TransactionProvider), new(*mocks2.MockQueriesTransactionProvider)),
 
 		wire.Struct(new(queries.Adapters), "*"),
 
 		pubsub.NewMessagePubSub,
-		mocks.NewMessagePubSubMock,
-		wire.Bind(new(queries.MessageSubscriber), new(*mocks.MessagePubSubMock)),
+		mocks2.NewMessagePubSubMock,
+		wire.Bind(new(queries.MessageSubscriber), new(*mocks2.MessagePubSubMock)),
 
-		domainmocks.NewPeerManagerMock,
-		wire.Bind(new(queries.PeerManager), new(*domainmocks.PeerManagerMock)),
+		mocks2.NewPeerManagerMock,
+		wire.Bind(new(queries.PeerManager), new(*mocks2.PeerManagerMock)),
 
 		identity.NewPrivate,
 		privateIdentityToPublicIdentity,
 
-		mocks.NewBlobStorageMock,
-		wire.Bind(new(queries.BlobStorage), new(*mocks.BlobStorageMock)),
+		mocks2.NewBlobStorageMock,
+		wire.Bind(new(queries.BlobStorage), new(*mocks2.BlobStorageMock)),
 
-		mocks.NewBlobDownloadedPubSubMock,
-		wire.Bind(new(queries.BlobDownloadedSubscriber), new(*mocks.BlobDownloadedPubSubMock)),
+		mocks2.NewBlobDownloadedPubSubMock,
+		wire.Bind(new(queries.BlobDownloadedSubscriber), new(*mocks2.BlobDownloadedPubSubMock)),
 
-		mocks.NewDialerMock,
-		wire.Bind(new(queries.Dialer), new(*mocks.DialerMock)),
+		mocks2.NewDialerMock,
+		wire.Bind(new(queries.Dialer), new(*mocks2.DialerMock)),
 
 		wire.Struct(new(TestQueries), "*"),
 

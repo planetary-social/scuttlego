@@ -8,12 +8,11 @@ import (
 
 	"github.com/planetary-social/scuttlego/internal"
 	"github.com/planetary-social/scuttlego/internal/fixtures"
+	"github.com/planetary-social/scuttlego/internal/mocks"
 	"github.com/planetary-social/scuttlego/logging"
-	"github.com/planetary-social/scuttlego/service/adapters/mocks"
 	"github.com/planetary-social/scuttlego/service/domain/blobs"
 	"github.com/planetary-social/scuttlego/service/domain/blobs/replication"
 	"github.com/planetary-social/scuttlego/service/domain/messages"
-	domainmocks "github.com/planetary-social/scuttlego/service/domain/mocks"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/planetary-social/scuttlego/service/domain/transport"
 	"github.com/stretchr/testify/assert"
@@ -25,7 +24,7 @@ func TestRepliesToWantsWithHas(t *testing.T) {
 
 	ctx := fixtures.TestContext(t)
 	outgoingCh := make(chan messages.BlobWithSizeOrWantDistance)
-	peer := transport.MustNewPeer(fixtures.SomePublicIdentity(), domainmocks.NewConnectionMock(ctx))
+	peer := transport.MustNewPeer(fixtures.SomePublicIdentity(), mocks.NewConnectionMock(ctx))
 	p.WantsProcess.AddOutgoing(ctx, outgoingCh, peer)
 
 	incomingCh := make(chan messages.BlobWithSizeOrWantDistance)
@@ -56,7 +55,7 @@ func TestRepliesToWantsWithHasIfIncomingChannelConnectedLater(t *testing.T) {
 
 	ctx := fixtures.TestContext(t)
 	outgoingCh := make(chan messages.BlobWithSizeOrWantDistance)
-	peer := transport.MustNewPeer(fixtures.SomePublicIdentity(), domainmocks.NewConnectionMock(ctx))
+	peer := transport.MustNewPeer(fixtures.SomePublicIdentity(), mocks.NewConnectionMock(ctx))
 	p.WantsProcess.AddOutgoing(ctx, outgoingCh, peer)
 
 	blobId := fixtures.SomeRefBlob()
@@ -86,7 +85,7 @@ func TestPassesHasToDownloader(t *testing.T) {
 	defer cancel()
 
 	outgoingCh := make(chan messages.BlobWithSizeOrWantDistance)
-	peer := transport.MustNewPeer(fixtures.SomePublicIdentity(), domainmocks.NewConnectionMock(ctx))
+	peer := transport.MustNewPeer(fixtures.SomePublicIdentity(), mocks.NewConnectionMock(ctx))
 	p.WantsProcess.AddOutgoing(ctx, outgoingCh, peer)
 
 	blobId := fixtures.SomeRefBlob()

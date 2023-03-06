@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/planetary-social/scuttlego/internal/fixtures"
-	"github.com/planetary-social/scuttlego/service/adapters/mocks"
+	"github.com/planetary-social/scuttlego/internal/mocks"
 	"github.com/planetary-social/scuttlego/service/domain/bans"
 	"github.com/planetary-social/scuttlego/service/domain/graph"
 	"github.com/stretchr/testify/require"

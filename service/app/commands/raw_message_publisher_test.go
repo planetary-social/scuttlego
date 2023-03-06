@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/planetary-social/scuttlego/internal/fixtures"
-	"github.com/planetary-social/scuttlego/service/adapters/mocks"
+	mocks2 "github.com/planetary-social/scuttlego/internal/mocks"
 	"github.com/planetary-social/scuttlego/service/app/commands"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
@@ -12,13 +12,13 @@ import (
 )
 
 func TestRawMessagePublisher(t *testing.T) {
-	feedRepository := mocks.NewFeedRepositoryMock()
+	feedRepository := mocks2.NewFeedRepositoryMock()
 
 	adapters := commands.Adapters{
 		Feed: feedRepository,
 	}
 
-	transactionProvider := mocks.NewMockCommandsTransactionProvider(adapters)
+	transactionProvider := mocks2.NewMockCommandsTransactionProvider(adapters)
 
 	iden := fixtures.SomePrivateIdentity()
 	content := message.MustNewRawContent(fixtures.SomeBytes())
@@ -30,7 +30,7 @@ func TestRawMessagePublisher(t *testing.T) {
 	ref := refs.MustNewIdentityFromPublic(iden.Public())
 
 	require.Equal(t,
-		[]mocks.FeedRepositoryMockUpdateFeedCall{
+		[]mocks2.FeedRepositoryMockUpdateFeedCall{
 			{
 				Feed: ref.MainFeed(),
 			},

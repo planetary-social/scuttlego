@@ -9,7 +9,7 @@ import (
 
 	"github.com/planetary-social/scuttlego/di"
 	"github.com/planetary-social/scuttlego/internal/fixtures"
-	"github.com/planetary-social/scuttlego/service/adapters/mocks"
+	mocks2 "github.com/planetary-social/scuttlego/internal/mocks"
 	"github.com/planetary-social/scuttlego/service/app/commands"
 	"github.com/planetary-social/scuttlego/service/app/common"
 	"github.com/planetary-social/scuttlego/service/domain/feeds/message"
@@ -57,7 +57,7 @@ func TestMigrationHandlerImportDataFromGoSSB_MessageReturnedFromRepoReaderIsSave
 	)
 
 	require.Equal(t,
-		[]mocks.GoSSBRepoReaderMockGetMessagesCall{
+		[]mocks2.GoSSBRepoReaderMockGetMessagesCall{
 			{
 				Directory:          directory,
 				ResumeFromSequence: &receiveLogSequence,
@@ -68,7 +68,7 @@ func TestMigrationHandlerImportDataFromGoSSB_MessageReturnedFromRepoReaderIsSave
 
 	require.Equal(
 		t,
-		[]mocks.FeedRepositoryMockUpdateFeedIgnoringReceiveLogCall{
+		[]mocks2.FeedRepositoryMockUpdateFeedIgnoringReceiveLogCall{
 			{
 				Feed: refs.MustNewFeed(msg.Author().Sigil()),
 				MessagesToPersist: []refs.Message{
@@ -81,7 +81,7 @@ func TestMigrationHandlerImportDataFromGoSSB_MessageReturnedFromRepoReaderIsSave
 
 	require.Equal(
 		t,
-		[]mocks.ReceiveLogRepositoryPutUnderSpecificSequenceCall{
+		[]mocks2.ReceiveLogRepositoryPutUnderSpecificSequenceCall{
 			{
 				Id:       refs.MustNewMessage(msg.Key().String()),
 				Sequence: msgReceiveLogSequence,
@@ -150,7 +150,7 @@ func TestMigrationHandlerImportDataFromGoSSB_ErrorsWhenAppendingMessagesAreIgnor
 	)
 
 	require.Equal(t,
-		[]mocks.GoSSBRepoReaderMockGetMessagesCall{
+		[]mocks2.GoSSBRepoReaderMockGetMessagesCall{
 			{
 				Directory:          directory,
 				ResumeFromSequence: &receiveLogSequence,
@@ -159,7 +159,7 @@ func TestMigrationHandlerImportDataFromGoSSB_ErrorsWhenAppendingMessagesAreIgnor
 		tc.GoSSBRepoReader.GoSSBRepoReaderMockGetMessagesCalls,
 	)
 
-	expectedUpdateFeedIgnoringReceiveLogCalls := []mocks.FeedRepositoryMockUpdateFeedIgnoringReceiveLogCall{
+	expectedUpdateFeedIgnoringReceiveLogCalls := []mocks2.FeedRepositoryMockUpdateFeedIgnoringReceiveLogCall{
 		{
 			Feed: refs.MustNewFeed(msg1.Author().Sigil()),
 			MessagesToPersist: []refs.Message{
@@ -190,7 +190,7 @@ func TestMigrationHandlerImportDataFromGoSSB_ErrorsWhenAppendingMessagesAreIgnor
 
 	require.Equal(
 		t,
-		[]mocks.ReceiveLogRepositoryPutUnderSpecificSequenceCall{
+		[]mocks2.ReceiveLogRepositoryPutUnderSpecificSequenceCall{
 			{
 				Id:       refs.MustNewMessage(msg1.Key().String()),
 				Sequence: msgReceiveLogSequence1,
@@ -276,7 +276,7 @@ func TestMigrationHandlerImportDataFromGoSSB_ConflictingSequenceNumbersCauseAnEr
 
 				require.Equal(
 					t,
-					[]mocks.FeedRepositoryMockUpdateFeedIgnoringReceiveLogCall{
+					[]mocks2.FeedRepositoryMockUpdateFeedIgnoringReceiveLogCall{
 						{
 							Feed: refs.MustNewFeed(gossbmsg.Author().Sigil()),
 							MessagesToPersist: []refs.Message{
@@ -295,7 +295,7 @@ func TestMigrationHandlerImportDataFromGoSSB_ConflictingSequenceNumbersCauseAnEr
 
 				require.Equal(
 					t,
-					[]mocks.ReceiveLogRepositoryPutUnderSpecificSequenceCall{
+					[]mocks2.ReceiveLogRepositoryPutUnderSpecificSequenceCall{
 						{
 							Id:       refs.MustNewMessage(gossbmsg.Key().String()),
 							Sequence: receiveLogSequence,
@@ -306,7 +306,7 @@ func TestMigrationHandlerImportDataFromGoSSB_ConflictingSequenceNumbersCauseAnEr
 
 				require.Equal(
 					t,
-					[]mocks.FeedRepositoryMockUpdateFeedIgnoringReceiveLogCall{
+					[]mocks2.FeedRepositoryMockUpdateFeedIgnoringReceiveLogCall{
 						{
 							Feed: refs.MustNewFeed(gossbmsg.Author().Sigil()),
 							MessagesToPersist: []refs.Message{
@@ -468,7 +468,7 @@ func TestMigrationHandlerImportDataFromGoSSB_ForksCauseMessagesToBeDropped(t *te
 	)
 
 	require.Equal(t,
-		[]mocks.GoSSBRepoReaderMockGetMessagesCall{
+		[]mocks2.GoSSBRepoReaderMockGetMessagesCall{
 			{
 				Directory:          directory,
 				ResumeFromSequence: nil,
@@ -479,7 +479,7 @@ func TestMigrationHandlerImportDataFromGoSSB_ForksCauseMessagesToBeDropped(t *te
 
 	require.Equal(
 		t,
-		[]mocks.FeedRepositoryMockUpdateFeedIgnoringReceiveLogCall{
+		[]mocks2.FeedRepositoryMockUpdateFeedIgnoringReceiveLogCall{
 			{
 				Feed: feed,
 				MessagesToPersist: []refs.Message{
@@ -492,7 +492,7 @@ func TestMigrationHandlerImportDataFromGoSSB_ForksCauseMessagesToBeDropped(t *te
 
 	require.Equal(
 		t,
-		[]mocks.ReceiveLogRepositoryPutUnderSpecificSequenceCall{
+		[]mocks2.ReceiveLogRepositoryPutUnderSpecificSequenceCall{
 			{
 				Id:       refs.MustNewMessage(msg1.Key().String()),
 				Sequence: msg1ReceiveLogSequence,
@@ -502,7 +502,7 @@ func TestMigrationHandlerImportDataFromGoSSB_ForksCauseMessagesToBeDropped(t *te
 	)
 
 	require.Equal(t,
-		[]mocks.FeedRepositoryMockRemoveMessagesAtOrAboveSequenceCall{
+		[]mocks2.FeedRepositoryMockRemoveMessagesAtOrAboveSequenceCall{
 			{
 				Feed: feed,
 				Seq:  message.MustNewSequence(int(msg2.Seq())),
@@ -578,7 +578,7 @@ func TestMigrationHandlerImportDataFromGoSSB_RepeatedMessagesDoNotCauseMessagesT
 	)
 
 	require.Equal(t,
-		[]mocks.GoSSBRepoReaderMockGetMessagesCall{
+		[]mocks2.GoSSBRepoReaderMockGetMessagesCall{
 			{
 				Directory:          directory,
 				ResumeFromSequence: nil,
@@ -589,7 +589,7 @@ func TestMigrationHandlerImportDataFromGoSSB_RepeatedMessagesDoNotCauseMessagesT
 
 	require.Equal(
 		t,
-		[]mocks.FeedRepositoryMockUpdateFeedIgnoringReceiveLogCall{
+		[]mocks2.FeedRepositoryMockUpdateFeedIgnoringReceiveLogCall{
 			{
 				Feed: feed,
 				MessagesToPersist: []refs.Message{
@@ -602,7 +602,7 @@ func TestMigrationHandlerImportDataFromGoSSB_RepeatedMessagesDoNotCauseMessagesT
 
 	require.Equal(
 		t,
-		[]mocks.ReceiveLogRepositoryPutUnderSpecificSequenceCall{
+		[]mocks2.ReceiveLogRepositoryPutUnderSpecificSequenceCall{
 			{
 				Id:       refs.MustNewMessage(msg.Key().String()),
 				Sequence: msg1ReceiveLogSequence,
@@ -616,7 +616,7 @@ func TestMigrationHandlerImportDataFromGoSSB_RepeatedMessagesDoNotCauseMessagesT
 	)
 
 	require.Equal(t,
-		[]mocks.FeedRepositoryMockRemoveMessagesAtOrAboveSequenceCall(nil),
+		[]mocks2.FeedRepositoryMockRemoveMessagesAtOrAboveSequenceCall(nil),
 		tc.FeedRepository.RemoveMessagesAtOrAboveSequenceCalls)
 }
 
@@ -684,7 +684,7 @@ func TestMigrationHandlerImportDataFromGoSSB_MessagesThatCauseErrorsAreIncludedI
 
 	require.Equal(
 		t,
-		[]mocks.ReceiveLogRepositoryPutUnderSpecificSequenceCall{
+		[]mocks2.ReceiveLogRepositoryPutUnderSpecificSequenceCall{
 			{
 				Id:       refs.MustNewMessage(msg1.Key().String()),
 				Sequence: msg1ReceiveLogSequence,
@@ -695,7 +695,7 @@ func TestMigrationHandlerImportDataFromGoSSB_MessagesThatCauseErrorsAreIncludedI
 
 	require.Equal(
 		t,
-		[]mocks.ReceiveLogRepositoryReserveSequencesUpToCall{
+		[]mocks2.ReceiveLogRepositoryReserveSequencesUpToCall{
 			{
 				Sequence: msg2ReceiveLogSequence,
 			},

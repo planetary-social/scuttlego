@@ -5,8 +5,8 @@ import (
 
 	"github.com/planetary-social/scuttlego/di"
 	"github.com/planetary-social/scuttlego/internal/fixtures"
+	mocks2 "github.com/planetary-social/scuttlego/internal/mocks"
 	"github.com/planetary-social/scuttlego/service/app/commands"
-	"github.com/planetary-social/scuttlego/service/domain/mocks"
 	"github.com/planetary-social/scuttlego/service/domain/rooms"
 	"github.com/planetary-social/scuttlego/service/domain/transport"
 	"github.com/stretchr/testify/require"
@@ -14,7 +14,7 @@ import (
 
 func TestNewProcessRoomAttendantEvent_ValuesAreCorrectlySetAndReturnedByGetters(t *testing.T) {
 	ctx := fixtures.TestContext(t)
-	conn := mocks.NewConnectionMock(ctx)
+	conn := mocks2.NewConnectionMock(ctx)
 
 	portal, err := transport.NewPeer(fixtures.SomePublicIdentity(), conn)
 	require.NoError(t, err)
@@ -64,7 +64,7 @@ func TestProcessRoomAttendantEventHandler_CallsPeerManagerConnectViaRoomForSpeci
 			require.NoError(t, err)
 
 			ctx := fixtures.TestContext(t)
-			conn := mocks.NewConnectionMock(ctx)
+			conn := mocks2.NewConnectionMock(ctx)
 
 			portal, err := transport.NewPeer(fixtures.SomePublicIdentity(), conn)
 			require.NoError(t, err)
@@ -82,7 +82,7 @@ func TestProcessRoomAttendantEventHandler_CallsPeerManagerConnectViaRoomForSpeci
 
 			if testCase.ShouldCallConnectViaRoom {
 				require.Equal(t,
-					[]mocks.PeerManagerConnectViaRoomCall{
+					[]mocks2.PeerManagerConnectViaRoomCall{
 						{
 							Portal: portal,
 							Target: target.Identity(),

@@ -7,12 +7,11 @@ import (
 	"time"
 
 	"github.com/planetary-social/scuttlego/internal/fixtures"
+	mocks2 "github.com/planetary-social/scuttlego/internal/mocks"
 	"github.com/planetary-social/scuttlego/logging"
-	"github.com/planetary-social/scuttlego/service/adapters/mocks"
 	"github.com/planetary-social/scuttlego/service/app/queries"
 	"github.com/planetary-social/scuttlego/service/domain/blobs"
 	"github.com/planetary-social/scuttlego/service/domain/blobs/replication"
-	domainMocks "github.com/planetary-social/scuttlego/service/domain/mocks"
 	"github.com/planetary-social/scuttlego/service/domain/refs"
 	"github.com/planetary-social/scuttlego/service/domain/transport"
 	"github.com/stretchr/testify/assert"
@@ -72,7 +71,7 @@ func TestHasHandlerTriggersDownloader(t *testing.T) {
 			h := newTestHasHandler()
 
 			ctx := fixtures.TestContext(t)
-			peer := transport.MustNewPeer(fixtures.SomePublicIdentity(), domainMocks.NewConnectionMock(ctx))
+			peer := transport.MustNewPeer(fixtures.SomePublicIdentity(), mocks2.NewConnectionMock(ctx))
 			blob := fixtures.SomeRefBlob()
 
 			if testCase.InWantList {
@@ -134,7 +133,7 @@ func TestHasHandlerRemovesElementFromWantListIfItIsAlreadyInStorage(t *testing.T
 	h := newTestHasHandler()
 
 	ctx := fixtures.TestContext(t)
-	peer := transport.MustNewPeer(fixtures.SomePublicIdentity(), domainMocks.NewConnectionMock(ctx))
+	peer := transport.MustNewPeer(fixtures.SomePublicIdentity(), mocks2.NewConnectionMock(ctx))
 	blob := fixtures.SomeRefBlob()
 
 	h.WantList.AddBlob(blob)
@@ -149,15 +148,15 @@ func TestHasHandlerRemovesElementFromWantListIfItIsAlreadyInStorage(t *testing.T
 
 type testHasHandler struct {
 	HasHandler *replication.HasHandler
-	WantList   *mocks.BlobWantListRepositoryMock
+	WantList   *mocks2.BlobWantListRepositoryMock
 	Downloader *downloaderMock
-	Storage    *mocks.BlobStorageMock
+	Storage    *mocks2.BlobStorageMock
 	Publisher  *publisherMock
 }
 
 func newTestHasHandler() testHasHandler {
-	storage := mocks.NewBlobStorageMock()
-	wantList := mocks.NewBlobWantListRepositoryMock()
+	storage := mocks2.NewBlobStorageMock()
+	wantList := mocks2.NewBlobWantListRepositoryMock()
 	downloader := newDownloaderMock()
 	publisher := newPublisherMock()
 

@@ -3,10 +3,10 @@ package di
 import (
 	"github.com/dgraph-io/badger/v3"
 	"github.com/google/wire"
+	mocks2 "github.com/planetary-social/scuttlego/internal/mocks"
 	"github.com/planetary-social/scuttlego/logging"
 	badgeradapters "github.com/planetary-social/scuttlego/service/adapters/badger"
 	"github.com/planetary-social/scuttlego/service/adapters/badger/notx"
-	"github.com/planetary-social/scuttlego/service/adapters/mocks"
 	"github.com/planetary-social/scuttlego/service/app/commands"
 	"github.com/planetary-social/scuttlego/service/app/queries"
 	blobReplication "github.com/planetary-social/scuttlego/service/domain/blobs/replication"
@@ -20,9 +20,9 @@ var badgerUnpackTestDependenciesSet = wire.NewSet(
 		"RawMessageIdentifier",
 		"LocalIdentity",
 	),
-	wire.Bind(new(badgeradapters.BanListHasher), new(*mocks.BanListHasherMock)),
-	wire.Bind(new(commands.CurrentTimeProvider), new(*mocks.CurrentTimeProviderMock)),
-	wire.Bind(new(badgeradapters.RawMessageIdentifier), new(*mocks.RawMessageIdentifierMock)),
+	wire.Bind(new(badgeradapters.BanListHasher), new(*mocks2.BanListHasherMock)),
+	wire.Bind(new(commands.CurrentTimeProvider), new(*mocks2.CurrentTimeProviderMock)),
+	wire.Bind(new(badgeradapters.RawMessageIdentifier), new(*mocks2.RawMessageIdentifierMock)),
 )
 
 var badgerAdaptersSet = wire.NewSet(
@@ -74,9 +74,9 @@ var badgerRepositoriesSet = wire.NewSet(
 
 var badgerTestAdaptersDependenciesSet = wire.NewSet(
 	wire.Struct(new(badgeradapters.TestAdaptersDependencies), "*"),
-	mocks.NewBanListHasherMock,
-	mocks.NewCurrentTimeProviderMock,
-	mocks.NewRawMessageIdentifierMock,
+	mocks2.NewBanListHasherMock,
+	mocks2.NewCurrentTimeProviderMock,
+	mocks2.NewRawMessageIdentifierMock,
 )
 
 var badgerNoTxTestTransactionProviderSet = wire.NewSet(

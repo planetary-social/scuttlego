@@ -4,13 +4,13 @@ import (
 	"path"
 
 	"github.com/google/wire"
+	mocks2 "github.com/planetary-social/scuttlego/internal/mocks"
 	"github.com/planetary-social/scuttlego/logging"
 	"github.com/planetary-social/scuttlego/service/adapters"
 	"github.com/planetary-social/scuttlego/service/adapters/badger"
 	"github.com/planetary-social/scuttlego/service/adapters/blobs"
 	ebtadapters "github.com/planetary-social/scuttlego/service/adapters/ebt"
 	invitesadapters "github.com/planetary-social/scuttlego/service/adapters/invites"
-	"github.com/planetary-social/scuttlego/service/adapters/mocks"
 	"github.com/planetary-social/scuttlego/service/app/commands"
 	"github.com/planetary-social/scuttlego/service/app/queries"
 	blobreplication "github.com/planetary-social/scuttlego/service/domain/blobs/replication"
@@ -20,23 +20,23 @@ import (
 )
 
 var mockQueryAdaptersSet = wire.NewSet(
-	mocks.NewFeedRepositoryMock,
-	wire.Bind(new(queries.FeedRepository), new(*mocks.FeedRepositoryMock)),
+	mocks2.NewFeedRepositoryMock,
+	wire.Bind(new(queries.FeedRepository), new(*mocks2.FeedRepositoryMock)),
 
-	mocks.NewReceiveLogRepositoryMock,
-	wire.Bind(new(queries.ReceiveLogRepository), new(*mocks.ReceiveLogRepositoryMock)),
+	mocks2.NewReceiveLogRepositoryMock,
+	wire.Bind(new(queries.ReceiveLogRepository), new(*mocks2.ReceiveLogRepositoryMock)),
 
-	mocks.NewMessageRepositoryMock,
-	wire.Bind(new(queries.MessageRepository), new(*mocks.MessageRepositoryMock)),
+	mocks2.NewMessageRepositoryMock,
+	wire.Bind(new(queries.MessageRepository), new(*mocks2.MessageRepositoryMock)),
 
-	mocks.NewSocialGraphRepositoryMock,
-	wire.Bind(new(queries.SocialGraphRepository), new(*mocks.SocialGraphRepositoryMock)),
+	mocks2.NewSocialGraphRepositoryMock,
+	wire.Bind(new(queries.SocialGraphRepository), new(*mocks2.SocialGraphRepositoryMock)),
 
-	mocks.NewFeedWantListRepositoryMock,
-	wire.Bind(new(queries.FeedWantListRepository), new(*mocks.FeedWantListRepositoryMock)),
+	mocks2.NewFeedWantListRepositoryMock,
+	wire.Bind(new(queries.FeedWantListRepository), new(*mocks2.FeedWantListRepositoryMock)),
 
-	mocks.NewBanListRepositoryMock,
-	wire.Bind(new(queries.BanListRepository), new(*mocks.BanListRepositoryMock)),
+	mocks2.NewBanListRepositoryMock,
+	wire.Bind(new(queries.BanListRepository), new(*mocks2.BanListRepositoryMock)),
 )
 
 var blobsAdaptersSet = wire.NewSet(

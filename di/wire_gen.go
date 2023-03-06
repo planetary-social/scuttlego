@@ -13,6 +13,7 @@ import (
 	"github.com/boreq/errors"
 	badger2 "github.com/dgraph-io/badger/v3"
 	"github.com/planetary-social/scuttlego/internal/fixtures"
+	"github.com/planetary-social/scuttlego/internal/mocks"
 	"github.com/planetary-social/scuttlego/logging"
 	migrations2 "github.com/planetary-social/scuttlego/migrations"
 	"github.com/planetary-social/scuttlego/service/adapters"
@@ -21,7 +22,6 @@ import (
 	ebt2 "github.com/planetary-social/scuttlego/service/adapters/ebt"
 	"github.com/planetary-social/scuttlego/service/adapters/invites"
 	"github.com/planetary-social/scuttlego/service/adapters/migrations"
-	"github.com/planetary-social/scuttlego/service/adapters/mocks"
 	"github.com/planetary-social/scuttlego/service/adapters/pubsub"
 	"github.com/planetary-social/scuttlego/service/app"
 	"github.com/planetary-social/scuttlego/service/app/commands"
@@ -34,7 +34,6 @@ import (
 	"github.com/planetary-social/scuttlego/service/domain/feeds/formats"
 	"github.com/planetary-social/scuttlego/service/domain/identity"
 	invites2 "github.com/planetary-social/scuttlego/service/domain/invites"
-	mocks2 "github.com/planetary-social/scuttlego/service/domain/mocks"
 	"github.com/planetary-social/scuttlego/service/domain/network"
 	"github.com/planetary-social/scuttlego/service/domain/network/local"
 	replication2 "github.com/planetary-social/scuttlego/service/domain/replication"
@@ -239,7 +238,7 @@ func BuildTestCommands(tb testing.TB) (TestCommands, error) {
 	}
 	roomsAliasRegisterHandler := commands.NewRoomsAliasRegisterHandler(dialerMock, private)
 	roomsAliasRevokeHandler := commands.NewRoomsAliasRevokeHandler(dialerMock)
-	peerManagerMock := mocks2.NewPeerManagerMock()
+	peerManagerMock := mocks.NewPeerManagerMock()
 	processRoomAttendantEventHandler := commands.NewProcessRoomAttendantEventHandler(peerManagerMock)
 	disconnectAllHandler := commands.NewDisconnectAllHandler(peerManagerMock)
 	feedWantListRepositoryMock := mocks.NewFeedWantListRepositoryMock()
@@ -315,7 +314,7 @@ func BuildTestQueries(tb testing.TB) (TestQueries, error) {
 	if err != nil {
 		return TestQueries{}, err
 	}
-	peerManagerMock := mocks2.NewPeerManagerMock()
+	peerManagerMock := mocks.NewPeerManagerMock()
 	statusHandler := queries.NewStatusHandler(mockQueriesTransactionProvider, peerManagerMock)
 	blobStorageMock := mocks.NewBlobStorageMock()
 	getBlobHandler, err := queries.NewGetBlobHandler(blobStorageMock)
@@ -895,7 +894,7 @@ type TestCommands struct {
 
 	MigrationImportDataFromGoSSB *commands.MigrationHandlerImportDataFromGoSSB
 
-	PeerManager            *mocks2.PeerManagerMock
+	PeerManager            *mocks.PeerManagerMock
 	Dialer                 *mocks.DialerMock
 	FeedWantListRepository *mocks.FeedWantListRepositoryMock
 	CurrentTimeProvider    *mocks.CurrentTimeProviderMock
@@ -919,7 +918,7 @@ type TestQueries struct {
 	FeedWantListRepository *mocks.FeedWantListRepositoryMock
 	BanListRepository      *mocks.BanListRepositoryMock
 	MessagePubSub          *mocks.MessagePubSubMock
-	PeerManager            *mocks2.PeerManagerMock
+	PeerManager            *mocks.PeerManagerMock
 	BlobStorage            *mocks.BlobStorageMock
 	Dialer                 *mocks.DialerMock
 

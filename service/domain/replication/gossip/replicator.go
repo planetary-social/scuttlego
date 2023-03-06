@@ -18,6 +18,10 @@ const (
 	// the number of feeds that are concurrently replicated per peer.
 	numWorkers = 10
 
+	// How many tasks will be executed at the same time for a peer in
+	// self-replication mode.
+	numWorkersSelf = 1
+
 	// How many messages to ask for whenever a replication task is received. The
 	// number shouldn't be too large so that the tasks are not very long-lived
 	// and not to small to reduce the overhead related to sending new RPC
@@ -41,7 +45,7 @@ func NewGossipReplicator(manager ReplicationManager, handler replication.RawMess
 
 func (r GossipReplicator) Replicate(ctx context.Context, peer transport.Peer) error {
 	feedsToReplicateCh := r.manager.GetFeedsToReplicate(ctx, peer.Identity())
-	r.startWorkers(ctx, peer, feedsToReplicateCh)
+	r.startWorkers(ctx, peer, feedsToReplicateCh, numWorkers)
 	<-ctx.Done()
 
 	return nil
@@ -49,14 +53,14 @@ func (r GossipReplicator) Replicate(ctx context.Context, peer transport.Peer) er
 
 func (r GossipReplicator) ReplicateSelf(ctx context.Context, peer transport.Peer) error {
 	feedsToReplicateCh := r.manager.GetFeedsToReplicateSelf(ctx, peer.Identity())
-	r.startWorkers(ctx, peer, feedsToReplicateCh)
+	r.startWorkers(ctx, peer, feedsToReplicateCh, numWorkersSelf)
 	<-ctx.Done()
 
 	return nil
 }
 
-func (r GossipReplicator) startWorkers(ctx context.Context, peer transport.Peer, ch <-chan ReplicateFeedTask) {
-	for i := 0; i < numWorkers; i++ {
+func (r GossipReplicator) startWorkers(ctx context.Context, peer transport.Peer, ch <-chan ReplicateFeedTask, n int) {
+	for i := 0; i < n; i++ {
 		go r.worker(ctx, peer, ch)
 	}
 }

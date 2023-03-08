@@ -14,7 +14,7 @@ require (
 	github.com/ssbc/go-luigi v0.3.7-0.20230119190114-bd28e676fa99
 	github.com/ssbc/go-netwrap v0.1.5-0.20221019160355-cd323bb2e29d
 	github.com/ssbc/go-secretstream v1.2.11-0.20221111164233-4b41f899f844
-	github.com/ssbc/go-ssb v0.2.2-0.20230212123438-2cdd828cd8c8
+	github.com/ssbc/go-ssb v0.2.2-0.20230308230318-d6db27d1852d
 	github.com/ssbc/go-ssb-refs v0.5.2
 	github.com/ssbc/margaret v0.4.4-0.20230125145533-1439efe21dc4
 	github.com/stretchr/testify v1.8.1

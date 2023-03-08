@@ -214,8 +214,8 @@ github.com/ssbc/go-netwrap v0.1.5-0.20221019160355-cd323bb2e29d/go.mod h1:tsE1qe
 github.com/ssbc/go-secretstream v1.2.11-0.20221019175226-fa042d4912fe/go.mod h1:imXhXNa5OfEL+qrGtOs6NZ9zJe6L3P+ZwFVC2mIgH0E=
 github.com/ssbc/go-secretstream v1.2.11-0.20221111164233-4b41f899f844 h1:r1uKQOpTliDf9BCMbRfCeynZ87Y+XMs/DBZqZzB596Y=
 github.com/ssbc/go-secretstream v1.2.11-0.20221111164233-4b41f899f844/go.mod h1:imXhXNa5OfEL+qrGtOs6NZ9zJe6L3P+ZwFVC2mIgH0E=
-github.com/ssbc/go-ssb v0.2.2-0.20230212123438-2cdd828cd8c8 h1:p1Nwim4mUOrsY/iXlu2m/Ctk0p6GjHJNg4WUqIygEjY=
-github.com/ssbc/go-ssb v0.2.2-0.20230212123438-2cdd828cd8c8/go.mod h1:kBucAtyavzNPi81r37zkYSa569sOvvO2nwvzMUexG3w=
+github.com/ssbc/go-ssb v0.2.2-0.20230308230318-d6db27d1852d h1:3jzEBxJe5nqHhaIlM984T52YPsRwbNrwuXpkQsllAtQ=
+github.com/ssbc/go-ssb v0.2.2-0.20230308230318-d6db27d1852d/go.mod h1:tKx4OFBqFpNCxYUZagBnfqVfLhYtzUM1vJVR3tUkLnw=
 github.com/ssbc/go-ssb-multiserver v0.1.5-0.20221019203850-917ae0e23d57 h1:wfIu3HcI8HGLSbJFo35eKMjFBMhHhXJsYGTAOVhpNkQ=
 github.com/ssbc/go-ssb-multiserver v0.1.5-0.20221019203850-917ae0e23d57/go.mod h1:LMJaMYVJxtYKTj8A0t8+iM+K2/SuYSvp14urj9sHLa8=
 github.com/ssbc/go-ssb-refs v0.5.2-0.20221017100922-8e95413c6580/go.mod h1:rUj40X7iiUWFt62aF4NVm3uNnKiPZ9Uo/ds4D4ZE980=

@@ -20,12 +20,20 @@
 
 ### Fixed 
 
-- Improved performance by using "github.com/json-iterator/go" instead of
-  "encoding/json".
+- ...
 
 ### Security 
 
 - ...
+
+## [v0.0.4]
+
+### Fixed 
+
+- Improved overall performance by using "github.com/json-iterator/go" instead
+  of "encoding/json".
+- Updated go-ssb to the latest version which should improve message validation
+  performance.
 
 ## [v0.0.3]
 
@@ -59,7 +67,8 @@
 
 - This CHANGELOG file.
 
-[unreleased]: https://github.com/planetary-social/scuttlego/compare/v0.0.3...HEAD
+[unreleased]: https://github.com/planetary-social/scuttlego/compare/v0.0.4...HEAD
+[v0.0.4]: https://github.com/planetary-social/scuttlego/releases/tag/v0.0.4
 [v0.0.3]: https://github.com/planetary-social/scuttlego/releases/tag/v0.0.3
 [v0.0.2]: https://github.com/planetary-social/scuttlego/releases/tag/v0.0.2
 [v0.0.1]: https://github.com/planetary-social/scuttlego/releases/tag/v0.0.1
